@@ -91,10 +91,15 @@ impl Sim {
     }
 
     /// Apply moves up to (not including) index `upto`; moving backwards restarts from the top.
-    pub fn advance(&mut self, moves: &[Move], upto: usize) {
+    pub fn advance(&mut self, moves: &[Move], upto: usize) { self.advance_for(moves, upto, None); }
+
+    /// Like `advance`, but gives up after `budget` so a window can keep answering; returns true once `upto` is reached.
+    pub fn advance_for(&mut self, moves: &[Move], upto: usize, budget: Option<std::time::Duration>) -> bool {
         let upto = upto.min(moves.len());
         if upto < self.done { self.reset(); }
+        let start = std::time::Instant::now();
         while self.done < upto {
+            if let Some(b) = budget { if start.elapsed() >= b { return false; } }
             let m = &moves[self.done];
             if m.cut {
                 let d = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt();
@@ -111,6 +116,7 @@ impl Sim {
             self.done += 1;
         }
         if upto == 0 { self.tip = [0.0, 0.0, 10.0]; }
+        true
     }
 
     pub fn at(&self, ix: usize, iy: usize) -> f32 { self.z[iy * self.nx + ix] }

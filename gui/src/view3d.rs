@@ -36,6 +36,9 @@ pub struct State {
     pub init_frac: Option<f64>,
     pub gen: u64,
     pub uploaded: Option<(u64, usize)>,
+    /// The simulation is still replaying the moves up to the play position.
+    pub catching_up: bool,
+    pub last_upload: Option<std::time::Instant>,
     pub glres: std::sync::Arc<std::sync::Mutex<GlRes>>,
     pub pending: std::sync::Arc<std::sync::Mutex<Option<(usize, usize, Vec<f32>)>>>,
 }
@@ -43,7 +46,7 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], framed: false, cum: vec![], total: 0.0, t: 0.0,
-            playing: false, speed_idx: 3, init_frac: None, gen: 0, uploaded: None, glres: Default::default(), pending: Default::default() }
+            playing: false, speed_idx: 3, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
 
@@ -99,7 +102,11 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         ctx.request_repaint();
     }
     let idx = st.cum.partition_point(|&c| c <= st.t + 1e-12);
-    if let Some(sim) = st.sim.as_mut() { sim.advance(moves, idx); }
+    // the simulation catches up in slices, so the window keeps answering while a long program is replayed
+    if let Some(sim) = st.sim.as_mut() {
+        st.catching_up = !sim.advance_for(moves, idx, Some(std::time::Duration::from_millis(10)));
+        if st.catching_up { ctx.request_repaint(); }
+    }
 }
 
 fn frame(st: &mut State, stock: &putiacnc_core::model::Stock) {
@@ -218,9 +225,12 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let cell = sim.cell as f32;
     // hand the new heights to the GPU only when the simulation changed
     let stamp = (app.v3.gen, sim.done);
-    if app.v3.uploaded != Some(stamp) {
+    // while catching up the copy for the GPU is made a few times a second only
+    let due = !app.v3.catching_up || app.v3.last_upload.map_or(true, |t| t.elapsed().as_millis() > 150);
+    if app.v3.uploaded != Some(stamp) && due {
         *app.v3.pending.lock().unwrap() = Some((sim.nx, sim.ny, sim.z.clone()));
         app.v3.uploaded = Some(stamp);
+        app.v3.last_upload = Some(std::time::Instant::now());
     }
     let col = |c: Color32| [c.r() as f32 / 255.0, c.g() as f32 / 255.0, c.b() as f32 / 255.0];
     let u = Uniforms {
@@ -291,6 +301,17 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
     }
 
+    if app.v3.catching_up {
+        let total = app.output.as_ref().map_or(1, |o| o.moves.len()).max(1);
+        let pct = (app.v3.sim.as_ref().map_or(0, |s| s.done) * 100 / total).min(99);
+        let r = Rect::from_center_size(rect.center(), Vec2::new(240.0, 44.0));
+        painter.rect_filled(r, 8.0, Color32::from_black_alpha(170));
+        let c = r.left_center() + Vec2::new(26.0, 0.0);
+        let a = ui.input(|i| i.time) as f32 * 6.0;
+        let pts: Vec<Pos2> = (0..=18).map(|k| { let t = a + k as f32 * 0.2; c + Vec2::new(t.cos(), t.sin()) * 9.0 }).collect();
+        painter.add(Shape::line(pts, Stroke::new(2.5_f32, Color32::WHITE)));
+        painter.text(c + Vec2::new(24.0, 0.0), egui::Align2::LEFT_CENTER, format!("Preparing 3D preview... {pct}%"), FontId::proportional(13.0), Color32::WHITE);
+    }
     if let Some(e) = &app.gen_error {
         painter.text(rect.left_top() + Vec2::new(12.0, 10.0), egui::Align2::LEFT_TOP, e, FontId::proportional(13.0), Color32::from_rgb(0xe0, 0x1b, 0x24));
     } else if app.output.as_ref().map_or(true, |o| o.moves.is_empty()) {
