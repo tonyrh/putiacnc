@@ -17,7 +17,8 @@ Features:
 - 2D design canvas: rectangles, ellipses, lines and polygons, SVG import, select / move / resize,
   snapping, undo and redo, align to the stock and to each other, distribute. The node tool (N, or double-click a
   shape) edits its points: drag, add, delete and simplify. Edit → Offset grows or shrinks
-  the selected shapes by a distance (inlays, clearances). The text tool (T) turns typed text, in any font
+  the selected shapes by a distance (inlays, clearances); Edit → Combine shapes does union, subtract, intersect
+  and exclude. The text tool (T) turns typed text, in any font
   installed on the computer, into outlines you can profile or pocket.
 - Operations: profile (outside, inside, on the line), pocket and V-carve, each with its own tool,
   depth, pass depth (defaults to the tool's value), cut direction, ramp-in, air cut and holding tabs

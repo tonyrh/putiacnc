@@ -9,7 +9,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let mut apply = false;
     let mut close = false;
     egui::Window::new("Offset").open(&mut open).collapsible(false).resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).fixed_size([320.0, 0.0]).show(ctx, |ui| {
+        .default_pos([650.0, 300.0]).fixed_size([320.0, 0.0]).show(ctx, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
         egui::Grid::new("offset_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {

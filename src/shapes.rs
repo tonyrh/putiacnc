@@ -337,6 +337,37 @@ pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
     }).collect()
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BoolOp { Union, Subtract, Intersect, Exclude }
+
+/// Combines closed shapes (in drawing order) into new ones: the union of all of them, the first one with the others cut
+/// out (`swap` makes the last one the base instead), the part they all share, or the parts that belong to only one.
+/// The result takes the operation of the base shape. Holes come out as shapes inside the outline.
+/// Open shapes are ignored; fewer than two closed shapes give nothing.
+pub fn combine(shapes: &[&LoopData], op: BoolOp, swap: bool) -> Vec<LoopData> {
+    use crate::clip::{boolean, simplify_even_odd, BoolKind};
+    let mut list: Vec<&LoopData> = shapes.iter().copied().filter(|l| l.closed() && l.pts.len() / 2 >= 3).collect();
+    if list.len() < 2 { return vec![]; }
+    if swap { list.reverse(); }
+    let regions: Vec<Vec<crate::clip::Path>> = list.iter().map(|l| simplify_even_odd(&[l.path()])).collect();
+    let fold = |kind: BoolKind, rs: &[Vec<crate::clip::Path>]| -> Vec<crate::clip::Path> {
+        let mut acc = rs[0].clone();
+        for r in &rs[1..] { acc = boolean(kind, &acc, r); }
+        acc
+    };
+    let out = match op {
+        BoolOp::Union => fold(BoolKind::Union, &regions),
+        BoolOp::Intersect => fold(BoolKind::Intersect, &regions),
+        BoolOp::Exclude => fold(BoolKind::Xor, &regions),
+        BoolOp::Subtract => {
+            let cutters = fold(BoolKind::Union, &regions[1..]);
+            boolean(BoolKind::Difference, &regions[0], &cutters)
+        }
+    };
+    let opid = list[0].op;
+    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
+}
+
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
 pub fn tab_anchor(loops: &[LoopData], li: usize, p: [f64; 2]) -> Option<TabPt> {
     let b = bbox(loops.get(li)?)?;
@@ -576,6 +607,47 @@ mod point_tests {
         let (before, after) = simplify(&mut l, 0.05);
         assert!(after < before && after >= 8, "{before} -> {after}");
         for p in points(&l) { assert!(((p[0] * p[0] + p[1] * p[1]).sqrt() - 20.0).abs() < 0.05); }
+    }
+}
+
+#[cfg(test)]
+mod combine_tests {
+    use super::*;
+    use crate::clip;
+    fn rect(x0: f64, y0: f64, x1: f64, y1: f64, op: i64) -> LoopData { new_rect([x0, y0], [x1, y1], 0.0, op) }
+    fn net_area(v: &[LoopData]) -> f64 { v.iter().map(|l| clip::area(&l.path())).sum::<f64>().abs() / (S * S) }
+    #[test]
+    fn two_overlapping_squares() {
+        let (a, b) = (rect(0.0, 0.0, 10.0, 10.0, 3), rect(5.0, 0.0, 15.0, 10.0, 4));
+        let l = [&a, &b];
+        let u = combine(&l, BoolOp::Union, false);
+        assert_eq!(u.len(), 1);
+        assert!((net_area(&u) - 150.0).abs() < 0.01);
+        assert_eq!(u[0].op, 3);
+        assert!((net_area(&combine(&l, BoolOp::Intersect, false)) - 50.0).abs() < 0.01);
+        let s = combine(&l, BoolOp::Subtract, false);
+        assert!((net_area(&s) - 50.0).abs() < 0.01 && shapes_bbox(&s)[2] < 5.01);
+        let sw = combine(&l, BoolOp::Subtract, true);
+        assert!((net_area(&sw) - 50.0).abs() < 0.01 && shapes_bbox(&sw)[0] > 9.99);
+        assert_eq!(sw[0].op, 4, "the result belongs to the base shape's operation");
+        let x = combine(&l, BoolOp::Exclude, false);
+        assert_eq!(x.len(), 2);
+        assert!((x.iter().map(|l| clip::area(&l.path()).abs()).sum::<f64>() / (S * S) - 100.0).abs() < 0.01);
+    }
+    fn shapes_bbox(v: &[LoopData]) -> [f64; 4] { bbox_many(v.iter()).unwrap() }
+    #[test]
+    fn a_hole_stays_a_hole_and_separate_shapes_give_nothing() {
+        let (a, b) = (rect(0.0, 0.0, 10.0, 10.0, 1), rect(3.0, 3.0, 6.0, 6.0, 1));
+        let s = combine(&[&a, &b], BoolOp::Subtract, false);
+        assert_eq!(s.len(), 2, "outline and hole");
+        assert!((net_area(&s) - 91.0).abs() < 0.01);
+        let far = rect(50.0, 50.0, 60.0, 60.0, 1);
+        assert!(combine(&[&a, &far], BoolOp::Intersect, false).is_empty());
+        assert_eq!(combine(&[&a, &far], BoolOp::Union, false).len(), 2);
+        assert!(combine(&[&a], BoolOp::Union, false).is_empty());
+        // three shapes: the base minus two cutters
+        let (c1, c2) = (rect(0.0, 0.0, 4.0, 10.0, 1), rect(6.0, 0.0, 10.0, 10.0, 1));
+        assert!((net_area(&combine(&[&a, &c1, &c2], BoolOp::Subtract, false)) - 20.0).abs() < 0.01);
     }
 }
 

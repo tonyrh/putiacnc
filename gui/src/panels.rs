@@ -102,6 +102,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Delete", "Del", !app.sel.is_empty()) { app.delete_selection(); }
             ui.separator();
             if item(ui, "Offset...", "", !app.sel.is_empty()) { app.offset_open = true; }
+            if item(ui, "Combine shapes...", "", app.sel.len() >= 2) { app.combine_open = true; }
         });
         ui.menu_button("View", |ui| {
             ui.style_mut().wrap = Some(false);

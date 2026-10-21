@@ -3,6 +3,7 @@
 //! PutiaCNC desktop GUI: 2D editor, operations, G-code and time estimate.
 mod app;
 mod canvas;
+mod combine;
 mod csd;
 mod icons;
 mod machmgr;
@@ -113,6 +114,7 @@ impl eframe::App for App {
         self.updater.poll(ctx);
         update::window(ctx, self);
         offset::dialog(ctx, self);
+        combine::dialog(ctx, self);
         text::dialog(ctx, self);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }

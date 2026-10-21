@@ -102,6 +102,11 @@ pub struct App {
     pub offset_inward: bool,
     pub offset_keep: bool,
     pub text: crate::text::TextTool,
+    /// Combine dialog: open, how, whether the originals stay and whether the last shape is the base.
+    pub combine_open: bool,
+    pub combine_op: shapes::BoolOp,
+    pub combine_keep: bool,
+    pub combine_swap: bool,
     pub mode: Mode,
     pub hist: History,
     pub modified: bool,
@@ -160,7 +165,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
@@ -188,6 +193,7 @@ impl App {
             else { a.path = p.clone(); a.open(&p); }
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
+        if std::env::var_os("PUTIACNC_SHOW_COMBINE").is_some() { a.combine_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if let Ok(s) = std::env::var("PUTIACNC_SHOW_TEXT") {
             a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");
@@ -475,6 +481,26 @@ impl App {
         if notes.is_empty() { None } else { Some(notes.join("; ") + ".") }
     }
 
+    /// Replaces the selected closed shapes by their union, difference, intersection or exclusion.
+    /// Returns a message when nothing could be done or something was left out.
+    pub fn combine_selection(&mut self, op: shapes::BoolOp, keep: bool, swap: bool) -> Option<String> {
+        let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).map_or(false, |l| l.closed())).collect();
+        let open = self.sel.len() - idx.len();
+        if idx.len() < 2 { return Some("Select at least two closed shapes.".into()); }
+        let result = { let refs: Vec<&putiacnc_core::model::LoopData> = idx.iter().map(|&i| &self.project.data.loops[i]).collect(); shapes::combine(&refs, op, swap) };
+        if result.is_empty() { return Some("Nothing is left: the shapes do not overlap that way.".into()); }
+        self.hist.record(&self.project.data);
+        if !keep {
+            for &i in idx.iter().rev() { self.project.data.loops.remove(i); }
+            shapes::tabs_after_delete(&mut self.project.data.ops, &idx);
+        }
+        let start = self.project.data.loops.len();
+        self.project.data.loops.extend(result);
+        self.sel = (start..self.project.data.loops.len()).collect();
+        self.touch();
+        if open > 0 { Some(format!("{open} open shape{} left out.", if open == 1 { " was" } else { "s were" })) } else { None }
+    }
+
     pub fn nudge(&mut self, dx: f64, dy: f64) {
         if self.sel.is_empty() { return; }
         self.hist.record(&self.project.data);
@@ -545,5 +571,36 @@ mod offset_tests {
         let b = shapes::bbox(&a.project.data.loops[0]).unwrap();
         assert!((b[0] - 1.0).abs() < 0.02 && (b[2] - 19.0).abs() < 0.02);
         assert_eq!(a.sel.iter().copied().collect::<Vec<_>>(), vec![0]);
+    }
+}
+
+#[cfg(test)]
+mod combine_app_tests {
+    use super::*;
+
+    #[test]
+    fn combining_replaces_the_selection_undoes_and_remaps_tabs() {
+        let mut a = App::new(None);
+        a.project.data.loops.clear();
+        a.project.data.loops.push(shapes::new_rect([0.0, 0.0], [10.0, 10.0], 0.0, 1));
+        a.project.data.loops.push(shapes::new_rect([5.0, 0.0], [15.0, 10.0], 0.0, 1));
+        a.project.data.loops.push(shapes::new_circle([50.0, 5.0], 4.0, 1));
+        a.project.data.loops.push(shapes::new_poly(&[[0.0, 30.0], [10.0, 30.0], [10.0, 40.0]], false, 1).unwrap());
+        a.sel = [0, 1, 3].into_iter().collect();
+        let note = a.combine_selection(shapes::BoolOp::Union, false, false).unwrap();
+        assert!(note.contains("open shape"), "{note}");
+        // the circle and the open path stay (indices 0, 1 after the removals), the union is last
+        assert_eq!(a.project.data.loops.len(), 3);
+        assert_eq!(a.sel.iter().copied().collect::<Vec<_>>(), vec![2]);
+        let b = shapes::bbox(&a.project.data.loops[2]).unwrap();
+        assert!((b[2] - b[0] - 15.0).abs() < 0.01);
+        a.do_undo();
+        assert_eq!(a.project.data.loops.len(), 4);
+        // a single closed shape or an empty result changes nothing
+        a.sel = [0].into_iter().collect();
+        assert!(a.combine_selection(shapes::BoolOp::Union, false, false).is_some());
+        a.sel = [0, 2].into_iter().collect();
+        assert!(a.combine_selection(shapes::BoolOp::Intersect, false, false).unwrap().contains("overlap"));
+        assert_eq!(a.project.data.loops.len(), 4);
     }
 }

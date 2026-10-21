@@ -49,6 +49,24 @@ pub fn simplify_even_odd(paths: &[Path]) -> Vec<Path> {
     flatten_and_free(out)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BoolKind { Union, Intersect, Difference, Xor }
+
+/// Boolean combination of two sets of closed paths. Both sets must be properly oriented regions
+/// (outer outlines one way, holes the other, as `simplify_even_odd` returns them): they are filled with the non-zero rule.
+pub fn boolean(kind: BoolKind, subject: &[Path], clip: &[Path]) -> Vec<Path> {
+    if subject.is_empty() && clip.is_empty() { return vec![]; }
+    let (a, b) = (to_raw(subject), to_raw(clip));
+    let polys = vec![
+        c::Polygon { paths: a.cpaths.as_ptr() as *mut c::Path, paths_count: a.cpaths.len(), type_: c::PolyType_ptSubject },
+        c::Polygon { paths: b.cpaths.as_ptr() as *mut c::Path, paths_count: b.cpaths.len(), type_: c::PolyType_ptClip },
+    ];
+    let ct = match kind { BoolKind::Union => c::ClipType_ctUnion, BoolKind::Intersect => c::ClipType_ctIntersection, BoolKind::Difference => c::ClipType_ctDifference, BoolKind::Xor => c::ClipType_ctXor };
+    let out = unsafe { c::execute(ct, c::Polygons { polygons: polys.as_ptr() as *mut c::Polygon, polygons_count: polys.len() }, c::PolyFillType_pftNonZero, c::PolyFillType_pftNonZero) };
+    let _keep = (&a.paths, &a.cpaths, &b.paths, &b.cpaths, &polys);
+    flatten_and_free(out)
+}
+
 /// Round-join offset of closed polygons (delta in integer units, negative = inward).
 pub fn offset(paths: &[Path], delta: f64, arc_tolerance: f64) -> Vec<Path> {
     if paths.is_empty() { return vec![]; }
