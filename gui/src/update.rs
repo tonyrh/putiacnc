@@ -99,21 +99,9 @@ impl Updater {
 
 // ---------------------------------------------------------------------------- settings
 
-fn settings_path() -> Option<PathBuf> { crate::toolmgr::config_dir().map(|d| d.join("settings.json")) }
+fn load_auto() -> bool { crate::prefs::load().update_check }
 
-fn load_auto() -> bool {
-    settings_path().and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-        .and_then(|v| v.get("update_check").and_then(|b| b.as_bool()))
-        .unwrap_or(false)
-}
-
-fn save_auto(on: bool) {
-    if let Some(p) = settings_path() {
-        if let Some(d) = p.parent() { let _ = std::fs::create_dir_all(d); }
-        let _ = std::fs::write(p, serde_json::json!({ "update_check": on }).to_string());
-    }
-}
+fn save_auto(on: bool) { crate::prefs::modify(|s| s.update_check = on); }
 
 // ---------------------------------------------------------------------------- network
 

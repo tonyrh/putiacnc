@@ -9,6 +9,7 @@ mod icons;
 mod machmgr;
 mod offset;
 mod panels;
+mod prefs;
 mod text;
 mod shortcuts;
 mod theme;
@@ -32,8 +33,16 @@ fn window_icon() -> Option<egui::IconData> {
 
 fn main() -> eframe::Result<()> {
     let arg = std::env::args().nth(1);
-    let mut viewport = egui::ViewportBuilder::default().with_inner_size(start_size()).with_min_inner_size([MIN_W, MIN_H]).with_title("PutiaCNC")
+    let saved = prefs::load().window;
+    let mut viewport = egui::ViewportBuilder::default().with_inner_size(start_size(&saved)).with_min_inner_size([MIN_W, MIN_H]).with_title("PutiaCNC")
         .with_app_id("putiacnc").with_decorations(false).with_transparent(true);
+    if std::env::var_os("PUTIACNC_WIN").is_none() {
+        if let Some(w) = &saved {
+            if w.maximized { viewport = viewport.with_maximized(true); }
+            // the place is only restored when it is clearly on a screen (a monitor may have been unplugged)
+            if let (Some(x), Some(y)) = (w.x, w.y) { if (0.0..=3000.0).contains(&x) && (0.0..=2000.0).contains(&y) { viewport = viewport.with_position([x, y]); } }
+        }
+    }
     if let Some(icon) = window_icon() { viewport = viewport.with_icon(icon); }
     let opts = eframe::NativeOptions {
         viewport,
@@ -113,6 +122,7 @@ impl eframe::App for App {
         toolmgr::tool_manager(ctx, self);
         machmgr::machine_manager(ctx, self);
         self.updater.poll(ctx);
+        self.sync_prefs(ctx);
         update::window(ctx, self);
         offset::dialog(ctx, self);
         shortcuts::window(ctx, self);
@@ -154,13 +164,15 @@ const MIN_CANVAS_W: f32 = 520.0;
 const MIN_W: f32 = LEFT_W + RIGHT_W + MIN_CANVAS_W;
 const MIN_H: f32 = 640.0;
 
-fn start_size() -> [f32; 2] {
+fn start_size(saved: &Option<prefs::Win>) -> [f32; 2] {
     // PUTIACNC_WIN=1354x620 lets us test the smallest layout
     if let Ok(v) = std::env::var("PUTIACNC_WIN") {
         if let Some((w, h)) = v.split_once('x') {
             if let (Ok(w), Ok(h)) = (w.parse::<f32>(), h.parse::<f32>()) { return [w, h]; }
         }
     }
+    // the size of the last session, kept within sensible limits
+    if let Some(w) = saved { if w.w >= MIN_W && w.h >= MIN_H && w.w <= 8000.0 && w.h <= 6000.0 { return [w.w, w.h]; } }
     [1440.0, 860.0]
 }
 

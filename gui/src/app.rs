@@ -104,6 +104,9 @@ pub struct App {
     pub text: crate::text::TextTool,
     /// Combine dialog: open, how, whether the originals stay and whether the last shape is the base.
     pub combine_open: bool,
+    /// What is remembered between runs: the live values and what is on disk.
+    pub prefs: crate::prefs::Settings,
+    pub prefs_saved: crate::prefs::Settings,
     pub shortcuts_open: bool,
     pub combine_op: shapes::BoolOp,
     pub combine_keep: bool,
@@ -166,7 +169,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
@@ -177,6 +180,7 @@ impl App {
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
             mach_len_in: false, mach_speed_idx: 0, confirm_mach_del: false, machines_dirty: false,
         };
+        a.apply_prefs();
         a.project.data.tools.clear();
         a.sync_tools();
         a.sync_machine();
@@ -238,11 +242,78 @@ impl App {
         self.modified = n > 0;
     }
 
+    /// Takes the remembered settings from disk (called once at start).
+    fn apply_prefs(&mut self) {
+        let p = crate::prefs::load();
+        if let Some(v) = p.show_left { self.show_left = v; }
+        if let Some(v) = p.show_right { self.show_right = v; }
+        match p.right_tab.as_deref() { Some("gcode") => self.tab = RightTab::Gcode, Some("notes") => self.tab = RightTab::Info, Some("ops") => self.tab = RightTab::Ops, _ => {} }
+        if let Some(v) = p.grid_on { self.grid_on = v; }
+        if let Some(v) = p.snap_on { self.snap_on = v; }
+        if let Some(v) = p.snap_mm.filter(|v| *v > 0.0 && *v <= 1000.0) { self.snap_mm = v; }
+        if let Some(v) = p.show_toolpath { self.show_toolpath = v; }
+        if let Some(v) = p.show_rapids { self.show_rapids = v; }
+        if let Some(v) = p.show_machine_area { self.show_machine_area = v; }
+        if let Some(v) = p.tool_len_in { self.tool_len_in = v; }
+        if let Some(v) = p.tool_speed_idx { self.tool_speed_idx = v; }
+        if let Some(v) = p.mach_len_in { self.mach_len_in = v; }
+        if let Some(v) = p.mach_speed_idx { self.mach_speed_idx = v; }
+        self.prefs_saved = p.clone();
+        self.prefs = p;
+    }
+
+    /// Called every frame: writes the settings to disk when something changed (not while a mouse button is down).
+    pub fn sync_prefs(&mut self, ctx: &eframe::egui::Context) {
+        let mut s = self.prefs.clone();
+        s.update_check = self.updater.auto;
+        s.show_left = Some(self.show_left);
+        s.show_right = Some(self.show_right);
+        s.right_tab = Some(match self.tab { RightTab::Ops => "ops", RightTab::Gcode => "gcode", RightTab::Info => "notes" }.to_string());
+        s.grid_on = Some(self.grid_on);
+        s.snap_on = Some(self.snap_on);
+        s.snap_mm = Some(self.snap_mm);
+        s.show_toolpath = Some(self.show_toolpath);
+        s.show_rapids = Some(self.show_rapids);
+        s.show_machine_area = Some(self.show_machine_area);
+        s.tool_len_in = Some(self.tool_len_in);
+        s.tool_speed_idx = Some(self.tool_speed_idx);
+        s.mach_len_in = Some(self.mach_len_in);
+        s.mach_speed_idx = Some(self.mach_speed_idx);
+        let (inner, outer, maximized) = ctx.input(|i| { let v = i.viewport(); (v.inner_rect, v.outer_rect, v.maximized.unwrap_or(false)) });
+        if let Some(r) = inner {
+            let mut w = s.window.clone().unwrap_or_default();
+            w.maximized = maximized;
+            // a maximized window keeps the size it had before
+            if !maximized && r.width() > 100.0 && r.height() > 100.0 {
+                w.w = r.width();
+                w.h = r.height();
+                if let Some(o) = outer { w.x = Some(o.min.x); w.y = Some(o.min.y); }
+            }
+            if w.w > 0.0 { s.window = Some(w); }
+        }
+        if s != self.prefs_saved && !ctx.input(|i| i.pointer.any_down()) {
+            crate::prefs::save(&s);
+            self.prefs_saved = s.clone();
+        }
+        self.prefs = s;
+    }
+
+    fn remember_dir(&mut self, kind: DlgKind, p: &std::path::Path) {
+        let d = crate::prefs::dir_of(p);
+        if d.is_none() { return; }
+        match kind {
+            DlgKind::Open | DlgKind::SaveAs => self.prefs.dir_project = d,
+            DlgKind::ImportSvg => self.prefs.dir_svg = d,
+            DlgKind::ExportGcode => self.prefs.dir_gcode = d,
+            _ => {}
+        }
+    }
+
     pub fn open(&mut self, path: &str) {
         self.error = None;
         match std::fs::read_to_string(path).map_err(|e| e.to_string()).and_then(|s| load_project(&s)) {
-            Ok(p) => { self.project = p; self.reset_after_load(); }
-            Err(e) => self.error = Some(format!("Could not open {path}: {e}")),
+            Ok(p) => { self.project = p; self.reset_after_load(); crate::prefs::push_recent(&mut self.prefs.recent, path); }
+            Err(e) => { self.error = Some(format!("Could not open {path}: {e}")); self.prefs.recent.retain(|r| r != path); }
         }
     }
 
@@ -289,6 +360,7 @@ impl App {
     }
 
     fn finish_dialog(&mut self, kind: DlgKind, mut p: std::path::PathBuf) {
+        self.remember_dir(kind, &p);
         match kind {
             DlgKind::Open => self.request(Action::Open(p.display().to_string())),
             DlgKind::SaveAs => {
@@ -311,12 +383,17 @@ impl App {
     }
 
     pub fn open_dialog(&mut self) {
-        self.spawn_dialog(DlgKind::Open, || rfd::FileDialog::new().add_filter("PutiaCNC project", &["json"]).add_filter("All files", &["*"]).pick_file());
+        let dir = crate::prefs::existing_dir(&self.prefs.dir_project);
+        self.spawn_dialog(DlgKind::Open, move || {
+            let mut dlg = rfd::FileDialog::new().add_filter("PutiaCNC project", &["json"]).add_filter("All files", &["*"]);
+            if let Some(d) = dir { dlg = dlg.set_directory(d); }
+            dlg.pick_file()
+        });
     }
 
     pub fn save_as_dialog(&mut self) {
         let name = if self.project.name.trim().is_empty() { "project".to_string() } else { self.project.name.trim().to_string() };
-        let dir = if self.path.is_empty() { None } else { std::path::Path::new(&self.path).parent().map(|d| d.to_path_buf()) };
+        let dir = if self.path.is_empty() { crate::prefs::existing_dir(&self.prefs.dir_project) } else { std::path::Path::new(&self.path).parent().map(|d| d.to_path_buf()) };
         self.spawn_dialog(DlgKind::SaveAs, move || {
             let mut dlg = rfd::FileDialog::new().add_filter("PutiaCNC project", &["json"]).set_file_name(format!("{name}.json"));
             if let Some(d) = dir { dlg = dlg.set_directory(d); }
@@ -330,7 +407,12 @@ impl App {
     }
 
     pub fn import_svg_dialog(&mut self) {
-        self.spawn_dialog(DlgKind::ImportSvg, || rfd::FileDialog::new().add_filter("SVG drawing", &["svg", "svgz"]).add_filter("All files", &["*"]).pick_file());
+        let dir = crate::prefs::existing_dir(&self.prefs.dir_svg).or_else(|| crate::prefs::existing_dir(&self.prefs.dir_project));
+        self.spawn_dialog(DlgKind::ImportSvg, move || {
+            let mut dlg = rfd::FileDialog::new().add_filter("SVG drawing", &["svg", "svgz"]).add_filter("All files", &["*"]);
+            if let Some(d) = dir { dlg = dlg.set_directory(d); }
+            dlg.pick_file()
+        });
     }
 
     /// Import an SVG file into the current project. The drawing is centred on the stock when it
@@ -367,7 +449,14 @@ impl App {
     pub fn export_gcode_dialog(&mut self) {
         if self.output.is_none() { self.error = Some("Nothing to export: there is no G-code yet.".into()); return; }
         let name = if self.project.name.trim().is_empty() { "output".to_string() } else { self.project.name.trim().to_string() };
-        self.spawn_dialog(DlgKind::ExportGcode, move || rfd::FileDialog::new().add_filter("G-code", &["nc", "gcode", "tap", "gc"]).set_file_name(format!("{name}.nc")).save_file());
+        let dir = crate::prefs::existing_dir(&self.prefs.dir_gcode)
+            .or_else(|| if self.path.is_empty() { None } else { std::path::Path::new(&self.path).parent().map(|d| d.to_path_buf()) })
+            .or_else(|| crate::prefs::existing_dir(&self.prefs.dir_project));
+        self.spawn_dialog(DlgKind::ExportGcode, move || {
+            let mut dlg = rfd::FileDialog::new().add_filter("G-code", &["nc", "gcode", "tap", "gc"]).set_file_name(format!("{name}.nc"));
+            if let Some(d) = dir { dlg = dlg.set_directory(d); }
+            dlg.save_file()
+        });
     }
 
     fn write_project(&mut self) {
@@ -377,7 +466,7 @@ impl App {
         p.data.tools.retain(|t| used.contains(&t.id));
         if let Some(o) = &self.output { p.data.gcode = o.gcode(); }
         match save_project(&p).and_then(|s| std::fs::write(&self.path, s).map_err(|e| e.to_string())) {
-            Ok(()) => { self.modified = false; self.error = None; }
+            Ok(()) => { self.modified = false; self.error = None; let p = self.path.clone(); crate::prefs::push_recent(&mut self.prefs.recent, &p); }
             Err(e) => self.error = Some(format!("Save failed: {e}")),
         }
     }

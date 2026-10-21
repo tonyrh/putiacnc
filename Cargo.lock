@@ -2287,6 +2287,7 @@ dependencies = [
  "png",
  "putiacnc-core",
  "rfd",
+ "serde",
  "serde_json",
  "ureq",
  "winresource",

@@ -25,6 +25,7 @@ Features:
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks
   to fit, with a note if there is no room). Warns when the depth exceeds the stock thickness.
 - A keyboard shortcuts reference (Help menu or F1).
+- Remembers window size and position, panel layout, view toggles, last folders and recent files (File → Open recent) between sessions.
 - Stock appearance (wood, metal or foam) in the drawing and the 3D preview.
 - Libraries for tools and machines (work area limits), with imperial and metric tools.
 - 3D preview: GPU ray-marched height field of the stock with the toolpath, rapids and cutter

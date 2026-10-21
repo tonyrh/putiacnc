@@ -83,6 +83,20 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.set_min_width(200.0);
             if item(ui, "New project", "Ctrl+N", true) { app.request(Action::New); }
             if item(ui, "Open...", "Ctrl+O", true) { app.open_dialog(); }
+            let recent: Vec<String> = app.prefs.recent.iter().filter(|p| std::path::Path::new(p.as_str()).is_file()).cloned().collect();
+            ui.add_enabled_ui(!recent.is_empty(), |ui| {
+                ui.menu_button("Open recent", |ui| {
+                    ui.style_mut().wrap = Some(false);
+                    for p in &recent {
+                        let path = std::path::Path::new(p);
+                        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.clone());
+                        let dir = path.parent().map(|d| d.display().to_string()).unwrap_or_default();
+                        if ui.button(name).on_hover_text(dir).clicked() { app.request(Action::Open(p.clone())); ui.close_menu(); }
+                    }
+                    ui.separator();
+                    if ui.button("Clear list").clicked() { app.prefs.recent.clear(); ui.close_menu(); }
+                });
+            });
             if item(ui, "Import SVG...", "Ctrl+I", true) { app.import_svg_dialog(); }
             ui.separator();
             if item(ui, "Save", "Ctrl+S", true) { app.save(); }
