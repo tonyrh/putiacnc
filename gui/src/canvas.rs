@@ -494,6 +494,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ] {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
+            if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
             // thin vertical dividers as tall as the buttons (a Separator would stretch the whole area)
             let divider = |ui: &mut Ui| {
                 let (sep, _) = ui.allocate_exact_size(Vec2::new(8.0, 36.0), egui::Sense::hover());
@@ -504,7 +505,6 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if icon_button(ui, Icon::Redo, false, !app.hist.redo.is_empty(), "Redo (Ctrl+Shift+Z)").clicked() { app.do_redo(); }
             divider(ui);
             if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
-            if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
             if app.mode == Mode::Rect {
                 divider(ui);
                 ui.label("Radius");
