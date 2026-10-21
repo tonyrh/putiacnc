@@ -13,3 +13,7 @@ path = "src/main.rs"
 putiacnc-core = { path = ".." }
 rfd = "0.15"
 eframe = { version = "0.27", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"] }
+ureq = { version = "2", default-features = false, features = ["native-tls"] }
+native-tls = "0.2"
+open = "5"
+serde_json = "1"

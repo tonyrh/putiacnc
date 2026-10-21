@@ -22,13 +22,15 @@ Features:
 - Libraries for tools and machines (work area limits), with imperial and metric tools.
 - 3D preview: GPU ray-marched height field of the stock with the toolpath, rapids and cutter
   marker, and a play bar to replay the job.
+- Help → Check for updates asks GitHub for the latest release and offers to download it (an AppImage can replace itself). It only contacts GitHub when you ask, or at startup if you tick that option.
 - G-code tab with a time estimate and warnings, optional output in inches; project notes.
 - Unsaved-changes prompts, native file dialogs, light and dark themes.
 
 ### Build and run
 
 Needs Rust 1.75 or newer and a C++ compiler (Clipper is C++, built by the `cc` crate). On Linux
-the window needs the usual X11 or Wayland and OpenGL libraries.
+the window needs the usual X11 or Wayland and OpenGL libraries, and building needs the OpenSSL
+development files (`libssl-dev` / `openssl-devel`) for the update check.
 
     cargo run --release -p putiacnc-gui
     cargo run --release -p putiacnc-gui -- path/to/project.json

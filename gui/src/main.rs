@@ -7,6 +7,7 @@ mod machmgr;
 mod panels;
 mod theme;
 mod toolmgr;
+mod update;
 mod view3d;
 mod widgets;
 
@@ -93,6 +94,8 @@ impl eframe::App for App {
         panels::confirm_dialog(ctx, self);
         toolmgr::tool_manager(ctx, self);
         machmgr::machine_manager(ctx, self);
+        self.updater.poll(ctx);
+        update::window(ctx, self);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }
 

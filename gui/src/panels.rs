@@ -121,6 +121,13 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if ui.button("Tool library...").clicked() { app.tools_open = true; ui.close_menu(); }
             if ui.button("Machines...").clicked() { app.machines_open = true; ui.close_menu(); }
         });
+        ui.menu_button("Help", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
+            if ui.button("Check for updates...").clicked() { app.updater.open = true; app.updater.check(false); ui.close_menu(); }
+            ui.separator();
+            ui.weak(format!("PutiaCNC {}", crate::update::CURRENT));
+        });
     });
 }
 

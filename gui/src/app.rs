@@ -127,6 +127,7 @@ pub struct App {
     // machine manager
     pub machines: putiacnc_core::machines::Machines,
     pub machines_open: bool,
+    pub updater: crate::update::Updater,
     pub mach_sel: String,
     pub mach_msg: String,
     pub mach_len_in: bool,
@@ -147,7 +148,7 @@ impl App {
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_sel: String::new(), tool_msg: String::new(),
             tool_len_in: false, tool_speed_idx: 0, confirm_tool_del: false, confirm_lib_del: false, lib_name_buf: String::new(), libs_dirty: false,
-            machines: crate::machmgr::load_machines(), machines_open: false, mach_sel: String::new(), mach_msg: String::new(),
+            machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
             mach_len_in: false, mach_speed_idx: 0, confirm_mach_del: false, machines_dirty: false,
         };
         a.project.data.tools.clear();
@@ -160,6 +161,8 @@ impl App {
         if let Ok(f) = std::env::var("PUTIACNC_PLAY") { a.v3.init_frac = f.parse().ok(); }
         if std::env::var_os("PUTIACNC_SHOW_TOOLS").is_some() { a.tools_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_MACHINES").is_some() { a.machines_open = true; }
+        if std::env::var_os("PUTIACNC_SHOW_UPDATE").is_some() { a.updater.open = true; a.updater.check(false); }
+        else if a.updater.auto { a.updater.check(true); }
         if let Some(p) = arg {
             if p.to_lowercase().ends_with(".svg") { a.import_svg(&p); }
             else { a.path = p.clone(); a.open(&p); }
