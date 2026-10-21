@@ -593,7 +593,8 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let groups = if manual { 2.0 } else { 3.0 };
                             let labels = tw_of(ui, "Width") + tw_of(ui, "Height") + if manual { 0.0 } else { tw_of(ui, "Count") };
                             let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, "mm") + (3.0 * groups + 0.0) * sp;
-                            let gap = ((ui.available_width() - fixed) / (groups - 1.0)).max(4.0);
+                            // with all three fields the spare width is spread between them; with two they sit together
+                            let gap = if manual { 24.0 } else { ((ui.available_width() - fixed) / (groups - 1.0)).max(4.0) };
                             if !manual {
                                 ui.label("Count").on_hover_text("Number of holding tabs, spread evenly along the outline");
                                 if dv_w(ui, 30.0, &mut n, 1.0, 50.0, "") { p.tab_n = Some(n.round()); changed = true; }
@@ -619,7 +620,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     d.act = id;
                                 }
                                 ui.weak(format!("{} tab{}", tp.len(), if tp.len() == 1 { "" } else { "s" }));
-                                if !tp.is_empty() && ui.small_button("Clear").on_hover_text("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
+                                if !tp.is_empty() && ui.button("Clear").on_hover_text("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
                             });
                         }
                       });
