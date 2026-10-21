@@ -2,8 +2,7 @@
 
 A CNC toolpath studio for GRBL machines, written in Rust. Draw or import shapes, assign operations
 (profile, pocket, V-carve), preview the result in 2D and in a simulated 3D view of the machined
-stock, and export G-code. It is a native port of the browser app and reads and writes the same
-project files (`"app": "putia-cnc"`), so projects move between the two without conversion.
+stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
 The workspace has two crates:
 
@@ -53,20 +52,20 @@ The app icon is in `assets/` (`putiacnc.svg` plus PNGs from 16 to 512 px).
 # putiacnc-core
 
 The calculation core of PutiaCNC, in Rust: project model, geometry and GRBL G-code generation.
-It is a port of the browser app's `build()` and produces the same output for the same project.
+It turns a project into GRBL G-code; the output is checked against reference G-code in the golden tests.
 
 ## What's in it
 
 | File | Purpose |
 |---|---|
-| `src/model.rs` | Data model (serde). Reads the project files the browser app exports (`"app": "putia-cnc"`), no conversion needed. |
-| `src/clip.rs` | Safe wrapper around Clipper 6.4 (the same library and version the browser app uses): even-odd union, round-join offset, cleaning, area. |
+| `src/model.rs` | Data model (serde). Reads and writes the project files (`"app": "putia-cnc"`). |
+| `src/clip.rs` | Safe wrapper around Clipper 6.4 (Clipper 6.4): even-odd union, round-join offset, cleaning, area. |
 | `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
 | `src/svg.rs` | SVG import into closed and open shapes. |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |
-| `tests/golden.rs` | Golden tests against G-code produced by the browser app. |
-| `tests/data/` | Eight projects exported from the browser app, with its G-code and time estimate. |
+| `tests/golden.rs` | Golden tests against reference G-code. |
+| `tests/data/` | Eight projects with their reference G-code and time estimate. |
 
 Also in the core: SVG import (`src/svg.rs`), shape helpers (`src/shapes.rs`), tool and machine libraries (`src/toollib.rs`, `src/machines.rs`) and the height-field simulation behind the 3D preview (`src/sim.rs`).
 
@@ -82,20 +81,20 @@ no-exec mount. Build elsewhere: `CARGO_TARGET_DIR=/tmp/putia-target cargo test`.
 
 ## Golden tests
 
-Each scenario in `tests/data` has `NAME.project.json` (export from the browser app),
-`NAME.expected.nc` (what the browser app generated) and `NAME.meta.json` (units, time estimate).
+Each scenario in `tests/data` has `NAME.project.json` (a saved project),
+`NAME.expected.nc` (the reference G-code) and `NAME.meta.json` (units, time estimate).
 Five scenarios match line for line. The two with tiny rings in the centre of a circle
-(V-carve, two operations) are compared geometrically: both Clipper ports keep slightly different
+(V-carve, two operations) are compared geometrically: the reference and this port keep slightly different
 vertices on the same curve (up to about 0.1 mm), and the tests allow that. The imperial scenario
-differs by 0.0001 in. on two lines because JavaScript's `Math.hypot` and Rust's `hypot` can differ in the last bit.
+differs by 0.0001 in. on two lines because the reference was computed with a `hypot` that can differ from Rust's in the last bit.
 
-To regenerate or add scenarios, export a project from the app (Project card, export icon), and add
+To regenerate or add scenarios, save a project from the app and add
 its G-code and a meta file in the same format.
 
 ## Notes
 
 - Lengths are millimetres, feeds are mm/min, loop points are integers in 1/1000 mm (Clipper's scale).
-- G-code number formatting reproduces JavaScript's `toFixed` and `String(number)` exactly.
+- G-code numbers are formatted to match the reference output exactly (fixed decimals, shortest form for integers).
 - Offsets that collapse a shape are very slow in Clipper. Repeated offsets (pocket rings, V-carve rings)
   therefore offset the previous ring by one step instead of offsetting the original shape by a growing distance.
 
