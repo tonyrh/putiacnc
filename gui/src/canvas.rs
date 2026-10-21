@@ -51,6 +51,10 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         set_mode(app, Mode::Node);
         return;
     }
+    if ctx.input(|i| i.key_pressed(Key::T) && !i.modifiers.command && !i.modifiers.alt) {
+        set_mode(app, Mode::Text);
+        return;
+    }
     let (v, l, r, e, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
         (
@@ -216,6 +220,11 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
                 if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) { enter_node_edit(app, h); }
             }
             if hover_w.map_or(false, |w| shapes::pick(&app.project.data.loops, w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
+        }
+        Some(Mode::Text) => {
+            if resp.clicked_by(prim) {
+                if let Some(w) = hover_w { app.text.pos = Some(app.snap(w)); app.text.open = true; app.text.focus = true; }
+            }
         }
         Some(Mode::Rect) | Some(Mode::Ellipse) => {
             if resp.drag_started_by(prim) {
@@ -420,6 +429,18 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
         hud = Some(format!("{:.2} x {:.2} mm", (b[0] - a[0]).abs(), (b[1] - a[1]).abs()));
     }
+    if app.text.open {
+        for l in &app.text.preview {
+            let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
+            if let Some(f) = pts.first().copied() { pts.push(f); }
+            painter.add(egui::Shape::line(pts, Stroke::new(1.5_f32, prev_col)));
+        }
+        if let Some(p) = app.text.pos {
+            let c = to_s(p);
+            painter.line_segment([c - Vec2::new(6.0, 0.0), c + Vec2::new(6.0, 0.0)], Stroke::new(1.0_f32, prev_col));
+            painter.line_segment([c - Vec2::new(0.0, 6.0), c + Vec2::new(0.0, 6.0)], Stroke::new(1.0_f32, prev_col));
+        }
+    }
     if let Drag::Box { start } = &app.drag {
         if let Some(cur) = pointer_w {
             let r = Rect::from_two_pos(to_s(*start), to_s(cur));
@@ -469,7 +490,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
             for (m, icon, tip) in [
                 (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
-                (Mode::Rect, Icon::Rect, "Rectangle (R)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"),
+                (Mode::Rect, Icon::Rect, "Rectangle (R)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Text, Icon::Text, "Text (T)"),
             ] {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
@@ -499,6 +520,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
+        Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -10.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 220.0).max(120.0));
@@ -902,7 +924,7 @@ fn node_keys(ctx: &egui::Context, app: &mut App) {
     // other tool shortcuts leave point editing
     let tool = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
-        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
+        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::T, Mode::Text)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
     });
     if let Some(m) = tool { set_mode(app, m); return; }
     if del && !app.node_sel.is_empty() {

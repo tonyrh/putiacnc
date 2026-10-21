@@ -5,7 +5,7 @@ use putiacnc_core::{generate, load_project, save_project, Output, ProjectData, P
 use std::collections::BTreeSet;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum Mode { Select, Node, Line, Rect, Ellipse }
+pub enum Mode { Select, Node, Line, Rect, Ellipse, Text }
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum RightTab { Ops, Gcode, Info }
@@ -101,6 +101,7 @@ pub struct App {
     pub offset_mm: f64,
     pub offset_inward: bool,
     pub offset_keep: bool,
+    pub text: crate::text::TextTool,
     pub mode: Mode,
     pub hist: History,
     pub modified: bool,
@@ -159,7 +160,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
@@ -188,6 +189,9 @@ impl App {
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
+        if let Ok(s) = std::env::var("PUTIACNC_SHOW_TEXT") {
+            a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");
+        }
         if let Some(i) = std::env::var("PUTIACNC_NODE_EDIT").ok().and_then(|v| v.parse::<usize>().ok()) {
             a.mode = Mode::Node;
             a.node_edit = Some(i);

@@ -2272,6 +2272,7 @@ dependencies = [
  "clipper-sys",
  "serde",
  "serde_json",
+ "ttf-parser",
  "usvg",
 ]
 
@@ -2280,6 +2281,7 @@ name = "putiacnc-gui"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "fontdb",
  "native-tls",
  "open",
  "png",
