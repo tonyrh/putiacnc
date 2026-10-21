@@ -26,6 +26,7 @@ Features:
   to fit, with a note if there is no room). Warns when the depth exceeds the stock thickness.
 - A keyboard shortcuts reference (Help menu or F1).
 - Remembers window size and position, panel layout, view toggles, last folders and recent files (File → Open recent) between sessions.
+- `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
 - The 3D preview replays the program in short slices, so switching to it never freezes the window; a progress badge shows while it catches up.
 - Stock appearance (wood, metal or foam) in the drawing and the 3D preview.
 - Libraries for tools and machines (work area limits), with imperial and metric tools.

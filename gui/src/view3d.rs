@@ -10,7 +10,7 @@ use putiacnc_core::toolpath::Move;
 pub enum ViewTab { Design, Preview }
 
 pub const SPEEDS: [(f64, &str); 6] = [(1.0, "1×"), (5.0, "5×"), (20.0, "20×"), (60.0, "60×"), (200.0, "200×"), (1000.0, "1000×")];
-const MAX_CELLS: usize = 2_000_000;
+const MAX_CELLS: usize = 800_000;
 
 type V3 = [f32; 3];
 fn sub(a: V3, b: V3) -> V3 { [a[0] - b[0], a[1] - b[1], a[2] - b[2]] }
@@ -104,7 +104,9 @@ fn sync(app: &mut App, ctx: &egui::Context) {
     let idx = st.cum.partition_point(|&c| c <= st.t + 1e-12);
     // the simulation catches up in slices, so the window keeps answering while a long program is replayed
     if let Some(sim) = st.sim.as_mut() {
-        st.catching_up = !sim.advance_for(moves, idx, Some(std::time::Duration::from_millis(10)));
+        // a slow frame (software drawing, big window) gets a longer slice, so the replay does not crawl
+        let slice = (ctx.input(|i| i.stable_dt) * 0.6).clamp(0.010, 0.05);
+        st.catching_up = !sim.advance_for(moves, idx, Some(std::time::Duration::from_secs_f32(slice)));
         if st.catching_up { ctx.request_repaint(); }
     }
 }
