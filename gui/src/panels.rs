@@ -389,13 +389,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 rlabel(ui, l3, "Safe Z");
                 changed |= dv_w(ui, fw, &mut d.job.safe, 0.5, 200.0, ""); ui.weak("mm"); ui.end_row();
             });
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                rlabel(ui, l1, "Appearance");
-                if !MATERIALS.iter().any(|(k, _)| *k == d.stock.mat) { d.stock.mat = "wood".into(); }
-                let (c, _) = combo_w2(ui, 96.0, "stock_mat", &mut d.stock.mat, MATERIALS, "", "How the stock looks in the drawing and the 3D preview");
-                changed |= c;
-            });
             ui.add_space(12.0);
             ui.horizontal_top(|ui| {
                 rlabel(ui, l1, "XY zero");
@@ -417,6 +410,13 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.end_row();
                     }
                 });
+            });
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                rlabel(ui, l1, "Appearance");
+                if !MATERIALS.iter().any(|(k, _)| *k == d.stock.mat) { d.stock.mat = "wood".into(); }
+                let (c, _) = combo_w2(ui, 96.0, "stock_mat", &mut d.stock.mat, MATERIALS, "", "How the stock looks in the drawing and the 3D preview");
+                changed |= c;
             });
         });
 
