@@ -166,7 +166,9 @@ pub fn play_bar(ui: &mut Ui, app: &mut App) {
         let lw = crate::panels::tw(ui, "00:00 / 00:00") + 8.0;
         let speed_w = 74.0;
         let avail = ui.available_width();
-        ui.spacing_mut().slider_width = (avail - lw - speed_w - 40.0).max(60.0);
+        // the speed box is its set width plus the arrow and padding; the slider takes everything else
+        let combo_total = (speed_w - 24.0) + ui.spacing().button_padding.x * 2.0 + ui.spacing().icon_width;
+        ui.spacing_mut().slider_width = (avail - lw - combo_total - 1.0 * ui.spacing().item_spacing.x - 2.0).max(60.0);
         let total = app.v3.total.max(1e-6);
         let mut t = app.v3.t;
         let r = ui.add_enabled(have, egui::Slider::new(&mut t, 0.0..=total).show_value(false));
