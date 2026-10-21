@@ -504,6 +504,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if icon_button(ui, Icon::Redo, false, !app.hist.redo.is_empty(), "Redo (Ctrl+Shift+Z)").clicked() { app.do_redo(); }
             divider(ui);
             if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
+            if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
             if app.mode == Mode::Rect {
                 divider(ui);
                 ui.label("Radius");
