@@ -2,6 +2,8 @@
 //! offers to download it. An AppImage can replace itself; other builds open the release page.
 //! Nothing is contacted unless the user chooses "Check for updates" (or turns on the startup check).
 use crate::app::App;
+use crate::icons::Icon;
+use crate::panels::dlg_button;
 use eframe::egui;
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, TryRecvError};
@@ -192,6 +194,7 @@ pub fn parse_release(json: &str) -> Result<Release, String> {
 // ---------------------------------------------------------------------------- window
 
 pub fn window(ctx: &egui::Context, app: &mut App) {
+    let accent = app.theme.accent;
     let up = &mut app.updater;
     if !up.open { return; }
     let (mut do_check, mut do_download, mut close) = (false, None::<Release>, false);
@@ -216,13 +219,14 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                     egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| { ui.add(egui::Label::new(r.notes.as_str()).wrap(true)); });
                 }
                 ui.add_space(8.0);
-                ui.horizontal(|ui| {
+                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
                     if can_self_update(r) {
-                        if ui.button("Download and install").on_hover_text("Replaces this AppImage with the new version").clicked() { do_download = Some(r.clone()); }
+                        if dlg_button(ui, Icon::Import, "Download and install", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text("Replaces this AppImage with the new version").clicked() { do_download = Some(r.clone()); }
                     } else if let Some((name, url)) = &r.asset {
-                        if ui.button("Download").on_hover_text(name.as_str()).clicked() { let _ = open::that(url); }
+                        if dlg_button(ui, Icon::Import, "Download", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text(name.as_str()).clicked() { let _ = open::that(url); }
                     }
-                    if ui.button("Release page").clicked() { let _ = open::that(&r.page); }
+                    if dlg_button(ui, Icon::Export, "Release page", None, None, false).clicked() { let _ = open::that(&r.page); }
                 });
             }
         }
@@ -230,11 +234,16 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         ui.separator();
         ui.checkbox(&mut auto, "Check for updates when PutiaCNC starts");
         ui.add_space(2.0);
-        ui.horizontal(|ui| {
+        ui.add_space(6.0);
+        ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = 8.0;
             let busy = matches!(up.status, Status::Checking | Status::Downloading(_));
-            if ui.add_enabled(!busy, egui::Button::new("Check again")).clicked() { do_check = true; }
-            if ui.button("Close").clicked() { close = true; }
+            if dlg_button(ui, Icon::Close, "Close", None, None, false).clicked() { close = true; }
+            ui.add_enabled_ui(!busy, |ui| {
+                if dlg_button(ui, Icon::Redo, "Check again", None, None, false).clicked() { do_check = true; }
+            });
         });
+        ui.add_space(4.0);
     });
     if auto != up.auto { up.auto = auto; save_auto(auto); }
     if do_check { up.check(false); }

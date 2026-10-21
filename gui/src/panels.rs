@@ -185,7 +185,7 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
 }
 
 /// Dialog button with an icon: `fill` None = the normal button look; otherwise a tinted / solid button.
-fn dlg_button(ui: &mut Ui, icon: Icon, text: &str, fill: Option<Color32>, fg: Option<Color32>, solid: bool) -> egui::Response {
+pub fn dlg_button(ui: &mut Ui, icon: Icon, text: &str, fill: Option<Color32>, fg: Option<Color32>, solid: bool) -> egui::Response {
     let font = egui::TextStyle::Button.resolve(ui.style());
     let (icon_w, gap, padx) = (16.0, 7.0, 14.0);
     let galley = ui.painter().layout_no_wrap(text.to_string(), font, Color32::PLACEHOLDER);
