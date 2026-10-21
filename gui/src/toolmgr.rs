@@ -261,10 +261,8 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
 fn units_row(ui: &mut Ui, app: &mut App) {
     let uname = if app.tool_len_in { "in" } else { "mm" };
     let sname = SPEED_UNITS[app.tool_speed_idx.min(SPEED_UNITS.len() - 1)].0;
-    let used = app.project.data.ops.iter().filter(|o| o.p.tool == app.tool_sel).count();
     ui.horizontal(|ui| {
         ui.set_max_width((ui.available_width() - 1.0).max(100.0));
-        ui.weak(if used > 0 { format!("Used by {used} operation{} in this project.", if used > 1 { "s" } else { "" }) } else { String::new() });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             egui::ComboBox::from_id_source("tspd").width(90.0).selected_text(sname).show_ui(ui, |ui| {
                 for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(&mut app.tool_speed_idx, i, *n); }
@@ -421,7 +419,10 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
         app.tools_edited();
         app.tool_msg.clear();
     }
-    ui.add_space((ui.available_height() - 34.0).max(0.0));
+    ui.add_space((ui.available_height() - 56.0).max(0.0));
+    // its own line, so it never runs into the unit selectors however narrow the window is
+    let used = app.project.data.ops.iter().filter(|o| o.p.tool == app.tool_sel).count();
+    ui.weak(if used > 0 { format!("Used by {used} operation{} in this project.", if used > 1 { "s" } else { "" }) } else { " ".to_string() });
     units_row(ui, app);
 }
 
