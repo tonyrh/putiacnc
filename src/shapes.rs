@@ -211,6 +211,121 @@ pub fn nearest_on_loop(l: &LoopData, p: [f64; 2]) -> Option<([f64; 2], f64, [f64
     best
 }
 
+// ------------------------------------------------------------------- point editing
+
+/// The shape's points in mm.
+pub fn points(l: &LoopData) -> Vec<[f64; 2]> {
+    l.pts.chunks_exact(2).map(|c| [c[0] as f64 / S, c[1] as f64 / S]).collect()
+}
+
+/// Forget that this was a rectangle or an ellipse: after a point is edited it is a plain polygon.
+pub fn make_polygon(l: &mut LoopData) { l.rc = None; l.cr = None; l.el = None; }
+
+/// Fewest points a shape can keep.
+pub fn min_points(l: &LoopData) -> usize { if l.closed() { 3 } else { 2 } }
+
+/// Moves the points with these indices by (dx, dy) mm.
+pub fn move_points(l: &mut LoopData, idx: &std::collections::BTreeSet<usize>, dx: f64, dy: f64) {
+    let (ix, iy) = (to_i(dx), to_i(dy));
+    for &i in idx {
+        if let Some(c) = l.pts.chunks_exact_mut(2).nth(i) { c[0] += ix; c[1] += iy; }
+    }
+    make_polygon(l);
+}
+
+/// Adds a point on the edge nearest to `p`, if `p` is within `tol` mm of it. Returns the new point's index.
+pub fn insert_point(l: &mut LoopData, p: [f64; 2], tol: f64) -> Option<usize> {
+    let pts = points(l);
+    let n = pts.len();
+    if n < 2 { return None; }
+    let edges = if l.closed() { n } else { n - 1 };
+    let mut best: Option<(usize, f64, [f64; 2])> = None;
+    for i in 0..edges {
+        let (a, b) = (pts[i], pts[(i + 1) % n]);
+        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+        let l2 = dx * dx + dy * dy;
+        if l2 < 1e-12 { continue; }
+        let t = (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2).clamp(0.0, 1.0);
+        let q = [a[0] + t * dx, a[1] + t * dy];
+        let d = (p[0] - q[0]).hypot(p[1] - q[1]);
+        if best.map_or(true, |bb| d < bb.1) { best = Some((i, d, q)); }
+    }
+    let (i, d, q) = best?;
+    if d > tol { return None; }
+    let at = (i + 1) * 2;
+    l.pts.splice(at..at, [to_i(q[0]), to_i(q[1])]);
+    make_polygon(l);
+    Some(i + 1)
+}
+
+/// Deletes the points with these indices, unless that would leave too few. Returns whether it did.
+pub fn delete_points(l: &mut LoopData, idx: &std::collections::BTreeSet<usize>) -> bool {
+    let n = l.pts.len() / 2;
+    let del = idx.iter().filter(|&&i| i < n).count();
+    if del == 0 || n - del < min_points(l) { return false; }
+    let mut k = 0;
+    let mut keep = Vec::with_capacity(l.pts.len());
+    for c in l.pts.chunks_exact(2) {
+        if !idx.contains(&k) { keep.extend_from_slice(c); }
+        k += 1;
+    }
+    l.pts = keep;
+    make_polygon(l);
+    true
+}
+
+fn dp_keep(pts: &[[f64; 2]], tol: f64, keep: &mut [bool]) {
+    // Douglas-Peucker on pts[0..], first and last point already kept
+    let n = pts.len();
+    if n < 3 { return; }
+    let (a, b) = (pts[0], pts[n - 1]);
+    let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+    let l2 = dx * dx + dy * dy;
+    let mut worst = (0usize, -1.0f64);
+    for (i, p) in pts.iter().enumerate().take(n - 1).skip(1) {
+        let d = if l2 < 1e-18 { (p[0] - a[0]).hypot(p[1] - a[1]) }
+        else { let t = (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2).clamp(0.0, 1.0); (p[0] - a[0] - t * dx).hypot(p[1] - a[1] - t * dy) };
+        if d > worst.1 { worst = (i, d); }
+    }
+    if worst.1 > tol {
+        keep[worst.0] = true;
+        dp_keep(&pts[..=worst.0], tol, &mut keep[..=worst.0]);
+        dp_keep(&pts[worst.0..], tol, &mut keep[worst.0..]);
+    }
+}
+
+/// Removes points that lie within `tol` mm of the line through their neighbours (Douglas-Peucker).
+/// Returns (points before, points after). A shape that changes becomes a plain polygon.
+pub fn simplify(l: &mut LoopData, tol: f64) -> (usize, usize) {
+    let pts = points(l);
+    let n = pts.len();
+    if n <= min_points(l) { return (n, n); }
+    let mut keep = vec![false; n];
+    if l.closed() {
+        // split the ring at the point farthest from point 0 and simplify both halves
+        let far = (1..n).max_by(|&a, &b| {
+            let d = |i: usize| (pts[i][0] - pts[0][0]).hypot(pts[i][1] - pts[0][1]);
+            d(a).partial_cmp(&d(b)).unwrap()
+        }).unwrap();
+        keep[0] = true; keep[far] = true;
+        dp_keep(&pts[..=far], tol, &mut keep[..=far]);
+        let mut second: Vec<[f64; 2]> = pts[far..].to_vec();
+        second.push(pts[0]);
+        let mut k2 = vec![false; second.len()];
+        k2[0] = true; *k2.last_mut().unwrap() = true;
+        dp_keep(&second, tol, &mut k2);
+        for (j, &k) in k2.iter().enumerate().take(second.len() - 1) { if k { keep[far + j] = true; } }
+    } else {
+        keep[0] = true; keep[n - 1] = true;
+        dp_keep(&pts, tol, &mut keep);
+    }
+    let kept: Vec<[f64; 2]> = pts.iter().zip(&keep).filter(|(_, &k)| k).map(|(p, _)| *p).collect();
+    if kept.len() < min_points(l) || kept.len() == n { return (n, n); }
+    l.pts = kept.iter().flat_map(|p| [to_i(p[0]), to_i(p[1])]).collect();
+    make_polygon(l);
+    (n, kept.len())
+}
+
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
 pub fn tab_anchor(loops: &[LoopData], li: usize, p: [f64; 2]) -> Option<TabPt> {
     let b = bbox(loops.get(li)?)?;
@@ -385,5 +500,70 @@ mod tab_tests {
         let (q, d, t) = nearest_on_loop(&l, [40.0, -3.0]).unwrap();
         assert!((q[1]).abs() < 1e-9 && (q[0] - 40.0).abs() < 1e-9 && (d - 3.0).abs() < 1e-9);
         assert!(t[1].abs() < 1e-9);
+    }
+}
+
+#[cfg(test)]
+mod point_tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    fn set(v: &[usize]) -> BTreeSet<usize> { v.iter().copied().collect() }
+
+    #[test]
+    fn move_insert_delete() {
+        let mut l = new_rect([0.0, 0.0], [10.0, 10.0], 0.0, 1);
+        assert_eq!(points(&l).len(), 4);
+        move_points(&mut l, &set(&[2]), 3.0, -1.0);
+        assert!(l.rc.is_none(), "editing a point makes the rectangle a polygon");
+        let p = points(&l);
+        assert!((p[2][0] - 13.0).abs() < 1e-9 && (p[2][1] - 9.0).abs() < 1e-9);
+        // add a point on the first edge (0,0)-(10,0)
+        let i = insert_point(&mut l, [4.0, 0.2], 0.5).unwrap();
+        assert_eq!(i, 1);
+        let p = points(&l);
+        assert_eq!(p.len(), 5);
+        assert!((p[1][0] - 4.0).abs() < 1e-9 && p[1][1].abs() < 1e-9);
+        assert!(insert_point(&mut l, [4.0, 3.0], 0.5).is_none(), "too far from any edge");
+        assert!(delete_points(&mut l, &set(&[1])));
+        assert_eq!(points(&l).len(), 4);
+        // a closed shape keeps at least three points
+        assert!(delete_points(&mut l, &set(&[0])));
+        assert!(!delete_points(&mut l, &set(&[0])));
+        assert_eq!(points(&l).len(), 3);
+    }
+
+    #[test]
+    fn insert_on_the_closing_edge() {
+        let mut l = new_rect([0.0, 0.0], [10.0, 10.0], 0.0, 1);
+        let i = insert_point(&mut l, [0.1, 5.0], 0.5).unwrap(); // edge (0,10)-(0,0)
+        assert_eq!(i, 4);
+        assert_eq!(points(&l).len(), 5);
+    }
+
+    #[test]
+    fn simplify_removes_collinear_points_and_keeps_corners() {
+        let mut pts = vec![];
+        for i in 0..=10 { pts.push([i as f64, 0.0]); }
+        for i in 1..=10 { pts.push([10.0, i as f64]); }
+        for i in (0..10).rev() { pts.push([i as f64, 10.0]); }
+        for i in (1..10).rev() { pts.push([0.0, i as f64]); }
+        let mut l = new_poly(&pts, true, 1).unwrap();
+        let (before, after) = simplify(&mut l, 0.01);
+        assert_eq!(before, 40);
+        assert_eq!(after, 4);
+        let b = bbox(&l).unwrap();
+        assert_eq!(b, [0.0, 0.0, 10.0, 10.0]);
+        // open polyline
+        let mut o = new_poly(&[[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [2.0, 2.0]], false, 1).unwrap();
+        assert_eq!(simplify(&mut o, 0.01), (4, 3));
+    }
+
+    #[test]
+    fn simplify_a_circle_keeps_its_shape() {
+        let mut l = new_circle([0.0, 0.0], 20.0, 1);
+        let (before, after) = simplify(&mut l, 0.05);
+        assert!(after < before && after >= 8, "{before} -> {after}");
+        for p in points(&l) { assert!(((p[0] * p[0] + p[1] * p[1]).sqrt() - 20.0).abs() < 0.05); }
     }
 }

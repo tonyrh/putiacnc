@@ -15,7 +15,8 @@ The workspace has two crates:
 Features:
 
 - 2D design canvas: rectangles, ellipses, lines and polygons, SVG import, select / move / resize,
-  snapping, undo and redo, align to the stock and to each other, distribute.
+  snapping, undo and redo, align to the stock and to each other, distribute. Double-click a shape (or press N)
+  to edit its points: drag, add, delete and simplify.
 - Operations: profile (outside, inside, on the line), pocket and V-carve, each with its own tool,
   depth, pass depth (defaults to the tool's value), cut direction, ramp-in, air cut and holding tabs
   (automatic or placed by hand on the canvas). Warns when the depth exceeds the stock thickness.

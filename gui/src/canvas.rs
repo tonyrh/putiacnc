@@ -1,5 +1,5 @@
 //! The 2D drawing canvas: view control, drawing tools, selection and keyboard shortcuts.
-use crate::app::{Action, App, Drag, Mode, View};
+use crate::app::{Action, App, Drag, Mode, NodeDrag, View};
 use crate::icons::{icon_button, Icon};
 use crate::theme::op_color;
 use eframe::egui::{self, Color32, Key, Modifiers, PointerButton, Pos2, Rect, Sense, Stroke, Ui, Vec2};
@@ -43,6 +43,13 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     // while tabs are being placed the other shortcuts (and Del) are off; Esc ends the mode
     if app.tab_edit.is_some() {
         if ctx.input(|i| i.key_pressed(Key::Escape)) { app.tab_edit = None; }
+        return;
+    }
+    if app.node_edit.is_some() { node_keys(ctx, app); return; }
+    // N: edit the points of the selected shape
+    if ctx.input(|i| i.key_pressed(Key::N) && !i.modifiers.command && !i.modifiers.alt) && app.sel.len() == 1 {
+        let i = *app.sel.iter().next().unwrap();
+        enter_node_edit(app, i);
         return;
     }
     let (v, l, r, e, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
@@ -113,8 +120,12 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     // tab placement only makes sense for a manual-tab operation that still exists
     let editing_tabs = app.tab_edit.filter(|id| app.project.data.ops.iter().any(|o| o.id == *id && o.p.tabs && o.p.tab_pts.is_some()));
     if editing_tabs.is_none() { app.tab_edit = None; }
-    let interaction_mode = if editing_tabs.is_some() { None } else { Some(app.mode) };
+    if editing_tabs.is_some() { app.node_edit = None; }
+    let editing_nodes = app.node_edit.filter(|&i| i < app.project.data.loops.len());
+    if editing_nodes.is_none() { app.node_edit = None; app.node_drag = NodeDrag::None; }
+    let interaction_mode = if editing_tabs.is_some() || editing_nodes.is_some() { None } else { Some(app.mode) };
     if let Some(op_id) = editing_tabs { tab_interaction(&ctx, app, &resp, &view, op_id, hover_w); }
+    if let Some(li) = editing_nodes { node_interaction(&ctx, app, &resp, &view, li, hover_w, pointer_w, tol); }
     match interaction_mode {
         None => {}
         Some(Mode::Select) => {
@@ -184,7 +195,10 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
                 }
                 app.drag = Drag::None;
             }
-            if resp.clicked_by(prim) {
+            if resp.double_clicked_by(prim) {
+                if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) { enter_node_edit(app, h); }
+            }
+            if resp.clicked_by(prim) && !resp.double_clicked() {
                 if let Some(w) = hover_w {
                     let hit = shapes::pick(&app.project.data.loops, w, tol);
                     match hit {
@@ -236,7 +250,7 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         }
     }
 
-    if app.mode == Mode::Select && editing_tabs.is_none() {
+    if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
         else if matches!(app.drag, Drag::None) {
             let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i)));
@@ -288,9 +302,9 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         let col = if selected { th.shape_selected() } else { opi.map(|k| op_color(k, dark)).unwrap_or(th.shape_idle()) };
         let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
         if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
-        painter.add(egui::Shape::line(pts, Stroke::new(if selected { 2.5_f32 } else { 1.8_f32 }, col)));
+        painter.add(egui::Shape::line(pts, Stroke::new(if editing_nodes == Some(i) { 3.0_f32 } else if selected { 2.5_f32 } else { 1.8_f32 }, if editing_nodes == Some(i) { th.accent } else { col })));
     }
-    if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))) {
+    if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))).filter(|_| editing_nodes.is_none()) {
         let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(4.0);
         painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.3)));
         if app.mode == Mode::Select {
@@ -299,6 +313,37 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
                 painter.rect_filled(hr, 2.0, th.view());
                 painter.rect_stroke(hr, 2.0, Stroke::new(1.5_f32, th.accent));
             }
+        }
+    }
+
+    // points of the shape being edited
+    if let Some(li) = editing_nodes {
+        let pts = shapes::points(&d.loops[li]);
+        let hov = hover_w.and_then(|w| node_at(app, &pts, w));
+        if let NodeDrag::Box { start } = &app.node_drag {
+            if let Some(cur) = pointer_w {
+                let r = Rect::from_two_pos(to_s(*start), to_s(cur));
+                painter.rect_filled(r, 0.0, th.accent.gamma_multiply(0.12));
+                painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.accent));
+            }
+        }
+        // where a click would add a point
+        if hov.is_none() && matches!(app.node_drag, NodeDrag::None) {
+            if let Some(w) = hover_w {
+                let mut probe = d.loops[li].clone();
+                if let Some(i) = shapes::insert_point(&mut probe, w, tol) { let q = shapes::points(&probe)[i]; painter.circle(to_s(q), 4.5, th.accent.gamma_multiply(0.35), Stroke::new(1.0_f32, th.accent)); }
+            }
+        }
+        // very dense shapes (a flattened circle): small dots instead of handles that would merge into a blob
+        let per: f32 = pts.windows(2).map(|w| to_s(w[0]).distance(to_s(w[1]))).sum();
+        let dense = per / (pts.len().max(1) as f32) < 8.0;
+        for (k, p) in pts.iter().enumerate() {
+            let s = to_s(*p);
+            let (sel, hot) = (app.node_sel.contains(&k), hov == Some(k));
+            if dense && !sel && !hot { painter.circle_filled(s, 1.6, th.accent); continue; }
+            let r = Rect::from_center_size(s, Vec2::splat(if hot { 9.0 } else { 7.0 }));
+            painter.rect_filled(r, 1.5, if sel { th.accent } else { Color32::WHITE });
+            painter.rect_stroke(r, 1.5, Stroke::new(1.5_f32, th.accent));
         }
     }
 
@@ -420,7 +465,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
                 (Mode::Rect, Icon::Rect, "Rectangle (R)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"),
             ] {
-                if icon_button(ui, icon, app.mode == m, true, tip).clicked() { app.mode = m; app.poly.clear(); app.tab_edit = None; }
+                if icon_button(ui, icon, app.mode == m, true, tip).clicked() { app.mode = m; app.poly.clear(); app.tab_edit = None; app.node_edit = None; }
             }
             // thin vertical dividers as tall as the buttons (a Separator would stretch the whole area)
             let divider = |ui: &mut Ui| {
@@ -440,10 +485,10 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
           });
         });
     });
-    if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
+    if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
-    let hint = if app.tab_edit.is_some() { "Click on an outline to add a tab. Drag a tab to move it, right-click it to remove. Esc or Done finishes." } else { match app.mode {
-        Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Del deletes. Middle/right-drag pans.",
+    let hint = if app.node_edit.is_some() { "Drag a point to move it, click an edge to add one, drag a box to select several. Del removes the selected points, arrows nudge them. Esc or Done finishes." } else if app.tab_edit.is_some() { "Click on an outline to add a tab. Drag a tab to move it, right-click it to remove. Esc or Done finishes." } else { match app.mode {
+        Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Double-click or N edits points. Del deletes. Middle/right-drag pans.",
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
@@ -799,4 +844,160 @@ fn tab_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
         });
     });
     if done { app.tab_edit = None; }
+}
+
+// ------------------------------------------------------------------- point editing
+
+fn enter_node_edit(app: &mut App, li: usize) {
+    if li >= app.project.data.loops.len() { return; }
+    app.node_edit = Some(li);
+    app.node_sel.clear();
+    app.node_drag = NodeDrag::None;
+    app.node_msg.clear();
+    app.tab_edit = None;
+    app.sel.clear();
+    app.sel.insert(li);
+}
+
+/// Index of the point under the pointer, if any (8 px reach).
+fn node_at(app: &App, pts: &[[f64; 2]], w: [f64; 2]) -> Option<usize> {
+    let s = app.scale as f64;
+    pts.iter().enumerate()
+        .map(|(i, p)| (i, (p[0] - w[0]).hypot(p[1] - w[1]) * s))
+        .filter(|(_, d)| *d <= 8.0)
+        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .map(|(i, _)| i)
+}
+
+fn node_keys(ctx: &egui::Context, app: &mut App) {
+    let Some(li) = app.node_edit else { return };
+    let (esc, del, up, down, left, right, shift) = ctx.input(|i| {
+        let free = !i.modifiers.command && !i.modifiers.alt;
+        (i.key_pressed(Key::Escape), free && (i.key_pressed(Key::Delete) || i.key_pressed(Key::Backspace)),
+         i.key_pressed(Key::ArrowUp), i.key_pressed(Key::ArrowDown), i.key_pressed(Key::ArrowLeft), i.key_pressed(Key::ArrowRight), i.modifiers.shift)
+    });
+    if esc {
+        if app.node_sel.is_empty() { app.node_edit = None; } else { app.node_sel.clear(); }
+        return;
+    }
+    if del && !app.node_sel.is_empty() {
+        let mut probe = app.project.data.loops[li].clone();
+        if shapes::delete_points(&mut probe, &app.node_sel) {
+            app.hist.record(&app.project.data);
+            app.project.data.loops[li] = probe;
+            app.node_sel.clear();
+            app.touch();
+        }
+    }
+    let step = if app.snap_on { app.snap_mm } else { 1.0 } * if shift { 10.0 } else { 1.0 };
+    let (dx, dy) = ((right as i32 - left as i32) as f64 * step, (up as i32 - down as i32) as f64 * step);
+    if (dx != 0.0 || dy != 0.0) && !app.node_sel.is_empty() {
+        app.hist.record(&app.project.data);
+        shapes::move_points(&mut app.project.data.loops[li], &app.node_sel, dx, dy);
+        app.touch();
+    }
+}
+
+fn node_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::Response, view: &View, li: usize, hover_w: Option<[f64; 2]>, pointer_w: Option<[f64; 2]>, tol: f64) {
+    let prim = PointerButton::Primary;
+    let shift = ctx.input(|i| i.modifiers.shift);
+    let pts = shapes::points(&app.project.data.loops[li]);
+    app.node_sel.retain(|&i| i < pts.len());
+
+    if resp.drag_started_by(prim) {
+        if let Some(w) = ctx.input(|i| i.pointer.press_origin()).map(|p| view.s2w(p)) {
+            match node_at(app, &pts, w) {
+                Some(k) => {
+                    if !app.node_sel.contains(&k) { if !shift { app.node_sel.clear(); } app.node_sel.insert(k); }
+                    app.node_drag = NodeDrag::Move { start: w, base: pts[k], applied: [0.0, 0.0] };
+                }
+                None => app.node_drag = NodeDrag::Box { start: w },
+            }
+        }
+    }
+    if resp.dragged_by(prim) {
+        if let (NodeDrag::Move { start, base, applied }, Some(cur)) = (&app.node_drag, pointer_w) {
+            let (start, base, applied) = (*start, *base, *applied);
+            let t = app.snap([base[0] + cur[0] - start[0], base[1] + cur[1] - start[1]]);
+            let desired = [t[0] - base[0], t[1] - base[1]];
+            let step = [desired[0] - applied[0], desired[1] - applied[1]];
+            if step[0].abs() > 1e-9 || step[1].abs() > 1e-9 {
+                app.hist.record_once(&app.project.data);
+                shapes::move_points(&mut app.project.data.loops[li], &app.node_sel, step[0], step[1]);
+                app.node_drag = NodeDrag::Move { start, base, applied: desired };
+                app.touch();
+            }
+            ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+        }
+    }
+    if resp.drag_stopped_by(prim) {
+        if let (NodeDrag::Box { start }, Some(end)) = (&app.node_drag, pointer_w) {
+            let r = [start[0].min(end[0]), start[1].min(end[1]), start[0].max(end[0]), start[1].max(end[1])];
+            if !shift { app.node_sel.clear(); }
+            for (i, p) in pts.iter().enumerate() { if p[0] >= r[0] && p[0] <= r[2] && p[1] >= r[1] && p[1] <= r[3] { app.node_sel.insert(i); } }
+        }
+        app.node_drag = NodeDrag::None;
+    }
+    if resp.clicked_by(prim) {
+        if let Some(w) = hover_w {
+            if let Some(k) = node_at(app, &pts, w) {
+                if shift { if !app.node_sel.remove(&k) { app.node_sel.insert(k); } } else { app.node_sel.clear(); app.node_sel.insert(k); }
+            } else {
+                let mut l = app.project.data.loops[li].clone();
+                if let Some(k) = shapes::insert_point(&mut l, w, tol) {
+                    app.hist.record(&app.project.data);
+                    app.project.data.loops[li] = l;
+                    app.node_sel.clear();
+                    app.node_sel.insert(k);
+                    app.touch();
+                } else if let Some(h) = shapes::pick(&app.project.data.loops, w, tol).filter(|&h| h != li) {
+                    enter_node_edit(app, h); // clicking another shape edits that one instead
+                } else if !shift { app.node_sel.clear(); }
+            }
+        }
+    }
+    if matches!(app.node_drag, NodeDrag::None) {
+        if let Some(w) = hover_w {
+            if node_at(app, &pts, w).is_some() { ctx.set_cursor_icon(egui::CursorIcon::Grab); }
+            else if app.project.data.loops[li].clone().pts.len() >= 4 && shapes::dist_to_loop(&app.project.data.loops[li], w) <= tol { ctx.set_cursor_icon(egui::CursorIcon::Crosshair); }
+        }
+    }
+}
+
+/// Small bar shown while a shape's points are being edited.
+fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
+    let Some(li) = app.node_edit else { return };
+    let Some(l) = app.project.data.loops.get(li) else { return };
+    let n = l.pts.len() / 2;
+    let plain = l.rc.is_none() && l.cr.is_none() && l.el.is_none();
+    let (mut done, mut simplify) = (false, false);
+    let mut tol = app.node_tol;
+    egui::Area::new(egui::Id::new("nodebar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0)).show(ctx, |ui| {
+        egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 6.0)).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(format!("Editing points · {n} point{}", if n == 1 { "" } else { "s" }));
+                ui.add_space(6.0);
+                ui.label("Simplify within");
+                ui.add(egui::DragValue::new(&mut tol).clamp_range(0.01..=5.0).speed(0.01).suffix(" mm"));
+                if ui.button("Simplify").on_hover_text("Remove points that hardly change the shape").clicked() { simplify = true; }
+                ui.add_space(6.0);
+                if crate::icons::icon_text_button(ui, Icon::Close, "Done", "Stop editing points (Esc)", None).clicked() { done = true; }
+            });
+            if !plain { ui.weak("Changing a point turns this rectangle or ellipse into a plain polygon."); }
+            if !app.node_msg.is_empty() { ui.weak(app.node_msg.as_str()); }
+        });
+    });
+    app.node_tol = tol;
+    if simplify {
+        let mut probe = app.project.data.loops[li].clone();
+        let (before, after) = shapes::simplify(&mut probe, tol);
+        if after < before {
+            app.hist.record(&app.project.data);
+            app.project.data.loops[li] = probe;
+            app.node_sel.clear();
+            app.touch();
+            app.node_msg = format!("Simplified: {before} → {after} points.");
+        } else { app.node_msg = "Nothing to simplify at this tolerance.".into(); }
+    }
+    if done { app.node_edit = None; }
 }

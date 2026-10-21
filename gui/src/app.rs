@@ -31,6 +31,14 @@ impl View {
 #[derive(Clone, Debug)]
 pub enum Action { New, Open(String), Quit }
 
+/// A drag while editing points.
+pub enum NodeDrag {
+    None,
+    /// Moving the selected points; `base` is where the grabbed point was, `applied` the shift made so far.
+    Move { start: [f64; 2], base: [f64; 2], applied: [f64; 2] },
+    Box { start: [f64; 2] },
+}
+
 pub enum Drag {
     None,
     Box { start: [f64; 2] },
@@ -82,6 +90,12 @@ pub struct App {
     /// Operation whose holding tabs are being placed on the canvas, and the tab being dragged.
     pub tab_edit: Option<i64>,
     pub tab_drag: Option<usize>,
+    /// Shape whose points are being edited, the selected points, the running drag and the simplify settings.
+    pub node_edit: Option<usize>,
+    pub node_sel: BTreeSet<usize>,
+    pub node_drag: NodeDrag,
+    pub node_tol: f64,
+    pub node_msg: String,
     pub mode: Mode,
     pub hist: History,
     pub modified: bool,
@@ -140,7 +154,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
@@ -168,6 +182,11 @@ impl App {
             else { a.path = p.clone(); a.open(&p); }
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
+        if let Some(i) = std::env::var("PUTIACNC_NODE_EDIT").ok().and_then(|v| v.parse::<usize>().ok()) {
+            a.node_edit = Some(i);
+            a.sel.insert(i);
+            a.node_sel.extend([0usize, 1]);
+        }
         if std::env::var_os("PUTIACNC_TAB_EDIT").is_some() {
             let loops = a.project.data.loops.clone();
             if let Some(o) = a.project.data.ops.iter_mut().find(|o| o.p.tabs) {
