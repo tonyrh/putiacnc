@@ -38,6 +38,10 @@ The binary is called `putiacnc`. Tool and machine libraries are stored per user:
 `~/.config/putiacnc` on Linux (or `$XDG_CONFIG_HOME/putiacnc`), `%APPDATA%\PutiaCNC` on Windows,
 `~/Library/Application Support/PutiaCNC` on macOS. Set `PUTIACNC_CONFIG_DIR` to use another folder.
 
+An AppImage for Linux is built with `packaging/build-appimage.sh`; it bundles `LICENSE` and
+`THIRD-PARTY-LICENSES.txt` (regenerate the latter with `cargo about generate --workspace about.hbs`).
+It needs a glibc as new as the machine that built it (2.39 for the 0.1.0 release).
+
 The app icon is in `assets/` (`putiacnc.svg` plus PNGs from 16 to 512 px).
 
 ## Command line

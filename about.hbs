@@ -1,0 +1,23 @@
+PutiaCNC third-party licenses
+=============================
+
+PutiaCNC itself is released under the GNU General Public License v3.0 or later (see LICENSE).
+It includes the following third-party components.
+
+{{#each overview}}
+* {{{name}}} ({{count}} crate{{#if (gt count 1)}}s{{/if}})
+{{/each}}
+
+{{#each licenses}}
+--------------------------------------------------------------------------------
+{{{name}}}
+--------------------------------------------------------------------------------
+
+Used by:
+{{#each used_by}}
+  - {{crate.name}} {{crate.version}}{{#if crate.repository}} ({{crate.repository}}){{/if}}
+{{/each}}
+
+{{{text}}}
+
+{{/each}}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PutiaCNC
+Comment=CNC toolpath studio for GRBL machines
+Exec=putiacnc %f
+Icon=putiacnc
+Categories=Graphics;Engineering;
+MimeType=application/json;
+Terminal=false
+StartupWMClass=putiacnc

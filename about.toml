@@ -1,0 +1,7 @@
+accepted = [
+    "Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "0BSD", "BSL-1.0",
+    "CC0-1.0", "Unicode-3.0", "Unlicense", "OFL-1.1", "LicenseRef-UFL-1.0", "LGPL-2.1-or-later", "GPL-3.0-or-later",
+]
+workarounds = ["ring"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
