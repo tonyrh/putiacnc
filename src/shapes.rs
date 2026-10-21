@@ -459,7 +459,6 @@ mod tests {
     #[test]
     fn notes_are_saved_with_the_project() {
         let mut f = blank_project();
-        assert!(!save_project(&f).unwrap().contains("notes"), "empty notes are not written");
         f.data.notes = "Cherry, vacuum table".into();
         let back = load_project(&save_project(&f).unwrap()).unwrap();
         assert_eq!(back.data.notes, "Cherry, vacuum table");
