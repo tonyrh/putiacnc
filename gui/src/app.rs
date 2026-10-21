@@ -5,7 +5,7 @@ use putiacnc_core::{generate, load_project, save_project, Output, ProjectData, P
 use std::collections::BTreeSet;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum Mode { Select, Line, Rect, Ellipse }
+pub enum Mode { Select, Node, Line, Rect, Ellipse }
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum RightTab { Ops, Gcode, Info }
@@ -183,6 +183,7 @@ impl App {
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
         if let Some(i) = std::env::var("PUTIACNC_NODE_EDIT").ok().and_then(|v| v.parse::<usize>().ok()) {
+            a.mode = Mode::Node;
             a.node_edit = Some(i);
             a.sel.insert(i);
             a.node_sel.extend([0usize, 1]);

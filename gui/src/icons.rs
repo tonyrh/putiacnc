@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Select, Line, Rect, Ellipse, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
+pub enum Icon { Select, Node, Line, Rect, Ellipse, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -13,6 +13,16 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
     let closed = |pts: Vec<Pos2>| { painter.add(egui::Shape::closed_line(pts, st)); };
     match icon {
         Icon::Select => closed(vec![p(-6.0, -9.0), p(-6.0, 8.0), p(-2.0, 4.0), p(1.0, 10.0), p(4.0, 8.5), p(1.5, 3.0), p(7.0, 3.0)]),
+        Icon::Node => {
+            // a polyline with square points, one of them selected
+            let (a, b, d) = (p(-8.0, 7.0), p(-1.0, -6.0), p(8.0, 3.0));
+            painter.line_segment([a, b], st);
+            painter.line_segment([b, d], st);
+            for (q, filled) in [(a, false), (b, true), (d, false)] {
+                let r = Rect::from_center_size(q, Vec2::splat(5.0 * s));
+                if filled { painter.rect_filled(r, 0.5, fg); } else { painter.rect_stroke(r, 0.5, st); }
+            }
+        }
         Icon::Line => {
             painter.line_segment([p(-9.0, 8.0), p(9.0, -8.0)], st);
             painter.circle_filled(p(-9.0, 8.0), 2.5 * s, fg);

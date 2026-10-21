@@ -46,10 +46,9 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         return;
     }
     if app.node_edit.is_some() { node_keys(ctx, app); return; }
-    // N: edit the points of the selected shape
-    if ctx.input(|i| i.key_pressed(Key::N) && !i.modifiers.command && !i.modifiers.alt) && app.sel.len() == 1 {
-        let i = *app.sel.iter().next().unwrap();
-        enter_node_edit(app, i);
+    // N: node tool (edits the points of the selected shape, or of the next one you click)
+    if ctx.input(|i| i.key_pressed(Key::N) && !i.modifiers.command && !i.modifiers.alt) {
+        set_mode(app, Mode::Node);
         return;
     }
     let (v, l, r, e, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
@@ -63,7 +62,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         )
     });
     for (hit, m) in [(v, Mode::Select), (l, Mode::Line), (r, Mode::Rect), (e, Mode::Ellipse)] {
-        if hit { app.mode = m; app.poly.clear(); }
+        if hit { set_mode(app, m); }
     }
     if app.mode == Mode::Line && !app.poly.is_empty() {
         if enter { finish_poly(app, false); }
@@ -210,6 +209,13 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
                     }
                 }
             }
+        }
+        Some(Mode::Node) => {
+            // nothing is being edited yet: clicking a shape starts editing its points
+            if resp.clicked_by(prim) {
+                if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) { enter_node_edit(app, h); }
+            }
+            if hover_w.map_or(false, |w| shapes::pick(&app.project.data.loops, w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
         }
         Some(Mode::Rect) | Some(Mode::Ellipse) => {
             if resp.drag_started_by(prim) {
@@ -434,7 +440,7 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     }
     if let Some(h) = hover_w {
         let c = app.snap(h);
-        if app.mode != Mode::Select { painter.circle_stroke(to_s(c), 5.0, Stroke::new(1.0_f32, th.shape_selected())); }
+        if app.mode != Mode::Select && app.mode != Mode::Node { painter.circle_stroke(to_s(c), 5.0, Stroke::new(1.0_f32, th.shape_selected())); }
         if let Some(t) = hud {
             painter.text(to_s(c) + Vec2::new(12.0, -12.0), egui::Align2::LEFT_BOTTOM, t, egui::FontId::monospace(12.0), th.hud());
         }
@@ -462,10 +468,10 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
           ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
             for (m, icon, tip) in [
-                (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
+                (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
                 (Mode::Rect, Icon::Rect, "Rectangle (R)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"),
             ] {
-                if icon_button(ui, icon, app.mode == m, true, tip).clicked() { app.mode = m; app.poly.clear(); app.tab_edit = None; app.node_edit = None; }
+                if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
             // thin vertical dividers as tall as the buttons (a Separator would stretch the whole area)
             let divider = |ui: &mut Ui| {
@@ -489,6 +495,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point to move it, click an edge to add one, drag a box to select several. Del removes the selected points, arrows nudge them. Esc or Done finishes." } else if app.tab_edit.is_some() { "Click on an outline to add a tab. Drag a tab to move it, right-click it to remove. Esc or Done finishes." } else { match app.mode {
         Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Double-click or N edits points. Del deletes. Middle/right-drag pans.",
+        Mode::Node => "Click a shape to edit its points.",
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
@@ -848,8 +855,20 @@ fn tab_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
 
 // ------------------------------------------------------------------- point editing
 
+/// Switches tool. Leaves point editing; the node tool starts on the selected shape when there is exactly one.
+fn set_mode(app: &mut App, m: Mode) {
+    app.mode = m;
+    app.poly.clear();
+    app.tab_edit = None;
+    app.node_edit = None;
+    app.node_drag = NodeDrag::None;
+    if m == Mode::Node && app.sel.len() == 1 { let i = *app.sel.iter().next().unwrap(); enter_node_edit(app, i); }
+}
+
 fn enter_node_edit(app: &mut App, li: usize) {
     if li >= app.project.data.loops.len() { return; }
+    app.mode = Mode::Node;
+    app.poly.clear();
     app.node_edit = Some(li);
     app.node_sel.clear();
     app.node_drag = NodeDrag::None;
@@ -880,6 +899,12 @@ fn node_keys(ctx: &egui::Context, app: &mut App) {
         if app.node_sel.is_empty() { app.node_edit = None; } else { app.node_sel.clear(); }
         return;
     }
+    // other tool shortcuts leave point editing
+    let tool = ctx.input(|i| {
+        let free = !i.modifiers.command && !i.modifiers.alt;
+        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
+    });
+    if let Some(m) = tool { set_mode(app, m); return; }
     if del && !app.node_sel.is_empty() {
         let mut probe = app.project.data.loops[li].clone();
         if shapes::delete_points(&mut probe, &app.node_sel) {
@@ -999,5 +1024,5 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             app.node_msg = format!("Simplified: {before} → {after} points.");
         } else { app.node_msg = "Nothing to simplify at this tolerance.".into(); }
     }
-    if done { app.node_edit = None; }
+    if done { app.node_edit = None; app.mode = Mode::Select; }
 }
