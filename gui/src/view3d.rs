@@ -272,13 +272,18 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             run.push(b);
         }
         flush(&mut run, run_key);
-        // the cutter
-        if done > 0 && done < o.moves.len() {
-            let tip = sim.tip;
-            let op = o.moves[done - 1].op;
-            if let (Some(a), Some(b)) = (cam.p([tip[0] as f32, tip[1] as f32, tip[2] as f32]), cam.p([tip[0] as f32, tip[1] as f32, tip[2] as f32 + 25.0])) {
-                let c = crate::theme::op_color(op, dark);
-                painter.line_segment([a, b], Stroke::new(5.0_f32, Color32::from_black_alpha(90)));
+        // the cutter: it glides along the move in progress, so rapids and plunges are not shown as jumps
+        let st = &app.v3;
+        if (done > 0 || st.t > 0.0) && done < o.moves.len() {
+            let m = &o.moves[done];
+            let start = if done > 0 { st.cum.get(done - 1).copied().unwrap_or(0.0) } else { 0.0 };
+            let f = if m.dt > 1e-12 { ((st.t - start) / m.dt).clamp(0.0, 1.0) } else { 1.0 };
+            let tip: Vec<f32> = (0..3).map(|i| (m.from[i] + (m.to[i] - m.from[i]) * f) as f32).collect();
+            if let (Some(a), Some(b)) = (cam.p([tip[0], tip[1], tip[2]]), cam.p([tip[0], tip[1], tip[2] + 25.0])) {
+                let c = crate::theme::op_color(m.op, dark);
+                // lighter while rapiding: the tool is not cutting
+                let c = if m.cut { c } else { c.gamma_multiply(0.55) };
+                painter.line_segment([a, b], Stroke::new(5.0_f32, Color32::from_black_alpha(if m.cut { 90 } else { 45 })));
                 painter.line_segment([a, b], Stroke::new(3.0_f32, c));
                 painter.circle_filled(a, 4.0, c);
                 painter.circle_stroke(a, 4.0, Stroke::new(1.0_f32, Color32::WHITE));
