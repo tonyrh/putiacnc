@@ -522,7 +522,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     if has_ramp {
                         let rest = ui.available_width() - ramp_w;
                         if rest > 0.0 { ui.add_space(rest); }
-                        changed |= ui.checkbox(&mut p.ramp, "Ramp in").changed();
+                        changed |= ui.add_enabled(p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), egui::Checkbox::new(&mut p.ramp, "Ramp in")).on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
                     }
                 });
                 // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
@@ -623,6 +623,22 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                       });
                     }
+                }
+                if ["outside", "inside"].contains(&p.kind.as_str()) {
+                    ui.horizontal(|ui| {
+                        let mut on = p.lead.is_some();
+                        if ui.checkbox(&mut on, "Lead-in / out").on_hover_text("Enters and leaves the cut along an arc on the waste side, so the tool does not plunge on the line or leave a mark where it stops").changed() {
+                            let dia = tools.iter().find(|t| t.id == p.tool).map(|t| t.dia).unwrap_or(3.0);
+                            p.lead = if on { Some(dia.max(1.0)) } else { None };
+                            changed = true;
+                        }
+                        if let Some(r) = p.lead.as_mut() {
+                            ui.add_space(10.0);
+                            ui.label("Radius");
+                            if dv_w(ui, 42.0, r, 0.2, 100.0, "") { changed = true; }
+                            ui.weak("mm");
+                        }
+                    });
                 }
                 changed |= ui.checkbox(&mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed();
                 ui.add_space(4.0);

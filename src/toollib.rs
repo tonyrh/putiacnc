@@ -254,7 +254,7 @@ mod tests {
     use crate::model::OpParams;
 
     fn op(id: i64, tool: &str) -> Operation {
-        Operation { id, p: OpParams { kind: "outside".into(), dir: "climb".into(), depth: 1.0, ramp: true, tool: tool.into(), tabs: false, air: false, tab_n: None, tab_w: None, tab_h: None, tab_pts: None, pass_depth: None } }
+        Operation { id, p: OpParams { kind: "outside".into(), dir: "climb".into(), depth: 1.0, ramp: true, tool: tool.into(), tabs: false, air: false, tab_n: None, tab_w: None, tab_h: None, tab_pts: None, pass_depth: None, lead: None } }
     }
 
     #[test]

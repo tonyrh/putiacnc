@@ -101,6 +101,8 @@ pub struct OpParams {
     #[serde(default, skip_serializing_if = "is_false")] pub air: bool,
     /// Depth per pass in mm; `None` = the tool's own pass depth.
     #[serde(default, rename = "passD", skip_serializing_if = "Option::is_none")] pub pass_depth: Option<f64>,
+    /// Radius (mm) of the arc the tool uses to enter and leave a profile cut; `None` = plunge straight onto the line.
+    #[serde(default, rename = "leadR", skip_serializing_if = "Option::is_none")] pub lead: Option<f64>,
     #[serde(default, rename = "tabN", skip_serializing_if = "Option::is_none")] pub tab_n: Option<f64>,
     #[serde(default, rename = "tabW", skip_serializing_if = "Option::is_none")] pub tab_w: Option<f64>,
     #[serde(default, rename = "tabH", skip_serializing_if = "Option::is_none")] pub tab_h: Option<f64>,

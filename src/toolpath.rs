@@ -93,7 +93,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize,
-    moves: Vec<Move>, marks: Vec<TabMark>, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
+    moves: Vec<Move>, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
 }
 
 impl Em {
@@ -135,6 +135,8 @@ struct OpCtx<'a> {
     kind: &'a str, dia: f64, so: f64, plunge: f64, feed: f64, ramp: bool, rev: bool,
     z0: f64, sz: f64, zs: Vec<f64>,
     tabs_on: bool, ztab: f64, tab_w: f64, tab_n: f64,
+    /// Lead-in / lead-out arc radius in mm (0 = none).
+    lead: f64,
 }
 
 fn mk_jobs(c: &OpCtx, region: &[Path], closed: &[Path], open: &[Path], rm: f64) -> Vec<Job> {
@@ -275,9 +277,89 @@ fn assign_manual_tabs(c: &OpCtx, jobs: &mut [Job], tabs: &[[f64; 2]], notes: &mu
     if skipped > 0 { notes.push(format!("{}{} manual tab{} not on the outline, skipped.", pre, skipped, if skipped == 1 { " is" } else { "s are" })); }
 }
 
-fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64]) {
+/// Even-odd test of a point (mm) against a set of closed paths.
+fn inside_eo(paths: &[Path], x: f64, y: f64) -> bool {
+    let (xi, yi) = (x * S, y * S);
+    let mut c = false;
+    for p in paths {
+        let n = p.len();
+        if n < 3 { continue; }
+        let mut j = n - 1;
+        for i in 0..n {
+            let (a, b) = ([p[i][0] as f64, p[i][1] as f64], [p[j][0] as f64, p[j][1] as f64]);
+            if (a[1] > yi) != (b[1] > yi) && xi < a[0] + (yi - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) { c = !c; }
+            j = i;
+        }
+    }
+    c
+}
+
+/// A tangent arc to enter the cut and one to leave it, on the waste side of the toolpath.
+struct Lead { s: [f64; 2], arc_in: Vec<[f64; 2]>, arc_out: Vec<[f64; 2]> }
+
+/// `guard` is the set of toolpath outlines of the operation: the tool centre is on the waste side of them
+/// where the even-odd test gives `waste_inside`. The radius shrinks until the arcs fit; None if even a small one does not.
+fn make_lead(pts: &[[f64; 2]], guard: &[Path], waste_inside: bool, r_max: f64) -> Option<Lead> {
+    let n = pts.len();
+    if n < 4 { return None; }
+    let p0 = pts[0];
+    let dir = |a: [f64; 2], b: [f64; 2]| -> Option<[f64; 2]> {
+        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+        let l = dx.hypot(dy);
+        if l < 1e-6 { None } else { Some([dx / l, dy / l]) }
+    };
+    let mut t_out = (1..n).find_map(|i| dir(p0, pts[i]))?;
+    let mut t_in = (0..n - 1).rev().find_map(|i| dir(pts[i], p0))?;
+    // on a smooth curve (a polygon with short edges) both arcs follow the true tangent; at a real corner each follows its own edge
+    if t_in[0] * t_out[0] + t_in[1] * t_out[1] > 0.9 {
+        let m = [t_in[0] + t_out[0], t_in[1] + t_out[1]];
+        let l = m[0].hypot(m[1]);
+        t_out = [m[0] / l, m[1] / l];
+        t_in = t_out;
+    }
+    let ok = |q: [f64; 2]| inside_eo(guard, q[0], q[1]) == waste_inside;
+    // the normal that points into the waste
+    let side = |t: [f64; 2]| -> [f64; 2] {
+        let l = [-t[1], t[0]];
+        if ok([p0[0] + l[0] * 0.2, p0[1] + l[1] * 0.2]) { l } else { [-l[0], -l[1]] }
+    };
+    let (n_in, n_out) = (side(t_out), side(t_in));
+    let mut r = r_max;
+    while r >= 0.3 {
+        let c_in = [p0[0] + n_in[0] * r, p0[1] + n_in[1] * r];
+        let c_out = [p0[0] + n_out[0] * r, p0[1] + n_out[1] * r];
+        let steps = 12;
+        let mut arc_in = Vec::new();
+        let mut arc_out = Vec::new();
+        for i in 0..=steps {
+            let a = std::f64::consts::FRAC_PI_2 * i as f64 / steps as f64;
+            let (ca, sa) = (a.cos(), a.sin());
+            arc_in.push([c_in[0] - t_out[0] * r * ca - n_in[0] * r * sa, c_in[1] - t_out[1] * r * ca - n_in[1] * r * sa]);
+            arc_out.push([c_out[0] - n_out[0] * r * ca + t_in[0] * r * sa, c_out[1] - n_out[1] * r * ca + t_in[1] * r * sa]);
+        }
+        let (s, e) = (arc_in[0], arc_out[steps]);
+        // right at the join the arcs hug the outline, within the polygon's own error, so those points are not judged
+        let far = |q: &[f64; 2]| (q[0] - p0[0]).hypot(q[1] - p0[1]) > 0.3;
+        let fits = arc_in[..steps].iter().chain(arc_out[1..].iter()).filter(|q| far(q)).all(|&q| ok(q))
+            && (1..4).all(|i| { let u = i as f64 / 4.0; ok([e[0] + (s[0] - e[0]) * u, e[1] + (s[1] - e[1]) * u]) });
+        if fits {
+            arc_out.remove(0);
+            arc_in.remove(0);
+            return Some(Lead { s, arc_in, arc_out });
+        }
+        r /= 2.0;
+    }
+    None
+}
+
+fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     let pts = path_f(&job.p, c.rev, job.closed);
-    let a = pts[0];
+    let lead = if c.lead > 0.0 && job.closed && !job.pocket {
+        let l = make_lead(&pts, guard, c.kind == "inside", c.lead);
+        if l.is_none() { e.lead_skipped += 1; }
+        l
+    } else { None };
+    let a = lead.as_ref().map(|l| l.s).unwrap_or(pts[0]);
     e.go("G0", None, None, Some(c.sz), 0.0);
     e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
     e.pn = 0;
@@ -287,9 +369,15 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64]) {
     for &z in zl {
         e.pn = c.zs.iter().position(|&q| q == z).map(|i| i + 1).unwrap_or(0);
         let tiv = if c.tabs_on && job.closed && z < c.ztab - 1e-9 { tab_iv(e, c, job, &pts) } else { None };
+        if let Some(l) = &lead {
+            // back to the start of the arc (it is in the waste, so this is free air), down, and onto the line
+            e.go("G1", Some(l.s[0]), Some(l.s[1]), Some(c.z0 + pz), c.feed);
+            e.go("G1", None, None, Some(c.z0 + z), c.plunge);
+            for q in &l.arc_in { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
+        }
         if let Some(iv) = tiv {
             tab_pass(e, c, &pts, z, &iv);
-        } else if c.ramp && job.closed && !job.pocket && pts.len() > 2 {
+        } else if c.ramp && lead.is_none() && job.closed && !job.pocket && pts.len() > 2 {
             let mut lc = vec![0.0];
             let mut t = 0.0;
             for i in 1..pts.len() { t += (pts[i][0] - pts[i - 1][0]).hypot(pts[i][1] - pts[i - 1][1]); lc.push(t); }
@@ -299,6 +387,7 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64]) {
             e.go("G1", None, None, Some(c.z0 + z), c.plunge);
             for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
         }
+        if let Some(l) = &lead { for q in &l.arc_out { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
         pz = z;
     }
     e.go("G0", None, None, Some(c.sz), 0.0);
@@ -324,7 +413,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], marks: vec![], ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
+    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
     let mut notes: Vec<String> = Vec::new();
 
     if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
@@ -373,7 +462,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside");
         let tabs_on = tabs_req && tab_h > 0.0 && tab_h < depth - 1e-6;
         let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, z0, sz, zs: zs.clone(),
-            tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0) };
+            tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
+            lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 } };
 
         let mut jobs: Vec<Job> = Vec::new();
         let mut vr: Vec<(Path, f64)> = Vec::new();
@@ -445,12 +535,18 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         } else if by_pass {
             for &z in &zs {
                 let mut jb = mk_jobs(&ctx, &region, &closed, &open, geo.r_at(-z));
-                for j in jb.iter_mut() { cut(&mut e, &ctx, j, &[z]); }
+                let guard: Vec<Path> = jb.iter().map(|j| j.p.clone()).collect();
+                for j in jb.iter_mut() { cut(&mut e, &ctx, j, &[z], &guard); }
             }
         } else if kind == "pocket" {
-            for &z in &zs { for j in jobs.iter_mut() { cut(&mut e, &ctx, j, &[z]); } }
+            for &z in &zs { for j in jobs.iter_mut() { cut(&mut e, &ctx, j, &[z], &[]); } }
         } else {
-            for j in jobs.iter_mut() { cut(&mut e, &ctx, j, &zs); }
+            let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
+            for j in jobs.iter_mut() { cut(&mut e, &ctx, j, &zs, &guard); }
+        }
+        if e.lead_skipped > 0 {
+            notes.push(format!("{}lead-in/out skipped on {} path(s): not enough room for the arc.", pre, e.lead_skipped));
+            e.lead_skipped = 0;
         }
         any = true;
     }
