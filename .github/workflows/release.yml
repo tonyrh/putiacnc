@@ -27,3 +27,31 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: PutiaCNC-*-macos.dmg
+
+  windows-zip:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release -p putiacnc-gui
+      - name: Package (portable zip)
+        run: |
+          VER=$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)
+          D="PutiaCNC-$VER-windows-x86_64"
+          mkdir "$D"
+          cp target/release/putiacnc.exe "$D/PutiaCNC.exe"
+          cp LICENSE THIRD-PARTY-LICENSES.txt README.md "$D/"
+          7z a "$D.zip" "$D"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: PutiaCNC-*-windows-x86_64.zip
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PutiaCNC-*-windows-x86_64.zip

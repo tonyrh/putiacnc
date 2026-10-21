@@ -1,3 +1,5 @@
+// no console window behind the app on Windows release builds
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 //! PutiaCNC desktop GUI: 2D editor, operations, G-code and time estimate.
 mod app;
 mod canvas;
