@@ -94,3 +94,7 @@ its G-code and a meta file in the same format.
 - G-code number formatting reproduces JavaScript's `toFixed` and `String(number)` exactly.
 - Offsets that collapse a shape are very slow in Clipper. Repeated offsets (pocket rings, V-carve rings)
   therefore offset the previous ring by one step instead of offsetting the original shape by a growing distance.
+
+## License
+
+PutiaCNC is free software, released under the GNU General Public License v3.0 or later. See `LICENSE`.
