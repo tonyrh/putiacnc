@@ -75,7 +75,7 @@ pub fn apply_fonts(ctx: &egui::Context) {
 }
 
 #[derive(Clone, Copy)]
-pub struct Material { pub fill: Color32, pub stroke: Color32, pub top: Color32, pub side: Color32 }
+pub struct Material { pub fill: Color32, pub stroke: Color32, pub top: Color32, pub side: Color32, /** speckle strength, 0 = smooth */ pub grain: f32 }
 
 impl Theme {
     pub fn window(&self) -> Color32 { if self.dark { rgb(0x24, 0x24, 0x24) } else { rgb(0xfa, 0xfa, 0xfa) } }
@@ -90,12 +90,12 @@ impl Theme {
     pub fn material(&self, mat: &str) -> Material {
         let c = |r, g, b| rgb(r, g, b);
         match (mat, self.dark) {
-            ("metal", false) => Material { fill: c(0xcf, 0xd4, 0xda), stroke: c(0x8a, 0x92, 0x9c), top: c(190, 196, 204), side: c(150, 156, 166) },
-            ("metal", true) => Material { fill: c(0x3a, 0x3e, 0x44), stroke: c(0x8c, 0x93, 0x9c), top: c(170, 176, 186), side: c(120, 126, 136) },
-            ("foam", false) => Material { fill: c(0xcf, 0xe3, 0xf3), stroke: c(0x7f, 0xa8, 0xcf), top: c(170, 205, 235), side: c(130, 170, 205) },
-            ("foam", true) => Material { fill: c(0x2d, 0x3a, 0x46), stroke: c(0x6d, 0x94, 0xb8), top: c(140, 180, 215), side: c(100, 140, 175) },
-            (_, false) => Material { fill: c(0xe9, 0xdb, 0xc3), stroke: c(0xa0, 0x7c, 0x45), top: c(226, 190, 142), side: c(190, 150, 104) },
-            (_, true) => Material { fill: c(0x3a, 0x30, 0x24), stroke: c(0xa0, 0x84, 0x5c), top: c(196, 158, 112), side: c(150, 116, 78) },
+            ("metal", false) => Material { fill: c(0xcf, 0xd4, 0xda), stroke: c(0x8a, 0x92, 0x9c), top: c(190, 196, 204), side: c(150, 156, 166), grain: 0.0 },
+            ("metal", true) => Material { fill: c(0x3a, 0x3e, 0x44), stroke: c(0x8c, 0x93, 0x9c), top: c(170, 176, 186), side: c(120, 126, 136), grain: 0.0 },
+            ("foam", false) => Material { fill: c(0x3a, 0x3b, 0x3f), stroke: c(0x1c, 0x1c, 0x1e), top: c(78, 79, 84), side: c(54, 55, 59), grain: 1.0 },
+            ("foam", true) => Material { fill: c(0x46, 0x47, 0x4b), stroke: c(0x84, 0x85, 0x8a), top: c(88, 89, 94), side: c(62, 63, 68), grain: 1.0 },
+            (_, false) => Material { fill: c(0xe9, 0xdb, 0xc3), stroke: c(0xa0, 0x7c, 0x45), top: c(226, 190, 142), side: c(190, 150, 104), grain: 0.0 },
+            (_, true) => Material { fill: c(0x3a, 0x30, 0x24), stroke: c(0xa0, 0x84, 0x5c), top: c(196, 158, 112), side: c(150, 116, 78), grain: 0.0 },
         }
     }
     pub fn shape_idle(&self) -> Color32 { if self.dark { Color32::from_gray(150) } else { Color32::from_gray(100) } }

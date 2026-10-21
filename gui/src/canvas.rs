@@ -306,6 +306,12 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     let sr = Rect::from_two_pos(to_s([0.0, 0.0]), to_s([sw, sh]));
     let mat = th.material(&d.stock.mat);
     painter.rect_filled(sr, 0.0, mat.fill);
+    if mat.grain > 0.0 {
+        // fixed to the stock (in mm), so the grain moves and zooms with it
+        let tile = 64.0_f32;
+        let uv = Rect::from_min_max(Pos2::ZERO, Pos2::new(sw as f32 / tile, sh as f32 / tile));
+        painter.image(foam_texture(&ctx).id(), sr, uv, Color32::from_white_alpha((mat.grain * 255.0) as u8));
+    }
     painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, mat.stroke));
     let (zx, zy) = match d.stock.zr.as_str() { "lr" => (sw, 0.0), "ul" => (0.0, sh), "ur" => (sw, sh), "c" => (sw / 2.0, sh / 2.0), _ => (0.0, 0.0) };
     let z = to_s([zx, zy]);
@@ -1052,4 +1058,38 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
         } else { app.node_msg = "Nothing to simplify at this tolerance.".into(); }
     }
     if done { app.node_edit = None; app.mode = Mode::Select; }
+}
+
+/// A tileable speckle texture (fine pores and soft blotches, light and dark) laid over the foam stock.
+fn foam_texture(ctx: &egui::Context) -> egui::TextureHandle {
+    let id = egui::Id::new("foam_texture");
+    if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) { return t; }
+    const N: usize = 256;
+    const CELL: usize = 8;
+    const M: usize = N / CELL;
+    let mut seed: u32 = 0x1234_abcd;
+    let mut rnd = move || { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; seed as f32 / u32::MAX as f32 };
+    let coarse: Vec<f32> = (0..M * M).map(|_| rnd()).collect();
+    let fine: Vec<f32> = (0..N * N).map(|_| rnd()).collect();
+    let mut px = Vec::with_capacity(N * N * 4);
+    for y in 0..N {
+        for x in 0..N {
+            let (gx, gy) = (x as f32 / CELL as f32, y as f32 / CELL as f32);
+            let (x0, y0) = (gx.floor() as usize, gy.floor() as usize);
+            let (fx, fy) = (gx - gx.floor(), gy - gy.floor());
+            let (sx, sy) = (fx * fx * (3.0 - 2.0 * fx), fy * fy * (3.0 - 2.0 * fy));
+            let c = |i: usize, j: usize| coarse[(j % M) * M + (i % M)];
+            let blot = (c(x0, y0) * (1.0 - sx) + c(x0 + 1, y0) * sx) * (1.0 - sy) + (c(x0, y0 + 1) * (1.0 - sx) + c(x0 + 1, y0 + 1) * sx) * sy;
+            let v = 0.6 * (fine[y * N + x] - 0.5) * 2.0 + 0.4 * (blot - 0.5) * 2.0;
+            let v = v.signum() * v.abs().powf(1.4);
+            let a = (v.abs() * 48.0).min(255.0) as u8;
+            let g = if v > 0.0 { 255 } else { 0 };
+            px.extend_from_slice(&[g, g, g, a]);
+        }
+    }
+    let img = egui::ColorImage::from_rgba_unmultiplied([N, N], &px);
+    let opts = egui::TextureOptions { magnification: egui::TextureFilter::Linear, minification: egui::TextureFilter::Linear, wrap_mode: egui::TextureWrapMode::Repeat };
+    let t = ctx.load_texture("foam", img, opts);
+    ctx.data_mut(|d| d.insert_temp(id, t.clone()));
+    t
 }
