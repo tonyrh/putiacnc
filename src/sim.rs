@@ -28,6 +28,10 @@ pub struct Sim {
     pub done: usize,
     tools: Vec<(f64, Vec<f32>)>, // per operation: radius, rise table with step = cell / 2
     pub tip: [f64; 3],
+    /// Bumped whenever the surface changes (the GUI uploads it again when this moves).
+    pub rev: u64,
+    /// How far into the move at `done` the cutter has been stamped (0..1), see `advance_into`.
+    part: f64,
 }
 
 impl Sim {
@@ -54,10 +58,10 @@ impl Sim {
                 None => (0.0, vec![0.0]),
             }
         }).collect();
-        Sim { nx, ny, cell, w: st.w, h: st.h, t: st.t, z: vec![0.0; nx * ny], done: 0, tools, tip: [0.0, 0.0, 10.0] }
+        Sim { nx, ny, cell, w: st.w, h: st.h, t: st.t, z: vec![0.0; nx * ny], done: 0, tools, tip: [0.0, 0.0, 10.0], rev: 0, part: 0.0 }
     }
 
-    pub fn reset(&mut self) { self.z.iter_mut().for_each(|v| *v = 0.0); self.done = 0; }
+    pub fn reset(&mut self) { self.z.iter_mut().for_each(|v| *v = 0.0); self.done = 0; self.part = 0.0; self.rev += 1; }
 
     fn stamp(&mut self, op: usize, x: f64, y: f64, z: f64) {
         let Some((r, tab)) = self.tools.get(op) else { return };
@@ -101,22 +105,43 @@ impl Sim {
         while self.done < upto {
             if let Some(b) = budget { if start.elapsed() >= b { return false; } }
             let m = &moves[self.done];
-            if m.cut {
-                let d = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt();
-                let n = ((d / (self.cell * 0.7)).ceil() as usize).max(1);
-                for i in 1..=n {
-                    let f = i as f64 / n as f64;
-                    // skip samples clearly above the stock
-                    let z = m.from[2] + (m.to[2] - m.from[2]) * f;
-                    if z > 0.0 { continue; }
-                    self.stamp(m.op, m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, z);
-                }
-            }
+            self.stamp_move(m, 0.0, 1.0);
             self.tip = m.to;
             self.done += 1;
+            self.part = 0.0;
+            self.rev += 1;
         }
         if upto == 0 { self.tip = [0.0, 0.0, 10.0]; }
         true
+    }
+
+    /// Cuts the part of a move between fractions `f0` and `f1` of its length.
+    fn stamp_move(&mut self, m: &Move, f0: f64, f1: f64) {
+        if !m.cut || f1 <= f0 { return; }
+        let d = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt() * (f1 - f0);
+        let n = ((d / (self.cell * 0.7)).ceil() as usize).max(1);
+        for i in 0..=n {
+            let f = f0 + (f1 - f0) * i as f64 / n as f64;
+            if i == 0 && f0 > 0.0 { continue; }
+            // skip samples clearly above the stock
+            let z = m.from[2] + (m.to[2] - m.from[2]) * f;
+            if z > 0.0 { continue; }
+            self.stamp(m.op, m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, z);
+        }
+    }
+
+    /// Cuts the move at `done` up to fraction `f` of its length, so the material goes away under the
+    /// cutter instead of a whole move at a time. Call after `advance` has reached `done`.
+    /// Going back within the move restarts the replay (the caller's next `advance` rebuilds the surface).
+    pub fn advance_into(&mut self, moves: &[Move], f: f64) {
+        let Some(m) = moves.get(self.done) else { return };
+        let f = f.clamp(0.0, 1.0);
+        if f < self.part - 1e-9 { self.reset(); return; }
+        if f > self.part + 1e-9 {
+            self.stamp_move(m, self.part, f);
+            self.part = f;
+            self.rev += 1;
+        }
     }
 
     pub fn at(&self, ix: usize, iy: usize) -> f32 { self.z[iy * self.nx + ix] }
@@ -169,5 +194,32 @@ mod tests {
         assert_eq!(rise(&g, 0.0), 0.0);
         assert!((rise(&g, 2.0) - 2.0).abs() < 1e-9);
         assert!(rise(&g, 3.5).is_infinite());
+    }
+
+    #[test]
+    fn a_move_is_cut_progressively() {
+        let d = proj();
+        let out = generate(&d, Units::Metric).unwrap();
+        // the longest cutting move
+        let k = (0..out.moves.len()).filter(|&i| out.moves[i].cut).max_by(|&a, &b| {
+            let len = |m: &Move| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2)).sqrt();
+            len(&out.moves[a]).partial_cmp(&len(&out.moves[b])).unwrap()
+        }).unwrap();
+        let cut = |s: &Sim| s.z.iter().map(|&v| (-v * 100.0) as i64).sum::<i64>();
+        let mut s = Sim::new(&d, 100_000);
+        s.advance(&out.moves, k);
+        let c0 = cut(&s);
+        s.advance_into(&out.moves, 0.5);
+        let c1 = cut(&s);
+        s.advance_into(&out.moves, 1.0);
+        let c2 = cut(&s);
+        assert!(c0 < c1 && c1 < c2, "{c0} {c1} {c2}");
+        // and the result matches cutting the whole move at once
+        let mut t = Sim::new(&d, 100_000);
+        t.advance(&out.moves, k + 1);
+        assert_eq!(cut(&t), c2);
+        // going back within the move restarts the replay
+        s.advance_into(&out.moves, 0.2);
+        assert_eq!(s.done, 0);
     }
 }

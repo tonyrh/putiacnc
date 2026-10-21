@@ -108,6 +108,12 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         let slice = (ctx.input(|i| i.stable_dt) * 0.6).clamp(0.010, 0.05);
         st.catching_up = !sim.advance_for(moves, idx, Some(std::time::Duration::from_secs_f32(slice)));
         if st.catching_up { ctx.request_repaint(); }
+        else if let Some(m) = moves.get(sim.done) {
+            // the move in progress is cut as far as the cutter has got
+            let start = if sim.done > 0 { st.cum.get(sim.done - 1).copied().unwrap_or(0.0) } else { 0.0 };
+            let f = if m.dt > 1e-12 { ((st.t - start) / m.dt).clamp(0.0, 1.0) } else { 1.0 };
+            sim.advance_into(moves, f);
+        }
     }
 }
 
@@ -226,7 +232,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let (w, h, t) = (sim.w as f32, sim.h as f32, sim.t as f32);
     let cell = sim.cell as f32;
     // hand the new heights to the GPU only when the simulation changed
-    let stamp = (app.v3.gen, sim.done);
+    let stamp = (app.v3.gen, sim.rev as usize);
     // while catching up the copy for the GPU is made a few times a second only
     let due = !app.v3.catching_up || app.v3.last_upload.map_or(true, |t| t.elapsed().as_millis() > 150);
     if app.v3.uploaded != Some(stamp) && due {
