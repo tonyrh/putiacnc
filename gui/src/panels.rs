@@ -100,6 +100,8 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Select all", "Ctrl+A", true) { app.sel = (0..app.project.data.loops.len()).collect(); }
             if item(ui, "Duplicate", "Ctrl+D", !app.sel.is_empty()) { app.duplicate_selection(); }
             if item(ui, "Delete", "Del", !app.sel.is_empty()) { app.delete_selection(); }
+            ui.separator();
+            if item(ui, "Offset...", "", !app.sel.is_empty()) { app.offset_open = true; }
         });
         ui.menu_button("View", |ui| {
             ui.style_mut().wrap = Some(false);

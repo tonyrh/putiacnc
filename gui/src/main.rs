@@ -6,6 +6,7 @@ mod canvas;
 mod csd;
 mod icons;
 mod machmgr;
+mod offset;
 mod panels;
 mod theme;
 mod toolmgr;
@@ -110,6 +111,7 @@ impl eframe::App for App {
         machmgr::machine_manager(ctx, self);
         self.updater.poll(ctx);
         update::window(ctx, self);
+        offset::dialog(ctx, self);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }
 

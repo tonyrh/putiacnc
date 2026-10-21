@@ -96,6 +96,11 @@ pub struct App {
     pub node_drag: NodeDrag,
     pub node_tol: f64,
     pub node_msg: String,
+    /// Offset dialog: open, distance (mm), direction and whether the original shapes stay.
+    pub offset_open: bool,
+    pub offset_mm: f64,
+    pub offset_inward: bool,
+    pub offset_keep: bool,
     pub mode: Mode,
     pub hist: History,
     pub modified: bool,
@@ -154,7 +159,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
@@ -182,6 +187,7 @@ impl App {
             else { a.path = p.clone(); a.open(&p); }
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
+        if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if let Some(i) = std::env::var("PUTIACNC_NODE_EDIT").ok().and_then(|v| v.parse::<usize>().ok()) {
             a.mode = Mode::Node;
             a.node_edit = Some(i);
@@ -432,6 +438,39 @@ impl App {
         self.touch();
     }
 
+    /// Grows (or shrinks) the selected closed shapes by `dist` mm. With `keep` the originals stay and the
+    /// results are added; otherwise a result replaces its original. Returns a note when something was skipped.
+    pub fn offset_selection(&mut self, dist: f64, keep: bool) -> Option<String> {
+        if self.sel.is_empty() || dist.abs() < 1e-9 { return None; }
+        self.hist.record(&self.project.data);
+        let (mut skipped, mut vanished) = (0, 0);
+        let mut added: Vec<putiacnc_core::model::LoopData> = vec![];
+        let mut replaced: Vec<usize> = vec![];
+        let mut removed: Vec<usize> = vec![];
+        let sel: Vec<usize> = self.sel.iter().copied().collect();
+        for i in sel {
+            let l = self.project.data.loops[i].clone();
+            if !l.closed() { skipped += 1; continue; }
+            let res = shapes::offset_loop(&l, dist);
+            if res.is_empty() { vanished += 1; continue; }
+            if keep { added.extend(res); }
+            else if res.len() == 1 { self.project.data.loops[i] = res.into_iter().next().unwrap(); replaced.push(i); }
+            else { removed.push(i); added.extend(res); }
+        }
+        removed.sort_unstable();
+        for &i in removed.iter().rev() { self.project.data.loops.remove(i); }
+        shapes::tabs_after_delete(&mut self.project.data.ops, &removed);
+        let shift = |i: usize| i - removed.iter().filter(|&&r| r < i).count();
+        let start = self.project.data.loops.len();
+        self.project.data.loops.extend(added);
+        self.sel = replaced.iter().map(|&i| shift(i)).chain(start..self.project.data.loops.len()).collect();
+        self.touch();
+        let mut notes = vec![];
+        if skipped > 0 { notes.push(format!("{skipped} open shape{} cannot be offset", if skipped == 1 { "" } else { "s" })); }
+        if vanished > 0 { notes.push(format!("{vanished} shape{} too small to shrink by {} mm", if vanished == 1 { " is" } else { "s are" }, dist.abs())); }
+        if notes.is_empty() { None } else { Some(notes.join("; ") + ".") }
+    }
+
     pub fn nudge(&mut self, dx: f64, dy: f64) {
         if self.sel.is_empty() { return; }
         self.hist.record(&self.project.data);
@@ -460,4 +499,47 @@ impl App {
 pub fn fmt_time(min: f64) -> String {
     let s = (min * 60.0).round() as u64;
     format!("{}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
+}
+
+#[cfg(test)]
+mod offset_tests {
+    use super::*;
+
+    fn app_with_shapes() -> App {
+        let mut a = App::new(None);
+        a.project.data.loops.clear();
+        a.project.data.loops.push(shapes::new_rect([0.0, 0.0], [20.0, 10.0], 0.0, 1));
+        a.project.data.loops.push(shapes::new_circle([50.0, 5.0], 4.0, 1));
+        a.project.data.loops.push(shapes::new_poly(&[[0.0, 30.0], [10.0, 30.0], [10.0, 40.0]], false, 1).unwrap());
+        a
+    }
+
+    #[test]
+    fn keep_originals_adds_the_results_and_selects_them() {
+        let mut a = app_with_shapes();
+        a.sel = [0, 1, 2].into_iter().collect();
+        let note = a.offset_selection(2.0, true).unwrap();
+        assert!(note.contains("open shape"));
+        assert_eq!(a.project.data.loops.len(), 5);
+        assert_eq!(a.sel.iter().copied().collect::<Vec<_>>(), vec![3, 4]);
+        a.do_undo();
+        assert_eq!(a.project.data.loops.len(), 3);
+    }
+
+    #[test]
+    fn replacing_keeps_indices_and_leaves_vanishing_shapes_alone() {
+        let mut a = app_with_shapes();
+        a.sel = [0, 1].into_iter().collect();
+        // neither the circle (r = 4) nor the rectangle (10 high) can shrink by 5.5: both stay as they were
+        let note = a.offset_selection(-5.5, false).unwrap();
+        assert!(note.contains("too small"), "{note}");
+        assert_eq!(a.project.data.loops.len(), 3);
+        assert!(a.project.data.loops[0].rc.is_some(), "untouched original");
+        // shrink the rectangle by 1: replaced in place
+        a.sel = [0].into_iter().collect();
+        assert!(a.offset_selection(-1.0, false).is_none());
+        let b = shapes::bbox(&a.project.data.loops[0]).unwrap();
+        assert!((b[0] - 1.0).abs() < 0.02 && (b[2] - 19.0).abs() < 0.02);
+        assert_eq!(a.sel.iter().copied().collect::<Vec<_>>(), vec![0]);
+    }
 }

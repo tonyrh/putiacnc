@@ -326,6 +326,17 @@ pub fn simplify(l: &mut LoopData, tol: f64) -> (usize, usize) {
     (n, kept.len())
 }
 
+/// A closed shape grown (`delta_mm` > 0) or shrunk (< 0) by a distance, with rounded outer corners.
+/// May give several shapes (a shape pinched in two) or none (shrunk out of existence). Open shapes give none.
+pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
+    if !l.closed() || l.pts.len() / 2 < 3 { return vec![]; }
+    let region = crate::clip::simplify_even_odd(&[l.path()]);
+    let out = crate::clip::offset(&region, delta_mm * S, S * 0.01);
+    crate::clip::clean(&out, S * 0.02).into_iter().filter(|p| p.len() > 2).map(|p| {
+        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
+    }).collect()
+}
+
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
 pub fn tab_anchor(loops: &[LoopData], li: usize, p: [f64; 2]) -> Option<TabPt> {
     let b = bbox(loops.get(li)?)?;
@@ -565,5 +576,43 @@ mod point_tests {
         let (before, after) = simplify(&mut l, 0.05);
         assert!(after < before && after >= 8, "{before} -> {after}");
         for p in points(&l) { assert!(((p[0] * p[0] + p[1] * p[1]).sqrt() - 20.0).abs() < 0.05); }
+    }
+}
+
+#[cfg(test)]
+mod offset_tests {
+    use super::*;
+
+    fn area(l: &LoopData) -> f64 { crate::clip::area(&l.path()).abs() / (S * S) }
+
+    #[test]
+    fn grow_and_shrink_a_rectangle() {
+        let r = new_rect([0.0, 0.0], [20.0, 10.0], 0.0, 3);
+        let g = offset_loop(&r, 2.0);
+        assert_eq!(g.len(), 1);
+        assert_eq!(g[0].op, 3);
+        let b = bbox(&g[0]).unwrap();
+        assert!((b[0] + 2.0).abs() < 0.02 && (b[1] + 2.0).abs() < 0.02 && (b[2] - 22.0).abs() < 0.02 && (b[3] - 12.0).abs() < 0.02, "{b:?}");
+        // rounded corners: area = w*h + perimeter*d + pi*d^2
+        let expect = 200.0 + 60.0 * 2.0 + std::f64::consts::PI * 4.0;
+        assert!((area(&g[0]) - expect).abs() < 0.5, "{} vs {expect}", area(&g[0]));
+        let s = offset_loop(&r, -2.0);
+        assert_eq!(s.len(), 1);
+        let b = bbox(&s[0]).unwrap();
+        assert!((b[0] - 2.0).abs() < 0.02 && (b[3] - 8.0).abs() < 0.02, "{b:?}");
+        assert!((area(&s[0]) - 16.0 * 6.0).abs() < 0.2);
+        // too far inward: nothing is left
+        assert!(offset_loop(&r, -6.0).is_empty());
+        assert!(!is_rect(&g[0]) && g[0].cr.is_none());
+    }
+
+    #[test]
+    fn circles_and_open_shapes() {
+        let c = new_circle([0.0, 0.0], 10.0, 1);
+        let g = offset_loop(&c, 1.5);
+        assert_eq!(g.len(), 1);
+        for p in points(&g[0]) { assert!(((p[0] * p[0] + p[1] * p[1]).sqrt() - 11.5).abs() < 0.03); }
+        let open = new_poly(&[[0.0, 0.0], [5.0, 0.0], [5.0, 5.0]], false, 1).unwrap();
+        assert!(offset_loop(&open, 1.0).is_empty());
     }
 }
