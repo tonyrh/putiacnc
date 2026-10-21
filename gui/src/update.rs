@@ -206,11 +206,11 @@ pub fn parse_release(json: &str) -> Result<Release, String> {
 pub fn window(ctx: &egui::Context, app: &mut App) {
     let up = &mut app.updater;
     if !up.open { return; }
-    let mut open = true;
     let (mut do_check, mut do_download, mut close) = (false, None::<Release>, false);
     let mut auto = up.auto;
-    egui::Window::new("Check for updates").open(&mut open).collapsible(false).resizable(false)
+    egui::Window::new("Check for updates").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).fixed_size([420.0, 0.0]).show(ctx, |ui| {
+        if crate::csd::dialog_header(ui, "Check for updates", true) { close = true; }
         ui.label(format!("You are using PutiaCNC {CURRENT}."));
         ui.add_space(6.0);
         match &up.status {
@@ -251,7 +251,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     if auto != up.auto { up.auto = auto; save_auto(auto); }
     if do_check { up.check(false); }
     if let Some(r) = do_download { up.download(r); }
-    if !open || close { up.open = false; }
+    if close { up.open = false; }
 }
 
 #[cfg(test)]

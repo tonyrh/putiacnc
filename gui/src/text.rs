@@ -148,10 +148,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     app.text.poll();
     if app.text.db.is_none() { app.text.load(ctx); }
     app.text.refresh();
-    let mut open = true;
     let (mut do_place, mut cancel) = (false, false);
-    egui::Window::new("Text").open(&mut open).collapsible(false).resizable(false)
+    egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([700.0, 150.0]).fixed_size([300.0, 0.0]).show(ctx, |ui| {
+        if crate::csd::dialog_header(ui, "Text", true) { cancel = true; }
         let t = &mut app.text;
         if t.pos.is_none() { ui.weak("Click on the drawing where the text should start."); ui.add_space(4.0); }
         let te = ui.add(egui::TextEdit::multiline(&mut t.content).desired_rows(3).desired_width(f32::INFINITY).hint_text("Type your text"));
@@ -193,5 +193,5 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.weak("Letters become outlines; the holes in A, O, B… are cut out correctly. Click the drawing again to move the text.");
     });
     if do_place { place(app); }
-    if !open || cancel { app.text.open = false; app.mode = Mode::Select; }
+    if cancel { app.text.open = false; app.mode = Mode::Select; }
 }
