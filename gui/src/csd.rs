@@ -1,0 +1,177 @@
+//! Client-side decorations: our own header bar (menus, title, window buttons), window dragging
+//! and edge resizing, so the window looks like a GNOME/libadwaita app on Wayland and X11 alike.
+use crate::app::App;
+use eframe::egui::{self, Color32, CursorIcon, Pos2, Rect, Sense, Stroke, Ui, ViewportCommand};
+use egui::viewport::ResizeDirection;
+
+pub const RADIUS: f32 = 12.0;
+/// Header bar content height (a bit taller than a plain menu bar, like a GNOME header bar).
+pub const HEIGHT: f32 = 34.0;
+/// Height of the header bar content.
+pub const HEADER_H: f32 = 36.0;
+
+pub fn is_maximized(ctx: &egui::Context) -> bool {
+    ctx.input(|i| i.viewport().maximized.unwrap_or(false) || i.viewport().fullscreen.unwrap_or(false))
+}
+
+/// Corner rounding for the outer bars (none when maximized).
+pub fn corners(ctx: &egui::Context, top: bool) -> egui::Rounding {
+    if is_maximized(ctx) { return egui::Rounding::ZERO; }
+    if top { egui::Rounding { nw: RADIUS, ne: RADIUS, sw: 0.0, se: 0.0 } } else { egui::Rounding { nw: 0.0, ne: 0.0, sw: RADIUS, se: RADIUS } }
+}
+
+/// The header bar contents: menus on the left, title in the middle, window buttons on the right.
+pub fn header(ui: &mut Ui, app: &mut App) {
+    let ctx = ui.ctx().clone();
+    ui.set_min_height(HEIGHT);
+    let rect = ui.max_rect();
+    let maximized = is_maximized(&ctx);
+
+    // empty header space drags the window; double click maximizes
+    let drag = ui.interact(rect, egui::Id::new("header_drag"), Sense::click_and_drag());
+    if drag.drag_started_by(egui::PointerButton::Primary) { ctx.send_viewport_cmd(ViewportCommand::StartDrag); }
+    if drag.double_clicked() { ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized)); }
+
+    // title, centred
+    let title = format!("{}{}", app.project.name, if app.modified { " •" } else { "" });
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, title, font, ui.visuals().strong_text_color());
+
+    // window buttons
+    let bw = 30.0;
+    let ctl = Rect::from_min_max(Pos2::new(rect.max.x - 3.0 * bw - 8.0 - 2.0 * 30.0 - 14.0, rect.min.y), Pos2::new(rect.max.x, rect.min.y + HEADER_H));
+    ui.allocate_ui_at_rect(ctl, |ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if win_button(ui, WinIcon::Close, "Close") { app.request(crate::app::Action::Quit); }
+            if win_button(ui, if maximized { WinIcon::Restore } else { WinIcon::Maximize }, if maximized { "Restore" } else { "Maximize" }) {
+                ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized));
+            }
+            if win_button(ui, WinIcon::Minimize, "Minimize") { ctx.send_viewport_cmd(ViewportCommand::Minimized(true)); }
+            ui.add_space(10.0);
+            // panel toggles (listed right-to-left: they read left panel, right panel)
+            panel_toggle(ui, false, &mut app.show_right, "Show / hide the operations panel");
+            panel_toggle(ui, true, &mut app.show_left, "Show / hide the project panel");
+        });
+    });
+
+    // menus, left
+    let menus = Rect::from_min_max(rect.min, Pos2::new(ctl.min.x, rect.max.y));
+    ui.allocate_ui_at_rect(menus, |ui| {
+        ui.set_min_height(HEADER_H);
+        crate::panels::menu_bar(ui, app);
+    });
+}
+
+/// A small window glyph with the left or right strip filled while that panel is visible.
+fn panel_toggle(ui: &mut Ui, left: bool, on: &mut bool, tip: &str) {
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(30.0, 28.0), Sense::click());
+    let vis = ui.visuals().clone();
+    if resp.hovered() { ui.painter().rect_filled(rect.shrink2(egui::vec2(1.0, 1.0)), 7.0, vis.widgets.hovered.bg_fill); }
+    let col = if *on { vis.text_color() } else { vis.text_color().gamma_multiply(0.65) };
+    let st = Stroke::new(1.5_f32, col);
+    let body = Rect::from_center_size(rect.center(), egui::vec2(18.0, 14.0));
+    let strip_w = 6.0;
+    let strip = if left { Rect::from_min_size(body.min, egui::vec2(strip_w, body.height())) }
+                else { Rect::from_min_size(Pos2::new(body.max.x - strip_w, body.min.y), egui::vec2(strip_w, body.height())) };
+    if *on { ui.painter().rect_filled(strip.shrink(1.0), 1.0, col.gamma_multiply(0.8)); }
+    ui.painter().rect_stroke(body, 3.0, st);
+    let x = if left { strip.max.x } else { strip.min.x };
+    ui.painter().line_segment([Pos2::new(x, body.min.y), Pos2::new(x, body.max.y)], Stroke::new(1.2_f32, col));
+    if resp.on_hover_text(tip).clicked() { *on = !*on; }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum WinIcon { Minimize, Maximize, Restore, Close }
+
+fn win_button(ui: &mut Ui, icon: WinIcon, tip: &str) -> bool {
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(28.0, 28.0), Sense::click());
+    let vis = ui.visuals().clone();
+    if resp.hovered() || resp.is_pointer_button_down_on() {
+        let c = if resp.is_pointer_button_down_on() { vis.widgets.active.bg_fill } else { vis.widgets.hovered.bg_fill };
+        ui.painter().circle_filled(rect.center(), 12.0, c);
+    }
+    let st = Stroke::new(1.6_f32, vis.text_color());
+    let c = rect.center();
+    let p = ui.painter();
+    match icon {
+        WinIcon::Minimize => { p.line_segment([c + egui::vec2(-5.0, 3.0), c + egui::vec2(5.0, 3.0)], st); }
+        WinIcon::Maximize => { p.rect_stroke(Rect::from_center_size(c, egui::vec2(10.0, 10.0)), 1.5, st); }
+        WinIcon::Restore => {
+            p.rect_stroke(Rect::from_center_size(c + egui::vec2(-1.0, 1.0), egui::vec2(8.0, 8.0)), 1.5, st);
+            p.line_segment([c + egui::vec2(-1.0, -5.0), c + egui::vec2(5.0, -5.0)], st);
+            p.line_segment([c + egui::vec2(5.0, -5.0), c + egui::vec2(5.0, 1.0)], st);
+        }
+        WinIcon::Close => {
+            p.line_segment([c + egui::vec2(-4.5, -4.5), c + egui::vec2(4.5, 4.5)], st);
+            p.line_segment([c + egui::vec2(-4.5, 4.5), c + egui::vec2(4.5, -4.5)], st);
+        }
+    }
+    resp.on_hover_text(tip).clicked()
+}
+
+/// Resize from the window edges and corners, and draw the thin window outline.
+pub fn edges(ctx: &egui::Context) {
+    if is_maximized(ctx) { return; }
+    let screen = ctx.screen_rect();
+    // outline
+    ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("csd_outline")))
+        .rect_stroke(screen.shrink(0.5), egui::Rounding::same(RADIUS), Stroke::new(1.0_f32, Color32::from_black_alpha(70)));
+
+    let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) else { return };
+    let (m, cm) = (5.0_f32, 14.0_f32);
+    let left = pos.x - screen.min.x < m;
+    let right = screen.max.x - pos.x < m;
+    let top = pos.y - screen.min.y < m;
+    let bottom = screen.max.y - pos.y < m;
+    let near_x = |edge: f32| (pos.x - edge).abs() < cm;
+    let near_y = |edge: f32| (pos.y - edge).abs() < cm;
+    use ResizeDirection as D;
+    let dir = if (left || top) && near_x(screen.min.x) && near_y(screen.min.y) && (left || top) { Some(D::NorthWest) }
+        else if (right || top) && near_x(screen.max.x) && near_y(screen.min.y) && (right || top) { Some(D::NorthEast) }
+        else if (left || bottom) && near_x(screen.min.x) && near_y(screen.max.y) && (left || bottom) { Some(D::SouthWest) }
+        else if (right || bottom) && near_x(screen.max.x) && near_y(screen.max.y) && (right || bottom) { Some(D::SouthEast) }
+        else if left { Some(D::West) } else if right { Some(D::East) } else if top { Some(D::North) } else if bottom { Some(D::South) } else { None };
+    if let Some(d) = dir {
+        ctx.set_cursor_icon(match d {
+            D::North => CursorIcon::ResizeNorth, D::South => CursorIcon::ResizeSouth,
+            D::East => CursorIcon::ResizeEast, D::West => CursorIcon::ResizeWest,
+            D::NorthEast => CursorIcon::ResizeNorthEast, D::NorthWest => CursorIcon::ResizeNorthWest,
+            D::SouthEast => CursorIcon::ResizeSouthEast, D::SouthWest => CursorIcon::ResizeSouthWest,
+        });
+        if ctx.input(|i| i.pointer.primary_pressed()) { ctx.send_viewport_cmd(ViewportCommand::BeginResize(d)); }
+    }
+}
+
+/// Header row for dialogs: the title centred on the row's middle line and, when `closable`, a round
+/// close button on the same line, followed by a thin divider. Returns true when close was clicked.
+/// (egui's own window title bar can't centre its title and button in a custom-sized bar.)
+pub fn dialog_header(ui: &mut Ui, title: &str, closable: bool) -> bool {
+    let h = 34.0;
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), h), Sense::hover());
+    let vis = ui.visuals().clone();
+    let font = egui::FontId::proportional(14.5);
+    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, title, font, vis.strong_text_color());
+    let mut clicked = false;
+    if closable {
+        let b = Rect::from_center_size(Pos2::new(rect.max.x - 15.0, rect.center().y), egui::vec2(28.0, 28.0));
+        let resp = ui.interact(b, ui.id().with(("dialog_close", title)), Sense::click());
+        if resp.hovered() || resp.is_pointer_button_down_on() {
+            let c = if resp.is_pointer_button_down_on() { vis.widgets.active.bg_fill } else { vis.widgets.hovered.bg_fill };
+            ui.painter().circle_filled(b.center(), 12.0, c);
+        }
+        let st = Stroke::new(1.6_f32, vis.text_color());
+        let c = b.center();
+        ui.painter().line_segment([c + egui::vec2(-4.5, -4.5), c + egui::vec2(4.5, 4.5)], st);
+        ui.painter().line_segment([c + egui::vec2(-4.5, 4.5), c + egui::vec2(4.5, -4.5)], st);
+        clicked = resp.on_hover_text("Close").clicked();
+    }
+    // divider spanning the full dialog width (through the window's padding)
+    let y = rect.max.y + 2.0;
+    ui.painter().line_segment([Pos2::new(rect.min.x - 12.0, y), Pos2::new(rect.max.x + 12.0, y)], vis.widgets.noninteractive.bg_stroke);
+    ui.add_space(8.0);
+    clicked
+}
+
+pub fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
+    egui::Frame::window(&ctx.style()).inner_margin(egui::Margin::symmetric(12.0, 6.0))
+}

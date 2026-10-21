@@ -1,0 +1,754 @@
+//! Side panels, toolbar and status bar.
+use crate::app::{fmt_time, Action, App, RightTab};
+use eframe::egui::{self, Color32, Ui};
+use putiacnc_core::model::Operation;
+use crate::icons::{icon_text_button, paint_icon, small_icon_button, Icon};
+use crate::toolmgr::rlabel;
+use putiacnc_core::shapes;
+
+/// The default font has no ″ glyph; show a plain quote instead.
+fn clean(s: &str) -> String { s.replace('″', "\"") }
+
+pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve")];
+const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside", "Inside"), ("online", "On")];
+const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
+const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
+const ZMODES: &[(&str, &str)] = &[("top", "Stock top"), ("h", "Height")];
+
+pub fn label_of(opts: &[(&str, &str)], v: &str) -> String {
+    opts.iter().find(|(k, _)| *k == v).map(|(_, l)| l.to_string()).unwrap_or_else(|| v.to_string())
+}
+
+fn tool_pd_of(tools: &[putiacnc_core::model::Tool], id: &str) -> Option<f64> { tools.iter().find(|t| t.id == id).map(|t| t.pd) }
+
+/// Little up/down arrows (a spin button) for whole-number fields. Returns true when a value changed.
+fn spin_arrows(ui: &mut Ui, v: &mut f64, lo: f64, hi: f64) -> bool {
+    let h = ui.spacing().interact_size.y;
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(16.0, h), egui::Sense::hover());
+    let mut changed = false;
+    for (k, up) in [(0, true), (1, false)] {
+        let r = egui::Rect::from_min_size(rect.min + egui::vec2(0.0, k as f32 * h / 2.0), egui::vec2(16.0, h / 2.0));
+        let resp = ui.interact(r, ui.id().with(("spin", k)), egui::Sense::click());
+        let enabled = if up { *v < hi } else { *v > lo };
+        if resp.hovered() && enabled { ui.painter().rect_filled(r.shrink(1.0), 3.0, ui.visuals().widgets.hovered.bg_fill); }
+        let col = if enabled { ui.visuals().text_color() } else { ui.visuals().weak_text_color().gamma_multiply(0.5) };
+        let c = r.center();
+        let d = if up { -1.0_f32 } else { 1.0 };
+        ui.painter().add(egui::Shape::convex_polygon(vec![c + egui::vec2(-3.5, -d * 1.5), c + egui::vec2(3.5, -d * 1.5), c + egui::vec2(0.0, d * 2.0)], col, egui::Stroke::NONE));
+        if resp.clicked() && enabled { *v = (*v + if up { 1.0 } else { -1.0 }).clamp(lo, hi); changed = true; }
+    }
+    changed
+}
+
+fn dv_w(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> bool {
+    crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 3, suffix).changed()
+}
+
+fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(&str, &str)], prefix: &str, tip: &str) -> (bool, egui::Rect) {
+    let mut ch = false;
+    let r = egui::ComboBox::from_id_source(id).width(w - 10.0).selected_text(format!("{prefix}{}", label_of(opts, cur))).show_ui(ui, |ui| {
+        for (k, l) in opts {
+            if ui.selectable_label(cur == k, *l).clicked() && cur != k { *cur = k.to_string(); ch = true; }
+        }
+    });
+    if !tip.is_empty() { r.response.clone().on_hover_text(tip); }
+    (ch, r.response.rect)
+}
+
+fn combo_w(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(&str, &str)], prefix: &str, tip: &str) -> bool {
+    combo_w2(ui, w, id, cur, opts, prefix, tip).0
+}
+
+pub fn menu_bar(ui: &mut Ui, app: &mut App) {
+    fn item(ui: &mut Ui, label: &str, shortcut: &str, enabled: bool) -> bool {
+        let r = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut));
+        if r.clicked() { ui.close_menu(); true } else { false }
+    }
+    egui::menu::bar(ui, |ui| {
+        // roomier, rounded menu buttons like a GNOME header bar (menu::bar sets tight defaults)
+        {
+            let st = ui.style_mut();
+            st.spacing.button_padding = egui::vec2(12.0, 6.0);
+            st.spacing.item_spacing.x = 4.0;
+            st.spacing.interact_size.y = 32.0;
+            let r = egui::Rounding::same(7.0);
+            st.visuals.widgets.hovered.rounding = r;
+            st.visuals.widgets.active.rounding = r;
+            st.visuals.widgets.open.rounding = r;
+            st.visuals.widgets.inactive.rounding = r;
+        }
+        ui.menu_button("File", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
+            if item(ui, "New project", "Ctrl+N", true) { app.request(Action::New); }
+            if item(ui, "Open...", "Ctrl+O", true) { app.open_dialog(); }
+            if item(ui, "Import SVG...", "Ctrl+I", true) { app.import_svg_dialog(); }
+            ui.separator();
+            if item(ui, "Save", "Ctrl+S", true) { app.save(); }
+            if item(ui, "Save as...", "Ctrl+Shift+S", true) { app.save_as_dialog(); }
+            ui.separator();
+            if item(ui, "Export G-code...", "Ctrl+E", app.output.is_some()) { app.export_gcode_dialog(); }
+            ui.separator();
+            if item(ui, "Quit", "Ctrl+Q", true) { app.request(Action::Quit); }
+        });
+        ui.menu_button("Edit", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
+            if item(ui, "Undo", "Ctrl+Z", !app.hist.undo.is_empty()) { app.do_undo(); }
+            if item(ui, "Redo", "Ctrl+Shift+Z", !app.hist.redo.is_empty()) { app.do_redo(); }
+            ui.separator();
+            if item(ui, "Select all", "Ctrl+A", true) { app.sel = (0..app.project.data.loops.len()).collect(); }
+            if item(ui, "Duplicate", "Ctrl+D", !app.sel.is_empty()) { app.duplicate_selection(); }
+            if item(ui, "Delete", "Del", !app.sel.is_empty()) { app.delete_selection(); }
+        });
+        ui.menu_button("View", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
+            if item(ui, "Fit to stock", "F", true) { app.fit_pending = true; }
+            ui.separator();
+            ui.checkbox(&mut app.grid_on, "Grid");
+            ui.checkbox(&mut app.snap_on, "Snap to grid");
+            ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+            ui.checkbox(&mut app.show_rapids, "Rapid moves");
+            ui.checkbox(&mut app.show_machine_area, "Machine work area");
+            ui.separator();
+            ui.checkbox(&mut app.show_left, "Project panel");
+            ui.checkbox(&mut app.show_right, "Operations / G-code panel");
+        });
+        ui.menu_button("Libraries", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
+            if ui.button("Tool library...").clicked() { app.tools_open = true; ui.close_menu(); }
+            if ui.button("Machines...").clicked() { app.machines_open = true; ui.close_menu(); }
+        });
+    });
+}
+
+/// Modal-style prompt shown when an action would discard unsaved changes.
+/// Fixed toolbar under the menu: undo/redo and view options.
+pub fn tool_bar(ui: &mut Ui, app: &mut App) {
+    if app.view_tab == crate::view3d::ViewTab::Preview {
+        ui.horizontal(|ui| {
+            // same right-hand spots as in the 2D toolbar; the hint takes the left
+            let mut dummy = false;
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_visible(false, egui::Checkbox::new(&mut dummy, "Machine area")); // keeps the spacing identical
+                ui.checkbox(&mut app.show_rapids, "Rapids");
+                ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+                let hint = "Drag: orbit  ·  Right-drag: pan  ·  Scroll: zoom  ·  Double-click: reset";
+                if ui.available_width() > tw(ui, hint) + 24.0 {
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(egui::RichText::new(hint).color(ui.visuals().weak_text_color()));
+                    });
+                }
+            });
+        });
+        return;
+    }
+    ui.horizontal(|ui| {
+        ui.checkbox(&mut app.grid_on, "Grid");
+        crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 3, " mm").on_hover_text("Grid size (also the snap step)");
+        ui.checkbox(&mut app.snap_on, "Snap");
+        // view toggles on the right (right-to-left, so listed in reverse)
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
+            ui.checkbox(&mut app.show_rapids, "Rapids");
+            ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+        });
+    });
+}
+
+/// Dialog button with an icon: `fill` None = the normal button look; otherwise a tinted / solid button.
+fn dlg_button(ui: &mut Ui, icon: Icon, text: &str, fill: Option<Color32>, fg: Option<Color32>, solid: bool) -> egui::Response {
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let (icon_w, gap, padx) = (16.0, 7.0, 14.0);
+    let galley = ui.painter().layout_no_wrap(text.to_string(), font, Color32::PLACEHOLDER);
+    let size = egui::vec2(padx * 2.0 + icon_w + gap + galley.size().x, 32.0);
+    let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::click());
+    let v = ui.style().interact(&resp).clone();
+    let (bg, stroke, col) = match (fill, fg) {
+        (Some(f), Some(c)) => {
+            let hot = resp.hovered() || resp.is_pointer_button_down_on();
+            if solid { (if hot { f.gamma_multiply(0.88) } else { f }, egui::Stroke::NONE, c) }
+            else { (f.gamma_multiply(if hot { 0.28 } else { 0.14 }), egui::Stroke::new(1.0_f32, c.gamma_multiply(0.55)), c) }
+        }
+        _ => (v.bg_fill, v.bg_stroke, v.fg_stroke.color),
+    };
+    ui.painter().rect(rect, 7.0, bg, stroke);
+    let x0 = rect.center().x - (icon_w + gap + galley.size().x) / 2.0;
+    paint_icon(ui.painter(), icon, egui::pos2(x0 + icon_w / 2.0, rect.center().y), col, 0.62);
+    ui.painter().galley(egui::pos2(x0 + icon_w + gap, rect.center().y - galley.size().y / 2.0), galley, col);
+    resp
+}
+
+pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
+    let Some(action) = app.pending.clone() else { return };
+    let mut choice = 0; // 1 save, 2 discard, 3 cancel
+    let dark = app.theme.dark;
+    let accent = app.theme.accent;
+    let red = if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xc0, 0x1c, 0x28) };
+    let amber = if dark { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xf5, 0xc2, 0x11) };
+    let name = app.file_name();
+    egui::Window::new("Unsaved changes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
+            ui.set_width(420.0);
+            ui.add_space(10.0);
+            ui.horizontal_top(|ui| {
+                ui.add_space(6.0);
+                // warning badge
+                let (r, _) = ui.allocate_exact_size(egui::vec2(44.0, 44.0), egui::Sense::hover());
+                ui.painter().circle_filled(r.center(), 22.0, amber.gamma_multiply(0.22));
+                ui.painter().circle_filled(r.center(), 15.0, amber);
+                let dark_ink = Color32::from_rgb(0x3d, 0x2e, 0x00);
+                ui.painter().line_segment([r.center() + egui::vec2(0.0, -7.0), r.center() + egui::vec2(0.0, 2.5)], egui::Stroke::new(2.6_f32, dark_ink));
+                ui.painter().circle_filled(r.center() + egui::vec2(0.0, 7.0), 1.8, dark_ink);
+                ui.add_space(8.0);
+                ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 6.0;
+                    ui.set_width(340.0);
+                    ui.label(egui::RichText::new("Save changes?").size(18.0).strong());
+                    ui.label(egui::RichText::new(format!("\"{name}\" has unsaved changes. If you don't save them, they will be lost.")).color(ui.visuals().weak_text_color()));
+                });
+            });
+            ui.add_space(18.0);
+            ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.spacing_mut().item_spacing.x = 8.0;
+                if dlg_button(ui, Icon::Save, "Save", Some(accent), Some(Color32::WHITE), true).clicked() { choice = 1; }
+                if dlg_button(ui, Icon::Trash, "Discard", Some(red), Some(red), false).clicked() { choice = 2; }
+                if dlg_button(ui, Icon::Close, "Cancel", None, None, false).clicked() { choice = 3; }
+            });
+            ui.add_space(8.0);
+        });
+    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) { choice = 3; }
+    match choice {
+        1 => {
+            if app.path.trim().is_empty() { app.after_save = Some(action); app.pending = None; app.save_as_dialog(); }
+            else { app.save(); if !app.modified { app.perform(action); } }
+        }
+        2 => app.perform(action),
+        3 => { app.pending = None; app.quit_ok = false; }
+        _ => {}
+    }
+}
+
+pub fn status_bar(ui: &mut Ui, app: &App) {
+    ui.horizontal(|ui| {
+        match &app.output {
+            Some(o) => {
+                ui.label(format!("Estimated time {}", fmt_time(o.time_min)));
+                ui.separator();
+                ui.label(format!("cutting {}", fmt_time(o.cut_time_min)));
+                ui.separator();
+                ui.label(format!("cut length {:.1} mm", o.cut_len_mm));
+                ui.separator();
+                ui.label(format!("{} lines, generated in {:.0} ms", o.lines.len(), app.gen_ms));
+            }
+            None => { ui.label(app.gen_error.clone().unwrap_or_else(|| "No G-code".into())); }
+        }
+        ui.separator();
+        ui.label(format!("{} shapes, {} selected", app.project.data.loops.len(), app.sel.len()));
+    });
+}
+
+pub fn right_panel(ui: &mut Ui, app: &mut App) {
+    let theme = app.theme;
+    crate::view3d::tabs(ui, &theme, &mut app.tab, &[(RightTab::Ops, "Operations"), (RightTab::Gcode, "G-code"), (RightTab::Info, "Notes")]);
+    ui.separator();
+    if app.tab == RightTab::Ops { ops_panel(ui, app); return; }
+    if app.tab == RightTab::Gcode {
+        if ui.checkbox(&mut app.imperial, "Output in inches (G20)").on_hover_text("Write the G-code in inches instead of millimetres").changed() { app.gen_pending = true; }
+        ui.add_space(4.0);
+    }
+    let mut export = false;
+    let mut copy: Option<String> = None;
+    match (&app.output, app.tab) {
+        (Some(o), RightTab::Gcode) => {
+            // Copy / Export sit at the bottom; the G-code takes the rest of the height
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    if ui.button("Copy").on_hover_text("Copy the G-code to the clipboard").clicked() { copy = Some(o.gcode()); }
+                    if ui.button("Export...").on_hover_text("Save the G-code to a file (Ctrl+E)").clicked() { export = true; }
+                });
+                ui.add_space(6.0);
+                ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                    let row_h = ui.text_style_height(&egui::TextStyle::Monospace);
+                    egui::ScrollArea::both().auto_shrink([false, false]).show_rows(ui, row_h, o.lines.len(), |ui, range| {
+                        for i in range { ui.add(egui::Label::new(egui::RichText::new(&o.lines[i]).monospace()).wrap(false)); }
+                    });
+                });
+            });
+        }
+        (Some(o), RightTab::Info) => {
+            if o.notes.is_empty() { ui.label("No warnings."); }
+            for n in &o.notes { ui.label(format!("• {n}")); }
+        }
+        (_, RightTab::Ops) => {}
+        (None, _) => { ui.label(app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into())); }
+    }
+    if let Some(t) = copy { ui.ctx().copy_text(t); }
+    if export { app.export_gcode_dialog(); }
+}
+
+pub fn left_panel(ui: &mut Ui, app: &mut App) { project_panel(ui, app, false); }
+/// The Operations tab of the right panel.
+pub fn ops_panel(ui: &mut Ui, app: &mut App) { project_panel(ui, app, true); }
+
+/// One body for both panels: `ops` picks the Operations section (right panel) or the
+/// Name / Stock / Selection / Tools sections (left panel), so editing and undo logic is shared.
+fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
+    let dark = app.theme.dark;
+    let before = app.project.data.clone();
+    let mut changed = false;
+    let mut name_changed = false;
+    let mut open_tools = false;
+    // machine picker data (read before the panel borrows the project)
+    let mach_names: Vec<(String, String)> = app.machines.list.iter().map(|m| (m.id.clone(), m.name.clone())).collect();
+    let (mach_cur, mach_name, mach_area) = match &app.project.data.machine {
+        Some(m) => (m.id.clone(), m.name.clone(), format!("Work area {} × {} × {} mm", fmt_num(m.x), fmt_num(m.y), fmt_num(m.z))),
+        None => (String::new(), String::new(), String::new()),
+    };
+    let mut mach_pick: Option<String> = None;
+    let mut open_machines = false;
+    egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+        let App { project, sel, collapsed, tab_edit, .. } = app;
+        if !ops {
+        ui.horizontal(|ui| {
+            ui.heading("Project");
+            let w = (ui.available_width() - 11.0).max(80.0);
+            name_changed = ui.add(egui::TextEdit::singleline(&mut project.name).font(egui::TextStyle::Heading).desired_width(w)).changed();
+        });
+        }
+        let d = &mut project.data;
+
+        if !ops {
+        // ---- stock -------------------------------------------------------------------
+        ui.separator();
+        ui.heading("Stock");
+        let sp = ui.spacing().item_spacing.x;
+        let font = egui::TextStyle::Body.resolve(ui.style());
+        let text_w = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), font.clone(), Color32::WHITE).size().x);
+        let stock_w = ui.available_width();
+        let _ = (&text_w, sp);
+        egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
+            ui.set_max_width(stock_w - 34.0);
+            let fw = 62.0_f32;
+            let l1 = tw(ui, "Thickness").max(tw(ui, "XY zero"));
+            let l3 = tw(ui, "Height").max(tw(ui, "Safe Z"));
+            let mut col4_x = 0.0_f32;
+            egui::Grid::new("stock_grid").num_columns(6).spacing([8.0, 10.0]).show(ui, |ui| {
+                rlabel(ui, l1, "Width");
+                changed |= dv_w(ui, fw, &mut d.stock.w, 1.0, 10000.0, ""); ui.weak("mm");
+                col4_x = ui.next_widget_position().x;
+                rlabel(ui, l3, "Height");
+                changed |= dv_w(ui, fw, &mut d.stock.h, 1.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
+                rlabel(ui, l1, "Thickness");
+                changed |= dv_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); ui.weak("mm");
+                rlabel(ui, l3, "Safe Z");
+                changed |= dv_w(ui, fw, &mut d.job.safe, 0.5, 200.0, ""); ui.weak("mm"); ui.end_row();
+            });
+            ui.add_space(12.0);
+            ui.horizontal_top(|ui| {
+                rlabel(ui, l1, "XY zero");
+                changed |= xy_picker(ui, &mut d.stock.zr);
+                // the Z block lines up with the Height / Safe Z column above
+                let gap = col4_x - ui.next_widget_position().x - 3.0 * ui.spacing().item_spacing.x;
+                ui.add_space(gap.max(6.0));
+                egui::Grid::new("stock_z").num_columns(2).spacing([8.0, 10.0]).show(ui, |ui| {
+                    let lz = l3;
+                    rlabel(ui, lz, "Z zero");
+                    let (c, _) = combo_w2(ui, 96.0, "zm", &mut d.stock.zm, ZMODES, "", "Where Z0 is measured from");
+                    changed |= c; ui.end_row();
+                    if d.stock.zm != "top" {
+                        rlabel(ui, lz, "Z0");
+                        ui.horizontal(|ui| {
+                            changed |= dv_w(ui, fw, &mut d.stock.zh, 0.0, 1000.0, "");
+                            ui.weak("mm");
+                        });
+                        ui.end_row();
+                    }
+                });
+            });
+        });
+
+        }
+        if ops {
+        // ---- operations --------------------------------------------------------------
+        // the operation list, its buttons row and the editor frame all share this width
+        let lw = ui.available_width();
+        ui.horizontal(|ui| {
+            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve)] {
+                if icon_text_button(ui, icon, label, &format!("Add a {label} operation"), None).clicked() {
+                    let base = d.ops.iter().find(|o| o.id == d.act).map(|o| o.p.clone());
+                    let mut p = base.unwrap_or_else(|| shapes::default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
+                    p.kind = match kind {
+                        "pocket" => "pocket".into(),
+                        "vcarve" => "vcarve".into(),
+                        _ => if ["outside", "inside", "online"].contains(&p.kind.as_str()) { p.kind.clone() } else { "outside".into() },
+                    };
+                    if kind == "vcarve" {
+                        if let Some(t) = d.tools.iter().find(|t| ["vbit", "engrave", "taper"].contains(&t.shape.as_str())) { p.tool = t.id.clone(); }
+                    }
+                    d.oid = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
+                    let id = d.oid;
+                    d.ops.push(Operation { id, p });
+                    for &i in sel.iter() { d.loops[i].op = id; }
+                    d.act = id;
+                    changed = true;
+                }
+            }
+            if !d.ops.is_empty() {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
+                    let (icon, tip) = if all_folded { (Icon::Unfold, "Expand all operations") } else { (Icon::Fold, "Collapse all operations") };
+                    if small_icon_button(ui, icon, true, tip).clicked() {
+                        if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
+                    }
+                });
+            }
+        });
+        let tools = d.tools.clone();
+        let mut act_remove: Option<usize> = None;
+        let mut act_move: Option<(usize, i32)> = None;
+        for i in 0..d.ops.len() {
+            let o = &d.ops[i];
+            let n = d.loops.iter().filter(|l| l.op == o.id).count();
+            let tool = d.tools.iter().find(|t| t.id == o.p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "no tool".into());
+            let text = format!("{}. {}", i + 1, label_of(KINDS, &o.p.kind));
+            let sub = format!("{} · {} shape{}", tool, n, if n == 1 { "" } else { "s" });
+            let id = o.id;
+            let o_kind = o.p.kind.clone();
+            let n_ops = d.ops.len();
+            {
+                let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, _ => Icon::Profile };
+                let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
+                let selected = d.act == id;
+                let folded = collapsed.contains(&id);
+                let base = crate::theme::op_color(i, dark);
+                let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
+                ui.painter().rect_filled(rect, 6.0, fill);
+                // white text on dark colours, near-black on light ones
+                let lum = 0.299 * base.r() as f32 + 0.587 * base.g() as f32 + 0.114 * base.b() as f32;
+                let ink = if lum > 150.0 { Color32::from_rgb(0x1e, 0x1e, 0x1e) } else { Color32::WHITE };
+                let col = ink;
+                let sub_col = ink.gamma_multiply(0.8);
+                let body = egui::TextStyle::Body.resolve(ui.style());
+                let small = egui::TextStyle::Small.resolve(ui.style());
+                let chev_rect = egui::Rect::from_min_size(rect.min, egui::vec2(30.0, rect.height()));
+                let chev = ui.interact(chev_rect, ui.id().with(("op_fold", id)), egui::Sense::click()).on_hover_text(if folded { "Show the settings" } else { "Hide the settings" });
+                if chev.hovered() { ui.painter().rect_filled(chev_rect.shrink2(egui::vec2(3.0, 8.0)), 5.0, ink.gamma_multiply(0.18)); }
+                paint_icon(ui.painter(), if folded { Icon::ChevR } else { Icon::ChevD }, egui::pos2(rect.min.x + 15.0, rect.center().y), ink, 0.62);
+                paint_icon(ui.painter(), kind_icon, egui::pos2(rect.min.x + 42.0, rect.center().y), ink, 0.6);
+                let g1 = ui.painter().layout_no_wrap(text, body, col);
+                let g2 = ui.painter().layout_no_wrap(sub, small, sub_col);
+                let top = rect.center().y - (g1.size().y + g2.size().y) / 2.0;
+                let btn_w = 3.0 * 26.0 + 2.0 * 2.0;
+                let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - btn_w - 8.0, rect.max.y)));
+                let h1 = g1.size().y;
+                clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
+                clip.galley(egui::pos2(rect.min.x + 60.0, top + h1), g2, sub_col);
+                if chev.clicked() { if folded { collapsed.remove(&id); } else { collapsed.insert(id); } }
+                else if resp.clicked() { d.act = id; }
+                // up / down / delete sit inside the row, on its right
+                let brect = egui::Rect::from_min_size(egui::pos2(rect.max.x - btn_w - 6.0, rect.center().y - 13.0), egui::vec2(btn_w, 26.0));
+                ui.allocate_ui_at_rect(brect, |ui| {
+                    ui.spacing_mut().item_spacing.x = 2.0;
+                    ui.horizontal(|ui| {
+                        if small_icon_button(ui, Icon::Up, i > 0, "Move up (runs earlier)").clicked() { act_move = Some((i, -1)); }
+                        if small_icon_button(ui, Icon::Down, i + 1 < n_ops, "Move down (runs later)").clicked() { act_move = Some((i, 1)); }
+                        if small_icon_button(ui, Icon::Trash, true, "Delete operation").clicked() { act_remove = Some(i); }
+                    });
+                });
+            }
+            ui.add_space(2.0);
+            if !collapsed.contains(&id) {
+            let loops = &d.loops;
+            let stock_t = d.stock.t;
+            let o = &mut d.ops[i];
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                ui.set_width(lw - 14.0);
+                let p = &mut o.p;
+                let sp = ui.spacing().item_spacing.x;
+                let bf = egui::TextStyle::Body.resolve(ui.style());
+                let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
+                // 2 x 2 grid: Type | Cut  /  Tool | Depth
+                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth"));
+                let l3 = tw_of(ui, "Cut").max(tw_of(ui, "Pass"));
+                // fixed widths: the right column never depends on the selected text, so nothing resizes
+                let cw = tw_of(ui, "Conventional") + 44.0;
+                let lc = (ui.available_width() - l1 - l3 - cw - 3.0 * sp - 12.0).max(100.0);
+                egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp, 10.0]).show(ui, |ui| {
+                    rlabel(ui, l1, "Type");
+                    let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
+                    let single: [(&str, &str); 1] = [(if p.kind == "vcarve" { "vcarve" } else { "pocket" }, if p.kind == "vcarve" { "V-carve" } else { "Pocket" })];
+                    changed |= combo_w(ui, lc + 10.0, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { "Profile: cut outside, inside or on the line" } else { "Operation type" });
+                    rlabel(ui, l3, "Cut");
+                    let (c, _) = combo_w2(ui, cw + 10.0, &format!("dir{id}"), &mut p.dir, DIRS, "", "Cut direction: climb or conventional");
+                    changed |= c;
+                    ui.end_row();
+                    ui.end_row();
+                });
+                ui.add_space(4.0);
+                // Tool row: the selector takes all the room left of the right-aligned "Ramp in"
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = sp;
+                    let has_ramp = p.kind != "vcarve";
+                    let ramp_w = if has_ramp { tw_of(ui, "Ramp in") + 30.0 } else { 0.0 };
+                    let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
+                    rlabel(ui, l1, "Tool");
+                    let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                    let cur = elide(ui, &cur, tool_w - 30.0);
+                    egui::ComboBox::from_id_source(("optool", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
+                        for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
+                            if !tools.iter().any(|t| t.sys == sys) { continue; }
+                            ui.weak(label);
+                            for t in tools.iter().filter(|t| t.sys == sys) {
+                                let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
+                                if ui.selectable_label(p.tool == t.id, format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool = t.id.clone(); changed = true; }
+                            }
+                        }
+                        ui.separator();
+                        if ui.selectable_label(false, "Manage tools…").on_hover_text("Open the tool library").clicked() { open_tools = true; ui.close_menu(); }
+                    });
+                    if has_ramp {
+                        let rest = ui.available_width() - ramp_w;
+                        if rest > 0.0 { ui.add_space(rest); }
+                        changed |= ui.checkbox(&mut p.ramp, "Ramp in").changed();
+                    }
+                });
+                // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
+                let tool_pd = tool_pd_of(&tools, &p.tool);
+                ui.add_space(2.0);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = sp;
+                    // the row fills the panel: both fields share what the fixed parts leave over
+                    let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, "mm"), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 22.0);
+                    // short fields; whatever width is left is shared out as gaps between the three groups
+                    let fw = 42.0;
+                    let fixed = l1 + w_pass + 2.0 * w_mm + 2.0 * fw + w_cnt + w_rst + 7.0 * sp;
+                    let gap = ((ui.available_width() - fixed) / 2.0).max(6.0);
+                    rlabel(ui, l1, "Depth");
+                    changed |= dv_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
+                    ui.weak("mm");
+                    ui.add_space(gap);
+                    ui.label("Pass");
+                    let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
+                    if dv_w(ui, fw, &mut v, 0.01, 1000.0, "") {
+                        p.pass_depth = if tool_pd.map_or(false, |t| (t - v).abs() < 1e-9) { None } else { Some(v) };
+                        changed = true;
+                    }
+                    ui.weak("mm");
+                    ui.add_space(gap - sp.min(gap));
+                    ui.allocate_ui_with_layout(egui::vec2(w_rst, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        if p.pass_depth.is_some() && ui.small_button("↺").on_hover_text("Use the tool's pass depth").clicked() { p.pass_depth = None; changed = true; }
+                    });
+                    let pd = p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001);
+                    let n = ((p.depth / pd) - 1e-9).ceil().max(1.0) as usize;
+                    ui.allocate_ui_with_layout(egui::vec2(w_cnt, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.weak(format!("{n} pass{}", if n == 1 { "" } else { "es" }));
+                    });
+                });
+                if p.depth > stock_t + 1e-6 {
+                    ui.add_space(2.0);
+                    let col = if ui.visuals().dark_mode { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(190, 100, 0) };
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing.x = 4.0;
+                        ui.colored_label(col, format!("⚠ Depth is more than the stock thickness ({} mm): the cutter would go through into the spoilboard.", stock_t));
+                    });
+                }
+                ui.add_space(2.0);
+                if ["outside", "inside", "online"].contains(&p.kind.as_str()) {
+                    changed |= ui.checkbox(&mut p.tabs, "Holding tabs").changed();
+                    if p.tabs {
+                      ui.indent(("tab_opts", id), |ui| {
+                        let manual = p.tab_pts.is_some();
+                        ui.horizontal(|ui| {
+                            ui.label("Placement").on_hover_text("Automatic spaces the tabs evenly; manual lets you put each one where you want it");
+                            if ui.selectable_label(!manual, "Automatic").clicked() && manual {
+                                p.tab_pts = None;
+                                if *tab_edit == Some(id) { *tab_edit = None; }
+                                changed = true;
+                            }
+                            if ui.selectable_label(manual, "Manual").on_hover_text("Starts from the evenly spaced tabs, which you can then move, add or remove").clicked() && !manual {
+                                p.tab_pts = Some(shapes::auto_tab_points(loops, id, p.tab_n.unwrap_or(4.0).round().max(1.0) as usize));
+                                changed = true;
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            let (mut n, mut w, mut h) = (p.tab_n.unwrap_or(4.0), p.tab_w.unwrap_or(5.0), p.tab_h.unwrap_or(2.0));
+                            // short fields; the spare width is shared out as gaps between the groups
+                            let sp = 5.0;
+                            ui.spacing_mut().item_spacing.x = sp;
+                            let fw = 42.0;
+                            let groups = if manual { 2.0 } else { 3.0 };
+                            let labels = tw_of(ui, "Width") + tw_of(ui, "Height") + if manual { 0.0 } else { tw_of(ui, "Count") };
+                            let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, "mm") + (3.0 * groups + 0.0) * sp;
+                            let gap = ((ui.available_width() - fixed) / (groups - 1.0)).max(4.0);
+                            if !manual {
+                                ui.label("Count").on_hover_text("Number of holding tabs, spread evenly along the outline");
+                                if dv_w(ui, 30.0, &mut n, 1.0, 50.0, "") { p.tab_n = Some(n.round()); changed = true; }
+                                ui.spacing_mut().item_spacing.x = 1.0;
+                                if spin_arrows(ui, &mut n, 1.0, 50.0) { p.tab_n = Some(n.round()); changed = true; }
+                                ui.spacing_mut().item_spacing.x = sp;
+                                ui.add_space(gap);
+                            }
+                            ui.label("Width").on_hover_text("Length of each tab along the outline");
+                            if dv_w(ui, fw, &mut w, 0.5, 100.0, "") { p.tab_w = Some(w); changed = true; }
+                            ui.weak("mm");
+                            ui.add_space(gap);
+                            ui.label("Height").on_hover_text("How tall each tab is, measured up from the bottom of the cut");
+                            if dv_w(ui, fw, &mut h, 0.2, 100.0, "") { p.tab_h = Some(h); changed = true; }
+                            ui.weak("mm");
+                        });
+                        if let Some(tp) = p.tab_pts.as_mut() {
+                            ui.horizontal(|ui| {
+                                let editing = *tab_edit == Some(id);
+                                let (label, tip) = if editing { ("Done", "Stop placing tabs (Esc)") } else { ("Place tabs", "Click on the outline in the drawing to add tabs; drag to move them, right-click to remove") };
+                                if icon_text_button(ui, if editing { Icon::Close } else { Icon::Add }, label, tip, None).clicked() {
+                                    *tab_edit = if editing { None } else { Some(id) };
+                                    d.act = id;
+                                }
+                                ui.weak(format!("{} tab{}", tp.len(), if tp.len() == 1 { "" } else { "s" }));
+                                if !tp.is_empty() && ui.small_button("Clear").on_hover_text("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
+                            });
+                        }
+                      });
+                    }
+                }
+                changed |= ui.checkbox(&mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed();
+                ui.add_space(4.0);
+                if let Some(t) = tools.iter().find(|t| t.id == p.tool) {
+                    let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
+                    ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} mm/min · step {}% · {:.2} mm/pass",
+                        putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, t.feed, t.plunge, t.so, t.pd));
+                }
+            });
+        }
+            ui.add_space(6.0);
+        }
+        if let Some((i, dir)) = act_move {
+            let j = i as i32 + dir;
+            if j >= 0 && (j as usize) < d.ops.len() { d.ops.swap(i, j as usize); changed = true; }
+        }
+        if let Some(i) = act_remove {
+            let id = d.ops[i].id;
+            for l in d.loops.iter_mut() { if l.op == id { l.op = 0; } }
+            d.ops.remove(i);
+            if d.act == id { d.act = d.ops.get(i.saturating_sub(1)).map(|o| o.id).unwrap_or(0); }
+            changed = true;
+        }
+        if d.ops.is_empty() { ui.weak("Add an operation, then draw shapes and assign them to it."); }
+
+
+        }
+        if !ops {
+        // ---- machine -----------------------------------------------------------------
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.heading("Machine");
+            let mw = (ui.available_width() - 6.0).max(80.0);
+            egui::ComboBox::from_id_source("project_machine").width(mw).selected_text(elide(ui, &mach_name, mw - 30.0)).show_ui(ui, |ui| {
+                for (id, name) in &mach_names {
+                    if ui.selectable_label(*id == mach_cur, name).clicked() && *id != mach_cur { mach_pick = Some(id.clone()); }
+                }
+                ui.separator();
+                if ui.selectable_label(false, "Manage machines…").on_hover_text("Create and edit machines").clicked() { open_machines = true; ui.close_menu(); }
+            });
+        });
+        ui.weak(&mach_area);
+        }
+    });
+    if open_tools { app.tools_open = true; }
+    if open_machines { app.machines_open = true; }
+    if let Some(id) = mach_pick { app.set_machine(&id); }
+
+    if changed || name_changed {
+        if !app.hist.open {
+            app.hist.undo.push(before);
+            if app.hist.undo.len() > 60 { app.hist.undo.remove(0); }
+            app.hist.redo.clear();
+            app.hist.open = true;
+        }
+        app.touch();
+    }
+}
+
+/// Work-origin picker: a square with a point at each corner and one in the centre.
+/// `val` is one of ll, lr, ul, ur, c. Returns true when it changed.
+pub fn tw(ui: &Ui, s: &str) -> f32 {
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    ui.fonts(|f| f.layout_no_wrap(s.to_string(), font, Color32::WHITE).size().x).ceil()
+}
+
+/// Shorten `s` with an ellipsis so it fits in `max_w` pixels.
+fn elide(ui: &Ui, s: &str, max_w: f32) -> String {
+    if tw(ui, s) <= max_w { return s.to_string(); }
+    let mut t: Vec<char> = s.chars().collect();
+    while !t.is_empty() {
+        t.pop();
+        let c: String = t.iter().collect::<String>().trim_end().to_string() + "…";
+        if tw(ui, &c) <= max_w { return c; }
+    }
+    "…".into()
+}
+
+fn xy_picker(ui: &mut Ui, val: &mut String) -> bool {
+    let size = 76.0;
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::click());
+    let vis = ui.visuals().clone();
+    let accent = vis.selection.bg_fill;
+    let sq = rect.shrink(8.0);
+    let p = ui.painter();
+    p.rect(sq, 3.0, vis.extreme_bg_color, egui::Stroke::new(1.5_f32, vis.widgets.inactive.fg_stroke.color));
+    let pts = [("ul", sq.left_top()), ("ur", sq.right_top()), ("ll", sq.left_bottom()), ("lr", sq.right_bottom()), ("c", sq.center())];
+    let hover = resp.hover_pos();
+    let near = hover.and_then(|h| pts.iter().filter(|(_, q)| q.distance(h) < 16.0).min_by(|a, b| a.1.distance(h).total_cmp(&b.1.distance(h))).map(|(k, _)| *k));
+    let mut changed = false;
+    if resp.clicked() {
+        if let Some(k) = near { if *val != k { *val = k.to_string(); changed = true; } }
+    }
+    for (k, q) in pts {
+        let sel = *val == k;
+        if sel {
+            p.circle_filled(q, 6.5, accent);
+            p.circle_stroke(q, 6.5, egui::Stroke::new(1.5_f32, Color32::WHITE));
+        } else {
+            let hot = near == Some(k);
+            p.circle(q, 4.5, if hot { vis.widgets.hovered.bg_fill } else { vis.window_fill }, egui::Stroke::new(1.5_f32, if hot { accent } else { vis.widgets.inactive.fg_stroke.color }));
+        }
+    }
+    if near.is_some() { ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand); }
+    let name = ZEROS.iter().find(|(k, _)| *k == val.as_str()).map(|(_, n)| *n).unwrap_or("");
+    resp.on_hover_text(format!("Work origin (X0 Y0): {name}"));
+    changed
+}
+
+fn fmt_num(v: f64) -> String {
+    let s = format!("{:.2}", v);
+    s.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+/// Dismissible message bar under the view tabs (import warnings, save errors...). Wraps at any width.
+pub fn message_bar(ui: &mut Ui, app: &mut App) {
+    let Some(msg) = app.error.clone() else { return };
+    let red = if app.theme.dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xa5, 0x1d, 0x2d) };
+    let mut close = false;
+    ui.horizontal_top(|ui| {
+        ui.add_space(2.0);
+        let (r, _) = ui.allocate_exact_size(egui::vec2(18.0, 20.0), egui::Sense::hover());
+        ui.painter().circle_filled(r.center(), 8.0, red);
+        ui.painter().line_segment([r.center() + egui::vec2(0.0, -3.5), r.center() + egui::vec2(0.0, 1.0)], egui::Stroke::new(1.8_f32, Color32::WHITE));
+        ui.painter().circle_filled(r.center() + egui::vec2(0.0, 4.0), 1.1, Color32::WHITE);
+        let w = (ui.available_width() - 34.0).max(60.0);
+        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(&msg).color(red)).wrap(true)); });
+        if icon_close(ui).clicked() { close = true; }
+    });
+    if close { app.error = None; }
+}
+
+fn icon_close(ui: &mut Ui) -> egui::Response {
+    let (r, resp) = ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
+    if resp.hovered() { ui.painter().rect_filled(r, 5.0, ui.visuals().widgets.hovered.weak_bg_fill); }
+    paint_icon(ui.painter(), Icon::Close, r.center(), ui.visuals().text_color(), 0.55);
+    resp.on_hover_text("Dismiss")
+}

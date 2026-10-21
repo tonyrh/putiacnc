@@ -1,0 +1,475 @@
+//! 3D preview: the simulated stock (height field) seen through an orbit camera, the toolpath and a
+//! playback bar that replays the job move by move.
+use crate::app::App;
+use eframe::egui::{self, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, Ui, Vec2};
+use eframe::glow::{self, HasContext};
+use putiacnc_core::sim::Sim;
+use putiacnc_core::toolpath::Move;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ViewTab { Design, Preview }
+
+pub const SPEEDS: [(f64, &str); 6] = [(1.0, "1×"), (5.0, "5×"), (20.0, "20×"), (60.0, "60×"), (200.0, "200×"), (1000.0, "1000×")];
+const MAX_CELLS: usize = 2_000_000;
+
+type V3 = [f32; 3];
+fn sub(a: V3, b: V3) -> V3 { [a[0] - b[0], a[1] - b[1], a[2] - b[2]] }
+fn dot(a: V3, b: V3) -> f32 { a[0] * b[0] + a[1] * b[1] + a[2] * b[2] }
+fn cross(a: V3, b: V3) -> V3 { [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]] }
+fn norm(a: V3) -> V3 { let l = dot(a, a).sqrt().max(1e-9); [a[0] / l, a[1] / l, a[2] / l] }
+
+pub struct State {
+    pub sim: Option<Sim>,
+    pub ver: u64,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub dist: f32,
+    pub target: V3,
+    pub framed: bool,
+    /// End time (minutes) of every move, and the total.
+    pub cum: Vec<f64>,
+    pub total: f64,
+    pub t: f64,
+    pub playing: bool,
+    pub speed_idx: usize,
+    /// Fraction to jump to after the first build (testing aid).
+    pub init_frac: Option<f64>,
+    pub gen: u64,
+    pub uploaded: Option<(u64, usize)>,
+    pub glres: std::sync::Arc<std::sync::Mutex<GlRes>>,
+    pub pending: std::sync::Arc<std::sync::Mutex<Option<(usize, usize, Vec<f32>)>>>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], framed: false, cum: vec![], total: 0.0, t: 0.0,
+            playing: false, speed_idx: 3, init_frac: None, gen: 0, uploaded: None, glres: Default::default(), pending: Default::default() }
+    }
+}
+
+struct Cam { eye: V3, f: V3, r: V3, u: V3, focal: f32, c: Pos2 }
+
+impl Cam {
+    fn new(s: &State, rect: Rect) -> Cam {
+        let (cy, sy) = (s.yaw.cos(), s.yaw.sin());
+        let (cp, sp) = (s.pitch.cos(), s.pitch.sin());
+        let eye = [s.target[0] + s.dist * cp * cy, s.target[1] + s.dist * cp * sy, s.target[2] + s.dist * sp];
+        let f = norm(sub(s.target, eye));
+        let r = norm(cross(f, [0.0, 0.0, 1.0]));
+        let u = cross(r, f);
+        let focal = rect.height() * 0.5 / (35.0_f32.to_radians() * 0.5).tan();
+        Cam { eye, f, r, u, focal, c: rect.center() }
+    }
+    fn p(&self, q: V3) -> Option<Pos2> {
+        let d = sub(q, self.eye);
+        let z = dot(d, self.f);
+        if z < 1.0 { return None; }
+        Some(Pos2::new(self.c.x + dot(d, self.r) / z * self.focal, self.c.y - dot(d, self.u) / z * self.focal))
+    }
+}
+
+fn fmt_time(min: f64) -> String {
+    let s = (min * 60.0).round().max(0.0) as u64;
+    format!("{}:{:02}", s / 60, s % 60)
+}
+
+/// Keep the simulation in step with the toolpath and the playback position.
+fn sync(app: &mut App, ctx: &egui::Context) {
+    let moves: &[Move] = app.output.as_ref().map(|o| &o.moves[..]).unwrap_or(&[]);
+    let st = &mut app.v3;
+    if st.sim.is_none() || st.ver != app.out_ver {
+        let was_end = st.t >= st.total - 1e-9;
+        let stk = &app.project.data.stock;
+        // the height texture is at most 4096 texels wide
+        let cap = (stk.w * stk.h / (stk.w.max(stk.h) / 4000.0).powi(2)).min(MAX_CELLS as f64) as usize;
+        st.sim = Some(Sim::new(&app.project.data, cap));
+        st.gen += 1;
+        let mut acc = 0.0;
+        st.cum = moves.iter().map(|m| { acc += m.dt; acc }).collect();
+        st.total = acc;
+        st.t = if was_end { st.total } else { st.t.min(st.total) };
+        st.ver = app.out_ver;
+        if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = st.total * f; } }
+        if !st.framed { frame(st, &app.project.data.stock); }
+    }
+    if st.playing {
+        let dt = ctx.input(|i| i.stable_dt).min(0.1) as f64;
+        st.t += dt * SPEEDS[st.speed_idx].0 / 60.0;
+        if st.t >= st.total { st.t = st.total; st.playing = false; }
+        ctx.request_repaint();
+    }
+    let idx = st.cum.partition_point(|&c| c <= st.t + 1e-12);
+    if let Some(sim) = st.sim.as_mut() { sim.advance(moves, idx); }
+}
+
+fn frame(st: &mut State, stock: &putiacnc_core::model::Stock) {
+    st.target = [stock.w as f32 / 2.0, stock.h as f32 / 2.0, -(stock.t as f32) / 2.0];
+    let diag = ((stock.w * stock.w + stock.h * stock.h + stock.t * stock.t) as f32).sqrt();
+    st.dist = diag * 1.9;
+    if let Some(z) = std::env::var("PUTIACNC_ZOOM").ok().and_then(|s| s.parse::<f32>().ok()) { st.dist *= z; st.target = [stock.w as f32 * 0.35, stock.h as f32 * 0.55, 0.0]; }
+    st.framed = true;
+}
+
+/// Underlined tab row, shared by the view tabs and the right panel's tabs.
+pub fn tabs<T: PartialEq + Copy>(ui: &mut Ui, theme: &crate::theme::Theme, cur: &mut T, items: &[(T, &str)]) {
+    let (accent, strong) = (theme.accent, theme.text());
+    let weak = ui.visuals().weak_text_color();
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        for (tab, label) in items {
+            let sel = *cur == *tab;
+            let font = egui::TextStyle::Body.resolve(ui.style());
+            let galley = ui.painter().layout_no_wrap(label.to_string(), font, if sel { strong } else { weak });
+            let (rect, resp) = ui.allocate_exact_size(Vec2::new(galley.size().x + 28.0, 26.0), Sense::click());
+            if resp.hovered() && !sel { ui.painter().rect_filled(rect.shrink2(Vec2::new(0.0, 3.0)), 6.0, ui.visuals().widgets.hovered.weak_bg_fill); }
+            let col = if sel || resp.hovered() { strong } else { weak };
+            ui.painter().galley(Pos2::new(rect.center().x - galley.size().x / 2.0, rect.center().y - galley.size().y / 2.0), galley, col);
+            if sel { ui.painter().rect_filled(Rect::from_min_max(Pos2::new(rect.left() + 8.0, rect.bottom() - 2.0), Pos2::new(rect.right() - 8.0, rect.bottom())), 1.0, accent); }
+            if resp.clicked() { *cur = *tab; }
+        }
+    });
+}
+
+pub fn tab_strip(ui: &mut Ui, app: &mut App) {
+    let theme = app.theme;
+    tabs(ui, &theme, &mut app.view_tab, &[(ViewTab::Design, "2D design"), (ViewTab::Preview, "3D preview")]);
+}
+
+/// Painted play / pause / restart glyphs.
+fn glyph_button(ui: &mut Ui, kind: u8, tip: &str) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::splat(26.0), Sense::click());
+    let resp = resp.on_hover_text(tip);
+    if resp.hovered() { ui.painter().rect_filled(rect, 5.0, ui.visuals().widgets.hovered.weak_bg_fill); }
+    let col = ui.visuals().text_color();
+    let c = rect.center();
+    let p = ui.painter();
+    match kind {
+        0 => { p.add(Shape::convex_polygon(vec![c + Vec2::new(-4.5, -6.0), c + Vec2::new(-4.5, 6.0), c + Vec2::new(6.0, 0.0)], col, Stroke::NONE)); }
+        1 => { p.rect_filled(Rect::from_center_size(c + Vec2::new(-3.5, 0.0), Vec2::new(3.5, 12.0)), 1.0, col); p.rect_filled(Rect::from_center_size(c + Vec2::new(3.5, 0.0), Vec2::new(3.5, 12.0)), 1.0, col); }
+        _ => { p.rect_filled(Rect::from_center_size(c + Vec2::new(-5.0, 0.0), Vec2::new(2.5, 12.0)), 1.0, col);
+               p.add(Shape::convex_polygon(vec![c + Vec2::new(6.0, -6.0), c + Vec2::new(6.0, 6.0), c + Vec2::new(-3.0, 0.0)], col, Stroke::NONE)); }
+    }
+    resp
+}
+
+pub fn play_bar(ui: &mut Ui, app: &mut App) {
+    let have = app.v3.total > 0.0;
+    ui.horizontal(|ui| {
+        ui.add_enabled_ui(have, |ui| {
+            if glyph_button(ui, 2, "Restart from the beginning").clicked() { app.v3.t = 0.0; app.v3.playing = true; }
+            let playing = app.v3.playing;
+            if glyph_button(ui, if playing { 1 } else { 0 }, if playing { "Pause" } else { "Play" }).clicked() {
+                if playing { app.v3.playing = false; } else { if app.v3.t >= app.v3.total - 1e-9 { app.v3.t = 0.0; } app.v3.playing = true; }
+            }
+        });
+        let label = format!("{} / {}", fmt_time(app.v3.t), fmt_time(app.v3.total));
+        let lw = crate::panels::tw(ui, "00:00 / 00:00") + 8.0;
+        let speed_w = 74.0;
+        let avail = ui.available_width();
+        ui.spacing_mut().slider_width = (avail - lw - speed_w - 40.0).max(60.0);
+        let total = app.v3.total.max(1e-6);
+        let mut t = app.v3.t;
+        let r = ui.add_enabled(have, egui::Slider::new(&mut t, 0.0..=total).show_value(false));
+        if r.changed() { app.v3.t = t; app.v3.playing = false; }
+        ui.allocate_ui_with_layout(Vec2::new(lw, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.label(label); });
+        ui.add_enabled_ui(have, |ui| {
+            egui::ComboBox::from_id_source("speed").width(speed_w - 24.0).selected_text(SPEEDS[app.v3.speed_idx].1).show_ui(ui, |ui| {
+                for (i, (_, n)) in SPEEDS.iter().enumerate() { ui.selectable_value(&mut app.v3.speed_idx, i, *n); }
+            }).response.on_hover_text("Playback speed relative to the machine's real time");
+        });
+    });
+}
+
+pub fn preview(ui: &mut Ui, app: &mut App) {
+    let ctx = ui.ctx().clone();
+    sync(app, &ctx);
+    let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
+    let rect = resp.rect;
+    let painter = painter.with_clip_rect(rect);
+    let dark = app.theme.dark;
+
+    // camera controls
+    {
+        let st = &mut app.v3;
+        let pan = resp.dragged_by(egui::PointerButton::Middle) || resp.dragged_by(egui::PointerButton::Secondary)
+            || (resp.dragged_by(egui::PointerButton::Primary) && ctx.input(|i| i.modifiers.shift));
+        if pan {
+            let cam = Cam::new(st, rect);
+            let d = resp.drag_delta();
+            let k = st.dist / cam.focal;
+            for i in 0..3 { st.target[i] += (-cam.r[i] * d.x + cam.u[i] * d.y) * k; }
+        } else if resp.dragged_by(egui::PointerButton::Primary) {
+            let d = resp.drag_delta();
+            st.yaw -= d.x * 0.008;
+            st.pitch = (st.pitch + d.y * 0.008).clamp(0.04, 1.55);
+        }
+        if resp.hovered() {
+            let s = ctx.input(|i| i.smooth_scroll_delta.y);
+            if s != 0.0 { st.dist = (st.dist * (-s * 0.0015).exp()).clamp(5.0, 20000.0); }
+        }
+        if resp.double_clicked() { st.framed = false; st.yaw = -1.15; st.pitch = 0.62; frame(st, &app.project.data.stock); }
+    }
+
+    let cam = Cam::new(&app.v3, rect);
+    let Some(sim) = app.v3.sim.as_ref() else { return };
+    let (w, h, t) = (sim.w as f32, sim.h as f32, sim.t as f32);
+    let cell = sim.cell as f32;
+    // hand the new heights to the GPU only when the simulation changed
+    let stamp = (app.v3.gen, sim.done);
+    if app.v3.uploaded != Some(stamp) {
+        *app.v3.pending.lock().unwrap() = Some((sim.nx, sim.ny, sim.z.clone()));
+        app.v3.uploaded = Some(stamp);
+    }
+    let col = |c: Color32| [c.r() as f32 / 255.0, c.g() as f32 / 255.0, c.b() as f32 / 255.0];
+    let u = Uniforms {
+        eye: cam.eye, f: cam.f, r: cam.r, u: cam.u, tanh: (35.0_f32.to_radians() * 0.5).tan(),
+        bx: [w, h, t], cell, n: [sim.nx as i32, sim.ny as i32],
+        wood: col(if dark { Color32::from_rgb(196, 158, 112) } else { Color32::from_rgb(226, 190, 142) }),
+        floor: col(if dark { Color32::from_rgb(70, 70, 76) } else { Color32::from_rgb(120, 120, 128) }),
+        side: col(if dark { Color32::from_rgb(150, 116, 78) } else { Color32::from_rgb(190, 150, 104) }),
+    };
+    let (glres, pending) = (app.v3.glres.clone(), app.v3.pending.clone());
+    painter.add(egui::PaintCallback {
+        rect,
+        callback: std::sync::Arc::new(eframe::egui_glow::CallbackFn::new(move |info, p| draw_gl(&glres, &pending, &u, &info, p))),
+    });
+    let sim = app.v3.sim.as_ref().unwrap();
+
+    // toolpath
+    if let Some(o) = &app.output {
+        let done = sim.done;
+        let mut run: Vec<Pos2> = Vec::new();
+        let mut run_key: Option<(usize, bool)> = None;
+        let flush = |run: &mut Vec<Pos2>, key: Option<(usize, bool)>| {
+            if run.len() >= 2 {
+                if let Some((op, executed)) = key {
+                    let c = crate::theme::op_color(op, dark);
+                    let (c, wd) = if executed { (c, 1.6_f32) } else { (c.gamma_multiply(0.35), 1.0_f32) };
+                    painter.add(Shape::line(std::mem::take(run), Stroke::new(wd, c)));
+                }
+            }
+            run.clear();
+        };
+        for (i, m) in o.moves.iter().enumerate() {
+            let executed = i < done;
+            if !m.cut {
+                flush(&mut run, run_key); run_key = None;
+                if app.show_rapids {
+                    if let (Some(a), Some(b)) = (cam.p([m.from[0] as f32, m.from[1] as f32, m.from[2] as f32]), cam.p([m.to[0] as f32, m.to[1] as f32, m.to[2] as f32])) {
+                        painter.line_segment([a, b], Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(160, 160, 160, if executed { 150 } else { 50 })));
+                    }
+                }
+                continue;
+            }
+            if !app.show_toolpath { flush(&mut run, run_key); run_key = None; continue; }
+            let key = (m.op, executed);
+            if run_key != Some(key) { flush(&mut run, run_key); run_key = Some(key); }
+            let (Some(a), Some(b)) = (cam.p([m.from[0] as f32, m.from[1] as f32, m.from[2] as f32]), cam.p([m.to[0] as f32, m.to[1] as f32, m.to[2] as f32])) else { flush(&mut run, run_key); continue };
+            if run.is_empty() { run.push(a); }
+            run.push(b);
+        }
+        flush(&mut run, run_key);
+        // the cutter
+        if done > 0 && done < o.moves.len() {
+            let tip = sim.tip;
+            let op = o.moves[done - 1].op;
+            if let (Some(a), Some(b)) = (cam.p([tip[0] as f32, tip[1] as f32, tip[2] as f32]), cam.p([tip[0] as f32, tip[1] as f32, tip[2] as f32 + 25.0])) {
+                let c = crate::theme::op_color(op, dark);
+                painter.line_segment([a, b], Stroke::new(5.0_f32, Color32::from_black_alpha(90)));
+                painter.line_segment([a, b], Stroke::new(3.0_f32, c));
+                painter.circle_filled(a, 4.0, c);
+                painter.circle_stroke(a, 4.0, Stroke::new(1.0_f32, Color32::WHITE));
+            }
+        }
+    }
+
+    if let Some(e) = &app.gen_error {
+        painter.text(rect.left_top() + Vec2::new(12.0, 10.0), egui::Align2::LEFT_TOP, e, FontId::proportional(13.0), Color32::from_rgb(0xe0, 0x1b, 0x24));
+    } else if app.output.as_ref().map_or(true, |o| o.moves.is_empty()) {
+        painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, "No toolpaths yet: add an operation to preview the cut", FontId::proportional(13.0), ui.visuals().weak_text_color());
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// GPU renderer: a full-screen pass that ray-marches the height texture, so walls and floors are
+// shaded per pixel at the simulation's resolution instead of through a coarse mesh.
+
+#[derive(Default)]
+pub struct GlRes {
+    prog: Option<glow::Program>,
+    vao: Option<glow::VertexArray>,
+    tex: Option<glow::Texture>,
+    dims: (usize, usize),
+    tried: bool,
+    pub ok: bool,
+}
+
+#[derive(Clone, Copy)]
+pub struct Uniforms {
+    eye: V3, f: V3, r: V3, u: V3, tanh: f32, bx: V3, cell: f32, n: [i32; 2], wood: V3, floor: V3, side: V3,
+}
+
+const VS: &str = "void main(){ vec2 p = vec2(float(gl_VertexID & 1) * 2.0 - 1.0, float(gl_VertexID >> 1) * 2.0 - 1.0); gl_Position = vec4(p, 0.0, 1.0); }";
+
+const FS: &str = r#"
+uniform sampler2D u_h;
+uniform vec3 u_eye, u_f, u_r, u_u;
+uniform vec2 u_org, u_res;
+uniform float u_tanh, u_cell;
+uniform vec3 u_box, u_wood, u_floor, u_side;
+uniform ivec2 u_n;
+out vec4 o;
+
+float Hc(int i, int j) { return texelFetch(u_h, ivec2(clamp(i, 0, u_n.x - 1), clamp(j, 0, u_n.y - 1)), 0).r; }
+float H(vec2 p) {
+    vec2 g = p / u_cell; vec2 f = floor(g); vec2 a = g - f; int i = int(f.x), j = int(f.y);
+    return mix(mix(Hc(i, j), Hc(i + 1, j), a.x), mix(Hc(i, j + 1), Hc(i + 1, j + 1), a.x), a.y);
+}
+const vec3 L = vec3(-0.45, -0.55, 0.75) / 1.0;
+
+// returns colour in rgb, coverage in a
+vec4 shade(vec2 pix) {
+    vec2 ndc = pix / u_res * 2.0 - 1.0;
+    vec3 d = normalize(u_f + u_r * (ndc.x * u_tanh * u_res.x / u_res.y) + u_u * (ndc.y * u_tanh));
+    vec3 bmin = vec3(0.0, 0.0, -u_box.z), bmax = vec3(u_box.x, u_box.y, 0.0);
+    vec3 inv = 1.0 / (d + vec3(1e-9));
+    vec3 a = (bmin - u_eye) * inv, b = (bmax - u_eye) * inv;
+    vec3 tn = min(a, b), tf = max(a, b);
+    float tin = max(max(tn.x, tn.y), tn.z), tout = min(min(tf.x, tf.y), tf.z);
+    if (tout <= max(tin, 0.0)) return vec4(0.0);
+    vec3 fn = vec3(0.0);
+    if (tin == tn.x) fn = vec3(-sign(d.x), 0.0, 0.0); else if (tin == tn.y) fn = vec3(0.0, -sign(d.y), 0.0); else fn = vec3(0.0, 0.0, -sign(d.z));
+    float t = tin; vec3 p = u_eye + d * t;
+    bool hit = false, face = false;
+    if (p.z <= H(p.xy) + 1e-4) { hit = true; face = fn.z == 0.0; }
+    else {
+        float prev = t;
+        for (int i = 0; i < 1200; i++) {
+            float st = u_cell * 0.6 * (1.0 + (t - tin) * 0.004);
+            t += st;
+            bool last = false;
+            if (t > tout) { t = tout; last = true; }
+            p = u_eye + d * t;
+            if (p.z <= H(p.xy)) {
+                float lo = prev, hi = t;
+                for (int k = 0; k < 7; k++) { float m = 0.5 * (lo + hi); vec3 q = u_eye + d * m; if (q.z <= H(q.xy)) hi = m; else lo = m; }
+                t = hi; p = u_eye + d * t; hit = true; break;
+            }
+            if (last) break;
+            prev = t;
+        }
+    }
+    if (!hit) return vec4(0.0);
+    vec3 Ln = normalize(L);
+    float flat_ = 0.45 + 0.55 * Ln.z;
+    vec3 c;
+    if (face) {
+        c = u_side * (0.55 + 0.45 * max(dot(fn, Ln), 0.0));
+        // darker towards the bottom edge, like a real cross-section
+        c *= 1.0 - 0.18 * clamp(-p.z / u_box.z, 0.0, 1.0);
+    } else {
+        float e = u_cell * 2.2;
+        float gx = (H(p.xy + vec2(e, 0.0)) - H(p.xy - vec2(e, 0.0))) / (2.0 * e);
+        float gy = (H(p.xy + vec2(0.0, e)) - H(p.xy - vec2(0.0, e))) / (2.0 * e);
+        vec3 n = normalize(vec3(-gx, -gy, 1.0));
+        float k = (0.45 + 0.55 * max(dot(n, Ln), 0.0)) / flat_;
+        k *= 1.0 - 0.32 * clamp(-p.z / u_box.z, 0.0, 1.0);
+        bool through = H(p.xy) <= -u_box.z + 1e-3;
+        c = (through ? u_floor : u_wood) * k;
+    }
+    return vec4(c, 1.0);
+}
+
+void main() {
+    vec2 pix = gl_FragCoord.xy - u_org;
+    vec2 offs[4] = vec2[4](vec2(-0.125, -0.375), vec2(0.375, -0.125), vec2(0.125, 0.375), vec2(-0.375, 0.125));
+    vec4 acc = vec4(0.0);
+    for (int s = 0; s < 4; s++) {
+        vec4 r = shade(pix + offs[s]);
+        acc += vec4(r.rgb * r.a, r.a);
+    }
+    acc *= 0.25;
+    if (acc.a <= 0.0) discard;
+    o = vec4(min(acc.rgb, vec3(1.0)), acc.a);
+}
+"#;
+
+fn build(gl: &glow::Context, sv: eframe::egui_glow::ShaderVersion) -> Result<(glow::Program, glow::VertexArray), String> {
+    unsafe {
+        let head = format!("{}{}", sv.version_declaration(), if sv.is_embedded() { "precision highp float;\nprecision highp int;\nprecision highp sampler2D;\n" } else { "" });
+        let mk = |kind: u32, src: &str| -> Result<glow::Shader, String> {
+            let s = gl.create_shader(kind)?;
+            gl.shader_source(s, &format!("{head}{src}"));
+            gl.compile_shader(s);
+            if !gl.get_shader_compile_status(s) { return Err(gl.get_shader_info_log(s)); }
+            Ok(s)
+        };
+        let vs = mk(glow::VERTEX_SHADER, VS)?;
+        let fs = mk(glow::FRAGMENT_SHADER, FS)?;
+        let p = gl.create_program()?;
+        gl.attach_shader(p, vs); gl.attach_shader(p, fs);
+        gl.link_program(p);
+        if !gl.get_program_link_status(p) { return Err(gl.get_program_info_log(p)); }
+        gl.delete_shader(vs); gl.delete_shader(fs);
+        let vao = gl.create_vertex_array()?;
+        Ok((p, vao))
+    }
+}
+
+fn draw_gl(res: &std::sync::Mutex<GlRes>, pending: &std::sync::Mutex<Option<(usize, usize, Vec<f32>)>>, u: &Uniforms, info: &egui::PaintCallbackInfo, painter: &eframe::egui_glow::Painter) {
+    let gl: &glow::Context = painter.gl();
+    let mut r = res.lock().unwrap();
+    if !r.tried {
+        r.tried = true;
+        let sv = eframe::egui_glow::ShaderVersion::get(gl);
+        if sv.is_new_shader_interface() {
+            match build(gl, sv) {
+                Ok((p, v)) => { r.prog = Some(p); r.vao = Some(v); r.ok = true; }
+                Err(e) => eprintln!("3D preview shader failed: {e}"),
+            }
+        } else { eprintln!("3D preview needs OpenGL 3.1 or newer"); }
+    }
+    if !r.ok { return; }
+    unsafe {
+        gl.active_texture(glow::TEXTURE1);
+        if r.tex.is_none() { r.tex = gl.create_texture().ok(); }
+        gl.bind_texture(glow::TEXTURE_2D, r.tex);
+        if let Some((nx, ny, z)) = pending.lock().unwrap().take() {
+            let bytes = std::slice::from_raw_parts(z.as_ptr() as *const u8, z.len() * 4);
+            if r.dims != (nx, ny) {
+                gl.tex_image_2d(glow::TEXTURE_2D, 0, glow::R32F as i32, nx as i32, ny as i32, 0, glow::RED, glow::FLOAT, Some(bytes));
+                gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::NEAREST as i32);
+                gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::NEAREST as i32);
+                gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE as i32);
+                gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE as i32);
+                r.dims = (nx, ny);
+            } else {
+                gl.tex_sub_image_2d(glow::TEXTURE_2D, 0, 0, 0, nx as i32, ny as i32, glow::RED, glow::FLOAT, glow::PixelUnpackData::Slice(bytes));
+            }
+        }
+        if r.dims == (0, 0) { gl.active_texture(glow::TEXTURE0); return; }
+        let vp = info.viewport_in_pixels();
+        let prog = r.prog.unwrap();
+        gl.use_program(Some(prog));
+        let loc = |n: &str| gl.get_uniform_location(prog, n);
+        gl.uniform_1_i32(loc("u_h").as_ref(), 1);
+        gl.uniform_3_f32_slice(loc("u_eye").as_ref(), &u.eye);
+        gl.uniform_3_f32_slice(loc("u_f").as_ref(), &u.f);
+        gl.uniform_3_f32_slice(loc("u_r").as_ref(), &u.r);
+        gl.uniform_3_f32_slice(loc("u_u").as_ref(), &u.u);
+        gl.uniform_2_f32(loc("u_org").as_ref(), vp.left_px as f32, vp.from_bottom_px as f32);
+        gl.uniform_2_f32(loc("u_res").as_ref(), vp.width_px as f32, vp.height_px as f32);
+        gl.uniform_1_f32(loc("u_tanh").as_ref(), u.tanh);
+        gl.uniform_1_f32(loc("u_cell").as_ref(), u.cell);
+        gl.uniform_3_f32_slice(loc("u_box").as_ref(), &u.bx);
+        gl.uniform_3_f32_slice(loc("u_wood").as_ref(), &u.wood);
+        gl.uniform_3_f32_slice(loc("u_floor").as_ref(), &u.floor);
+        gl.uniform_3_f32_slice(loc("u_side").as_ref(), &u.side);
+        gl.uniform_2_i32(loc("u_n").as_ref(), u.n[0], u.n[1]);
+        gl.bind_vertex_array(r.vao);
+        gl.draw_arrays(glow::TRIANGLE_STRIP, 0, 4);
+        gl.bind_vertex_array(None);
+        gl.use_program(None);
+        gl.active_texture(glow::TEXTURE0);
+    }
+}
