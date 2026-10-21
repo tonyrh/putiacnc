@@ -676,14 +676,15 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.spacing_mut().item_spacing.x = 4.0;
                 let field = |ui: &mut Ui, label: &str, v: &mut f64, lo: f64, hi: f64| -> bool {
                     ui.label(label);
+                    ui.add_space(4.0); // as far from its field as the labels in the Stock panel
                     crate::widgets::num(ui, [66.0, 24.0], v, lo, hi, 0.25, 3, "").changed()
                 };
                 geom |= field(ui, "X", &mut x, -100000.0, 100000.0);
-                ui.add_space(4.0);
+                ui.add_space(10.0);
                 geom |= field(ui, "Y", &mut y, -100000.0, 100000.0);
-                ui.add_space(4.0);
+                ui.add_space(10.0);
                 geom |= field(ui, "W", &mut w, 0.01, 100000.0);
-                ui.add_space(4.0);
+                ui.add_space(10.0);
                 geom |= field(ui, "H", &mut h, 0.01, 100000.0);
                 ui.weak("mm");
                 if single_rect.is_some() {
