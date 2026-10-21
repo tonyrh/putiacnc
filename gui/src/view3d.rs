@@ -383,7 +383,7 @@ vec4 shade(vec2 pix) {
         bool through = H(p.xy) <= -u_box.z + 1e-3;
         c = (through ? u_floor : u_wood) * k;
     }
-    if (u_grain > 0.0) c *= 1.0 + u_grain * 0.55 * grain(p);
+    if (u_grain > 0.0) c *= 1.0 + u_grain * 0.28 * grain(p);
     return vec4(c, 1.0);
 }
 
