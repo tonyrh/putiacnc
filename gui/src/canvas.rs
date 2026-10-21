@@ -473,9 +473,9 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     if !app.tools_open && !app.machines_open { overlays(&ctx, app, rect); }
 }
 
-/// Second corner of a rectangle/ellipse drag; Shift forces a square (circle) for ellipses.
+/// Second corner of a rectangle/ellipse drag; Shift forces a square (circle).
 fn draw_end(app: &App, a: [f64; 2], b: [f64; 2], shift: bool) -> [f64; 2] {
-    if app.mode == Mode::Ellipse && shift {
+    if (app.mode == Mode::Ellipse || app.mode == Mode::Rect) && shift {
         let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
         let m = dx.abs().max(dy.abs());
         [a[0] + m * if dx < 0.0 { -1.0 } else { 1.0 }, a[1] + m * if dy < 0.0 { -1.0 } else { 1.0 }]
@@ -492,7 +492,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
             for (m, icon, tip) in [
                 (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
-                (Mode::Rect, Icon::Rect, "Rectangle (R)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Text, Icon::Text, "Text (T)"),
+                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Text, Icon::Text, "Text (T)"),
             ] {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
@@ -521,7 +521,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Double-click or N edits points. Del deletes. Middle/right-drag pans.",
         Mode::Node => "Click a shape to edit its points.",
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
-        Mode::Rect => "Drag to draw a rectangle.",
+        Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };

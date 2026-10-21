@@ -9,7 +9,7 @@ const LEFT: &[Section] = &[
         ("V", "Select and move"),
         ("N", "Edit points of a shape"),
         ("L", "Line / polyline"),
-        ("R", "Rectangle"),
+        ("R", "Rectangle (Shift: square)"),
         ("E", "Ellipse (Shift: circle)"),
         ("T", "Text"),
         ("Esc", "Cancel, deselect, back to Select"),
