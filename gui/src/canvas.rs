@@ -887,6 +887,8 @@ fn set_mode(app: &mut App, m: Mode) {
     app.tab_edit = None;
     app.node_edit = None;
     app.node_drag = NodeDrag::None;
+    // the drawing tools start from a clean slate: nothing stays selected behind the new shape
+    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Text) { app.sel.clear(); }
     if m == Mode::Node && app.sel.len() == 1 { let i = *app.sel.iter().next().unwrap(); enter_node_edit(app, i); }
 }
 
