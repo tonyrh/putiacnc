@@ -104,10 +104,17 @@ pub struct OpParams {
     #[serde(default, rename = "tabN", skip_serializing_if = "Option::is_none")] pub tab_n: Option<f64>,
     #[serde(default, rename = "tabW", skip_serializing_if = "Option::is_none")] pub tab_w: Option<f64>,
     #[serde(default, rename = "tabH", skip_serializing_if = "Option::is_none")] pub tab_h: Option<f64>,
-    /// Manually placed holding tabs (centres on the shape outlines, mm). `Some` = manual placement,
-    /// `None` = evenly spaced tabs (`tabN`). Not part of the browser app's format; it ignores the field.
-    #[serde(default, rename = "tabPts", skip_serializing_if = "Option::is_none")] pub tab_pts: Option<Vec<[f64; 2]>>,
+    /// Manually placed holding tabs. `Some` = manual placement, `None` = evenly spaced tabs (`tabN`).
+    /// Each tab is anchored to a shape, so it follows when the shape is moved or resized.
+    #[serde(default, rename = "tabPts", skip_serializing_if = "Option::is_none")] pub tab_pts: Option<Vec<TabPt>>,
 }
+
+/// A manually placed holding tab, anchored to a shape: `l` is the index of the shape in the project's
+/// loop list, `u`/`v` the tab's position inside that shape's bounding box (0..1, y up from the bottom).
+/// The tab sits on the point of the outline nearest to that position, so moving or resizing the shape
+/// moves the tab with it.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
+pub struct TabPt { pub l: usize, pub u: f64, pub v: f64 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LoopData {

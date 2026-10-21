@@ -380,7 +380,12 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         }
         if tabs_req && !tabs_on { notes.push(format!("{}tabs skipped: the tab height must be smaller than the cut depth.", pre)); }
         ctx.rev = (kind == "inside" || kind == "pocket" || kind == "vcarve") != (o.p.dir == "conv");
-        if tabs_on { if let Some(tp) = &o.p.tab_pts { assign_manual_tabs(&ctx, &mut jobs, tp, &mut notes, &pre); } }
+        if tabs_on {
+            if let Some(tp) = &o.p.tab_pts {
+                let pts: Vec<[f64; 2]> = tp.iter().filter_map(|t| crate::shapes::tab_resolve(&data.loops, o.id, t).map(|r| r.0)).collect();
+                assign_manual_tabs(&ctx, &mut jobs, &pts, &mut notes, &pre);
+            }
+        }
 
         match last_d {
             None => { e.g.push(format!("M3 S{}", num(rpm))); e.g.push("G4 P2".into()); }

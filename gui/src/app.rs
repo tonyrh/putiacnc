@@ -171,7 +171,7 @@ impl App {
         if std::env::var_os("PUTIACNC_TAB_EDIT").is_some() {
             let loops = a.project.data.loops.clone();
             if let Some(o) = a.project.data.ops.iter_mut().find(|o| o.p.tabs) {
-                o.p.tab_pts = Some(putiacnc_core::shapes::auto_tab_points(&loops, o.id, 4));
+                o.p.tab_pts = Some(putiacnc_core::shapes::auto_tabs(&loops, o.id, 4));
                 a.tab_edit = Some(o.id);
             }
             a.touch();
@@ -388,6 +388,8 @@ impl App {
         if self.sel.is_empty() { return; }
         self.hist.record(&self.project.data);
         for &i in self.sel.iter().rev() { self.project.data.loops.remove(i); }
+        let removed: Vec<usize> = self.sel.iter().copied().collect();
+        shapes::tabs_after_delete(&mut self.project.data.ops, &removed);
         self.sel.clear();
         self.touch();
     }
@@ -404,6 +406,8 @@ impl App {
         }
         let start = self.project.data.loops.len();
         self.project.data.loops.extend(new);
+        let src: Vec<usize> = self.sel.iter().copied().collect();
+        for (k, &i) in src.iter().enumerate() { shapes::tabs_copy(&mut self.project.data.ops, i, start + k); }
         self.sel = (start..self.project.data.loops.len()).collect();
         self.touch();
     }

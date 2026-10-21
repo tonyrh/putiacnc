@@ -577,7 +577,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 changed = true;
                             }
                             if ui.selectable_label(manual, "Manual").on_hover_text("Starts from the evenly spaced tabs, which you can then move, add or remove").clicked() && !manual {
-                                p.tab_pts = Some(shapes::auto_tab_points(loops, id, p.tab_n.unwrap_or(4.0).round().max(1.0) as usize));
+                                p.tab_pts = Some(shapes::auto_tabs(loops, id, p.tab_n.unwrap_or(4.0).round().max(1.0) as usize));
                                 changed = true;
                             }
                         });

@@ -211,6 +211,51 @@ pub fn nearest_on_loop(l: &LoopData, p: [f64; 2]) -> Option<([f64; 2], f64, [f64
     best
 }
 
+/// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
+pub fn tab_anchor(loops: &[LoopData], li: usize, p: [f64; 2]) -> Option<TabPt> {
+    let b = bbox(loops.get(li)?)?;
+    let (w, h) = (b[2] - b[0], b[3] - b[1]);
+    Some(TabPt { l: li, u: if w > 1e-9 { (p[0] - b[0]) / w } else { 0.5 }, v: if h > 1e-9 { (p[1] - b[1]) / h } else { 0.5 } })
+}
+
+/// Where a tab sits now: the point on its shape's outline (and the outline direction there).
+/// `None` when the shape is gone, is not a closed shape of operation `op`, or has no outline.
+pub fn tab_resolve(loops: &[LoopData], op: i64, t: &TabPt) -> Option<([f64; 2], [f64; 2])> {
+    let l = loops.get(t.l).filter(|l| l.op == op && l.closed())?;
+    let b = bbox(l)?;
+    let target = [b[0] + t.u * (b[2] - b[0]), b[1] + t.v * (b[3] - b[1])];
+    nearest_on_loop(l, target).map(|(q, _, tang)| (q, tang))
+}
+
+/// Keeps tab anchors right after shapes were deleted (`removed` = their indices, any order).
+pub fn tabs_after_delete(ops: &mut [Operation], removed: &[usize]) {
+    for o in ops.iter_mut() {
+        if let Some(v) = o.p.tab_pts.as_mut() {
+            v.retain(|t| !removed.contains(&t.l));
+            for t in v.iter_mut() { t.l -= removed.iter().filter(|&&r| r < t.l).count(); }
+        }
+    }
+}
+
+/// Copies the tabs of shape `from` to its duplicate `to`.
+pub fn tabs_copy(ops: &mut [Operation], from: usize, to: usize) {
+    for o in ops.iter_mut() {
+        if let Some(v) = o.p.tab_pts.as_mut() {
+            let extra: Vec<TabPt> = v.iter().filter(|t| t.l == from).map(|t| TabPt { l: to, ..*t }).collect();
+            v.extend(extra);
+        }
+    }
+}
+
+/// Starting tabs for manual placement, anchored to their shapes: like `auto_tab_points`.
+pub fn auto_tabs(loops: &[LoopData], op: i64, n: usize) -> Vec<TabPt> {
+    let mut out = Vec::new();
+    for (li, l) in loops.iter().enumerate().filter(|(_, l)| l.op == op && l.closed() && l.pts.len() / 2 > 2) {
+        for p in auto_tab_points(std::slice::from_ref(l), op, n) { if let Some(t) = tab_anchor(loops, li, p) { out.push(t); } }
+    }
+    out
+}
+
 /// Starting tabs for manual placement: `n` evenly spaced points along every closed outline of operation `op`.
 pub fn auto_tab_points(loops: &[LoopData], op: i64, n: usize) -> Vec<[f64; 2]> {
     let mut out = Vec::new();

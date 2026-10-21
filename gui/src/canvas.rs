@@ -307,17 +307,18 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         let hov_tab = editing_tabs.and_then(|id| hover_w.and_then(|w| hovered_tab(app, id, w)));
         for (k, o) in d.ops.iter().enumerate() {
             if !o.p.tabs || !["outside", "inside", "online"].contains(&o.p.kind.as_str()) { continue; }
-            // manual tabs as placed; automatic ones at their evenly spaced positions
-            let auto;
-            let tp = match o.p.tab_pts.as_ref() {
-                Some(v) => v,
-                None => { auto = shapes::auto_tab_points(&d.loops, o.id, o.p.tab_n.unwrap_or(4.0).round().max(1.0) as usize); &auto }
+            // manual tabs follow their shapes; automatic ones sit at their evenly spaced positions
+            let items: Vec<Option<([f64; 2], [f64; 2])>> = match o.p.tab_pts.as_ref() {
+                Some(v) => v.iter().map(|t| shapes::tab_resolve(&d.loops, o.id, t)).collect(),
+                None => shapes::auto_tab_points(&d.loops, o.id, o.p.tab_n.unwrap_or(4.0).round().max(1.0) as usize).into_iter().map(|t| {
+                    d.loops.iter().filter(|l| l.op == o.id).filter_map(|l| shapes::nearest_on_loop(l, t)).min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|n| (n.0, n.2))
+                }).collect(),
             };
             let editing = editing_tabs == Some(o.id);
             let col = op_color(k, dark);
             let half = o.p.tab_w.unwrap_or(5.0) / 2.0;
-            for (ti, t) in tp.iter().enumerate() {
-                let tang = d.loops.iter().filter(|l| l.op == o.id).filter_map(|l| shapes::nearest_on_loop(l, *t)).min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|n| n.2).unwrap_or([1.0, 0.0]);
+            for (ti, item) in items.iter().enumerate() {
+                let Some((t, tang)) = item else { continue };
                 let (a, b) = (to_s([t[0] - tang[0] * half, t[1] - tang[1] * half]), to_s([t[0] + tang[0] * half, t[1] + tang[1] * half]));
                 let hot = editing && hov_tab == Some(ti);
                 painter.line_segment([a, b], Stroke::new(if editing { 10.0_f32 } else { 9.0 }, Color32::WHITE.gamma_multiply(0.95)));
@@ -327,7 +328,7 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         }
         if let (Some(id), Some(w)) = (editing_tabs, hover_w) {
             if hov_tab.is_none() && app.tab_drag.is_none() {
-                if let Some((q, dist, tang)) = nearest_outline(app, id, w) {
+                if let Some((_, q, dist, tang)) = nearest_outline(app, id, w) {
                     if dist * app.scale as f64 <= TAB_REACH_PX {
                         let half = d.ops.iter().find(|o| o.id == id).and_then(|o| o.p.tab_w).unwrap_or(5.0) / 2.0;
                         let (a, b) = (to_s([q[0] - tang[0] * half, q[1] - tang[1] * half]), to_s([q[0] + tang[0] * half, q[1] + tang[1] * half]));
@@ -707,18 +708,20 @@ fn b_axis(b: [f64; 4], horiz: bool) -> (f64, f64) { if horiz { (b[0], b[2]) } el
 /// How close (screen pixels) the pointer must be to an outline to add a tab there.
 const TAB_REACH_PX: f64 = 16.0;
 
-fn nearest_outline(app: &App, op_id: i64, w: [f64; 2]) -> Option<([f64; 2], f64, [f64; 2])> {
-    app.project.data.loops.iter().filter(|l| l.op == op_id && l.closed())
-        .filter_map(|l| shapes::nearest_on_loop(l, w))
-        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+/// Closest point on the closed shapes of operation `op_id`: (shape index, point, distance, direction).
+fn nearest_outline(app: &App, op_id: i64, w: [f64; 2]) -> Option<(usize, [f64; 2], f64, [f64; 2])> {
+    app.project.data.loops.iter().enumerate().filter(|(_, l)| l.op == op_id && l.closed())
+        .filter_map(|(i, l)| shapes::nearest_on_loop(l, w).map(|(q, d, t)| (i, q, d, t)))
+        .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
 }
 
 /// Index of the placed tab under the pointer, if any.
 fn hovered_tab(app: &App, op_id: i64, w: [f64; 2]) -> Option<usize> {
-    let tp = app.project.data.ops.iter().find(|o| o.id == op_id)?.p.tab_pts.as_ref()?;
+    let d = &app.project.data;
+    let tp = d.ops.iter().find(|o| o.id == op_id)?.p.tab_pts.as_ref()?;
     let s = app.scale as f64;
     tp.iter().enumerate()
-        .map(|(i, t)| (i, (t[0] - w[0]).hypot(t[1] - w[1]) * s))
+        .filter_map(|(i, t)| shapes::tab_resolve(&d.loops, op_id, t).map(|(q, _)| (i, (q[0] - w[0]).hypot(q[1] - w[1]) * s)))
         .filter(|(_, d)| *d < 11.0)
         .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
         .map(|(i, _)| i)
@@ -732,10 +735,12 @@ fn tab_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::Response, vi
     }
     if resp.dragged_by(prim) {
         if let (Some(i), Some(cur)) = (app.tab_drag, pointer_w) {
-            if let Some((q, _, _)) = nearest_outline(app, op_id, cur) {
-                app.hist.record_once(&app.project.data);
-                if let Some(t) = app.project.data.ops.iter_mut().find(|o| o.id == op_id).and_then(|o| o.p.tab_pts.as_mut()).and_then(|v| v.get_mut(i)) { *t = q; }
-                app.touch();
+            if let Some((li, q, _, _)) = nearest_outline(app, op_id, cur) {
+                if let Some(anchor) = shapes::tab_anchor(&app.project.data.loops, li, q) {
+                    app.hist.record_once(&app.project.data);
+                    if let Some(t) = app.project.data.ops.iter_mut().find(|o| o.id == op_id).and_then(|o| o.p.tab_pts.as_mut()).and_then(|v| v.get_mut(i)) { *t = anchor; }
+                    app.touch();
+                }
             }
             ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
         }
@@ -744,11 +749,13 @@ fn tab_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::Response, vi
     if resp.clicked_by(prim) {
         if let Some(w) = hover_w {
             if hovered_tab(app, op_id, w).is_none() {
-                if let Some((q, dist, _)) = nearest_outline(app, op_id, w) {
+                if let Some((li, q, dist, _)) = nearest_outline(app, op_id, w) {
                     if dist * app.scale as f64 <= TAB_REACH_PX {
-                        app.hist.record(&app.project.data);
-                        if let Some(v) = app.project.data.ops.iter_mut().find(|o| o.id == op_id).and_then(|o| o.p.tab_pts.as_mut()) { v.push(q); }
-                        app.touch();
+                        if let Some(anchor) = shapes::tab_anchor(&app.project.data.loops, li, q) {
+                            app.hist.record(&app.project.data);
+                            if let Some(v) = app.project.data.ops.iter_mut().find(|o| o.id == op_id).and_then(|o| o.p.tab_pts.as_mut()) { v.push(anchor); }
+                            app.touch();
+                        }
                     }
                 }
             }
@@ -764,7 +771,7 @@ fn tab_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::Response, vi
     if app.tab_drag.is_none() {
         if let Some(w) = hover_w {
             if hovered_tab(app, op_id, w).is_some() { ctx.set_cursor_icon(egui::CursorIcon::Grab); }
-            else if nearest_outline(app, op_id, w).map_or(false, |n| n.1 * app.scale as f64 <= TAB_REACH_PX) { ctx.set_cursor_icon(egui::CursorIcon::Crosshair); }
+            else if nearest_outline(app, op_id, w).map_or(false, |n| n.2 * app.scale as f64 <= TAB_REACH_PX) { ctx.set_cursor_icon(egui::CursorIcon::Crosshair); }
         }
     }
 }
