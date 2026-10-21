@@ -31,6 +31,18 @@ jobs:
       - name: Build
         run: cargo build --release -p putiacnc-gui
 
+      - name: Software OpenGL (Windows runners have no graphics card)
+        if: runner.os == 'Windows'
+        env:
+          MESA: "26.0.3"
+        run: |
+          curl -fL --retry 3 -o mesa.7z "https://github.com/pal1000/mesa-dist-win/releases/download/$MESA/mesa3d-$MESA-release-msvc.7z"
+          7z x mesa.7z -omesa -y > /dev/null
+          ls mesa/x64
+          # next to the exe, these replace the system's OpenGL 1.1 with Mesa's software renderer
+          for f in opengl32.dll libgallium_wgl.dll libglapi.dll; do [ -f "mesa/x64/$f" ] && cp "mesa/x64/$f" target/release/ || true; done
+          ls target/release/*.dll
+
       - name: Take the screenshots
         run: |
           mkdir shots
