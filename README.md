@@ -52,7 +52,7 @@ For Windows, the same workflow builds a portable zip (`PutiaCNC-<version>-window
 `PutiaCNC.exe` and the licence files): unzip it and run the exe. It is not code-signed, so Windows
 SmartScreen may warn the first time ("More info" → "Run anyway").
 
-The app icon is in `assets/` (`putiacnc.svg` plus PNGs from 16 to 512 px).
+The app icon is in `assets/` (`putiacnc.svg`, PNGs from 16 to 512 px, and `putiacnc.ico` which is embedded in the Windows exe). It is also set as the window icon on every platform.
 
 ## Command line
 

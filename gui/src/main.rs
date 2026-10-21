@@ -16,11 +16,23 @@ mod widgets;
 use app::App;
 use eframe::egui;
 
+/// Window icon (taskbar and window switcher), decoded from the bundled PNG.
+fn window_icon() -> Option<egui::IconData> {
+    let mut reader = png::Decoder::new(&include_bytes!("../../assets/icons/putiacnc-256.png")[..]).read_info().ok()?;
+    let mut buf = vec![0; reader.output_buffer_size()];
+    let info = reader.next_frame(&mut buf).ok()?;
+    if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight { return None; }
+    buf.truncate(info.buffer_size());
+    Some(egui::IconData { rgba: buf, width: info.width, height: info.height })
+}
+
 fn main() -> eframe::Result<()> {
     let arg = std::env::args().nth(1);
+    let mut viewport = egui::ViewportBuilder::default().with_inner_size(start_size()).with_min_inner_size([MIN_W, MIN_H]).with_title("PutiaCNC")
+        .with_app_id("putiacnc").with_decorations(false).with_transparent(true);
+    if let Some(icon) = window_icon() { viewport = viewport.with_icon(icon); }
     let opts = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size(start_size()).with_min_inner_size([MIN_W, MIN_H]).with_title("PutiaCNC")
-            .with_app_id("putiacnc").with_decorations(false).with_transparent(true),
+        viewport,
         // Wayland compositors stop sending frame callbacks to windows on other workspaces; with vsync
         // the buffer swap then blocks the whole event loop, the ping goes unanswered and GNOME shows
         // "Application not responding". Without vsync the swap never blocks.
@@ -147,4 +159,14 @@ fn start_size() -> [f32; 2] {
 /// Side panel frame without its own margin (the content adds it), so `exact_width` is the real outer width.
 fn side_frame(ctx: &egui::Context) -> egui::Frame {
     egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0)
+}
+
+#[cfg(test)]
+mod icon_tests {
+    #[test]
+    fn window_icon_decodes() {
+        let i = super::window_icon().expect("icon");
+        assert_eq!((i.width, i.height), (256, 256));
+        assert_eq!(i.rgba.len(), 256 * 256 * 4);
+    }
 }
