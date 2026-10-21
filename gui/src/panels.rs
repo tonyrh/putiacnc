@@ -129,6 +129,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if ui.button("Check for updates...").clicked() { app.updater.open = true; app.updater.check(false); ui.close_menu(); }
+            if ui.add(egui::Button::new("Keyboard shortcuts").shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }
             ui.separator();
             ui.weak(format!("PutiaCNC {}", crate::update::CURRENT));
         });

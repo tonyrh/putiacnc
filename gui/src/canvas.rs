@@ -37,6 +37,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     if save { app.save(); }
     if undo { app.do_undo(); }
     if redo || redo2 { app.do_redo(); }
+    if ctx.input(|i| i.key_pressed(Key::F1)) { app.shortcuts_open = !app.shortcuts_open; }
     if all { app.sel = (0..app.project.data.loops.len()).collect(); }
     if dup { app.duplicate_selection(); }
 
