@@ -224,9 +224,9 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let u = Uniforms {
         eye: cam.eye, f: cam.f, r: cam.r, u: cam.u, tanh: (35.0_f32.to_radians() * 0.5).tan(),
         bx: [w, h, t], cell, n: [sim.nx as i32, sim.ny as i32],
-        wood: col(if dark { Color32::from_rgb(196, 158, 112) } else { Color32::from_rgb(226, 190, 142) }),
+        wood: col(app.theme.material(&app.project.data.stock.mat).top),
         floor: col(if dark { Color32::from_rgb(70, 70, 76) } else { Color32::from_rgb(120, 120, 128) }),
-        side: col(if dark { Color32::from_rgb(150, 116, 78) } else { Color32::from_rgb(190, 150, 104) }),
+        side: col(app.theme.material(&app.project.data.stock.mat).side),
     };
     let (glres, pending) = (app.v3.glres.clone(), app.v3.pending.clone());
     painter.add(egui::PaintCallback {

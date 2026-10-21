@@ -13,6 +13,7 @@ pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", 
 const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside", "Inside"), ("online", "On")];
 const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
 const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
+const MATERIALS: &[(&str, &str)] = &[("wood", "Wood"), ("metal", "Metal"), ("foam", "Foam")];
 const ZMODES: &[(&str, &str)] = &[("top", "Stock top"), ("h", "Height")];
 
 pub fn label_of(opts: &[(&str, &str)], v: &str) -> String {
@@ -343,7 +344,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
             ui.set_max_width(stock_w - 34.0);
             let fw = 62.0_f32;
-            let l1 = tw(ui, "Thickness").max(tw(ui, "XY zero"));
+            let l1 = tw(ui, "Thickness").max(tw(ui, "XY zero")).max(tw(ui, "Appearance"));
             let l3 = tw(ui, "Height").max(tw(ui, "Safe Z"));
             let mut col4_x = 0.0_f32;
             egui::Grid::new("stock_grid").num_columns(6).spacing([8.0, 10.0]).show(ui, |ui| {
@@ -356,6 +357,13 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 changed |= dv_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); ui.weak("mm");
                 rlabel(ui, l3, "Safe Z");
                 changed |= dv_w(ui, fw, &mut d.job.safe, 0.5, 200.0, ""); ui.weak("mm"); ui.end_row();
+            });
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                rlabel(ui, l1, "Appearance");
+                if !MATERIALS.iter().any(|(k, _)| *k == d.stock.mat) { d.stock.mat = "wood".into(); }
+                let (c, _) = combo_w2(ui, 96.0, "stock_mat", &mut d.stock.mat, MATERIALS, "", "How the stock looks in the drawing and the 3D preview");
+                changed |= c;
             });
             ui.add_space(12.0);
             ui.horizontal_top(|ui| {

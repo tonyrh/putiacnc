@@ -303,8 +303,9 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         }
     }
     let sr = Rect::from_two_pos(to_s([0.0, 0.0]), to_s([sw, sh]));
-    painter.rect_filled(sr, 0.0, th.stock_fill());
-    painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, th.stock_stroke()));
+    let mat = th.material(&d.stock.mat);
+    painter.rect_filled(sr, 0.0, mat.fill);
+    painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, mat.stroke));
     let (zx, zy) = match d.stock.zr.as_str() { "lr" => (sw, 0.0), "ul" => (0.0, sh), "ur" => (sw, sh), "c" => (sw / 2.0, sh / 2.0), _ => (0.0, 0.0) };
     let z = to_s([zx, zy]);
     painter.line_segment([z - Vec2::new(8.0, 0.0), z + Vec2::new(8.0, 0.0)], Stroke::new(2.0_f32, Color32::RED));

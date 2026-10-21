@@ -74,6 +74,9 @@ pub fn apply_fonts(ctx: &egui::Context) {
     ctx.set_fonts(fonts);
 }
 
+#[derive(Clone, Copy)]
+pub struct Material { pub fill: Color32, pub stroke: Color32, pub top: Color32, pub side: Color32 }
+
 impl Theme {
     pub fn window(&self) -> Color32 { if self.dark { rgb(0x24, 0x24, 0x24) } else { rgb(0xfa, 0xfa, 0xfa) } }
     pub fn header(&self) -> Color32 { if self.dark { rgb(0x30, 0x30, 0x30) } else { rgb(0xeb, 0xeb, 0xeb) } }
@@ -82,8 +85,19 @@ impl Theme {
     pub fn border(&self) -> Color32 { if self.dark { rgb(0x44, 0x44, 0x44) } else { rgb(0xd5, 0xd5, 0xd5) } }
     pub fn text(&self) -> Color32 { if self.dark { rgb(0xff, 0xff, 0xff) } else { rgb(0x2e, 0x2e, 0x32) } }
     pub fn grid(&self) -> Color32 { if self.dark { rgb(0x2a, 0x2a, 0x2a) } else { rgb(0xec, 0xec, 0xec) } }
-    pub fn stock_fill(&self) -> Color32 { if self.dark { rgb(0x3a, 0x30, 0x24) } else { rgb(0xe9, 0xdb, 0xc3) } }
-    pub fn stock_stroke(&self) -> Color32 { if self.dark { rgb(0xa0, 0x84, 0x5c) } else { rgb(0xa0, 0x7c, 0x45) } }
+    /// Colours of the stock for a material ("wood", "metal" or "foam"; anything else reads as wood):
+    /// 2D fill and outline, and the top and side faces in the 3D view.
+    pub fn material(&self, mat: &str) -> Material {
+        let c = |r, g, b| rgb(r, g, b);
+        match (mat, self.dark) {
+            ("metal", false) => Material { fill: c(0xcf, 0xd4, 0xda), stroke: c(0x8a, 0x92, 0x9c), top: c(190, 196, 204), side: c(150, 156, 166) },
+            ("metal", true) => Material { fill: c(0x3a, 0x3e, 0x44), stroke: c(0x8c, 0x93, 0x9c), top: c(170, 176, 186), side: c(120, 126, 136) },
+            ("foam", false) => Material { fill: c(0xcf, 0xe3, 0xf3), stroke: c(0x7f, 0xa8, 0xcf), top: c(170, 205, 235), side: c(130, 170, 205) },
+            ("foam", true) => Material { fill: c(0x2d, 0x3a, 0x46), stroke: c(0x6d, 0x94, 0xb8), top: c(140, 180, 215), side: c(100, 140, 175) },
+            (_, false) => Material { fill: c(0xe9, 0xdb, 0xc3), stroke: c(0xa0, 0x7c, 0x45), top: c(226, 190, 142), side: c(190, 150, 104) },
+            (_, true) => Material { fill: c(0x3a, 0x30, 0x24), stroke: c(0xa0, 0x84, 0x5c), top: c(196, 158, 112), side: c(150, 116, 78) },
+        }
+    }
     pub fn shape_idle(&self) -> Color32 { if self.dark { Color32::from_gray(150) } else { Color32::from_gray(100) } }
     pub fn shape_selected(&self) -> Color32 { if self.dark { Color32::WHITE } else { rgb(0x10, 0x10, 0x10) } }
     pub fn rapid(&self) -> Color32 { if self.dark { Color32::from_gray(110) } else { Color32::from_gray(170) } }
