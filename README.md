@@ -43,6 +43,11 @@ An AppImage for Linux is built with `packaging/build-appimage.sh`; it bundles `L
 `THIRD-PARTY-LICENSES.txt` (regenerate the latter with `cargo about generate --workspace about.hbs`).
 It needs a glibc as new as the machine that built it (2.39 for the 0.1.0 release).
 
+A macOS disk image (universal, Apple silicon and Intel) is built with `packaging/build-dmg.sh` on a Mac,
+or automatically by the GitHub Actions workflow in `.github/workflows/release.yml` when a `v*` tag is
+pushed. The app is ad-hoc signed but not notarized, so on first launch macOS asks you to confirm:
+right-click the app and choose Open (or allow it in System Settings → Privacy & Security).
+
 The app icon is in `assets/` (`putiacnc.svg` plus PNGs from 16 to 512 px).
 
 ## Command line
