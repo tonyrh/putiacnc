@@ -242,6 +242,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         floor: col(if dark { Color32::from_rgb(70, 70, 76) } else { Color32::from_rgb(120, 120, 128) }),
         side: col(app.theme.material(&app.project.data.stock.mat).side),
         grain: app.theme.material(&app.project.data.stock.mat).grain,
+        rings: app.theme.material(&app.project.data.stock.mat).rings,
     };
     let (glres, pending) = (app.v3.glres.clone(), app.v3.pending.clone());
     painter.add(egui::PaintCallback {
@@ -337,7 +338,7 @@ pub struct GlRes {
 
 #[derive(Clone, Copy)]
 pub struct Uniforms {
-    eye: V3, f: V3, r: V3, u: V3, tanh: f32, bx: V3, cell: f32, n: [i32; 2], wood: V3, floor: V3, side: V3, grain: f32,
+    eye: V3, f: V3, r: V3, u: V3, tanh: f32, bx: V3, cell: f32, n: [i32; 2], wood: V3, floor: V3, side: V3, grain: f32, rings: f32,
 }
 
 const VS: &str = "void main(){ vec2 p = vec2(float(gl_VertexID & 1) * 2.0 - 1.0, float(gl_VertexID >> 1) * 2.0 - 1.0); gl_Position = vec4(p, 0.0, 1.0); }";
@@ -348,7 +349,7 @@ uniform vec3 u_eye, u_f, u_r, u_u;
 uniform vec2 u_org, u_res;
 uniform float u_tanh, u_cell;
 uniform vec3 u_box, u_wood, u_floor, u_side;
-uniform float u_grain;
+uniform float u_grain, u_rings;
 uniform ivec2 u_n;
 out vec4 o;
 
@@ -362,6 +363,14 @@ const vec3 L = vec3(-0.45, -0.55, 0.75) / 1.0;
 float hash3(vec3 q) { q = fract(q * 0.3183099 + vec3(0.71, 0.113, 0.419)); q *= 17.0; return fract(q.x * q.y * q.z * (q.x + q.y + q.z)); }
 // speckle for foam: pores of about half a millimetre plus coarser blotches
 float grain(vec3 p) { return 0.65 * (hash3(floor(p / 0.5)) - 0.5) + 0.35 * (hash3(floor(p / 2.0) + 7.0) - 0.5); }
+
+// stylised wood: soft wavy growth lines running along X, plus long thin fibres
+float wood(vec3 p) {
+    float w = p.y * 0.55 + 2.2 * sin(p.x * 0.021 + p.y * 0.07) + 0.8 * sin(p.x * 0.067 - p.y * 0.11);
+    float lines = sin(w * 2.1 + 0.9 * sin(p.x * 0.05 + w));
+    float fibre = hash3(vec3(floor(p.x / 9.0), floor(p.y * 2.2), floor(p.z * 2.2))) - 0.5;
+    return 0.65 * lines + 0.35 * fibre;
+}
 
 // returns colour in rgb, coverage in a
 vec4 shade(vec2 pix) {
@@ -414,6 +423,7 @@ vec4 shade(vec2 pix) {
         c = (through ? u_floor : u_wood) * k;
     }
     if (u_grain > 0.0) c *= 1.0 + u_grain * 0.28 * grain(p);
+    if (u_rings > 0.0 && (face || H(p.xy) > -u_box.z + 1e-3)) c *= 1.0 + u_rings * 0.075 * wood(face ? vec3(p.x, p.y + p.z * 1.4, p.z) : p);
     return vec4(c, 1.0);
 }
 
@@ -503,6 +513,7 @@ fn draw_gl(res: &std::sync::Mutex<GlRes>, pending: &std::sync::Mutex<Option<(usi
         gl.uniform_3_f32_slice(loc("u_floor").as_ref(), &u.floor);
         gl.uniform_3_f32_slice(loc("u_side").as_ref(), &u.side);
         gl.uniform_1_f32(loc("u_grain").as_ref(), u.grain);
+        gl.uniform_1_f32(loc("u_rings").as_ref(), u.rings);
         gl.uniform_2_i32(loc("u_n").as_ref(), u.n[0], u.n[1]);
         gl.bind_vertex_array(r.vao);
         gl.draw_arrays(glow::TRIANGLE_STRIP, 0, 4);
