@@ -1,3 +1,51 @@
+# PutiaCNC
+
+A CNC toolpath studio for GRBL machines, written in Rust. Draw or import shapes, assign operations
+(profile, pocket, V-carve), preview the result in 2D and in a simulated 3D view of the machined
+stock, and export G-code. It is a native port of the browser app and reads and writes the same
+project files (`"app": "putia-cnc"`), so projects move between the two without conversion.
+
+The workspace has two crates:
+
+- **`putiacnc-core`** (this folder): project model, geometry, SVG import, the material-removal
+  simulation and G-code generation. It has no GUI dependency and also builds a command-line tool.
+- **`putiacnc-gui`** (`gui/`): the desktop app, built with egui/eframe (OpenGL).
+
+## The desktop app
+
+Features:
+
+- 2D design canvas: rectangles, ellipses, lines and polygons, SVG import, select / move / resize,
+  snapping, undo and redo, align to the stock and to each other, distribute.
+- Operations: profile (outside, inside, on the line), pocket and V-carve, each with its own tool,
+  depth, pass depth (defaults to the tool's value), cut direction, ramp-in, air cut and holding tabs
+  (automatic or placed by hand on the canvas). Warns when the depth exceeds the stock thickness.
+- Libraries for tools and machines (work area limits), with imperial and metric tools.
+- 3D preview: GPU ray-marched height field of the stock with the toolpath, rapids and cutter
+  marker, and a play bar to replay the job.
+- G-code tab with a time estimate and warnings, optional output in inches; project notes.
+- Unsaved-changes prompts, native file dialogs, light and dark themes.
+
+### Build and run
+
+Needs Rust 1.75 or newer and a C++ compiler (Clipper is C++, built by the `cc` crate). On Linux
+the window needs the usual X11 or Wayland and OpenGL libraries.
+
+    cargo run --release -p putiacnc-gui
+    cargo run --release -p putiacnc-gui -- path/to/project.json
+
+The binary is called `putiacnc`. Tool and machine libraries are stored per user:
+`~/.config/putiacnc` on Linux (or `$XDG_CONFIG_HOME/putiacnc`), `%APPDATA%\PutiaCNC` on Windows,
+`~/Library/Application Support/PutiaCNC` on macOS. Set `PUTIACNC_CONFIG_DIR` to use another folder.
+
+The app icon is in `assets/` (`putiacnc.svg` plus PNGs from 16 to 512 px).
+
+## Command line
+
+    cargo run --release --bin putia-gcode -- project.json [--imperial] [-o out.nc]
+
+---
+
 # putiacnc-core
 
 The calculation core of PutiaCNC, in Rust: project model, geometry and GRBL G-code generation.
@@ -10,11 +58,13 @@ It is a port of the browser app's `build()` and produces the same output for the
 | `src/model.rs` | Data model (serde). Reads the project files the browser app exports (`"app": "putia-cnc"`), no conversion needed. |
 | `src/clip.rs` | Safe wrapper around Clipper 6.4 (the same library and version the browser app uses): even-odd union, round-join offset, cleaning, area. |
 | `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
+| `src/svg.rs` | SVG import into closed and open shapes. |
+| `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |
 | `tests/golden.rs` | Golden tests against G-code produced by the browser app. |
 | `tests/data/` | Eight projects exported from the browser app, with its G-code and time estimate. |
 
-Not ported yet: SVG import, the 2D editor, the material-removal simulation and the 3D preview.
+Also in the core: SVG import (`src/svg.rs`), shape helpers (`src/shapes.rs`), tool and machine libraries (`src/toollib.rs`, `src/machines.rs`) and the height-field simulation behind the 3D preview (`src/sim.rs`).
 
 ## Build and test
 
