@@ -23,6 +23,11 @@ pub struct TextTool {
     pub align: Align,
     pub fonts: Vec<FontEntry>,
     pub sel: usize,
+    /// The font was picked by the user, so a finished font search must not change it.
+    picked: bool,
+    filter: String,
+    /// How many fonts were found on the computer (None while still looking).
+    pub found: Option<usize>,
     pub preview: Vec<LoopData>,
     pub err: Option<String>,
     db: Option<Arc<fontdb::Database>>,
@@ -42,7 +47,7 @@ impl Default for TextTool {
         let fonts = vec![FontEntry { label: "Hack".into(), id: None }, FontEntry { label: "Ubuntu Light".into(), id: None }];
         TextTool {
             open: false, focus: false, pos: None, content: String::new(), size: 10.0, spacing: 0.0, align: Align::Left,
-            fonts, sel: 0, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None,
+            fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None,
         }
     }
 }
@@ -61,7 +66,15 @@ impl TextTool {
             let mut v: Vec<FontEntry> = db.faces().filter_map(|f| {
                 let fam = f.families.first()?.0.clone();
                 let mut label = fam;
-                if f.weight.0 >= 600 { label += " Bold"; } else if f.weight.0 <= 300 { label += " Light"; }
+                match f.weight.0 {
+                    0..=299 => label += " Light",
+                    500..=599 => label += " Medium",
+                    600..=699 => label += " SemiBold",
+                    700..=799 => label += " Bold",
+                    800..=u16::MAX => label += " Black",
+                    _ => {}
+                }
+                if f.stretch != fontdb::Stretch::Normal { label += " Condensed"; }
                 if f.style != fontdb::Style::Normal { label += " Italic"; }
                 Some(FontEntry { label, id: Some(f.id) })
             }).collect();
@@ -76,7 +89,8 @@ impl TextTool {
         let Some(rx) = &self.rx else { return };
         if let Ok((db, list)) = rx.try_recv() {
             let current = self.fonts.get(self.sel).map(|f| f.label.clone());
-            let first_time = current.as_deref() == Some("Hack") && self.bytes_for.is_none();
+            let first_time = !self.picked;
+            self.found = Some(list.len());
             let mut all = list;
             for b in ["Ubuntu Light", "Hack"] { all.push(FontEntry { label: b.into(), id: None }); }
             all.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
@@ -160,12 +174,19 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         egui::Grid::new("text_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             ui.label("Font");
             let cur = t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default();
-            egui::ComboBox::from_id_source("text_font").width(190.0).selected_text(cur).show_ui(ui, |ui| {
-                egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+            egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
+                ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text("Search fonts").desired_width(f32::INFINITY));
+                ui.add_space(2.0);
+                let q = t.filter.to_lowercase();
+                egui::ScrollArea::vertical().max_height(340.0).show(ui, |ui| {
+                    let mut any = false;
                     for i in 0..t.fonts.len() {
+                        if !q.is_empty() && !t.fonts[i].label.to_lowercase().contains(&q) { continue; }
+                        any = true;
                         let label = t.fonts[i].label.clone();
-                        if ui.selectable_label(t.sel == i, label).clicked() { t.sel = i; }
+                        if ui.selectable_label(t.sel == i, label).clicked() { t.sel = i; t.picked = true; }
                     }
+                    if !any { ui.weak("No font matches."); }
                 });
             });
             ui.end_row();
@@ -182,6 +203,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 }
             });
             ui.end_row();
+        });
+        ui.add_space(2.0);
+        ui.weak(match t.found {
+            None => "Looking for the fonts installed on this computer…".to_string(),
+            Some(n) => format!("{n} fonts found on this computer, plus Hack and Ubuntu Light."),
         });
         if let Some(e) = &t.err { ui.add_space(4.0); ui.colored_label(egui::Color32::from_rgb(0xe0, 0x8a, 0x2a), e); }
         ui.add_space(8.0);
