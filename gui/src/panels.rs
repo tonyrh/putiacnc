@@ -620,7 +620,9 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     d.act = id;
                                 }
                                 ui.weak(format!("{} tab{}", tp.len(), if tp.len() == 1 { "" } else { "s" }));
-                                if !tp.is_empty() && ui.button("Clear").on_hover_text("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    if !tp.is_empty() && ui.button("Clear").on_hover_text("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
+                                });
                             });
                         }
                       });
