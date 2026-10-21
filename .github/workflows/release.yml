@@ -14,17 +14,17 @@ jobs:
   macos-dmg:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - name: Build the dmg
         run: sh ./packaging/build-dmg.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: macos-dmg
           path: PutiaCNC-*-macos.dmg
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: PutiaCNC-*-macos.dmg
 
@@ -34,7 +34,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - name: Build
         run: cargo build --release -p putiacnc-gui
@@ -46,12 +46,12 @@ jobs:
           cp target/release/putiacnc.exe "$D/PutiaCNC.exe"
           cp LICENSE THIRD-PARTY-LICENSES.txt README.md "$D/"
           7z a "$D.zip" "$D"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: windows-zip
           path: PutiaCNC-*-windows-x86_64.zip
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: PutiaCNC-*-windows-x86_64.zip
