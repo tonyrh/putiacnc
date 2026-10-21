@@ -4,8 +4,11 @@ A CNC toolpath studio for GRBL machines, written in Rust. Draw or import shapes,
 (profile, pocket, V-carve), preview the result in 2D and in a simulated 3D view of the machined
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
-![PutiaCNC: 2D design with three operations](docs/screenshot-2d.png)
-![PutiaCNC: 3D preview of the cut in progress](docs/screenshot-3d.png)
+![2D design: shapes assigned to a profile and a pocket operation](docs/screenshot-2d.png)
+*2D design: draw or import shapes, assign them to profile, pocket or V-carve operations, and set depth, tabs and tools.*
+
+![3D preview: the simulated cut in wood](docs/screenshot-3d.png)
+*3D preview: the toolpath is replayed on the stock, so you can check the result before sending the G-code to the machine.*
 
 The workspace has two crates:
 
