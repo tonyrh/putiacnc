@@ -31,6 +31,8 @@ pub struct ProjectData {
     #[serde(default)] pub tools: Vec<Tool>,
     #[serde(default)] pub loops: Vec<LoopData>,
     #[serde(default)] pub gcode: String,
+    /// Free-form notes about the job.
+    #[serde(default, skip_serializing_if = "String::is_empty")] pub notes: String,
     /// Active operation id and last-used operation id (browser app bookkeeping).
     #[serde(default)] pub act: i64,
     #[serde(default)] pub oid: i64,

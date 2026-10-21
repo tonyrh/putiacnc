@@ -281,6 +281,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     crate::view3d::tabs(ui, &theme, &mut app.tab, &[(RightTab::Ops, "Operations"), (RightTab::Gcode, "G-code"), (RightTab::Info, "Notes")]);
     ui.separator();
     if app.tab == RightTab::Ops { ops_panel(ui, app); return; }
+    if app.tab == RightTab::Info { notes_panel(ui, app); return; }
     if app.tab == RightTab::Gcode {
         if ui.checkbox(&mut app.imperial, "Output in inches (G20)").on_hover_text("Write the G-code in inches instead of millimetres").changed() { app.gen_pending = true; }
         ui.add_space(4.0);
@@ -305,15 +306,30 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                 });
             });
         }
-        (Some(o), RightTab::Info) => {
-            if o.notes.is_empty() { ui.label("No warnings."); }
-            for n in &o.notes { ui.label(format!("• {n}")); }
-        }
-        (_, RightTab::Ops) => {}
+        (_, RightTab::Ops | RightTab::Info) => {}
         (None, _) => { ui.label(app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into())); }
     }
     if let Some(t) = copy { ui.ctx().copy_text(t); }
     if export { app.export_gcode_dialog(); }
+}
+
+/// The Notes tab: the project's own notes (always editable, saved with the project) and, below, what the
+/// toolpath generator wants the user to know.
+fn notes_panel(ui: &mut Ui, app: &mut App) {
+    let warnings: Vec<String> = app.output.as_ref().map(|o| o.notes.clone()).unwrap_or_default();
+    let reserve = if warnings.is_empty() { 0.0 } else { 40.0 + 20.0 * warnings.len().min(6) as f32 };
+    ui.label("Project notes");
+    let row_h = ui.text_style_height(&egui::TextStyle::Body);
+    let rows = (((ui.available_height() - reserve - 12.0) / row_h).floor() as usize).max(4);
+    let mut notes = std::mem::take(&mut app.project.data.notes);
+    let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text("Material, fixtures, jobs to remember..."));
+    app.project.data.notes = notes;
+    if r.changed() { app.modified = true; }
+    if !warnings.is_empty() {
+        ui.add_space(8.0);
+        ui.label(egui::RichText::new("Warnings").strong());
+        for n in &warnings { ui.label(format!("• {n}")); }
+    }
 }
 
 pub fn left_panel(ui: &mut Ui, app: &mut App) { project_panel(ui, app, false); }

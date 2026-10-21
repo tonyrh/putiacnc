@@ -446,7 +446,7 @@ pub fn blank_project() -> ProjectFile {
         data: ProjectData {
             stock: Stock { w: 200.0, h: 150.0, t: 12.0, mat: "wood".into(), zr: "ll".into(), zm: "top".into(), zh: 0.0 },
             job: Job { safe: 5.0, air: false },
-            machine: None, ops: vec![], tools: seed_tools(), loops: vec![], gcode: String::new(), act: 0, oid: 0,
+            machine: None, ops: vec![], tools: seed_tools(), loops: vec![], gcode: String::new(), notes: String::new(), act: 0, oid: 0,
         },
     }
 }
@@ -455,6 +455,15 @@ pub fn blank_project() -> ProjectFile {
 mod tests {
     use super::*;
     use crate::{generate, load_project, save_project, Units};
+
+    #[test]
+    fn notes_are_saved_with_the_project() {
+        let mut f = blank_project();
+        assert!(!save_project(&f).unwrap().contains("notes"), "empty notes are not written");
+        f.data.notes = "Cherry, vacuum table".into();
+        let back = load_project(&save_project(&f).unwrap()).unwrap();
+        assert_eq!(back.data.notes, "Cherry, vacuum table");
+    }
 
     #[test]
     fn rect_bbox_and_radius() {
