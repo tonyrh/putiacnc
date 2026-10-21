@@ -293,14 +293,17 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let start = if done > 0 { st.cum.get(done - 1).copied().unwrap_or(0.0) } else { 0.0 };
             let f = if m.dt > 1e-12 { ((st.t - start) / m.dt).clamp(0.0, 1.0) } else { 1.0 };
             let tip: Vec<f32> = (0..3).map(|i| (m.from[i] + (m.to[i] - m.from[i]) * f) as f32).collect();
-            if let (Some(a), Some(b)) = (cam.p([tip[0], tip[1], tip[2]]), cam.p([tip[0], tip[1], tip[2] + 25.0])) {
+            if let (Some(a), Some(b)) = (cam.p([tip[0], tip[1], tip[2]]), cam.p([tip[0], tip[1], tip[2] + 30.0])) {
                 let c = crate::theme::op_color(m.op, dark);
                 // lighter while rapiding: the tool is not cutting
                 let c = if m.cut { c } else { c.gamma_multiply(0.55) };
-                painter.line_segment([a, b], Stroke::new(5.0_f32, Color32::from_black_alpha(if m.cut { 90 } else { 45 })));
-                painter.line_segment([a, b], Stroke::new(3.0_f32, c));
+                // a dark edge, a white halo and the operation colour: readable on wood, metal, foam and the toolpath lines
+                painter.line_segment([a, b], Stroke::new(9.0_f32, Color32::from_black_alpha(if m.cut { 130 } else { 80 })));
+                painter.line_segment([a, b], Stroke::new(7.0_f32, Color32::WHITE));
+                painter.line_segment([a, b], Stroke::new(4.0_f32, c));
+                painter.circle_filled(a, 7.0, Color32::from_black_alpha(if m.cut { 130 } else { 80 }));
+                painter.circle_filled(a, 6.0, Color32::WHITE);
                 painter.circle_filled(a, 4.0, c);
-                painter.circle_stroke(a, 4.0, Stroke::new(1.0_f32, Color32::WHITE));
             }
         }
     }
