@@ -17,6 +17,16 @@ pub struct Move {
     pub op: usize,
 }
 
+/// Where the generated toolpath leaves a holding tab uncut: the middle of the tab on the toolpath
+/// and the direction of the path there. Lets the drawing show the tabs where they really are.
+#[derive(Debug, Clone)]
+pub struct TabMark {
+    /// Index of the operation.
+    pub op: usize,
+    pub mid: [f64; 2],
+    pub dir: [f64; 2],
+}
+
 #[derive(Debug, Clone)]
 pub struct Output {
     pub lines: Vec<String>,
@@ -25,6 +35,7 @@ pub struct Output {
     pub cut_time_min: f64,
     pub cut_len_mm: f64,
     pub notes: Vec<String>,
+    pub tab_marks: Vec<TabMark>,
 }
 
 impl Output {
@@ -82,7 +93,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize,
-    moves: Vec<Move>, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
+    moves: Vec<Move>, marks: Vec<TabMark>, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
 }
 
 impl Em {
@@ -169,7 +180,7 @@ fn path_f(p: &Path, rev: bool, closed: bool) -> Vec<[f64; 2]> {
     v
 }
 
-fn tab_iv(c: &OpCtx, job: &mut Job, pts: &[[f64; 2]]) -> Option<Vec<[f64; 2]>> {
+fn tab_iv(e: &mut Em, c: &OpCtx, job: &mut Job, pts: &[[f64; 2]]) -> Option<Vec<[f64; 2]>> {
     if let Some(iv) = &job.iv { return iv.clone(); }
     let mut lp = 0.0;
     for i in 1..pts.len() { lp += (pts[i][0] - pts[i - 1][0]).hypot(pts[i][1] - pts[i - 1][1]); }
@@ -178,8 +189,24 @@ fn tab_iv(c: &OpCtx, job: &mut Job, pts: &[[f64; 2]]) -> Option<Vec<[f64; 2]>> {
     if n < 1.0 { job.iv = Some(None); return None; }
     let mut iv = Vec::new();
     for q in 0..(n as usize) { let c0 = (q as f64 + 0.5) * lp / n; iv.push([c0 - len / 2.0, c0 + len / 2.0]); }
+    for [a, b] in &iv { if let Some((mid, dir)) = point_at(pts, (a + b) / 2.0) { e.marks.push(TabMark { op: e.oi, mid, dir }); } }
     job.iv = Some(Some(iv.clone()));
     Some(iv)
+}
+
+/// Point and direction at distance `s` along a polyline.
+fn point_at(pts: &[[f64; 2]], s: f64) -> Option<([f64; 2], [f64; 2])> {
+    let mut cum = 0.0;
+    for i in 1..pts.len() {
+        let (a, b) = (pts[i - 1], pts[i]);
+        let l = (b[0] - a[0]).hypot(b[1] - a[1]);
+        if l > 0.0 && cum + l >= s - 1e-9 {
+            let u = ((s - cum) / l).clamp(0.0, 1.0);
+            return Some(([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], [(b[0] - a[0]) / l, (b[1] - a[1]) / l]));
+        }
+        cum += l;
+    }
+    None
 }
 
 fn tab_pass(e: &mut Em, c: &OpCtx, pts: &[[f64; 2]], z: f64, iv: &[[f64; 2]]) {
@@ -259,7 +286,7 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64]) {
     e.go("G1", None, None, Some(c.z0), c.plunge);
     for &z in zl {
         e.pn = c.zs.iter().position(|&q| q == z).map(|i| i + 1).unwrap_or(0);
-        let tiv = if c.tabs_on && job.closed && z < c.ztab - 1e-9 { tab_iv(c, job, &pts) } else { None };
+        let tiv = if c.tabs_on && job.closed && z < c.ztab - 1e-9 { tab_iv(e, c, job, &pts) } else { None };
         if let Some(iv) = tiv {
             tab_pass(e, c, &pts, z, &iv);
         } else if c.ramp && job.closed && !job.pocket && pts.len() > 2 {
@@ -297,7 +324,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
+    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], marks: vec![], ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
     let mut notes: Vec<String> = Vec::new();
 
     if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
@@ -430,7 +457,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     if !any { return Err(format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" "))); }
     e.g.push("M5".into()); e.g.push("G0 X0 Y0".into()); e.g.push("M2".into());
     let cut_len: f64 = e.moves.iter().filter(|m| m.cut).map(|m| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt()).sum();
-    Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes })
+    Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
 }
 
 #[cfg(test)]

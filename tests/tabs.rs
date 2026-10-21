@@ -100,3 +100,30 @@ fn pass_depth_override_roundtrips() {
     assert_eq!(p.pass_depth, Some(0.5));
     assert!(serde_json::to_string(&p).unwrap().contains("passD"));
 }
+
+#[test]
+fn automatic_tab_marks_match_the_uncut_parts_of_the_toolpath() {
+    let mut p = load_project(&sample()).unwrap();
+    {
+        let op = &mut p.data.ops[0].p;
+        op.depth = 3.0;
+        op.tabs = true;
+        op.tab_n = Some(4.0);
+        op.tab_w = Some(6.0);
+        op.tab_h = Some(2.0);
+        op.tab_pts = None;
+    }
+    let o = generate(&p.data, Units::Metric).unwrap();
+    assert!(!o.tab_marks.is_empty());
+    assert!(o.tab_marks.iter().all(|m| m.op == 0));
+    // every cut move at tab height (z = -1) lies near one of the marks, and every mark has such moves near it
+    let on_tab: Vec<_> = o.moves.iter().filter(|m| m.cut && m.pass >= 2 && (m.from[2] + 1.0).abs() < 1e-9 && (m.to[2] + 1.0).abs() < 1e-9 && (m.from[0] != m.to[0] || m.from[1] != m.to[1])).collect();
+    assert!(!on_tab.is_empty());
+    let reach = (6.0 + 3.175) / 2.0 + 0.5;
+    for m in &on_tab {
+        assert!(o.tab_marks.iter().any(|k| (m.to[0] - k.mid[0]).hypot(m.to[1] - k.mid[1]) < reach), "tab move away from every mark: {:?}", m.to);
+    }
+    for k in &o.tab_marks {
+        assert!(on_tab.iter().any(|m| (m.to[0] - k.mid[0]).hypot(m.to[1] - k.mid[1]) < reach), "mark without tab moves: {:?}", k.mid);
+    }
+}

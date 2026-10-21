@@ -310,9 +310,16 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
             // manual tabs follow their shapes; automatic ones sit at their evenly spaced positions
             let items: Vec<Option<([f64; 2], [f64; 2])>> = match o.p.tab_pts.as_ref() {
                 Some(v) => v.iter().map(|t| shapes::tab_resolve(&d.loops, o.id, t)).collect(),
-                None => shapes::auto_tab_points(&d.loops, o.id, o.p.tab_n.unwrap_or(4.0).round().max(1.0) as usize).into_iter().map(|t| {
-                    d.loops.iter().filter(|l| l.op == o.id).filter_map(|l| shapes::nearest_on_loop(l, t)).min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|n| (n.0, n.2))
-                }).collect(),
+                None => {
+                    // where the generated toolpath really leaves the tabs; an estimate while it is being regenerated
+                    let spots: Vec<[f64; 2]> = match app.output.as_ref().filter(|_| !app.gen_pending) {
+                        Some(out) => out.tab_marks.iter().filter(|m| m.op == k).map(|m| m.mid).collect(),
+                        None => shapes::auto_tab_points(&d.loops, o.id, o.p.tab_n.unwrap_or(4.0).round().max(1.0) as usize),
+                    };
+                    spots.into_iter().map(|t| {
+                        d.loops.iter().filter(|l| l.op == o.id).filter_map(|l| shapes::nearest_on_loop(l, t)).min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|n| (n.0, n.2))
+                    }).collect()
+                }
             };
             let editing = editing_tabs == Some(o.id);
             let col = op_color(k, dark);
