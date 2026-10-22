@@ -561,6 +561,34 @@ pub fn tab_resolve(loops: &[LoopData], op: i64, t: &TabPt) -> Option<([f64; 2], 
     nearest_on_loop(l, target).map(|(q, _, tang)| (q, tang))
 }
 
+/// Where the manual tabs of the shapes in `sel` sit now: (operation index, tab index, point).
+/// Take this before rotating, so the tabs can follow the shapes.
+pub fn tab_positions(loops: &[LoopData], ops: &[Operation], sel: &std::collections::BTreeSet<usize>) -> Vec<(usize, usize, [f64; 2])> {
+    let mut v = vec![];
+    for (oi, o) in ops.iter().enumerate() {
+        let Some(tp) = &o.p.tab_pts else { continue };
+        for (ti, t) in tp.iter().enumerate() {
+            if !sel.contains(&t.l) { continue; }
+            if let Some((p, _)) = tab_resolve(loops, o.id, t) { v.push((oi, ti, p)); }
+        }
+    }
+    v
+}
+
+/// Rotate the shapes in `sel` about `pivot` (mm, counter-clockwise degrees) and move their manual tabs along
+/// (`tabs0` comes from `tab_positions`, taken before the first rotation).
+pub fn rotate_selection(loops: &mut [LoopData], ops: &mut [Operation], sel: &std::collections::BTreeSet<usize>, pivot: [f64; 2], deg: f64, tabs0: &[(usize, usize, [f64; 2])]) {
+    for &i in sel { if let Some(l) = loops.get_mut(i) { rotate_about(l, pivot[0], pivot[1], deg); } }
+    let (sn, cs) = deg.to_radians().sin_cos();
+    for &(oi, ti, p) in tabs0 {
+        let (x, y) = (p[0] - pivot[0], p[1] - pivot[1]);
+        let q = [pivot[0] + x * cs - y * sn, pivot[1] + x * sn + y * cs];
+        if let Some(t) = ops.get_mut(oi).and_then(|o| o.p.tab_pts.as_mut()).and_then(|v| v.get_mut(ti)) {
+            if let Some(a) = tab_anchor(loops, t.l, q) { *t = a; }
+        }
+    }
+}
+
 /// Keeps tab anchors right after shapes were deleted (`removed` = their indices, any order).
 pub fn tabs_after_delete(ops: &mut [Operation], removed: &[usize]) {
     for o in ops.iter_mut() {
@@ -976,6 +1004,32 @@ mod offset_tests {
         // too far inward: nothing is left
         assert!(offset_loop(&r, -6.0).is_empty());
         assert!(!is_rect(&g[0]) && g[0].cr.is_none());
+    }
+
+    #[test]
+    fn rotating_a_selection_takes_its_manual_tabs_along() {
+        use std::collections::BTreeSet;
+        let mut d = blank_project().data;
+        let tool = d.tools[0].id.clone();
+        let mut p = default_op_params(&tool);
+        p.tabs = true;
+        d.oid = 1;
+        d.loops.push(new_rect([0.0, 0.0], [40.0, 20.0], 0.0, 1));
+        // one tab on the right edge of the rectangle
+        let tab = tab_anchor(&d.loops, 0, [40.0, 10.0]).unwrap();
+        p.tab_pts = Some(vec![tab]);
+        d.ops.push(Operation { id: 1, p });
+        let sel: BTreeSet<usize> = [0].into_iter().collect();
+        let t0 = tab_positions(&d.loops, &d.ops, &sel);
+        assert_eq!(t0.len(), 1);
+        assert!((t0[0].2[0] - 40.0).abs() < 1e-6 && (t0[0].2[1] - 10.0).abs() < 1e-6);
+        // 90 degrees about the centre (20, 10): the right edge becomes the top edge, the tab at (20, 30)
+        rotate_selection(&mut d.loops, &mut d.ops, &sel, [20.0, 10.0], 90.0, &t0);
+        let b = bbox(&d.loops[0]).unwrap();
+        assert!((b[2] - b[0] - 20.0).abs() < 1e-3 && (b[3] - b[1] - 40.0).abs() < 1e-3);
+        let t1 = tab_positions(&d.loops, &d.ops, &sel);
+        assert_eq!(t1.len(), 1);
+        assert!((t1[0].2[0] - 20.0).abs() < 1e-3 && (t1[0].2[1] - 30.0).abs() < 1e-3, "{:?}", t1[0].2);
     }
 
     #[test]

@@ -115,6 +115,10 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             app.scale = ns;
         }
     }
+    // the rotate handles belong to one selection; Esc or a different selection ends them
+    if app.sel != app.rot_sel { app.rotate_mode = false; app.rot_pivot = None; app.rot_sel = app.sel.clone(); }
+    if app.rotate_mode && ctx.input(|i| i.key_pressed(Key::Escape)) && !ctx.wants_keyboard_input() { app.rotate_mode = false; app.rot_pivot = None; }
+    if app.mode != Mode::Select { app.rotate_mode = false; }
     let view = View { scale: app.scale, offset: app.offset, origin: rect.min };
     let pointer_w = ctx.input(|i| i.pointer.latest_pos()).map(|p| view.s2w(p));
     let hover_w = resp.hover_pos().map(|p| view.s2w(p));
@@ -138,7 +142,22 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             if resp.drag_started_by(prim) {
                 let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
                 let locked_sel = app.sel_locked();
-                if let (Some(ps), Some(b), false) = (ctx.input(|i| i.pointer.press_origin()), sel_bb, locked_sel) {
+                if let (Some(ps), Some(b), false, true) = (ctx.input(|i| i.pointer.press_origin()), sel_bb, locked_sel, app.rotate_mode) {
+                    let pivot = app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
+                    let w = view.s2w(ps);
+                    if view.w2s(pivot).distance(ps) <= 10.0 {
+                        app.drag = Drag::Pivot;
+                    } else if let Some(h) = hit_handle(&view, b, ps).filter(|h| h % 2 == 0) {
+                        let _ = h;
+                        app.drag = Drag::Rotate {
+                            pivot, a0: (w[1] - pivot[1]).atan2(w[0] - pivot[0]),
+                            orig: app.sel.iter().map(|&i| (i, app.project.data.loops[i].clone())).collect(),
+                            tabs0: shapes::tab_positions(&app.project.data.loops, &app.project.data.ops, &app.sel),
+                            total: 0.0,
+                        };
+                    }
+                }
+                if let (Some(ps), Some(b), false, false) = (ctx.input(|i| i.pointer.press_origin()), sel_bb, locked_sel, app.rotate_mode) {
                     if let Some(h) = hit_handle(&view, b, ps) {
                         let w = view.s2w(ps);
                         let hw = handle_world(b, h);
@@ -148,7 +167,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                         };
                     }
                 }
-                if let (Some(w), false) = (ctx.input(|i| i.pointer.press_origin()).map(|p| view.s2w(p)), matches!(app.drag, Drag::Resize { .. })) {
+                if let (Some(w), false) = (ctx.input(|i| i.pointer.press_origin()).map(|p| view.s2w(p)), matches!(app.drag, Drag::Resize { .. } | Drag::Rotate { .. } | Drag::Pivot)) {
                     let loops = &app.project.data.loops;
                     let edge = loops.iter().enumerate()
                         .map(|(i, l)| (i, shapes::dist_to_loop(l, w)))
@@ -180,6 +199,22 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     shapes::fit_to_bbox(&mut refs, sb, nb);
                     app.touch();
                 }
+                if let (Drag::Rotate { pivot, a0, orig, tabs0, .. }, Some(cur)) = (&app.drag, pointer_w) {
+                    let (pivot, a0, orig, tabs0) = (*pivot, *a0, orig.clone(), tabs0.clone());
+                    let mut deg = ((cur[1] - pivot[1]).atan2(cur[0] - pivot[0]) - a0).to_degrees();
+                    // keep the turn within -180..180 so it does not jump at the half turn
+                    while deg > 180.0 { deg -= 360.0; }
+                    while deg < -180.0 { deg += 360.0; }
+                    if shift { deg = (deg / 15.0).round() * 15.0; }
+                    app.hist.record_once(&app.project.data);
+                    for (i, l) in &orig { app.project.data.loops[*i] = l.clone(); }
+                    let sel = app.sel.clone();
+                    let d = &mut app.project.data;
+                    shapes::rotate_selection(&mut d.loops, &mut d.ops, &sel, pivot, deg, &tabs0);
+                    app.drag = Drag::Rotate { pivot, a0, orig, tabs0, total: deg };
+                    app.touch();
+                }
+                if let (Drag::Pivot, Some(cur)) = (&app.drag, pointer_w) { app.rot_pivot = Some(app.snap(cur)); }
                 if let (Drag::Move { start, anchor, applied }, Some(cur)) = (&app.drag, pointer_w) {
                     let (start, anchor, applied) = (*start, *anchor, *applied);
                     let t = app.snap([anchor[0] + cur[0] - start[0], anchor[1] + cur[1] - start[1]]);
@@ -188,6 +223,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     if step[0].abs() > 1e-9 || step[1].abs() > 1e-9 {
                         app.hist.record_once(&app.project.data);
                         for &i in &app.sel { shapes::translate(&mut app.project.data.loops[i], step[0], step[1]); }
+                        if let Some(p) = app.rot_pivot.as_mut() { p[0] += step[0]; p[1] += step[1]; }
                         app.drag = Drag::Move { start, anchor, applied: desired };
                         app.touch();
                     }
@@ -212,6 +248,15 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     match hit {
                         Some(h) => {
                             if shift { if !app.sel.remove(&h) { app.sel.insert(h); } }
+                            else if app.sel.contains(&h) {
+                                // clicking a selected shape again swaps the resize handles for rotate handles and back
+                                if handles_apply(app) && !app.sel_locked() {
+                                    app.rotate_mode = !app.rotate_mode;
+                                    app.rot_pivot = if app.rotate_mode {
+                                        shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).map(|b| [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0])
+                                    } else { None };
+                                }
+                            }
                             else { app.sel.clear(); app.sel.insert(h); }
                         }
                         None => if !shift { app.sel.clear(); },
@@ -319,10 +364,14 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
 
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
+        else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
         else if matches!(app.drag, Drag::None) {
             let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
             if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.latest_pos()), sel_bb) {
-                if let Some(h) = hit_handle(&view, b, ps) { ctx.set_cursor_icon(handle_cursor(h)); }
+                if app.rotate_mode {
+                    let pivot = app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
+                    if view.w2s(pivot).distance(ps) <= 10.0 || hit_handle(&view, b, ps).map_or(false, |h| h % 2 == 0) { ctx.set_cursor_icon(egui::CursorIcon::Grab); }
+                } else if let Some(h) = hit_handle(&view, b, ps) { ctx.set_cursor_icon(handle_cursor(h)); }
             }
         }
     }
@@ -410,7 +459,28 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))).filter(|_| editing_nodes.is_none()) {
         let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(4.0);
         painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.3)));
-        if app.mode == Mode::Select && handles_apply(app) {
+        if app.mode == Mode::Select && handles_apply(app) && app.rotate_mode {
+            // rotate handles: a round handle with a turning arrow on each corner, and the centre of rotation
+            let acc = Stroke::new(1.5_f32, th.accent);
+            for h in [0usize, 2, 4, 6] {
+                let c = handle_screen(&view, b, h);
+                painter.circle_filled(c, 6.5, th.view());
+                painter.circle_stroke(c, 6.5, acc);
+                // an arc of about 270 degrees with an arrow head
+                let pts: Vec<Pos2> = (0..=14).map(|k| { let t = 0.6 + k as f32 * 0.32; c + Vec2::new(t.cos(), -t.sin()) * 3.2 }).collect();
+                painter.add(egui::Shape::line(pts.clone(), acc));
+                if let (Some(&e), Some(&p)) = (pts.last(), pts.get(pts.len() - 2)) {
+                    let dir = (e - p).normalized();
+                    let n = Vec2::new(-dir.y, dir.x);
+                    painter.add(egui::Shape::convex_polygon(vec![e + dir * 2.6, e - dir * 0.6 + n * 2.2, e - dir * 0.6 - n * 2.2], th.accent, Stroke::NONE));
+                }
+            }
+            let pv = view.w2s(app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]));
+            painter.circle_filled(pv, 5.0, th.view());
+            painter.circle_stroke(pv, 5.0, acc);
+            painter.line_segment([pv - Vec2::new(8.0, 0.0), pv + Vec2::new(8.0, 0.0)], acc);
+            painter.line_segment([pv - Vec2::new(0.0, 8.0), pv + Vec2::new(0.0, 8.0)], acc);
+        } else if app.mode == Mode::Select && handles_apply(app) {
             for h in 0..8 {
                 let hr = Rect::from_center_size(handle_screen(&view, b, h), Vec2::splat(9.0));
                 painter.rect_filled(hr, 2.0, th.view());
@@ -508,6 +578,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     // previews
     let prev_col = act_idx.map(|k| op_color(k, dark)).unwrap_or(th.accent);
     let mut hud: Option<String> = None;
+    if let Drag::Rotate { total, .. } = &app.drag { hud = Some(format!("{:.1}°", total)); }
     if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
         let a = *start;
         let b = draw_end(app, a, app.snap(cur), shift);
@@ -827,7 +898,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point to move it, click an edge to add one, drag a box to select several. Del removes the selected points, arrows nudge them. Esc or Done finishes." } else if app.tab_edit.is_some() { "Click on an outline to add a tab. Drag a tab to move it, right-click it to remove. Esc or Done finishes." } else { match app.mode {
-        Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Double-click or N edits points. Del deletes. Middle/right-drag pans.",
+        Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Click a selected shape again to rotate it. Double-click or N edits points. Del deletes. Middle/right-drag pans.",
         Mode::Node => "Click a shape to edit its points.",
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
@@ -984,6 +1055,8 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let mut pick: Option<i64> = None;
     let mut align: Option<u8> = None;
     let mut align_each: Option<u8> = None;
+    let mut rot_delta: Option<f64> = None;
+    let can_rot = sel.iter().any(|&i| !shapes::is_point(&d.loops[i])) && !sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
     let _ = n;
     // shapes of a locked drawing can be assigned to operations but not moved, resized or aligned
     let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
@@ -1028,6 +1101,18 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     if icon_button(ui, icon, false, true, tip).clicked() { align = Some(k); }
                 }
             });
+            if can_rot {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 2.0;
+                    let lw = crate::panels::tw(ui, "Align to stock");
+                    ui.label("Rotate");
+                    ui.add_space((lw - crate::panels::tw(ui, "Rotate")).max(0.0) + 4.0);
+                    let mut v = 0.0;
+                    if crate::widgets::num(ui, [66.0, 24.0], &mut v, -360.0, 360.0, 0.5, 2, "").on_hover_text("Turn the selection by this many degrees about its centre (counter-clockwise is positive). Or click a selected shape again and drag a corner.").changed() && v != 0.0 { rot_delta = Some(v); }
+                    ui.add_space(2.0);
+                    ui.weak("°");
+                });
+            }
             if sel.len() >= 2 {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
@@ -1047,7 +1132,16 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             }
         });
     });
-    if locked { geom = false; radius_changed = false; align = None; align_each = None; }
+    if locked { geom = false; radius_changed = false; align = None; align_each = None; rot_delta = None; }
+    if let Some(deg) = rot_delta {
+        let pivot = app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
+        let tabs0 = shapes::tab_positions(&d.loops, &d.ops, &sel);
+        shapes::rotate_selection(&mut d.loops, &mut d.ops, &sel, pivot, deg, &tabs0);
+        // keep turning about the same centre
+        app.rotate_mode = true;
+        app.rot_pivot = Some(pivot);
+        changed = true;
+    }
     if let Some(k) = align {
         let (sw, sh) = (d.stock.w, d.stock.h);
         let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);

@@ -46,6 +46,10 @@ pub enum Drag {
     Draw { start: [f64; 2] },
     /// Resizing the selection by one of its eight handles (0 = top-left, clockwise).
     Resize { handle: usize, start_bbox: [f64; 4], grab: [f64; 2], orig: Vec<(usize, putiacnc_core::model::LoopData)> },
+    /// Turning the selection about `pivot`: `a0` is the pointer's angle (radians) when the drag started.
+    Rotate { pivot: [f64; 2], a0: f64, orig: Vec<(usize, putiacnc_core::model::LoopData)>, tabs0: Vec<(usize, usize, [f64; 2])>, total: f64 },
+    /// Dragging the centre of rotation.
+    Pivot,
 }
 
 /// Which part of the project an edit touched.
@@ -210,6 +214,12 @@ pub struct App {
     pub offset: Vec2,
     pub fit_pending: bool,
     pub drag: Drag,
+    /// The selection shows rotate handles instead of resize handles (click a selected shape again).
+    pub rotate_mode: bool,
+    /// Centre of rotation while in rotate mode (the selection's centre when entering it).
+    pub rot_pivot: Option<[f64; 2]>,
+    /// The selection the rotate mode belongs to: it ends when the selection changes.
+    pub rot_sel: std::collections::BTreeSet<usize>,
     pub poly: Vec<[f64; 2]>,
     pub last_title: String,
     pub show_left: bool,
@@ -254,7 +264,7 @@ impl App {
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
-            scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
+            scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_sel: String::new(), tool_msg: String::new(),
@@ -769,6 +779,7 @@ impl App {
 
     pub fn nudge(&mut self, dx: f64, dy: f64) {
         if self.sel.is_empty() || self.sel_locked() { return; }
+        self.rotate_mode = false;
         self.hist.record(&self.project.data);
         for &i in &self.sel { shapes::translate(&mut self.project.data.loops[i], dx, dy); }
         self.touch();
