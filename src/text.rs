@@ -64,6 +64,18 @@ impl OutlineBuilder for Builder {
     fn close(&mut self) { self.finish(); }
 }
 
+/// Joins contours that overlap. Many fonts (variable fonts, scripts, letters that touch their neighbours)
+/// draw a glyph from overlapping parts; with the even-odd rule used for holes the overlap would show up
+/// as a hole. Outer outlines and holes run in opposite directions in a font, so filling by the non-zero
+/// rule gives the true shape. The result is ordered left to right.
+fn merge_overlaps(contours: Vec<crate::clip::Path>) -> Vec<crate::clip::Path> {
+    if contours.is_empty() { return contours; }
+    let mut out = crate::clip::boolean(crate::clip::BoolKind::Union, &contours, &[]);
+    out.retain(|p| p.len() >= 3);
+    out.sort_by_key(|p| p.iter().map(|q| q[0]).min().unwrap_or(0));
+    out
+}
+
 /// Outlines of `text` set in the font, with the first line's baseline starting at `origin` (mm, y up) and
 /// further lines below it. Every contour becomes a closed shape of operation `op`.
 pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, origin: [f64; 2], op: i64) -> Result<Vec<LoopData>, String> {
@@ -80,6 +92,7 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
     };
     let mut out = Vec::new();
     for (li, line) in text.lines().enumerate() {
+        let mut contours: Vec<crate::clip::Path> = Vec::new();
         let width: f64 = line.chars().map(&advance).sum::<f64>() - if line.is_empty() { 0.0 } else { style.spacing_mm };
         let mut x = origin[0] - match style.align { Align::Left => 0.0, Align::Center => width / 2.0, Align::Right => width };
         let y = origin[1] - li as f64 * line_h;
@@ -88,14 +101,14 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
                 let mut b = Builder { scale, ox: x, oy: y, cur: vec![], contours: vec![] };
                 if face.outline_glyph(g, &mut b).is_some() { b.finish(); }
                 for c in b.contours {
-                    out.push(LoopData {
-                        c: 1, op, rc: None, cr: None, el: None,
-                        pts: c.iter().flat_map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect(),
-                    });
+                    contours.push(c.iter().map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect());
                 }
             }
             x += advance(ch);
         }
+        out.extend(merge_overlaps(contours).into_iter().map(|c| LoopData {
+            c: 1, op, rc: None, cr: None, el: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
+        }));
     }
     Ok(out)
 }
@@ -144,5 +157,18 @@ mod tests {
         assert!(bc[0] < -5.0 && bc[2] > 5.0);
         assert!(text_loops(b"not a font", 0, "x", ST, [0.0, 0.0], 1).is_err());
         assert!(text_loops(&f, 0, "   ", ST, [0.0, 0.0], 1).unwrap().is_empty());
+    }
+
+    #[test]
+    fn overlapping_parts_become_one_outline() {
+        // two squares of the same direction that overlap: one shape, no hole where they cross
+        let a: crate::clip::Path = vec![[0, 0], [0, 10_000], [10_000, 10_000], [10_000, 0]];
+        let b: crate::clip::Path = vec![[5_000, 5_000], [5_000, 15_000], [15_000, 15_000], [15_000, 5_000]];
+        let m = merge_overlaps(vec![a.clone(), b]);
+        assert_eq!(m.len(), 1);
+        // a hole (opposite direction) inside stays a hole
+        let hole: crate::clip::Path = a.iter().rev().map(|p| [p[0] / 2 + 2_000, p[1] / 2 + 2_000]).collect();
+        let m = merge_overlaps(vec![a, hole]);
+        assert_eq!(m.len(), 2);
     }
 }
