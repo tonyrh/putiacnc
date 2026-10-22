@@ -81,9 +81,35 @@ pub fn seed_tools() -> Vec<Tool> {
         tool("1/4″ ball nose", "in", "ball", 60.0, 6.35, 2, 10000.0, 900.0, 250.0, 15.0, 2.0, "Relief carving and smooth, rounded pockets."),
         tool("90° V-bit (1/4″)", "in", "vbit", 90.0, 6.35, 2, 12000.0, 800.0, 250.0, 40.0, 2.0, "V-carving, chamfers and lettering."),
         tool("30° engraving bit (1/8″)", "in", "engrave", 30.0, 3.175, 2, 12000.0, 500.0, 150.0, 40.0, 0.5, "Fine lettering and detailed engraving; shallow cuts."),
-        tool("1″ surfacing bit", "in", "flat", 60.0, 25.4, 2, 12000.0, 1200.0, 300.0, 80.0, 0.5, "Flattening the spoilboard or a slab: light passes with a wide stepover."),
+        tool("1″ surfacing bit", "in", "flat", 60.0, 25.4, 2, 12000.0, 1500.0, 300.0, 80.0, 0.5, "Flattening the spoilboard or a slab: light passes with a wide stepover."),
     ]
 }
+
+/// Chip load in mm per tooth: how thick a chip each cutting edge takes (feed / (spindle speed x flutes)).
+pub fn chip_load(t: &Tool) -> Option<f64> {
+    if t.rpm <= 0.0 || t.flutes == 0 { return None; }
+    Some(t.feed / (t.rpm * t.flutes as f64))
+}
+
+/// A typical chip-load range (mm per tooth) for wood, MDF and plastics on a light machine. It grows with the
+/// diameter; ball and V-shaped bits take less because only part of their edge is cutting.
+pub fn chip_load_range(t: &Tool) -> (f64, f64) {
+    let k = match t.shape.as_str() { "ball" | "bull" | "taper" => 0.8, "vbit" | "engrave" => 0.5, _ => 1.0 };
+    let mid = (0.012 * t.dia * k).clamp(0.004, 0.12);
+    (0.45 * mid, 1.5 * mid)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Load { Light, Good, Heavy }
+
+pub fn load_level(t: &Tool) -> Option<Load> {
+    let c = chip_load(t)?;
+    let (lo, hi) = chip_load_range(t);
+    Some(if c < lo { Load::Light } else if c > hi { Load::Heavy } else { Load::Good })
+}
+
+/// Material removed per minute (mm³) for a cut as wide as the stepover and as deep as the maximum pass.
+pub fn removal_rate(t: &Tool) -> f64 { t.feed * t.dia * t.so / 100.0 * t.pd }
 
 /// A new tool based on `base` (a copy, or the first starter tool), like "+ New tool" / "Duplicate".
 pub fn new_tool_from(base: Option<&Tool>, copy: bool, default_sys: &str) -> Tool {
@@ -376,5 +402,23 @@ mod tests {
             assert_eq!(infer_sys(x.dia) == "in", x.sys == "in", "{}: the unit matches the size", x.name);
             assert!(x.plunge <= x.feed && !x.notes.is_empty(), "{}", x.name);
         }
+    }
+
+    #[test]
+    fn chip_load_estimates() {
+        let mut t = seed_tools().remove(0); // 1/8" flat, 12000 rpm, 800 mm/min, 2 flutes
+        assert!((chip_load(&t).unwrap() - 800.0 / 24000.0).abs() < 1e-12);
+        assert_eq!(load_level(&t), Some(Load::Good));
+        t.feed = 100.0;
+        assert_eq!(load_level(&t), Some(Load::Light));
+        t.feed = 3000.0;
+        assert_eq!(load_level(&t), Some(Load::Heavy));
+        t.rpm = 0.0;
+        assert!(chip_load(&t).is_none() && load_level(&t).is_none());
+        // 3.175 mm wide, 40 % stepover, 1 mm deep, 800 mm/min
+        let t = seed_tools().remove(0);
+        assert!((removal_rate(&t) - 800.0 * 3.175 * 0.4 * 1.0).abs() < 1e-9);
+        // every tool of the default library is in a sensible range
+        for t in seed_tools() { assert_eq!(load_level(&t), Some(Load::Good), "{}", t.name); }
     }
 }

@@ -407,6 +407,35 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 if n % 2 == 1 { ui.end_row(); }
             });
             ui.add_space(8.0);
+            // what these numbers mean for the cut
+            egui::Grid::new("tool_form_est").num_columns(2).spacing([sp, 4.0]).show(ui, |ui| {
+                use putiacnc_core::toollib::{chip_load, chip_load_range, load_level, removal_rate, Load};
+                let (unit_len, per) = if app.tool_len_in { ("in", 25.4) } else { ("mm", 1.0) };
+                rlabel(ui, lw, "Chip load");
+                match chip_load(&t) {
+                    Some(c) => {
+                        let (lo, hi) = chip_load_range(&t);
+                        let dark = ui.visuals().dark_mode;
+                        let (txt, col) = match load_level(&t) {
+                            Some(Load::Light) => ("light: the cutter may rub and heat up", if dark { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) }),
+                            Some(Load::Heavy) => ("heavy: risk of a rough cut or a broken bit", if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xc0, 0x1c, 0x28) }),
+                            _ => ("in the usual range", if dark { Color32::from_rgb(0x8f, 0xd1, 0x8a) } else { Color32::from_rgb(0x2a, 0x8a, 0x3e) }),
+                        };
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{:.4} {unit_len}/tooth", c / per));
+                            ui.label(egui::RichText::new(txt).color(col));
+                        }).response.on_hover_text(format!("Feed / (spindle speed x flutes). A usual range for wood and plastics at this size is {:.4} to {:.4} {unit_len}/tooth; adjust it for your material and machine.", lo / per, hi / per));
+                    }
+                    None => { ui.weak("set the spindle speed to see it"); }
+                }
+                ui.end_row();
+                rlabel(ui, lw, "Removal");
+                let r = removal_rate(&t);
+                let txt = if app.tool_len_in { format!("{:.2} in³/min", r / 16387.064) } else { format!("{:.1} cm³/min", r / 1000.0) };
+                ui.weak(txt).on_hover_text("Material removed per minute by a cut as wide as the stepover and as deep as the maximum pass");
+                ui.end_row();
+            });
+            ui.add_space(8.0);
             egui::Grid::new("tool_form_notes").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
                 rlabel(ui, lw, "Notes");
                 changed |= ui.add(egui::TextEdit::multiline(&mut t.notes).desired_rows(3).desired_width(aw - lw - sp)).changed(); ui.end_row();
