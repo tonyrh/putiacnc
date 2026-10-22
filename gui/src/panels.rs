@@ -364,7 +364,7 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum GroupAct { Select, Delete }
+enum GroupAct { Delete }
 
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
 fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool, fit: &mut bool) -> Option<[f64; 4]> {
@@ -411,7 +411,6 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
                 ui.label(egui::RichText::new(&g.name).strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if small_icon_button(ui, Icon::Trash, true, "Delete this drawing (all its shapes)").clicked() { *act = Some((Some(g.id), GroupAct::Delete)); }
-                    if ui.small_button("Select").on_hover_text("Select all the shapes of this drawing").clicked() { *act = Some((Some(g.id), GroupAct::Select)); }
                 });
             });
             let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
@@ -949,14 +948,12 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     });
     if let Some((g, act)) = group_act {
         match (g, act) {
-            (Some(id), GroupAct::Select) => { app.sel = app.project.data.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(id)).map(|(i, _)| i).collect(); app.mode = crate::app::Mode::Select; }
             (Some(id), GroupAct::Delete) => {
                 app.sel = app.project.data.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(id)).map(|(i, _)| i).collect();
                 app.delete_selection();
                 app.project.data.groups.retain(|x| x.id != id);
             }
             (None, GroupAct::Delete) => { app.hist.record(&app.project.data); app.project.data.relief = None; app.touch(); }
-            _ => {}
         }
     }
     if open_tools { app.tools_open = true; }
