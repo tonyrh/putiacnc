@@ -5,6 +5,7 @@ mod app;
 mod array;
 mod canvas;
 mod combine;
+mod corners;
 mod csd;
 mod icons;
 mod machmgr;
@@ -129,6 +130,7 @@ impl eframe::App for App {
         shortcuts::window(ctx, self);
         combine::dialog(ctx, self);
         array::dialog(ctx, self);
+        corners::dialog(ctx, self);
         text::dialog(ctx, self);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }

@@ -497,6 +497,10 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
             if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
+            // only offered when the selection has a corner to round (not for circles and ellipses)
+            if app.selection_has_corners() {
+                if icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.corners.open = !app.corners.open; }
+            }
             // thin vertical dividers as tall as the buttons (a Separator would stretch the whole area)
             let divider = |ui: &mut Ui| {
                 let (sep, _) = ui.allocate_exact_size(Vec2::new(8.0, 36.0), egui::Sense::hover());

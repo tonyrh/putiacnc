@@ -118,6 +118,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.separator();
             if item(ui, "Offset...", "", !app.sel.is_empty()) { app.offset_open = true; }
             if item(ui, "Array and copy...", "", !app.sel.is_empty()) { app.array.open = true; }
+            if item(ui, "Fillet and chamfer...", "", app.selection_has_corners()) { app.corners.open = true; }
             if item(ui, "Combine shapes...", "", app.sel.len() >= 2) { app.combine_open = true; }
         });
         ui.menu_button("View", |ui| {

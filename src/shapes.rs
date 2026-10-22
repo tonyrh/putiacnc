@@ -95,6 +95,88 @@ pub fn translate(l: &mut LoopData, dx: f64, dy: f64) {
     for c in l.pts.chunks_exact_mut(2) { c[0] += ix; c[1] += iy; }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CornerKind { Fillet, Chamfer }
+
+/// Corners sharper than this (interior angle) count as corners; the vertices of a flattened curve do not.
+const SHARP: f64 = 150.0 * PI / 180.0;
+
+fn pts_mm(l: &LoopData) -> Vec<[f64; 2]> {
+    let mut p: Vec<[f64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0] as f64 / S, c[1] as f64 / S]).collect();
+    p.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6);
+    if l.closed() && p.len() > 1 && (p[0][0] - p[p.len() - 1][0]).hypot(p[0][1] - p[p.len() - 1][1]) < 1e-6 { p.pop(); }
+    p
+}
+
+/// Interior angle at vertex `i` and the unit vectors towards its neighbours, if it is a corner.
+fn corner_at(p: &[[f64; 2]], i: usize, closed: bool) -> Option<(f64, [f64; 2], [f64; 2], f64, f64)> {
+    let n = p.len();
+    if n < 3 || (!closed && (i == 0 || i + 1 == n)) { return None; }
+    let (a, v, b) = (p[(i + n - 1) % n], p[i], p[(i + 1) % n]);
+    let (da, db) = ((a[0] - v[0]).hypot(a[1] - v[1]), (b[0] - v[0]).hypot(b[1] - v[1]));
+    if da < 1e-6 || db < 1e-6 { return None; }
+    let (ua, ub) = ([(a[0] - v[0]) / da, (a[1] - v[1]) / da], [(b[0] - v[0]) / db, (b[1] - v[1]) / db]);
+    let phi = (ua[0] * ub[0] + ua[1] * ub[1]).clamp(-1.0, 1.0).acos();
+    if phi < 0.05 || phi > SHARP { return None; }
+    Some((phi, ua, ub, da, db))
+}
+
+/// Number of sharp corners a shape has (circles and ellipses have none).
+pub fn corner_count(l: &LoopData) -> usize {
+    if l.cr.is_some() || l.el.is_some() { return 0; }
+    let p = pts_mm(l);
+    (0..p.len()).filter(|&i| corner_at(&p, i, l.closed()).is_some()).count()
+}
+
+pub fn has_corners(l: &LoopData) -> bool { corner_count(l) > 0 }
+
+/// Rounds (fillet, `size` = radius) or bevels (chamfer, `size` = distance along each edge) every sharp corner.
+/// A corner too tight for the size gets the largest one that fits. Returns the new shape, the number of
+/// corners done and how many of them had to be made smaller; `None` when there is no corner.
+pub fn round_corners(l: &LoopData, kind: CornerKind, size: f64) -> Option<(LoopData, usize, usize)> {
+    if l.cr.is_some() || l.el.is_some() || size <= 1e-6 { return None; }
+    let closed = l.closed();
+    let p = pts_mm(l);
+    let n = p.len();
+    let sharp: Vec<bool> = (0..n).map(|i| corner_at(&p, i, closed).is_some()).collect();
+    let (mut done, mut limited) = (0, 0);
+    let mut out: Vec<[f64; 2]> = Vec::new();
+    for i in 0..n {
+        let Some((phi, ua, ub, da, db)) = corner_at(&p, i, closed) else { out.push(p[i]); continue };
+        // a neighbour that is a corner too may use half of the shared edge, the other half is its own
+        let (ia, ib) = ((i + n - 1) % n, (i + 1) % n);
+        let (la, lb) = (da * if sharp[ia] { 0.5 } else { 1.0 }, db * if sharp[ib] { 0.5 } else { 1.0 });
+        let want = if kind == CornerKind::Fillet { size / (phi / 2.0).tan() } else { size };
+        let t = want.min(la).min(lb);
+        if t < 1e-4 { out.push(p[i]); continue; }
+        if t < want - 1e-9 { limited += 1; }
+        done += 1;
+        let v = p[i];
+        let (t1, t2) = ([v[0] + ua[0] * t, v[1] + ua[1] * t], [v[0] + ub[0] * t, v[1] + ub[1] * t]);
+        if kind == CornerKind::Chamfer { out.push(t1); out.push(t2); continue; }
+        let r = t * (phi / 2.0).tan();
+        let bis = [ua[0] + ub[0], ua[1] + ub[1]];
+        let bl = bis[0].hypot(bis[1]);
+        let k = r / (phi / 2.0).sin() / bl;
+        let c = [v[0] + bis[0] * k, v[1] + bis[1] * k];
+        let (s0, e0) = ([t1[0] - c[0], t1[1] - c[1]], [t2[0] - c[0], t2[1] - c[1]]);
+        let sweep = PI - phi;
+        let dir = if s0[0] * e0[1] - s0[1] * e0[0] >= 0.0 { 1.0 } else { -1.0 };
+        let step = if r > 0.02 { 2.0 * (1.0 - 0.02 / r).acos() } else { sweep };
+        let steps = ((sweep / step.max(1e-3)).ceil() as usize).clamp(2, 64);
+        for j in 0..=steps {
+            let a = dir * sweep * j as f64 / steps as f64;
+            let (sn, cs) = a.sin_cos();
+            out.push([c[0] + s0[0] * cs - s0[1] * sn, c[1] + s0[0] * sn + s0[1] * cs]);
+        }
+    }
+    if done == 0 { return None; }
+    let mut res = l.clone();
+    res.pts = out.iter().flat_map(|q| [to_i(q[0]), to_i(q[1])]).collect();
+    res.rc = None;
+    Some((res, done, limited))
+}
+
 /// Rotate about a point (mm), counter-clockwise in degrees. A rotated rectangle or ellipse is no longer
 /// axis-aligned, so it becomes a plain polygon; a circle stays a circle.
 pub fn rotate_about(l: &mut LoopData, cx: f64, cy: f64, deg: f64) {
@@ -475,6 +557,43 @@ mod tests {
         f.data.notes = "Cherry, vacuum table".into();
         let back = load_project(&save_project(&f).unwrap()).unwrap();
         assert_eq!(back.data.notes, "Cherry, vacuum table");
+    }
+
+    fn area_mm2(l: &LoopData) -> f64 { crate::clip::area(&l.path()).abs() / (S * S) }
+
+    #[test]
+    fn corners_are_rounded_and_bevelled() {
+        let sq = new_rect([0.0, 0.0], [20.0, 20.0], 0.0, 1);
+        assert_eq!(corner_count(&sq), 4);
+        assert_eq!(corner_count(&new_circle([5.0, 5.0], 3.0, 1)), 0);
+        assert_eq!(corner_count(&new_ellipse([0.0, 0.0], [10.0, 6.0], 1)), 0);
+        let (f, n, lim) = round_corners(&sq, CornerKind::Fillet, 3.0).unwrap();
+        assert_eq!((n, lim), (4, 0));
+        assert!((area_mm2(&f) - (400.0 - (4.0 - PI) * 9.0)).abs() < 0.5, "{}", area_mm2(&f)); // the arc is a polygon within 0.02 mm of the true one
+        let b = bbox(&f).unwrap();
+        assert!(b[0] >= -1e-6 && b[1] >= -1e-6 && b[2] <= 20.0 + 1e-6 && b[3] <= 20.0 + 1e-6);
+        let (c, n, _) = round_corners(&sq, CornerKind::Chamfer, 2.0).unwrap();
+        assert_eq!(n, 4);
+        assert!((area_mm2(&c) - 392.0).abs() < 1e-3, "{} {:?}", area_mm2(&c), c.pts);
+        // too big for the sides: every corner shrinks to what fits (a full semicircle-ish round)
+        let (big, _, lim) = round_corners(&sq, CornerKind::Fillet, 15.0).unwrap();
+        assert_eq!(lim, 4);
+        assert!((area_mm2(&big) - (400.0 - (4.0 - PI) * 100.0)).abs() < 3.0);
+        // an open L: only the inner vertex is a corner
+        let l = new_poly(&[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0]], false, 1).unwrap();
+        assert_eq!(corner_count(&l), 1);
+        let (lr, n, _) = round_corners(&l, CornerKind::Chamfer, 2.0).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(lr.pts.len() / 2, 4);
+        assert!(!lr.closed());
+        // smooth outlines have no corners
+        assert!(round_corners(&sq_to_circleish(), CornerKind::Fillet, 1.0).is_none());
+    }
+
+    fn sq_to_circleish() -> LoopData {
+        let mut l = new_ellipse([0.0, 0.0], [10.0, 6.0], 1);
+        l.el = None; // a plain polygon, as after node editing
+        l
     }
 
     #[test]
