@@ -663,7 +663,7 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if app.mode == Mode::Rect {
                 ui.label("Radius");
                 ui.add_space(6.0);
-                crate::widgets::num(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 3, "");
+                crate::widgets::num(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 2, "");
                 ui.add_space(2.0);
                 ui.weak("mm");
             }
@@ -874,7 +874,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 let field = |ui: &mut Ui, label: &str, v: &mut f64, lo: f64, hi: f64| -> bool {
                     ui.label(label);
                     ui.add_space(4.0); // as far from its field as the labels in the Stock panel
-                    crate::widgets::num(ui, [66.0, 24.0], v, lo, hi, 0.25, 3, "").changed()
+                    crate::widgets::num(ui, [66.0, 24.0], v, lo, hi, 0.25, 2, "").changed()
                 };
                 geom |= field(ui, "X", &mut x, -100000.0, 100000.0);
                 ui.add_space(10.0);

@@ -42,7 +42,7 @@ fn spin_arrows(ui: &mut Ui, v: &mut f64, lo: f64, hi: f64) -> bool {
 }
 
 fn dv_w(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> bool {
-    crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 3, suffix).changed()
+    crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix).changed()
 }
 
 fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(&str, &str)], prefix: &str, tip: &str) -> (bool, egui::Rect) {
@@ -177,7 +177,7 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     }
     ui.horizontal(|ui| {
         ui.checkbox(&mut app.grid_on, "Grid");
-        crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 3, " mm").on_hover_text("Grid size (also the snap step)");
+        crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, " mm").on_hover_text("Grid size (also the snap step)");
         ui.checkbox(&mut app.snap_on, "Snap");
         // view toggles on the right (right-to-left, so listed in reverse)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
