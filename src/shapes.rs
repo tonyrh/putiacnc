@@ -257,6 +257,15 @@ pub fn mirror_x(l: &mut LoopData, cx: f64) {
     l.pts = v.into_iter().flat_map(|p| p).collect();
 }
 
+/// Mirror a shape top to bottom about the horizontal line y = `cy` (mm).
+pub fn mirror_y(l: &mut LoopData, cy: f64) {
+    for c in l.pts.chunks_exact_mut(2) { c[1] = to_i(2.0 * cy - c[1] as f64 / S); }
+    let n = l.pts.len() / 2;
+    let mut v: Vec<[i64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+    if n > 2 && l.closed() { v.reverse(); }
+    l.pts = v.into_iter().flat_map(|p| p).collect();
+}
+
 pub fn scale_about(l: &mut LoopData, ax: f64, ay: f64, sx: f64, sy: f64) {
     for c in l.pts.chunks_exact_mut(2) {
         c[0] = to_i(ax + (c[0] as f64 / S - ax) * sx);
@@ -623,6 +632,15 @@ pub fn blank_project() -> ProjectFile {
 mod tests {
     use super::*;
     use crate::{generate, load_project, save_project, Units};
+
+    #[test]
+    fn mirror_y_flips_top_to_bottom() {
+        let mut l = new_poly(&[[0.0, 0.0], [10.0, 0.0], [10.0, 4.0]], true, 0).unwrap();
+        mirror_y(&mut l, 5.0);
+        let b = bbox(&l).unwrap();
+        assert!((b[1] - 6.0).abs() < 1e-6 && (b[3] - 10.0).abs() < 1e-6);
+        assert_eq!(l.pts.len(), 6);
+    }
 
     #[test]
     fn notes_are_saved_with_the_project() {

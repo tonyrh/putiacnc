@@ -44,7 +44,12 @@ pub struct ProjectData {
 
 /// A file of shapes imported as one unit.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct ShapeGroup { pub id: i64, pub name: String }
+pub struct ShapeGroup {
+    pub id: i64,
+    pub name: String,
+    /// Locked: it cannot be moved, resized, rotated or flipped by accident.
+    #[serde(default, skip_serializing_if = "is_false")] pub locked: bool,
+}
 
 /// A 3D model reduced to a height map (seen from above), carved by relief operations.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

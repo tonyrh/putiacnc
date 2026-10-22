@@ -369,13 +369,14 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
 enum GroupAct { Delete }
 
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
-fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool, fit: &mut bool) -> Option<[f64; 4]> {
+fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool, fit: &mut bool, mut lock: Option<&mut bool>) -> Option<[f64; 4]> {
+    let locked = lock.as_ref().map_or(false, |l| **l);
     let (mut x, mut y, mut w, mut h) = (b[0], b[1], b[2] - b[0], b[3] - b[1]);
     let keep_id = key.with("keep");
     let mut keep = aspect_fixed || ui.data(|d| d.get_temp::<bool>(keep_id)).unwrap_or(true);
     let (mut moved, mut sized) = (false, false);
     let lw = tw(ui, "Width").max(tw(ui, "Height")) + 8.0;
-    egui::Grid::new(key.with("grid")).num_columns(5).spacing([6.0, 6.0]).show(ui, |ui| {
+    ui.add_enabled_ui(!locked, |ui| egui::Grid::new(key.with("grid")).num_columns(5).spacing([6.0, 6.0]).show(ui, |ui| {
         rlabel(ui, lw, "X"); moved |= dv_w(ui, 62.0, &mut x, -100000.0, 100000.0, ""); ui.weak("mm");
         rlabel(ui, lw, "Y"); moved |= dv_w(ui, 62.0, &mut y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
         rlabel(ui, lw, "Width");
@@ -384,13 +385,14 @@ fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool,
         rlabel(ui, lw, "Height");
         if dv_w(ui, 62.0, &mut h, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = h * (b[2] - b[0]) / (b[3] - b[1]); } }
         ui.weak("mm"); ui.end_row();
-    });
+    }));
     ui.add_space(8.0);
     ui.horizontal(|ui| {
-        if !aspect_fixed && ui.checkbox(&mut keep, "Keep proportions").changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
+        if !aspect_fixed && ui.add_enabled(!locked, egui::Checkbox::new(&mut keep, "Keep proportions")).changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
+        if let Some(l) = lock.as_mut() { ui.checkbox(*l, "Lock").on_hover_text("Stops this drawing being moved, resized, rotated or flipped by accident"); }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
-            if ui.button("Fit to stock").on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
+            if ui.add_enabled(!locked, egui::Button::new("Fit to stock")).on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
         });
     });
     if moved || sized { Some([x, y, w, h]) } else { None }
@@ -417,7 +419,8 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             });
             let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
             let mut fit = false;
-            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, false, &mut fit) {
+            let mut lock_now = g.locked;
+            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, false, &mut fit, Some(&mut lock_now)) {
                 let new = [nb[0], nb[1], nb[0] + nb[2], nb[1] + nb[3]];
                 let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().filter(|l| l.grp == Some(g.id)).collect();
                 shapes::fit_to_bbox(&mut refs, b, new);
@@ -430,6 +433,31 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
                 let new = [(sw - nw) / 2.0, (sh - nh) / 2.0, (sw + nw) / 2.0, (sh + nh) / 2.0];
                 let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().filter(|l| l.grp == Some(g.id)).collect();
                 shapes::fit_to_bbox(&mut refs, b, new);
+                *changed = true;
+            }
+            if lock_now != g.locked {
+                if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
+            }
+            // turn and flip about the drawing's centre
+            let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
+            let mut turn = 0.0;
+            let mut flip = (false, false);
+            ui.add_space(4.0);
+            ui.add_enabled_ui(!lock_now, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
+                    if ui.button("↺ 90°").on_hover_text("Rotate 90° counter-clockwise").clicked() { turn = 90.0; }
+                    if ui.button("↻ 90°").on_hover_text("Rotate 90° clockwise").clicked() { turn = -90.0; }
+                    if ui.button("Flip H").on_hover_text("Mirror left to right").clicked() { flip.0 = true; }
+                    if ui.button("Flip V").on_hover_text("Mirror top to bottom").clicked() { flip.1 = true; }
+                });
+            });
+            if turn != 0.0 || flip.0 || flip.1 {
+                for l in d.loops.iter_mut().filter(|l| l.grp == Some(g.id)) {
+                    if turn != 0.0 { shapes::rotate_about(l, cx, cy, turn); }
+                    if flip.0 { shapes::mirror_x(l, cx); }
+                    if flip.1 { shapes::mirror_y(l, cy); }
+                }
                 *changed = true;
             }
         });
@@ -446,7 +474,7 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             let (w, h) = rel.size();
             let b = [rel.x, rel.y, rel.x + w, rel.y + h];
             let mut fit = false;
-            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, true, &mut fit) {
+            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, true, &mut fit, None) {
                 rel.x = nb[0]; rel.y = nb[1];
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;

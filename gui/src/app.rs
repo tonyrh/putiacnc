@@ -597,7 +597,7 @@ impl App {
         let start = self.project.data.loops.len();
         let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         let gname = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "drawing".into());
-        self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname });
+        self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname, locked: false });
         for mut l in imp.loops {
             shapes::translate(&mut l, ox, oy);
             l.op = op;
@@ -761,8 +761,14 @@ impl App {
         if open > 0 { Some(format!("{open} open shape{} left out.", if open == 1 { " was" } else { "s were" })) } else { None }
     }
 
+    /// True when a selected shape belongs to a locked imported drawing.
+    pub fn sel_locked(&self) -> bool {
+        let d = &self.project.data;
+        self.sel.iter().filter_map(|&i| d.loops.get(i)).filter_map(|l| l.grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked))
+    }
+
     pub fn nudge(&mut self, dx: f64, dy: f64) {
-        if self.sel.is_empty() { return; }
+        if self.sel.is_empty() || self.sel_locked() { return; }
         self.hist.record(&self.project.data);
         for &i in &self.sel { shapes::translate(&mut self.project.data.loops[i], dx, dy); }
         self.touch();

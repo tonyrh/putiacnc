@@ -137,7 +137,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         Some(Mode::Select) => {
             if resp.drag_started_by(prim) {
                 let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
-                if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.press_origin()), sel_bb) {
+                let locked_sel = app.sel_locked();
+                if let (Some(ps), Some(b), false) = (ctx.input(|i| i.pointer.press_origin()), sel_bb, locked_sel) {
                     if let Some(h) = hit_handle(&view, b, ps) {
                         let w = view.s2w(ps);
                         let hw = handle_world(b, h);
@@ -159,7 +160,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                         Some(h) => {
                             if !app.sel.contains(&h) { if !shift { app.sel.clear(); } app.sel.insert(h); }
                             let b = shapes::bbox_many(app.sel.iter().map(|&i| &app.project.data.loops[i])).unwrap();
-                            app.drag = Drag::Move { start: w, anchor: [b[0], b[1]], applied: [0.0, 0.0] };
+                            // a locked drawing is selected but stays where it is
+                            app.drag = if app.sel_locked() { Drag::None } else { Drag::Move { start: w, anchor: [b[0], b[1]], applied: [0.0, 0.0] } };
                         }
                         None => app.drag = Drag::Box { start: w },
                     }
@@ -983,6 +985,8 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let mut align: Option<u8> = None;
     let mut align_each: Option<u8> = None;
     let _ = n;
+    // shapes of a locked drawing can be assigned to operations but not moved, resized or aligned
+    let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
     egui::Area::new(egui::Id::new("selbar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 5.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 4.0;
@@ -991,7 +995,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 let field = |ui: &mut Ui, label: &str, v: &mut f64, lo: f64, hi: f64| -> bool {
                     ui.label(label);
                     ui.add_space(4.0); // as far from its field as the labels in the Stock panel
-                    crate::widgets::num(ui, [66.0, 24.0], v, lo, hi, 0.25, 2, "").changed()
+                    ui.add_enabled_ui(!locked, |ui| crate::widgets::num(ui, [66.0, 24.0], v, lo, hi, 0.25, 2, "").changed()).inner
                 };
                 geom |= field(ui, "X", &mut x, -100000.0, 100000.0);
                 ui.add_space(10.0);
@@ -1043,6 +1047,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             }
         });
     });
+    if locked { geom = false; radius_changed = false; align = None; align_each = None; }
     if let Some(k) = align {
         let (sw, sh) = (d.stock.w, d.stock.h);
         let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
