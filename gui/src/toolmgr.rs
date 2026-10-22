@@ -377,7 +377,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     if crate::widgets::num(ui, [72.0, 22.0], &mut r, if t.concave { t.dia / 2.0 / k } else { 0.1 / k }, 100.0 / k, 0.1 / k, 3, uname).changed() { t.arc = (r * k).max(if t.concave { t.dia / 2.0 } else { 0.1 }); changed = true; }
                     side!(false);
                     rlabel(ui, lw, "Edge");
-                    ui.horizontal(|ui| {
+                    egui::ComboBox::from_id_source("arc_edge").selected_text(if t.concave { "Concave" } else { "Convex" }).show_ui(ui, |ui| {
                         if ui.selectable_label(!t.concave, "Convex").clicked() { t.concave = false; changed = true; }
                         if ui.selectable_label(t.concave, "Concave").clicked() { t.concave = true; changed = true; }
                     });
