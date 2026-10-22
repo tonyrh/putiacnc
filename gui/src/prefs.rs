@@ -37,6 +37,8 @@ pub struct Settings {
     pub dir_project: Option<String>,
     pub dir_svg: Option<String>,
     pub dir_gcode: Option<String>,
+    /// The last settings of the bitmap trace dialog (the width is not kept: it depends on the picture and the stock).
+    pub trace: Option<putiacnc_core::bitmap::Opts>,
     pub recent: Vec<String>,
 }
 

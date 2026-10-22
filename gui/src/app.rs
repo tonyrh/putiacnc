@@ -406,6 +406,7 @@ impl App {
         s.tool_speed_idx = Some(self.tool_speed_idx);
         s.mach_len_in = Some(self.mach_len_in);
         s.mach_speed_idx = Some(self.mach_speed_idx);
+        if let Some(o) = self.trace.remember.clone() { s.trace = Some(o); }
         let (inner, outer, maximized) = ctx.input(|i| { let v = i.viewport(); (v.inner_rect, v.outer_rect, v.maximized.unwrap_or(false)) });
         if let Some(r) = inner {
             let mut w = s.window.clone().unwrap_or_default();
@@ -567,7 +568,8 @@ impl App {
     /// Open the picture in the trace dialog; the shapes are placed when the user accepts.
     pub fn import_bitmap(&mut self, path: &str) {
         let st = (self.project.data.stock.w, self.project.data.stock.h);
-        self.trace.load(path, st);
+        let saved = self.prefs.trace.clone();
+        self.trace.load(path, st, saved);
     }
 
     pub fn is_model(path: &str) -> bool { let p = path.to_lowercase(); p.ends_with(".stl") || p.ends_with(".obj") }

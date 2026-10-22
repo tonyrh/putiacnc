@@ -957,6 +957,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };
+    if app.trace.open { return; } // the bitmap dialog covers that part of the canvas
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.label(egui::RichText::new(hint).weak());
