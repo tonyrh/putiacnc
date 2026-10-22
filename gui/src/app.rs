@@ -278,6 +278,7 @@ impl App {
             else if App::is_model(&p) { a.import_model(&p); }
             else { a.path = p.clone(); a.open(&p); }
         }
+        if let Ok(p) = std::env::var("PUTIACNC_IMPORT2") { if App::is_model(&p) { a.import_model(&p); } else { a.import_file(&p); } }
         if std::env::var_os("PUTIACNC_RELIEF").is_some() && a.project.data.relief.is_some() {
             let d = &mut a.project.data;
             let mut p = shapes::default_op_params(&d.tools[0].id);
@@ -551,7 +552,7 @@ impl App {
         let st = &self.project.data.stock;
         if mw > st.w || mh > st.h {
             rel.scale = (st.w / mw).min(st.h / mh);
-            note.push(format!("Scaled down to {:.0}% to fit the stock ({:.1} x {:.1} mm); change the size with Width in the 3D model box.", rel.scale * 100.0, rel.size().0, rel.size().1));
+            note.push(format!("Scaled down to {:.0}% to fit the stock ({:.1} x {:.1} mm); change the size with Width in the Imported section.", rel.scale * 100.0, rel.size().0, rel.size().1));
         }
         let (mw, mh) = rel.size();
         rel.x = (st.w - mw) / 2.0;
