@@ -545,13 +545,13 @@ impl App {
     pub fn import_model_dialog(&mut self) {
         let dir = crate::prefs::existing_dir(&self.prefs.dir_svg).or_else(|| crate::prefs::existing_dir(&self.prefs.dir_project));
         self.spawn_dialog(DlgKind::Model, move || {
-            let mut dlg = rfd::FileDialog::new().add_filter("3D models (STL)", &["stl"]).add_filter("All files", &["*"]);
+            let mut dlg = rfd::FileDialog::new().add_filter("3D models (STL, OBJ)", &["stl", "obj"]).add_filter("All files", &["*"]);
             if let Some(d) = dir { dlg = dlg.set_directory(d); }
             dlg.pick_file()
         });
     }
 
-    pub fn is_model(path: &str) -> bool { path.to_lowercase().ends_with(".stl") }
+    pub fn is_model(path: &str) -> bool { let p = path.to_lowercase(); p.ends_with(".stl") || p.ends_with(".obj") }
 
     /// Import an STL model as a height map for relief operations. It is centred on the stock, and scaled
     /// down (keeping its proportions) when it is bigger than the stock.

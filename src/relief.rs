@@ -62,11 +62,53 @@ fn parse_stl(b: &[u8]) -> Result<Vec<Tri>, String> {
     Ok(vs.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect())
 }
 
+/// Wavefront OBJ: `v x y z` vertices and `f` faces (any number of corners, 1-based or negative indices).
+/// Units are taken as millimetres and Z as up, like an STL.
+fn parse_obj(b: &[u8]) -> Result<Vec<Tri>, String> {
+    let text = String::from_utf8_lossy(b);
+    let mut vs: Vec<[f32; 3]> = Vec::new();
+    let mut tris: Vec<Tri> = Vec::new();
+    for line in text.lines() {
+        let mut w = line.split_whitespace();
+        match w.next() {
+            Some("v") => {
+                let n: Vec<f32> = w.take(3).filter_map(|x| x.parse().ok()).collect();
+                if n.len() == 3 { vs.push([n[0], n[1], n[2]]); } else { return Err("The OBJ file has a vertex with missing coordinates.".into()); }
+            }
+            Some("f") => {
+                let mut idx: Vec<usize> = Vec::new();
+                for t in w {
+                    let k: i64 = t.split('/').next().and_then(|s| s.parse().ok()).ok_or("The OBJ file has an unreadable face.")?;
+                    let i = if k < 0 { vs.len() as i64 + k } else { k - 1 };
+                    if i < 0 || i as usize >= vs.len() { return Err("The OBJ file has a face that points at a missing vertex.".into()); }
+                    idx.push(i as usize);
+                }
+                for k in 1..idx.len().saturating_sub(1) { tris.push([vs[idx[0]], vs[idx[k]], vs[idx[k + 1]]]); }
+            }
+            _ => {}
+        }
+    }
+    if tris.is_empty() { return Err("The OBJ file has no faces.".into()); }
+    Ok(tris)
+}
+
+/// True when the bytes look like a Wavefront OBJ rather than an STL.
+fn looks_like_obj(b: &[u8]) -> bool {
+    if b.len() >= 84 && 84 + u32::from_le_bytes([b[80], b[81], b[82], b[83]]) as usize * 50 == b.len() { return false; }
+    let head = String::from_utf8_lossy(&b[..b.len().min(4000)]);
+    !head.trim_start().starts_with("solid") && head.lines().any(|l| l.starts_with("v ") || l.starts_with("f "))
+}
+
+/// Triangles of an STL or OBJ model.
+fn parse_mesh(b: &[u8]) -> Result<Vec<Tri>, String> {
+    if looks_like_obj(b) { parse_obj(b) } else { parse_stl(b) }
+}
+
 impl Relief {
     /// Reduce an STL model (binary or ASCII) to a height map seen from above, `res` mm per cell.
     /// The lowest point of the model is height 0.
     pub fn from_stl(bytes: &[u8], name: &str, res: f64) -> Result<Relief, String> {
-        let tris = parse_stl(bytes)?;
+        let tris = parse_mesh(bytes)?;
         if tris.is_empty() { return Err("The STL file has no triangles.".into()); }
         let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
         for t in &tris { for v in t { for k in 0..3 {
@@ -107,7 +149,7 @@ impl Relief {
 
     /// Like `from_stl`, with the resolution chosen so the height map has about `max_cells` cells (never finer than 0.25 mm).
     pub fn from_stl_auto(bytes: &[u8], name: &str, max_cells: usize) -> Result<Relief, String> {
-        let tris = parse_stl(bytes)?;
+        let tris = parse_mesh(bytes)?;
         let (mut lo, mut hi) = ([f32::MAX; 2], [f32::MIN; 2]);
         for t in &tris { for v in t { for k in 0..2 { lo[k] = lo[k].min(v[k]); hi[k] = hi[k].max(v[k]); } } }
         let area = ((hi[0] - lo[0]) as f64 * (hi[1] - lo[1]) as f64).max(1e-6);
@@ -327,6 +369,19 @@ mod tests {
             let d: Vec<u8> = (0..n as u8).map(|i| i.wrapping_mul(37)).collect();
             assert_eq!(b64_decode(&b64_encode(&d)).unwrap(), d);
         }
+    }
+
+    #[test]
+    fn an_obj_gives_the_same_height_map_as_the_stl() {
+        // the pyramid again: quads and triangles, negative indices, slashes and comments
+        let obj = b"# pyramid\nv 0 0 0\nv 20 0 0\nv 20 20 0\nv 0 20 0\nv 10 10 10\nvn 0 0 1\nf 1//1 4//1 3//1 2//1\nf 1/1 2/1 5/1\nf 2 3 5\nf 3 4 5\nf -5 -2 -1\n";
+        let r = Relief::from_stl(obj, "pyramid", 1.0).unwrap();
+        let s = Relief::from_stl(&pyramid_stl(), "pyramid", 1.0).unwrap();
+        assert_eq!((r.nx, r.ny), (s.nx, s.ny));
+        assert!((r.zmax - 10.0).abs() < 1e-6);
+        let (a, b) = (r.heights(), s.heights());
+        assert!(a.iter().zip(&b).all(|(x, y)| (x - y).abs() < 0.02));
+        assert!(Relief::from_stl(b"v 0 0 0\nf 1 2 3\n", "x", 1.0).is_err());
     }
 
     #[test]
