@@ -5,7 +5,7 @@ A CNC toolpath studio for GRBL machines, written in Rust. Draw or import shapes,
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
 ![2D design: shapes assigned to a profile and a pocket operation](docs/screenshot-2d.png)
-*2D design: draw or import shapes, assign them to profile, pocket or V-carve operations, and set depth, tabs and tools.*
+*2D design: draw or import shapes, assign them to profile, pocket, V-carve or drill operations, and set depth, tabs and tools.*
 
 ![3D preview: the simulated cut in wood](docs/screenshot-3d.png)
 *3D preview: the toolpath is replayed on the stock, so you can check the result before sending the G-code to the machine.*
@@ -26,8 +26,8 @@ The workspace has two crates:
 
 Features:
 
-- 2D design canvas: rectangles, ellipses, lines and polygons, SVG and DXF import, select / move / resize,
-  snapping, undo and redo, align to the stock and to each other, distribute. The node tool (N, or double-click a
+- 2D design canvas: rectangles, ellipses, lines and polygons, SVG and DXF import (File → Import Vectors), select / move / resize,
+  snapping, undo and redo (Edit → Undo steps back through any change; the toolbar buttons only undo drawing changes), align to the stock and to each other, distribute. The node tool (N, or double-click a
   shape) edits its points: drag, add, delete and simplify. Edit → Offset grows or shrinks
   the selected shapes by a distance (inlays, clearances); Edit → Combine shapes does union, subtract, intersect
   and exclude. The text tool (T) turns typed text, in any font
@@ -39,7 +39,7 @@ Features:
 - A keyboard shortcuts reference (Help menu or F1).
 - Array and copy (Edit menu): repeat the selected shapes in a grid or around a circle.
 - Fillet and chamfer: a toolbar tool (shown when the selection has corners) that rounds or bevels the corners of shapes.
-- A default tool library with 18 common hobby-router tools (flat, downcut, compression, ball nose, V-bits, engraving, surfacing); cautious starting speeds and feeds.
+- A default tool library with 18 common hobby-router tools (flat, downcut, compression, ball nose, V-bits, engraving, surfacing); cautious starting speeds and feeds. The tool manager estimates the chip load and material removal rate from the speeds, feed and pass depth.
 - Remembers window size and position, panel layout, view toggles, last folders and recent files (File → Open recent) between sessions.
 - A Notes tab with free-form project notes (saved with the project), plus the generator's warnings.
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
@@ -49,7 +49,7 @@ Features:
 - 3D preview: GPU ray-marched height field of the stock with the toolpath, rapids and cutter
   marker, and a play bar to replay the job.
 - Help → Check for updates asks GitHub for the latest release and offers to download it (an AppImage can replace itself). It only contacts GitHub when you ask, or at startup if you tick that option.
-- G-code tab with a time estimate and warnings, optional output in inches; project notes.
+- G-code tab with a time estimate and warnings, optional output in inches.
 - Unsaved-changes prompts, native file dialogs, light and dark themes.
 
 ### Build and run
