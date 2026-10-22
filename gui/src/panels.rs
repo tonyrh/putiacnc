@@ -451,7 +451,7 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
             }
-            ui.weak(format!("The model is {:.1} mm tall at this size; the carve depth is set in its 3D relief operation.", rel.zmax * rel.scale));
+            ui.weak(format!("The model is {:.1} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", rel.zmax * rel.scale));
             if fit {
                 let k = (sw / (rel.nx as f64 * rel.res)).min(sh / (rel.ny as f64 * rel.res));
                 if rel.scale > k { rel.scale = k; }
@@ -630,7 +630,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     // a ball nose to finish, a flat end mill to rough, and the model's height as the depth
                     if let Some(t) = d.tools.iter().find(|t| t.shape == "ball") { p.tool = t.id.clone(); }
                     p.tool2 = d.tools.iter().filter(|t| t.shape == "flat").min_by(|a, b| (a.dia - 6.0).abs().partial_cmp(&(b.dia - 6.0).abs()).unwrap_or(std::cmp::Ordering::Equal)).map(|t| t.id.clone());
-                    p.depth = d.relief.as_ref().map_or(p.depth, |r| ((r.zmax * r.scale).min(d.stock.t) * 10.0).round() / 10.0);
                     p.pass_depth = Some(2.0);
                     p.tabs = false; p.lead = None;
                 }
@@ -702,6 +701,12 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             if !collapsed.contains(&id) {
             let loops = &d.loops;
             let stock_t = d.stock.t;
+            // a relief follows the model's height until a depth is typed in
+            if d.ops[i].p.kind == "relief" && !d.ops[i].p.d_man {
+                let eff = putiacnc_core::toolpath::relief_depth(d, &d.ops[i].p);
+                if (d.ops[i].p.depth - eff).abs() > 1e-9 { d.ops[i].p.depth = eff; changed = true; }
+            }
+            let model_h = d.relief.as_ref().map(|r| r.zmax * r.scale);
             let o = &mut d.ops[i];
             egui::Frame::group(ui.style()).show(ui, |ui| {
                 ui.set_width(lw - 14.0);
@@ -735,9 +740,17 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         rlabel(ui, l1, "Depth");
-                        changed |= dv_w(ui, 48.0, &mut p.depth, 0.01, 1000.0, "");
+                        if dv_w(ui, 48.0, &mut p.depth, 0.01, 1000.0, "") { p.d_man = true; changed = true; }
                         ui.weak("mm");
-                        ui.weak("total, from the stock top");
+                        if p.d_man {
+                            if ui.small_button("↺").on_hover_text("Follow the model's height again").clicked() { p.d_man = false; changed = true; }
+                            ui.weak("typed in");
+                        } else {
+                            match model_h {
+                                Some(h) if h > stock_t + 1e-6 => { ui.weak(format!("model is {:.1} mm: capped by stock", h)); }
+                                _ => { ui.weak("the model's height"); }
+                            }
+                        }
                     });
                     let tools_ref: &[putiacnc_core::model::Tool] = &tools;
                     // one pick list for both steps; `flat_only` limits it to flat end mills

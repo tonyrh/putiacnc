@@ -23,7 +23,7 @@ fn project(rough: bool) -> putiacnc_core::ProjectData {
     let flat = d.tools.iter().find(|t| t.name.starts_with("3 mm flat")).unwrap().id.clone();
     let mut p = shapes::default_op_params(&ball);
     p.kind = "relief".into();
-    p.depth = 6.0;
+    p.depth = 6.0; p.d_man = true;
     p.pass_depth = Some(1.5);
     if rough { p.tool2 = Some(flat); }
     d.ops.push(Operation { id: 1, p });
@@ -93,6 +93,25 @@ fn relief_steps_can_be_switched_off_and_tuned() {
     let mut d = project(true);
     d.ops[0].p.r_leave = Some(0.8);
     assert!(generate(&d, Units::Metric).unwrap().gcode().contains("leaving 0.8 mm"));
+}
+
+#[test]
+fn relief_depth_follows_the_model_until_typed_in() {
+    let mut d = project(true);
+    d.ops[0].p.d_man = false;
+    d.ops[0].p.depth = 1.0; // ignored while not typed in
+    let h = d.relief.as_ref().map(|r| r.zmax * r.scale).unwrap();
+    assert!((putiacnc_core::toolpath::relief_depth(&d, &d.ops[0].p) - h).abs() < 1e-9);
+    // resizing the model changes the depth
+    d.relief.as_mut().unwrap().scale = 0.5;
+    assert!((putiacnc_core::toolpath::relief_depth(&d, &d.ops[0].p) - h / 2.0).abs() < 1e-9);
+    // a taller model than the stock is cut to the stock thickness
+    d.relief.as_mut().unwrap().scale = 5.0;
+    d.stock.t = 12.0;
+    assert_eq!(putiacnc_core::toolpath::relief_depth(&d, &d.ops[0].p), 12.0);
+    // a typed depth wins
+    d.ops[0].p.d_man = true; d.ops[0].p.depth = 3.0;
+    assert_eq!(putiacnc_core::toolpath::relief_depth(&d, &d.ops[0].p), 3.0);
 }
 
 /// Timing and size on a real model: PUTIA_STL=/path/model.stl cargo test --release -- --ignored real_model

@@ -516,13 +516,22 @@ fn emit_rings(e: &mut Em, rings: &[(Path, f64)], rev: bool, z0: f64, sz: f64, ho
 const RELIEF_LEAVE: f64 = 0.3;
 
 /// A 3D relief: the roughing tool clears the bulk in layers, the finishing tool follows the surface.
+/// How deep a relief operation cuts: what was typed in, or else the model's height at its current size
+/// (never more than the stock is thick).
+pub fn relief_depth(data: &ProjectData, p: &crate::model::OpParams) -> f64 {
+    match (&data.relief, p.d_man) {
+        (Some(r), false) => ((r.zmax * r.scale).max(0.1)).min(data.stock.t),
+        _ => p.depth,
+    }
+}
+
 fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, o: &Operation, k: usize, mach: bool, sz_init: f64) -> Result<(), String> {
     use crate::relief::{finish_lines, Field, Footprint, Rough};
     let pre = format!("Op {}: ", k + 1);
     let un = if e.imp { "in" } else { "mm" };
     let ku = e.ku;
     let Some(rel) = &data.relief else { return Err(format!("Operation {}: import a 3D model first (File menu, Import 3D Model)", k + 1)); };
-    let depth = o.p.depth;
+    let depth = relief_depth(data, &o.p);
     let tool_opt = data.tools.iter().find(|t| t.id == o.p.tool);
     let rough = if o.p.r_off { None } else { o.p.tool2.as_deref().and_then(|id| data.tools.iter().find(|t| t.id == id)) };
     if o.p.r_off && o.p.f_off { return Err(format!("Operation {}: roughing and finishing are both switched off, so there is nothing to cut", k + 1)); }

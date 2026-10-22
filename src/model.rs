@@ -157,6 +157,8 @@ pub struct OpParams {
     #[serde(default, rename = "tool2", skip_serializing_if = "Option::is_none")] pub tool2: Option<String>,
     /// Inlay plug: how much smaller the plug is than the pocket, measured sideways, in mm (the glue gap).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub fit: Option<f64>,
+    /// 3D relief: the depth was typed in; otherwise it follows the model's height (capped at the stock thickness).
+    #[serde(default, rename = "dMan", skip_serializing_if = "is_false")] pub d_man: bool,
     /// 3D relief: skip the roughing step.
     #[serde(default, rename = "rOff", skip_serializing_if = "is_false")] pub r_off: bool,
     /// 3D relief: skip the finishing step.
