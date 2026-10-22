@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Polygon, Inlay, Drill, Fillet, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
+pub enum Icon { Point, Polygon, Inlay, Drill, Fillet, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -63,6 +63,11 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
             }
         }
         Icon::Rect => { painter.rect_stroke(Rect::from_center_size(c, Vec2::new(20.0, 15.0) * s), 1.5 * s, st); }
+        Icon::Point => {
+            painter.circle_stroke(c, 5.0 * s, st);
+            line(vec![p(-10.0, 0.0), p(-3.0, 0.0)]); line(vec![p(3.0, 0.0), p(10.0, 0.0)]);
+            line(vec![p(0.0, -10.0), p(0.0, -3.0)]); line(vec![p(0.0, 3.0), p(0.0, 10.0)]);
+        }
         Icon::Polygon => line((0..=6).map(|k| { let t = k as f32 / 6.0 * std::f32::consts::TAU - std::f32::consts::FRAC_PI_2; p(10.0 * t.cos(), 10.0 * t.sin()) }).collect()),
         Icon::Ellipse => line((0..=40).map(|i| { let t = i as f32 / 40.0 * std::f32::consts::TAU; p(10.5 * t.cos(), 8.0 * t.sin()) }).collect()),
         Icon::Profile => {

@@ -10,7 +10,7 @@ fn to_i(v: f64) -> i64 { (v * S).round() as i64 }
 
 fn loop_from(pts: &[[f64; 2]], closed: bool, op: i64) -> LoopData {
     LoopData {
-        c: closed as u8, op, rc: None, cr: None, el: None,
+        c: closed as u8, op, rc: None, cr: None, el: None, pt: None,
         pts: pts.iter().flat_map(|p| [to_i(p[0]), to_i(p[1])]).collect(),
     }
 }
@@ -72,6 +72,16 @@ pub fn new_polygon(c: [f64; 2], r: f64, angle: f64, sides: usize, inner: Option<
     }
     Some(loop_from(&p, true, op))
 }
+
+/// A drill point: a tiny octagon (0.4 mm across) flagged as a point. Moves, copies and arrays like any shape.
+pub fn new_point(c: [f64; 2], op: i64) -> LoopData {
+    let p: Vec<[f64; 2]> = (0..8).map(|k| { let a = 2.0 * PI * k as f64 / 8.0; [c[0] + 0.2 * a.cos(), c[1] + 0.2 * a.sin()] }).collect();
+    let mut l = loop_from(&p, true, op);
+    l.pt = Some(1.0);
+    l
+}
+
+pub fn is_point(l: &LoopData) -> bool { l.pt.is_some() }
 
 pub fn new_circle(c: [f64; 2], r: f64, op: i64) -> LoopData {
     new_ellipse([c[0] - r, c[1] - r], [c[0] + r, c[1] + r], op)
@@ -233,6 +243,14 @@ pub fn scale_about(l: &mut LoopData, ax: f64, ay: f64, sx: f64, sy: f64) {
         }
     }
     if l.cr.is_some() && (sx - sy).abs() > 1e-9 { l.cr = None; }
+    // a point keeps its size: it only follows where its centre went
+    if l.pt.is_some() {
+        if let Some(b) = bbox(&l.clone()) {
+            let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
+            let op = l.op;
+            *l = new_point([cx, cy], op);
+        }
+    }
 }
 
 /// Change a rectangle's corner radius, keeping its bounding box.
@@ -456,7 +474,7 @@ pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
     let region = crate::clip::simplify_even_odd(&[l.path()]);
     let out = crate::clip::offset(&region, delta_mm * S, S * 0.01);
     crate::clip::clean(&out, S * 0.02).into_iter().filter(|p| p.len() > 2).map(|p| {
-        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
+        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
     }).collect()
 }
 
@@ -488,7 +506,7 @@ pub fn combine(shapes: &[&LoopData], op: BoolOp, swap: bool) -> Vec<LoopData> {
         }
     };
     let opid = list[0].op;
-    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
+    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
 }
 
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
@@ -658,6 +676,18 @@ mod tests {
         assert_eq!(&star.pts[0..2], &[5000, 15000]); // the first point is straight up
         assert!(new_polygon([0.0, 0.0], 0.0, 0.0, 6, None, 1).is_none());
         assert_eq!(new_polygon([0.0, 0.0], 5.0, 0.0, 1, None, 1).unwrap().pts.len(), 6); // at least a triangle
+    }
+
+    #[test]
+    fn points_are_shapes_that_keep_their_size() {
+        let mut p = new_point([10.0, 20.0], 3);
+        assert!(is_point(&p) && p.op == 3 && p.closed());
+        translate(&mut p, 5.0, 0.0);
+        let b = bbox(&p).unwrap();
+        assert!(((b[0] + b[2]) / 2.0 - 15.0).abs() < 1e-6);
+        scale_about(&mut p, 0.0, 0.0, 4.0, 4.0);
+        let b = bbox(&p).unwrap();
+        assert!(is_point(&p) && (b[2] - b[0]) < 0.5 && ((b[0] + b[2]) / 2.0 - 60.0).abs() < 1e-6);
     }
 
     #[test]

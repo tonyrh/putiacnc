@@ -148,6 +148,8 @@ pub struct LoopData {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub rc: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")] pub cr: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")] pub el: Option<f64>,
+    /// A drill point: a tiny shape that only the Drill operation uses (it drills at its centre).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub pt: Option<f64>,
     /// Flat list: X0, Y0, X1, Y1, ... in 1/1000 mm.
     pub pts: Vec<i64>,
 }

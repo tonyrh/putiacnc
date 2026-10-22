@@ -11,6 +11,7 @@ const LEFT: &[Section] = &[
         ("L", "Line / polyline"),
         ("R", "Rectangle (Shift: square)"),
         ("E", "Ellipse (Shift: circle)"),
+        ("D", "Drill point (click to place, stays active)"),
         ("P", "Polygon or star (Shift: point straight up)"),
         ("T", "Text"),
         ("Esc", "Cancel, deselect, back to Select"),

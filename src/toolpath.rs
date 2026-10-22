@@ -552,7 +552,12 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     for (k, o) in data.ops.iter().enumerate() {
         e.oi = k;
         let pre = format!("Op {}: ", k + 1);
-        let mine: Vec<&LoopData> = data.loops.iter().filter(|l| l.op == o.id).collect();
+        let mut mine: Vec<&LoopData> = data.loops.iter().filter(|l| l.op == o.id).collect();
+        if o.p.kind != "drill" {
+            let n = mine.len();
+            mine.retain(|l| !crate::shapes::is_point(l));
+            if mine.len() < n { notes.push(format!("{}{} drill point(s) skipped: only Drill operations use points.", pre, n - mine.len())); }
+        }
         if mine.is_empty() { notes.push(format!("Op {} has no shapes.", k + 1)); continue; }
         let tool = data.tools.iter().find(|t| t.id == o.p.tool)
             .ok_or_else(|| format!("Operation {}: choose a tool (Manage… to create one)", k + 1))?;
@@ -707,7 +712,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 let Some(b) = crate::shapes::bbox(l) else { continue };
                 holes.push([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
                 if (b[2] - b[0]).max(b[3] - b[1]) > dia * 1.1 + 1e-6 { wide += 1; }
-                if !crate::shapes::is_circle(l) { odd += 1; }
+                if !crate::shapes::is_circle(l) && !crate::shapes::is_point(l) { odd += 1; }
             }
             if wide > 0 { notes.push(format!("{}{} hole(s) are wider than the tool, so they will come out the tool's size (use Pocket or Profile inside to cut them to size).", pre, wide)); }
             if odd > 0 { notes.push(format!("{}{} shape(s) are not circles; drilled at their centre.", pre, odd)); }
@@ -881,6 +886,24 @@ mod tests {
         let bottom = o.moves.iter().map(|m| m.to[2]).fold(f64::MAX, f64::min);
         assert!((bottom + 6.0).abs() < 1e-9);
         assert!(o.gcode().contains("(Operation 1: drill"));
+    }
+
+    #[test]
+    fn drill_points_are_drilled_where_they_are_and_other_operations_skip_them() {
+        let mut d = drill_project(3.0, None);
+        d.loops.clear();
+        d.loops.push(crate::shapes::new_point([20.0, 20.0], 1));
+        d.loops.push(crate::shapes::new_point([40.0, 25.0], 1));
+        let o = generate(&d, Units::Metric).unwrap();
+        let mut plunges: Vec<[f64; 2]> = o.moves.iter().filter(|m| m.cut && m.to[2] < m.from[2]).map(|m| [m.to[0], m.to[1]]).collect();
+        plunges.dedup();
+        assert_eq!(plunges.len(), 2);
+        assert!((plunges[0][0] - 20.0).abs() < 1e-6 && (plunges[1][0] - 40.0).abs() < 1e-6);
+        assert!(!o.notes.iter().any(|n| n.contains("not circles")), "{:?}", o.notes);
+        // the same points under a pocket are ignored, with a note
+        d.ops[0].p.kind = "pocket".into();
+        let r = generate(&d, Units::Metric);
+        if let Ok(o) = r { assert!(o.notes.iter().any(|n| n.contains("drill point")), "{:?}", o.notes); }
     }
 
     #[test]

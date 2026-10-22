@@ -56,17 +56,17 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         set_mode(app, Mode::Text);
         return;
     }
-    let (v, l, r, e, pg, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
+    let (v, l, r, e, pg, dp, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
         (
-            free && i.key_pressed(Key::V), free && i.key_pressed(Key::L), free && i.key_pressed(Key::R), free && i.key_pressed(Key::E), free && i.key_pressed(Key::P),
+            free && i.key_pressed(Key::V), free && i.key_pressed(Key::L), free && i.key_pressed(Key::R), free && i.key_pressed(Key::E), free && i.key_pressed(Key::P), free && i.key_pressed(Key::D),
             free && (i.key_pressed(Key::Delete) || i.key_pressed(Key::Backspace)),
             i.key_pressed(Key::Escape), i.key_pressed(Key::Enter), free && i.key_pressed(Key::C),
             i.key_pressed(Key::ArrowUp), i.key_pressed(Key::ArrowDown), i.key_pressed(Key::ArrowLeft), i.key_pressed(Key::ArrowRight),
             i.modifiers.shift,
         )
     });
-    for (hit, m) in [(v, Mode::Select), (l, Mode::Line), (r, Mode::Rect), (e, Mode::Ellipse), (pg, Mode::Polygon)] {
+    for (hit, m) in [(v, Mode::Select), (l, Mode::Line), (r, Mode::Rect), (e, Mode::Ellipse), (pg, Mode::Polygon), (dp, Mode::Point)] {
         if hit { set_mode(app, m); }
     }
     if app.mode == Mode::Line && !app.poly.is_empty() {
@@ -134,7 +134,7 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         None => {}
         Some(Mode::Select) => {
             if resp.drag_started_by(prim) {
-                let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i)));
+                let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
                 if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.press_origin()), sel_bb) {
                     if let Some(h) = hit_handle(&view, b, ps) {
                         let w = view.s2w(ps);
@@ -227,6 +227,19 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
                 if let Some(w) = hover_w { app.text.pos = Some(app.snap(w)); app.text.open = true; app.text.focus = true; }
             }
         }
+        Some(Mode::Point) => {
+            if resp.clicked_by(prim) {
+                if let Some(w) = hover_w {
+                    // points stay in the tool, so a row of holes is a row of clicks
+                    let p = app.snap(w);
+                    let op = app.project.data.act;
+                    app.hist.record(&app.project.data);
+                    app.project.data.loops.push(shapes::new_point(p, op));
+                    app.sel.clear();
+                    app.touch();
+                }
+            }
+        }
         Some(Mode::Polygon) => {
             if resp.drag_started_by(prim) {
                 if let Some(w) = ctx.input(|i| i.pointer.press_origin()).map(|p| view.s2w(p)) {
@@ -283,7 +296,7 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
         else if matches!(app.drag, Drag::None) {
-            let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i)));
+            let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
             if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.latest_pos()), sel_bb) {
                 if let Some(h) = hit_handle(&view, b, ps) { ctx.set_cursor_icon(handle_cursor(h)); }
             }
@@ -331,6 +344,16 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         let opi = d.ops.iter().position(|o| o.id == l.op);
         let selected = app.sel.contains(&i);
         let col = if selected { th.shape_selected() } else { opi.map(|k| op_color(k, dark)).unwrap_or(th.shape_idle()) };
+        if shapes::is_point(l) {
+            if let Some(b) = shapes::bbox(l) {
+                let s = to_s([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
+                let st = Stroke::new(if selected { 2.5_f32 } else { 1.8_f32 }, col);
+                painter.circle_stroke(s, 4.0, st);
+                painter.line_segment([s - Vec2::new(8.0, 0.0), s + Vec2::new(8.0, 0.0)], st);
+                painter.line_segment([s - Vec2::new(0.0, 8.0), s + Vec2::new(0.0, 8.0)], st);
+            }
+            continue;
+        }
         let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
         if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
         painter.add(egui::Shape::line(pts, Stroke::new(if editing_nodes == Some(i) { 3.0_f32 } else if selected { 2.5_f32 } else { 1.8_f32 }, if editing_nodes == Some(i) { th.accent } else { col })));
@@ -338,7 +361,7 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))).filter(|_| editing_nodes.is_none()) {
         let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(4.0);
         painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.3)));
-        if app.mode == Mode::Select {
+        if app.mode == Mode::Select && handles_apply(app) {
             for h in 0..8 {
                 let hr = Rect::from_center_size(handle_screen(&view, b, h), Vec2::splat(9.0));
                 painter.rect_filled(hr, 2.0, th.view());
@@ -524,7 +547,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
             for (m, icon, tip) in [
                 (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
-                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Text, Icon::Text, "Text (T)"),
+                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Point, Icon::Point, "Drill point (D): click to place, use with a Drill operation"), (Mode::Text, Icon::Text, "Text (T)"),
             ] {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
@@ -579,6 +602,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
+        Mode::Point => "Click to place a drill point; keep clicking for more. Assign the points to a Drill operation. Esc finishes.",
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };
@@ -606,6 +630,11 @@ fn handle_screen(view: &View, b: [f64; 4], h: usize) -> Pos2 {
     let dx = match h { 0 | 6 | 7 => -4.0, 2 | 3 | 4 => 4.0, _ => 0.0 };
     let dy = match h { 0 | 1 | 2 => -4.0, 4 | 5 | 6 => 4.0, _ => 0.0 };
     p + Vec2::new(dx, dy)
+}
+
+/// Resize handles are for real shapes; a selection of only drill points has none (a point keeps its size).
+fn handles_apply(app: &App) -> bool {
+    app.sel.iter().any(|&i| app.project.data.loops.get(i).map_or(false, |l| !shapes::is_point(l)))
 }
 
 fn hit_handle(view: &View, b: [f64; 4], pos: Pos2) -> Option<usize> {
@@ -944,12 +973,12 @@ fn set_mode(app: &mut App, m: Mode) {
     app.node_edit = None;
     app.node_drag = NodeDrag::None;
     // the drawing tools start from a clean slate: nothing stays selected behind the new shape
-    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Text) { app.sel.clear(); }
+    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Point | Mode::Text) { app.sel.clear(); }
     if m == Mode::Node && app.sel.len() == 1 { let i = *app.sel.iter().next().unwrap(); enter_node_edit(app, i); }
 }
 
 fn enter_node_edit(app: &mut App, li: usize) {
-    if li >= app.project.data.loops.len() { return; }
+    if li >= app.project.data.loops.len() || shapes::is_point(&app.project.data.loops[li]) { return; }
     app.mode = Mode::Node;
     app.poly.clear();
     app.node_edit = Some(li);
@@ -985,7 +1014,7 @@ fn node_keys(ctx: &egui::Context, app: &mut App) {
     // other tool shortcuts leave point editing
     let tool = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
-        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::P, Mode::Polygon), (Key::T, Mode::Text)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
+        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::P, Mode::Polygon), (Key::D, Mode::Point), (Key::T, Mode::Text)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
     });
     if let Some(m) = tool { set_mode(app, m); return; }
     if del && !app.node_sel.is_empty() {

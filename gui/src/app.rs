@@ -5,7 +5,7 @@ use putiacnc_core::{generate, load_project, save_project, Output, ProjectData, P
 use std::collections::BTreeSet;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum Mode { Select, Node, Line, Rect, Ellipse, Polygon, Text }
+pub enum Mode { Select, Node, Line, Rect, Ellipse, Polygon, Point, Text }
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum RightTab { Ops, Gcode, Info }
@@ -276,7 +276,11 @@ impl App {
         if std::env::var_os("PUTIACNC_POLYGON").is_some() {
             a.poly_star = true;
             for l in [shapes::new_polygon([50.0, 75.0], 25.0, 1.5708, 6, None, 0), shapes::new_polygon([130.0, 75.0], 30.0, 1.5708, 5, Some(0.5), 0)].into_iter().flatten() { a.add_loop(l); }
-            a.mode = Mode::Polygon; a.sel.clear();
+            if std::env::var("PUTIACNC_POLYGON").map_or(false, |v| v == "point") {
+                for x in [30.0, 60.0, 90.0] { a.project.data.loops.push(shapes::new_point([x, 30.0], 0)); }
+                a.mode = Mode::Point;
+            } else { a.mode = Mode::Polygon; }
+            a.sel.clear();
         }
         if let Ok(s) = std::env::var("PUTIACNC_SHOW_TEXT") {
             a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");

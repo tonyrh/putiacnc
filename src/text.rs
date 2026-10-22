@@ -107,7 +107,7 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
             x += advance(ch);
         }
         out.extend(merge_overlaps(contours).into_iter().map(|c| LoopData {
-            c: 1, op, rc: None, cr: None, el: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
+            c: 1, op, rc: None, cr: None, el: None, pt: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
         }));
     }
     Ok(out)
