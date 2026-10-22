@@ -37,7 +37,8 @@ Features:
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks
   to fit, with a note if there is no room). Warns when the depth exceeds the stock thickness.
 - Rotate: click an already selected shape again to swap its resize handles for rotate handles (drag a corner; Shift snaps to 15°; the centre mark can be dragged to move the pivot), or type an angle in the Rotate field that floats above the shape. Manual holding tabs turn with their shape.
-- Imported drawings (SVG/DXF) are listed in the left panel with position and size fields, Fit to stock, rotate 90° either way, flip horizontally or vertically, and a Lock that stops them being moved, resized or flipped by accident.
+- Bitmap tracing: File → Import Bitmap (or drop a PNG, JPG or BMP on the window) opens a dialog with the picture and the traced outlines: threshold, invert, size in mm, a filter for specks and optional smoothing. The result is ordinary closed shapes (holes included) for Profile, Pocket, V-carve and the rest. It works best on logos and silhouettes. Tracing uses the `visioncortex` crate (MIT OR Apache-2.0) and `image` (MIT OR Apache-2.0).
+- Imported drawings (SVG/DXF, traced bitmaps) are listed in the left panel with position and size fields, Fit to stock, rotate 90° either way, flip horizontally or vertically, and a Lock that stops them being moved, resized or flipped by accident.
 - Rulers in mm along the top and left of the drawing area, counting from the XY zero you chose (the pointer and the selection are marked on them) and optional graduated X / Y axes along the stock edges; both are under Guides in the bottom bar.
 - A keyboard shortcuts reference (Help menu or F1).
 - Inlay: one button makes a pocket operation and a matching plug operation (a mirrored copy of the selection beside it), cut with a V-bit and a flat end mill; depth, tools and the glue gap are editable. The pocket and plug walls slope at the same angle, and the 3D preview shows both.
@@ -108,6 +109,7 @@ It turns a project into GRBL G-code; the output is checked against reference G-c
 | `src/clip.rs` | Safe wrapper around Clipper 6.4 (Clipper 6.4): even-odd union, round-join offset, cleaning, area. |
 | `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, drill, inlay pocket and plug, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
 | `src/svg.rs` | SVG import into closed and open shapes. |
+| `src/bitmap.rs` | Bitmap import: threshold, trace outlines and holes into closed shapes. |
 | `src/dxf.rs` | ASCII DXF import (lines, arcs, circles, polylines, splines, blocks). |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |

@@ -140,7 +140,7 @@ fn restore(cur: &mut ProjectData, mut snap: ProjectData, kind: Kind) {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DlgKind { Open, SaveAs, Import, Model, ExportGcode, LibExport, LibImport }
+pub enum DlgKind { Open, SaveAs, Import, Model, Bitmap, ExportGcode, LibExport, LibImport }
 
 pub struct Dlg { pub kind: DlgKind, rx: std::sync::mpsc::Receiver<Option<std::path::PathBuf>> }
 
@@ -172,6 +172,7 @@ pub struct App {
     pub offset_inward: bool,
     pub offset_keep: bool,
     pub text: crate::text::TextTool,
+    pub trace: crate::trace::TraceTool,
     /// Combine dialog: open, how, whether the originals stay and whether the last shape is the base.
     pub combine_open: bool,
     pub array: crate::array::ArrayTool,
@@ -263,7 +264,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
@@ -292,7 +293,7 @@ impl App {
             else if App::is_model(&p) { a.import_model(&p); }
             else { a.path = p.clone(); a.open(&p); }
         }
-        if let Ok(p) = std::env::var("PUTIACNC_IMPORT2") { if App::is_model(&p) { a.import_model(&p); } else { a.import_file(&p); } }
+        if let Ok(p) = std::env::var("PUTIACNC_IMPORT2") { if App::is_bitmap(&p) { a.import_bitmap(&p); } else if App::is_model(&p) { a.import_model(&p); } else { a.import_file(&p); } }
         if std::env::var_os("PUTIACNC_RELIEF").is_some() && a.project.data.relief.is_some() {
             let d = &mut a.project.data;
             let mut p = shapes::default_op_params(&d.tools[0].id);
@@ -429,7 +430,7 @@ impl App {
         if d.is_none() { return; }
         match kind {
             DlgKind::Open | DlgKind::SaveAs => self.prefs.dir_project = d,
-            DlgKind::Import | DlgKind::Model => self.prefs.dir_svg = d,
+            DlgKind::Import | DlgKind::Model | DlgKind::Bitmap => self.prefs.dir_svg = d,
             DlgKind::ExportGcode => self.prefs.dir_gcode = d,
             _ => {}
         }
@@ -498,6 +499,7 @@ impl App {
             }
             DlgKind::Import => self.import_file(&p.display().to_string()),
             DlgKind::Model => self.import_model(&p.display().to_string()),
+            DlgKind::Bitmap => self.import_bitmap(&p.display().to_string()),
             DlgKind::ExportGcode => {
                 if p.extension().is_none() { p.set_extension("nc"); }
                 if let Some(o) = &self.output {
@@ -551,6 +553,23 @@ impl App {
         });
     }
 
+    pub fn import_bitmap_dialog(&mut self) {
+        let dir = crate::prefs::existing_dir(&self.prefs.dir_svg).or_else(|| crate::prefs::existing_dir(&self.prefs.dir_project));
+        self.spawn_dialog(DlgKind::Bitmap, move || {
+            let mut dlg = rfd::FileDialog::new().add_filter("Pictures (PNG, JPG, BMP)", &["png", "jpg", "jpeg", "bmp"]).add_filter("All files", &["*"]);
+            if let Some(d) = dir { dlg = dlg.set_directory(d); }
+            dlg.pick_file()
+        });
+    }
+
+    pub fn is_bitmap(path: &str) -> bool { let p = path.to_lowercase(); p.ends_with(".png") || p.ends_with(".jpg") || p.ends_with(".jpeg") || p.ends_with(".bmp") }
+
+    /// Open the picture in the trace dialog; the shapes are placed when the user accepts.
+    pub fn import_bitmap(&mut self, path: &str) {
+        let st = (self.project.data.stock.w, self.project.data.stock.h);
+        self.trace.load(path, st);
+    }
+
     pub fn is_model(path: &str) -> bool { let p = path.to_lowercase(); p.ends_with(".stl") || p.ends_with(".obj") }
 
     /// Import an STL model as a height map for relief operations. It is centred on the stock, and scaled
@@ -595,6 +614,13 @@ impl App {
             Ok(i) => i,
             Err(e) => { self.error = Some(format!("Could not import {path}: {e}")); return; }
         };
+        let gname = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "drawing".into());
+        self.place_import(imp, gname);
+    }
+
+    /// Put imported shapes on the stock as one drawing: centred when it fits, otherwise its lower-left corner
+    /// at the stock origin. The shapes join the active operation and become the selection.
+    pub fn place_import(&mut self, imp: putiacnc_core::svg::Imported, gname: String) {
         if imp.loops.is_empty() { self.error = Some(imp.warnings.join(" ")); return; }
         let Some(b) = shapes::bbox_many(imp.loops.iter()) else { return };
         let (bw, bh) = (b[2] - b[0], b[3] - b[1]);
@@ -608,7 +634,6 @@ impl App {
         let op = self.project.data.act;
         let start = self.project.data.loops.len();
         let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
-        let gname = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "drawing".into());
         self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname, locked: false });
         for mut l in imp.loops {
             shapes::translate(&mut l, ox, oy);

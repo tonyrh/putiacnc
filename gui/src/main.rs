@@ -15,6 +15,7 @@ mod prefs;
 mod text;
 mod shortcuts;
 mod theme;
+mod trace;
 mod toolmgr;
 mod update;
 mod view3d;
@@ -72,6 +73,7 @@ impl eframe::App for App {
         if let Some(p) = dropped {
             if App::is_drawing(&p) { self.import_file(&p); }
             else if App::is_model(&p) { self.import_model(&p); }
+            else if App::is_bitmap(&p) { self.import_bitmap(&p); }
             else { self.request(app::Action::Open(p)); }
         }
 
@@ -133,6 +135,7 @@ impl eframe::App for App {
         array::dialog(ctx, self);
         corners::dialog(ctx, self);
         text::dialog(ctx, self);
+        trace::dialog(ctx, self);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }
 

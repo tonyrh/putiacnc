@@ -1,3 +1,4 @@
+pub mod bitmap;
 pub mod clip;
 pub mod machines;
 pub mod model;
