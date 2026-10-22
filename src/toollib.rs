@@ -13,6 +13,18 @@ pub fn shape_label(s: &str) -> &'static str {
     SHAPES.iter().find(|(k, _)| *k == s).map(|(_, l)| *l).unwrap_or("Flat end mill")
 }
 
+/// The kind of bit a shape belongs to, for grouping in the tool list: (sort order, group name).
+pub fn category(shape: &str) -> (usize, &'static str) {
+    match shape {
+        "flat" => (0, "Straight bits"),
+        "bull" => (1, "Corner-radius bits"),
+        "ball" | "taper" => (2, "Ball-nose & tapered bits"),
+        "vbit" | "engrave" => (3, "V-grooving & engraving bits"),
+        "arc" => (4, "Decorative & profile bits"),
+        _ => (0, "Straight bits"),
+    }
+}
+
 pub fn has_angle(shape: &str) -> bool { matches!(shape, "vbit" | "engrave" | "taper") }
 
 fn base36(mut n: u64) -> String {
@@ -422,5 +434,15 @@ mod tests {
         assert!((removal_rate(&t) - 800.0 * 3.175 * 0.4 * 1.0).abs() < 1e-9);
         // every tool of the default library is in a sensible range
         for t in seed_tools() { assert_eq!(load_level(&t), Some(Load::Good), "{}", t.name); }
+    }
+}
+
+#[cfg(test)]
+mod category_tests {
+    use super::*;
+    #[test]
+    fn every_shape_has_a_group() {
+        for (k, _) in SHAPES { assert!(category(k).0 <= 4, "{k}"); }
+        assert_ne!(category("vbit").1, category("flat").1);
     }
 }

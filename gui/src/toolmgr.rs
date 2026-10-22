@@ -182,7 +182,12 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
             let g: Vec<_> = lib.tools.iter().filter(|t| t.sys == sys).collect();
             if g.is_empty() { continue; }
             ui.label(egui::RichText::new(label).strong().weak());
-            for t in g {
+            let mut kinds: Vec<(usize, &str)> = g.iter().map(|t| toollib::category(&t.shape)).collect();
+            kinds.sort(); kinds.dedup();
+            for (ko, kname) in kinds {
+              ui.add_space(2.0);
+              ui.label(egui::RichText::new(kname).small().weak());
+              for t in g.iter().filter(|t| toollib::category(&t.shape).0 == ko).copied() {
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 30.0), Sense::click());
                 let sel = t.id == app.tool_sel;
                 let vis = ui.visuals().clone();
@@ -199,8 +204,9 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                 clip.galley(egui::pos2(rect.min.x + 36.0, rect.center().y - gn.size().y / 2.0), gn, col);
                 ui.painter().galley(egui::pos2(rect.max.x - gd.size().x - 8.0, rect.center().y - gd.size().y / 2.0), gd, col);
                 if resp.clicked() { pick = Some(t.id.clone()); }
+              }
             }
-            ui.add_space(4.0);
+            ui.add_space(6.0);
         }
     });
     let _ = dark;
