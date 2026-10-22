@@ -10,7 +10,7 @@ fn to_i(v: f64) -> i64 { (v * S).round() as i64 }
 
 fn loop_from(pts: &[[f64; 2]], closed: bool, op: i64) -> LoopData {
     LoopData {
-        c: closed as u8, op, rc: None, cr: None, el: None, pt: None,
+        c: closed as u8, op, rc: None, cr: None, el: None, pt: None, grp: None,
         pts: pts.iter().flat_map(|p| [to_i(p[0]), to_i(p[1])]).collect(),
     }
 }
@@ -501,7 +501,7 @@ pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
     let region = crate::clip::simplify_even_odd(&[l.path()]);
     let out = crate::clip::offset(&region, delta_mm * S, S * 0.01);
     crate::clip::clean(&out, S * 0.02).into_iter().filter(|p| p.len() > 2).map(|p| {
-        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
+        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
     }).collect()
 }
 
@@ -533,7 +533,7 @@ pub fn combine(shapes: &[&LoopData], op: BoolOp, swap: bool) -> Vec<LoopData> {
         }
     };
     let opid = list[0].op;
-    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
+    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, grp: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
 }
 
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
@@ -614,7 +614,7 @@ pub fn blank_project() -> ProjectFile {
         data: ProjectData {
             stock: Stock { w: 200.0, h: 150.0, t: 12.0, mat: "wood".into(), zr: "ll".into(), zm: "top".into(), zh: 0.0 },
             job: Job { safe: 5.0, air: false, numbered: false, post: String::new() },
-            machine: None, ops: vec![], tools: seed_tools(), loops: vec![], relief: None, gcode: String::new(), notes: String::new(), act: 0, oid: 0,
+            machine: None, ops: vec![], tools: seed_tools(), loops: vec![], groups: vec![], relief: None, gcode: String::new(), notes: String::new(), act: 0, oid: 0,
         },
     }
 }

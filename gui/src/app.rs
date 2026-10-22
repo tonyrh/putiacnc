@@ -588,9 +588,13 @@ impl App {
         self.hist.record(&self.project.data);
         let op = self.project.data.act;
         let start = self.project.data.loops.len();
+        let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
+        let gname = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "drawing".into());
+        self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname });
         for mut l in imp.loops {
             shapes::translate(&mut l, ox, oy);
             l.op = op;
+            l.grp = Some(gid);
             self.project.data.loops.push(l);
         }
         self.sel = (start..self.project.data.loops.len()).collect();
@@ -685,6 +689,7 @@ impl App {
         let mut new = Vec::new();
         for &i in &self.sel {
             let mut l = self.project.data.loops[i].clone();
+            l.grp = None; // a copy is its own shape, not part of the imported file
             shapes::translate(&mut l, off, -off);
             new.push(l);
         }

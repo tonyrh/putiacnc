@@ -30,6 +30,8 @@ pub struct ProjectData {
     #[serde(default)] pub ops: Vec<Operation>,
     #[serde(default)] pub tools: Vec<Tool>,
     #[serde(default)] pub loops: Vec<LoopData>,
+    /// Imported drawings, listed in the left panel (shapes point to them with `grp`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")] pub groups: Vec<ShapeGroup>,
     /// A 3D model (height map) for relief operations.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub relief: Option<Relief>,
     #[serde(default)] pub gcode: String,
@@ -39,6 +41,10 @@ pub struct ProjectData {
     #[serde(default)] pub act: i64,
     #[serde(default)] pub oid: i64,
 }
+
+/// A file of shapes imported as one unit.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ShapeGroup { pub id: i64, pub name: String }
 
 /// A 3D model reduced to a height map (seen from above), carved by relief operations.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -171,6 +177,8 @@ pub struct LoopData {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub el: Option<f64>,
     /// A drill point: a tiny shape that only the Drill operation uses (it drills at its centre).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub pt: Option<f64>,
+    /// The imported file this shape came from (see `ProjectData::groups`), so it can be sized and moved as one.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub grp: Option<i64>,
     /// Flat list: X0, Y0, X1, Y1, ... in 1/1000 mm.
     pub pts: Vec<i64>,
 }

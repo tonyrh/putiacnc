@@ -363,6 +363,98 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum GroupAct { Select, Delete }
+
+/// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
+fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool) -> Option<[f64; 4]> {
+    let (mut x, mut y, mut w, mut h) = (b[0], b[1], b[2] - b[0], b[3] - b[1]);
+    let keep_id = key.with("keep");
+    let mut keep = aspect_fixed || ui.data(|d| d.get_temp::<bool>(keep_id)).unwrap_or(true);
+    let (mut moved, mut sized) = (false, false);
+    let lw = tw(ui, "Width").max(tw(ui, "Height")) + 8.0;
+    egui::Grid::new(key.with("grid")).num_columns(5).spacing([6.0, 6.0]).show(ui, |ui| {
+        rlabel(ui, lw, "X"); moved |= dv_w(ui, 62.0, &mut x, -100000.0, 100000.0, ""); ui.weak("mm");
+        rlabel(ui, lw, "Y"); moved |= dv_w(ui, 62.0, &mut y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
+        rlabel(ui, lw, "Width");
+        if dv_w(ui, 62.0, &mut w, 0.1, 100000.0, "") { sized = true; if keep && b[2] - b[0] > 1e-9 { h = w * (b[3] - b[1]) / (b[2] - b[0]); } }
+        ui.weak("mm");
+        rlabel(ui, lw, "Height");
+        if dv_w(ui, 62.0, &mut h, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = h * (b[2] - b[0]) / (b[3] - b[1]); } }
+        ui.weak("mm"); ui.end_row();
+    });
+    if !aspect_fixed {
+        if ui.checkbox(&mut keep, "Keep proportions").changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
+    }
+    if moved || sized { Some([x, y, w, h]) } else { None }
+}
+
+/// The imported files (drawings and the 3D model) with their position and size, and what can be done with them.
+fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel: &std::collections::BTreeSet<usize>, act: &mut Option<(Option<i64>, GroupAct)>, changed: &mut bool) {
+    // forget drawings whose shapes are all gone
+    let alive: Vec<i64> = d.groups.iter().filter(|g| d.loops.iter().any(|l| l.grp == Some(g.id))).map(|g| g.id).collect();
+    if alive.len() != d.groups.len() { d.groups.retain(|g| alive.contains(&g.id)); }
+    if d.groups.is_empty() && d.relief.is_none() { return; }
+    ui.separator();
+    ui.heading("Imported");
+    let (sw, sh) = (d.stock.w, d.stock.h);
+    let groups = d.groups.clone();
+    for g in groups {
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_width(ui.available_width() - 4.0);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(&g.name).strong());
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if small_icon_button(ui, Icon::Trash, true, "Delete this drawing (all its shapes)").clicked() { *act = Some((Some(g.id), GroupAct::Delete)); }
+                    if ui.small_button("Select").on_hover_text("Select all the shapes of this drawing").clicked() { *act = Some((Some(g.id), GroupAct::Select)); }
+                });
+            });
+            let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
+            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, false) {
+                let new = [nb[0], nb[1], nb[0] + nb[2], nb[1] + nb[3]];
+                let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().filter(|l| l.grp == Some(g.id)).collect();
+                shapes::fit_to_bbox(&mut refs, b, new);
+                *changed = true;
+            }
+            if ui.small_button("Fit to stock").on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() {
+                let (w, h) = (b[2] - b[0], b[3] - b[1]);
+                let k = (sw / w).min(sh / h).min(1.0);
+                let (nw, nh) = (w * k, h * k);
+                let new = [(sw - nw) / 2.0, (sh - nh) / 2.0, (sw + nw) / 2.0, (sh + nh) / 2.0];
+                let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().filter(|l| l.grp == Some(g.id)).collect();
+                shapes::fit_to_bbox(&mut refs, b, new);
+                *changed = true;
+            }
+        });
+    }
+    if let Some(rel) = d.relief.as_mut() {
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_width(ui.available_width() - 4.0);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(format!("3D model: {}", rel.name)).strong());
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if small_icon_button(ui, Icon::Trash, true, "Remove the 3D model (its relief operations stop working)").clicked() { *act = Some((None, GroupAct::Delete)); }
+                });
+            });
+            let (w, h) = rel.size();
+            let b = [rel.x, rel.y, rel.x + w, rel.y + h];
+            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, true) {
+                rel.x = nb[0]; rel.y = nb[1];
+                rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
+                *changed = true;
+            }
+            ui.weak(format!("The model is {:.1} mm tall at this size; the carve depth is set in its 3D relief operation.", rel.zmax * rel.scale));
+            if ui.small_button("Fit to stock").on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() {
+                let k = (sw / (rel.nx as f64 * rel.res)).min(sh / (rel.ny as f64 * rel.res));
+                if rel.scale > k { rel.scale = k; }
+                let (w, h) = rel.size();
+                rel.x = (sw - w) / 2.0; rel.y = (sh - h) / 2.0;
+                *changed = true;
+            }
+        });
+    }
+}
+
 pub fn left_panel(ui: &mut Ui, app: &mut App) { project_panel(ui, app, false); }
 /// The Operations tab of the right panel.
 pub fn ops_panel(ui: &mut Ui, app: &mut App) { project_panel(ui, app, true); }
@@ -418,6 +510,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     };
     let mut mach_pick: Option<String> = None;
     let mut open_machines = false;
+    let mut group_act: Option<(Option<i64>, GroupAct)> = None;
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         let App { project, sel, collapsed, tab_edit, .. } = app;
         if !ops {
@@ -493,40 +586,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let lw = ui.available_width();
         // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
         let mut add_kind: Option<&str> = None;
-        // the imported 3D model: where it sits on the stock and how big it is
-        let mut drop_model = false;
-        if let Some(rel) = d.relief.as_mut() {
-            egui::Frame::group(ui.style()).show(ui, |ui| {
-                ui.set_width(lw - 14.0);
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(format!("3D model: {}", rel.name)).strong());
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if small_icon_button(ui, Icon::Trash, true, "Remove the 3D model (its relief operations stop working)").clicked() { drop_model = true; }
-                    });
-                });
-                let (mut w, h) = rel.size();
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 4.0;
-                    ui.label("X");
-                    changed |= dv_w(ui, 56.0, &mut rel.x, -10000.0, 10000.0, "");
-                    ui.add_space(6.0);
-                    ui.label("Y");
-                    changed |= dv_w(ui, 56.0, &mut rel.y, -10000.0, 10000.0, "");
-                    ui.weak("mm");
-                });
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 4.0;
-                    ui.label("Width");
-                    if dv_w(ui, 56.0, &mut w, 1.0, 10000.0, "") { rel.scale = (w / (rel.nx as f64 * rel.res)).max(0.001); changed = true; }
-                    ui.add_space(6.0);
-                    ui.label("Height");
-                    ui.weak(format!("{:.1} mm", h));
-                    ui.add_space(6.0);
-                    ui.weak(format!("model is {:.1} mm tall", rel.zmax * rel.scale));
-                });
-            });
-        }
-        if drop_model { d.relief = None; changed = true; }
         ui.horizontal(|ui| {
             for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
                 if icon_text_button(ui, icon, label, &format!("Add a {label} operation"), None).clicked() { add_kind = Some(kind); }
@@ -878,8 +937,21 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             });
         });
         ui.weak(&mach_area);
+        imports_section(ui, d, sel, &mut group_act, &mut changed);
         }
     });
+    if let Some((g, act)) = group_act {
+        match (g, act) {
+            (Some(id), GroupAct::Select) => { app.sel = app.project.data.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(id)).map(|(i, _)| i).collect(); app.mode = crate::app::Mode::Select; }
+            (Some(id), GroupAct::Delete) => {
+                app.sel = app.project.data.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(id)).map(|(i, _)| i).collect();
+                app.delete_selection();
+                app.project.data.groups.retain(|x| x.id != id);
+            }
+            (None, GroupAct::Delete) => { app.hist.record(&app.project.data); app.project.data.relief = None; app.touch(); }
+            _ => {}
+        }
+    }
     if open_tools { app.tools_open = true; }
     if open_machines { app.machines_open = true; }
     if let Some(id) = mach_pick { app.set_machine(&id); }

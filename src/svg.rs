@@ -65,7 +65,7 @@ fn add_path(path: &usvg::tiny_skia_path::Path, ctx: &mut Ctx) {
         if closed && pts.len() > 1 && dist(pts[0], *pts.last().unwrap()) < 1e-4 { pts.pop(); }
         if pts.len() < 2 || (closed && pts.len() < 3) { return; }
         loops.push(LoopData {
-            c: closed as u8, op: 0, rc: None, cr: None, el: None, pt: None,
+            c: closed as u8, op: 0, rc: None, cr: None, el: None, pt: None, grp: None,
             pts: pts.iter().flat_map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect(),
         });
     };
