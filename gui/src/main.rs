@@ -137,6 +137,7 @@ impl eframe::App for App {
 
         let busy = ctx.input(|i| i.pointer.any_down());
         if !busy && !ctx.wants_keyboard_input() { self.hist.open = false; }
+        if !busy { self.hist.classify(&self.project.data); }
         if self.gen_pending && !busy {
             self.regenerate();
             ctx.request_repaint();

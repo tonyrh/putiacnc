@@ -109,8 +109,7 @@ impl App {
         let tools = self.project.data.tools.clone();
         let n = toollib::reassign_missing(&mut self.project.data.ops, &tools);
         if n > 0 {
-            self.hist.undo.push(before);
-            self.hist.redo.clear();
+            self.hist.push(before);
             self.modified = true;
         }
         let first = tools[0].name.clone();

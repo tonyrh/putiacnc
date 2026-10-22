@@ -507,8 +507,8 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.painter().line_segment([sep.center_top() + Vec2::new(0.0, 6.0), sep.center_bottom() - Vec2::new(0.0, 6.0)], ui.visuals().widgets.noninteractive.bg_stroke);
             };
             divider(ui);
-            if icon_button(ui, Icon::Undo, false, !app.hist.undo.is_empty(), "Undo (Ctrl+Z)").clicked() { app.do_undo(); }
-            if icon_button(ui, Icon::Redo, false, !app.hist.redo.is_empty(), "Redo (Ctrl+Shift+Z)").clicked() { app.do_redo(); }
+            if icon_button(ui, Icon::Undo, false, app.hist.can_undo(crate::app::Scope::Drawing), "Undo drawing change (Ctrl+Z)").clicked() { app.do_undo(); }
+            if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Ctrl+Shift+Z)").clicked() { app.do_redo(); }
             divider(ui);
             if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
             if app.mode == Mode::Rect {
@@ -781,9 +781,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if let Some(id) = pick { for &i in sel.iter() { d.loops[i].op = id; } changed = true; }
     if changed {
         if !app.hist.open {
-            app.hist.undo.push(before);
-            if app.hist.undo.len() > 60 { app.hist.undo.remove(0); }
-            app.hist.redo.clear();
+            app.hist.push(before);
             app.hist.open = true;
         }
         app.touch();

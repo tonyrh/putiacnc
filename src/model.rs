@@ -14,7 +14,7 @@ fn d_wood() -> String { "wood".into() }
 fn d_climb() -> String { "climb".into() }
 fn d_outside() -> String { "outside".into() }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ProjectFile {
     pub app: String,
     #[serde(default)] pub v: u32,
@@ -22,7 +22,7 @@ pub struct ProjectFile {
     pub data: ProjectData,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ProjectData {
     pub stock: Stock,
     #[serde(default)] pub job: Job,
@@ -38,7 +38,7 @@ pub struct ProjectData {
     #[serde(default)] pub oid: i64,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Stock {
     pub w: f64, pub h: f64, pub t: f64,
     #[serde(default = "d_wood")] pub mat: String,
@@ -49,13 +49,13 @@ pub struct Stock {
     #[serde(default)] pub zh: f64,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct Job {
     #[serde(default)] pub safe: f64,
     #[serde(default)] pub air: bool,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Machine {
     #[serde(default)] pub id: String,
     #[serde(default)] pub name: String,
@@ -71,7 +71,7 @@ impl Default for Machine {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Tool {
     pub id: String,
     #[serde(default)] pub name: String,
@@ -87,10 +87,10 @@ pub struct Tool {
     #[serde(default)] pub notes: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Operation { pub id: i64, pub p: OpParams }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct OpParams {
     /// outside, inside, online, pocket, vcarve or drill.
     #[serde(rename = "type", default = "d_outside")] pub kind: String,
@@ -120,7 +120,7 @@ pub struct OpParams {
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
 pub struct TabPt { pub l: usize, pub u: f64, pub v: f64 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct LoopData {
     /// 1 = closed.
     #[serde(default)] pub c: u8,

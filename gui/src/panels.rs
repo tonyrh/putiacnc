@@ -109,8 +109,11 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
         ui.menu_button("Edit", |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
-            if item(ui, "Undo", "Ctrl+Z", !app.hist.undo.is_empty()) { app.do_undo(); }
-            if item(ui, "Redo", "Ctrl+Shift+Z", !app.hist.redo.is_empty()) { app.do_redo(); }
+            use crate::app::Scope;
+            if item(ui, "Undo drawing change", "Ctrl+Z", app.hist.can_undo(Scope::Drawing)) { app.do_undo(); }
+            if item(ui, "Redo drawing change", "Ctrl+Shift+Z", app.hist.can_redo(Scope::Drawing)) { app.do_redo(); }
+            if item(ui, "Undo project change", "", app.hist.can_undo(Scope::Project)) { app.do_undo_project(); }
+            if item(ui, "Redo project change", "", app.hist.can_redo(Scope::Project)) { app.do_redo_project(); }
             ui.separator();
             if item(ui, "Select all", "Ctrl+A", true) { app.sel = (0..app.project.data.loops.len()).collect(); }
             if item(ui, "Duplicate", "Ctrl+D", !app.sel.is_empty()) { app.duplicate_selection(); }
@@ -737,9 +740,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
 
     if changed || name_changed {
         if !app.hist.open {
-            app.hist.undo.push(before);
-            if app.hist.undo.len() > 60 { app.hist.undo.remove(0); }
-            app.hist.redo.clear();
+            app.hist.push(before);
             app.hist.open = true;
         }
         app.touch();

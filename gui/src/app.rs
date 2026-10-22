@@ -48,24 +48,89 @@ pub enum Drag {
     Resize { handle: usize, start_bbox: [f64; 4], grab: [f64; 2], orig: Vec<(usize, putiacnc_core::model::LoopData)> },
 }
 
-/// Undo/redo as whole-project snapshots (projects are small, this is simple and robust).
+/// Which part of the project an edit touched.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Kind { Drawing, Project, Both }
+
+/// What an undo or redo command works on: the drawing (the shapes) or everything else
+/// (stock, operations, tools, machine, notes).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Scope { Drawing, Project }
+
+impl Kind {
+    fn matches(self, s: Scope) -> bool { self == Kind::Both || (self == Kind::Drawing) == (s == Scope::Drawing) }
+}
+
+pub struct Entry {
+    /// The project as it was before the edit (undo) or after it (redo).
+    pub snap: ProjectData,
+    /// Worked out once the edit is finished; `None` while it may still be going on.
+    pub kind: Option<Kind>,
+}
+
+fn rest_eq(a: &ProjectData, b: &ProjectData) -> bool {
+    a.stock == b.stock && a.job == b.job && a.machine == b.machine && a.ops == b.ops && a.tools == b.tools
+        && a.notes == b.notes && a.act == b.act && a.oid == b.oid
+}
+
+/// Undo/redo as whole-project snapshots (projects are small, this is simple and robust). Each edit is
+/// classified as a change to the drawing, to the rest of the project, or both, so that the toolbar can
+/// undo drawing edits only while the Edit menu can also undo the other changes.
 #[derive(Default)]
 pub struct History {
-    pub undo: Vec<ProjectData>,
-    pub redo: Vec<ProjectData>,
+    pub undo: Vec<Entry>,
+    pub redo: Vec<Entry>,
     /// True while a continuous edit (a drag or a text edit) has already been recorded.
     pub open: bool,
 }
 
 impl History {
-    pub fn record(&mut self, d: &ProjectData) {
-        self.undo.push(d.clone());
+    pub fn record(&mut self, d: &ProjectData) { self.push(d.clone()); }
+    /// Record a snapshot taken before an edit.
+    pub fn push(&mut self, before: ProjectData) {
+        self.undo.push(Entry { snap: before, kind: None });
         if self.undo.len() > 60 { self.undo.remove(0); }
-        self.redo.clear();
     }
     /// Record once per continuous edit gesture.
     pub fn record_once(&mut self, d: &ProjectData) {
         if !self.open { self.record(d); self.open = true; }
+    }
+
+    /// Work out what each recorded edit changed by comparing it with the state after it. Edits that
+    /// changed nothing are dropped, and a new edit forgets the redo steps of the same scope.
+    pub fn classify(&mut self, cur: &ProjectData) {
+        if self.undo.iter().all(|e| e.kind.is_some()) { return; }
+        let n = self.undo.len();
+        let mut drop = vec![];
+        for i in 0..n {
+            if self.undo[i].kind.is_some() { continue; }
+            let after = if i + 1 < n { &self.undo[i + 1].snap } else { cur };
+            let before = &self.undo[i].snap;
+            let (d, p) = (before.loops != after.loops, !rest_eq(before, after));
+            match (d, p) {
+                (false, false) => drop.push(i),
+                (true, false) => self.undo[i].kind = Some(Kind::Drawing),
+                (false, true) => self.undo[i].kind = Some(Kind::Project),
+                (true, true) => self.undo[i].kind = Some(Kind::Both),
+            }
+            if let Some(k) = self.undo[i].kind {
+                self.redo.retain(|r| match k { Kind::Both => false, Kind::Drawing => r.kind == Some(Kind::Project), Kind::Project => r.kind == Some(Kind::Drawing) });
+            }
+        }
+        for i in drop.into_iter().rev() { self.undo.remove(i); }
+    }
+
+    fn find(list: &[Entry], s: Scope) -> Option<usize> { list.iter().rposition(|e| e.kind.map_or(true, |k| k.matches(s))) }
+    pub fn can_undo(&self, s: Scope) -> bool { Self::find(&self.undo, s).is_some() }
+    pub fn can_redo(&self, s: Scope) -> bool { Self::find(&self.redo, s).is_some() }
+}
+
+/// Put back the part of `snap` that an edit of this kind changed.
+fn restore(cur: &mut ProjectData, mut snap: ProjectData, kind: Kind) {
+    match kind {
+        Kind::Both => *cur = snap,
+        Kind::Drawing => cur.loops = snap.loops,
+        Kind::Project => { snap.loops = std::mem::take(&mut cur.loops); *cur = snap; }
     }
 }
 
@@ -497,20 +562,24 @@ impl App {
     /// Call after any change to the project.
     pub fn touch(&mut self) { self.modified = true; self.gen_pending = true; }
 
-    pub fn do_undo(&mut self) {
-        if let Some(prev) = self.hist.undo.pop() {
-            let cur = std::mem::replace(&mut self.project.data, prev);
-            self.hist.redo.push(cur);
-            self.after_history();
-        }
-    }
+    /// Undo the last change to the drawing.
+    pub fn do_undo(&mut self) { self.step(Scope::Drawing, true); }
+    pub fn do_redo(&mut self) { self.step(Scope::Drawing, false); }
+    /// Undo the last change that is not about the drawing (stock, operations, tools, machine, notes).
+    pub fn do_undo_project(&mut self) { self.step(Scope::Project, true); }
+    pub fn do_redo_project(&mut self) { self.step(Scope::Project, false); }
 
-    pub fn do_redo(&mut self) {
-        if let Some(next) = self.hist.redo.pop() {
-            let cur = std::mem::replace(&mut self.project.data, next);
-            self.hist.undo.push(cur);
-            self.after_history();
-        }
+    fn step(&mut self, s: Scope, undo: bool) {
+        self.hist.classify(&self.project.data);
+        let list = if undo { &mut self.hist.undo } else { &mut self.hist.redo };
+        let Some(i) = History::find(list, s) else { return };
+        let e = list.remove(i);
+        let kind = e.kind.unwrap_or(Kind::Both);
+        let before = self.project.data.clone();
+        restore(&mut self.project.data, e.snap, kind);
+        let other = if undo { &mut self.hist.redo } else { &mut self.hist.undo };
+        other.push(Entry { snap: before, kind: Some(kind) });
+        self.after_history();
     }
 
     fn after_history(&mut self) {
@@ -704,5 +773,69 @@ mod combine_app_tests {
         a.sel = [0, 2].into_iter().collect();
         assert!(a.combine_selection(shapes::BoolOp::Intersect, false, false).unwrap().contains("overlap"));
         assert_eq!(a.project.data.loops.len(), 4);
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+
+    #[test]
+    fn toolbar_undo_only_touches_the_drawing_and_the_menu_reaches_the_rest() {
+        let mut a = App::new(None);
+        a.project.data.loops.clear();
+        let w0 = a.project.data.stock.w;
+        // 1: draw a shape, 2: change the stock, 3: draw another shape
+        a.hist.record(&a.project.data);
+        a.project.data.loops.push(shapes::new_circle([20.0, 20.0], 4.0, 1));
+        a.hist.classify(&a.project.data);
+        a.hist.record(&a.project.data);
+        a.project.data.stock.w = w0 + 50.0;
+        a.hist.classify(&a.project.data);
+        a.hist.record(&a.project.data);
+        a.project.data.loops.push(shapes::new_circle([60.0, 20.0], 4.0, 1));
+        a.hist.classify(&a.project.data);
+
+        assert!(a.hist.can_undo(Scope::Drawing) && a.hist.can_undo(Scope::Project));
+        // the toolbar steps back over the stock change without touching it
+        a.do_undo();
+        assert_eq!(a.project.data.loops.len(), 1);
+        assert_eq!(a.project.data.stock.w, w0 + 50.0);
+        a.do_undo();
+        assert_eq!(a.project.data.loops.len(), 0);
+        assert_eq!(a.project.data.stock.w, w0 + 50.0);
+        assert!(!a.hist.can_undo(Scope::Drawing));
+        // the menu undoes the stock change; the drawing stays as it is now
+        assert!(a.hist.can_undo(Scope::Project));
+        a.do_undo_project();
+        assert_eq!(a.project.data.stock.w, w0);
+        assert_eq!(a.project.data.loops.len(), 0);
+        // redo both, independently
+        a.do_redo_project();
+        assert_eq!(a.project.data.stock.w, w0 + 50.0);
+        a.do_redo();
+        a.do_redo();
+        assert_eq!(a.project.data.loops.len(), 2);
+        assert!(!a.hist.can_redo(Scope::Drawing) && !a.hist.can_redo(Scope::Project));
+    }
+
+    #[test]
+    fn a_new_drawing_edit_keeps_the_project_redo() {
+        let mut a = App::new(None);
+        a.project.data.loops.clear();
+        let w0 = a.project.data.stock.w;
+        a.hist.record(&a.project.data);
+        a.project.data.stock.w = w0 + 10.0;
+        a.hist.classify(&a.project.data);
+        a.do_undo_project();
+        assert!(a.hist.can_redo(Scope::Project));
+        a.hist.record(&a.project.data);
+        a.project.data.loops.push(shapes::new_circle([20.0, 20.0], 4.0, 1));
+        a.hist.classify(&a.project.data);
+        assert!(a.hist.can_redo(Scope::Project));
+        // an edit that changes nothing leaves no step behind
+        a.hist.record(&a.project.data);
+        a.hist.classify(&a.project.data);
+        assert_eq!(a.hist.undo.len(), 1);
     }
 }
