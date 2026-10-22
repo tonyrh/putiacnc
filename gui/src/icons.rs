@@ -206,7 +206,9 @@ pub fn icon_text_button(ui: &mut Ui, icon: Icon, text: &str, tip: &str, width: O
 
 /// Side view of a cutter (shank + flutes), drawn like the browser app's tool picture.
 /// `rect` is the drawing box; the artwork is laid out on a 48 x 72 grid.
-pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64, col: Color32) {
+///
+/// `tip` is the tip radius as a fraction of the bit's radius (0 = sharp); it rounds the point of V-bits and tapers.
+pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64, tip: f64, col: Color32) {
     let s = (rect.width() / 48.0).min(rect.height() / 72.0);
     let ox = rect.center().x - 24.0 * s;
     let oy = rect.center().y - 36.0 * s;
@@ -221,16 +223,35 @@ pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64
         "ball" => { let mut v = vec![p(14.0, 22.0), p(14.0, 46.0)]; v.extend(arc(24.0, 46.0, 10.0, pi, 0.0)); v.push(p(34.0, 22.0)); v }
         "bull" => vec![p(14.0, 22.0), p(14.0, 52.0), p(15.2, 55.0), p(18.0, 56.0), p(30.0, 56.0), p(32.8, 55.0), p(34.0, 52.0), p(34.0, 22.0)],
         "vbit" => {
-            let hw = (40.0 * t).min(10.0); let h = hw / t; let y0 = 66.0 - h; sk = sk.min(hw * 0.8);
-            vec![p(24.0 - hw, 22.0), p(24.0 - hw, y0), p(24.0, 66.0), p(24.0 + hw, y0), p(24.0 + hw, 22.0)]
+            let hw = (40.0 * t).min(10.0);
+            let (ca, sa) = (1.0 / (1.0 + t * t).sqrt(), t / (1.0 + t * t).sqrt());
+            // rounded point: a circle touching both sides, kept small enough to stay inside the picture
+            let mut rg = (tip.max(0.0) as f32 * hw).min(hw * 0.9);
+            if sa < 0.999 { rg = rg.min(4.0 / (1.0 / sa - 1.0)); }
+            sk = sk.min(hw * 0.8);
+            if rg < 0.4 {
+                let h = hw / t; let y0 = 66.0 - h;
+                vec![p(24.0 - hw, 22.0), p(24.0 - hw, y0), p(24.0, 66.0), p(24.0 + hw, y0), p(24.0 + hw, 22.0)]
+            } else {
+                let av = 66.0 + rg / sa - rg; // where the sides would meet
+                let (h, cy) = (hw / t, av - rg / sa);
+                let y0 = av - h;
+                let lim = pi / 2.0 - sa.asin();
+                let mut v = vec![p(24.0 - hw, 22.0), p(24.0 - hw, y0)];
+                v.extend((0..=12).map(|k| { let f = -lim + 2.0 * lim * k as f32 / 12.0; p(24.0 + rg * f.sin(), cy + rg * f.cos()) }));
+                v.push(p(24.0 + hw, y0)); v.push(p(24.0 + hw, 22.0)); let _ = ca; v
+            }
         }
         "engrave" => {
             let hw = (36.0 * t + 3.0).clamp(3.6, 10.0); let h = (hw - 3.0) / t; let y0 = 62.0 - h; sk = sk.min(hw * 0.8);
             vec![p(24.0 - hw, 22.0), p(24.0 - hw, y0), p(21.0, 62.0), p(27.0, 62.0), p(24.0 + hw, y0), p(24.0 + hw, 22.0)]
         }
         "taper" => {
-            let hw = (34.0 * t + 3.0).clamp(3.6, 10.0); let h = (hw - 3.0) / t; let yb = (22.0 + h).min(58.0); sk = sk.min(hw * 0.8);
-            let mut v = vec![p(24.0 - hw, 22.0), p(21.0, yb)]; v.extend(arc(24.0, yb, 3.0, pi, 0.0)); v.push(p(24.0 + hw, 22.0)); v
+            let hw = (34.0 * t + 3.0).clamp(3.6, 10.0);
+            // the ball at the tip grows with the tip radius
+            let rg = (tip.max(0.0) as f32 * hw).clamp(1.5, hw * 0.9);
+            let h = (hw - rg) / t; let yb = (22.0 + h).min(58.0); sk = sk.min(hw * 0.8);
+            let mut v = vec![p(24.0 - hw, 22.0), p(24.0 - rg, yb)]; v.extend(arc(24.0, yb, rg, pi, 0.0)); v.push(p(24.0 + hw, 22.0)); v
         }
         _ => vec![p(14.0, 22.0), p(14.0, 56.0), p(34.0, 56.0), p(34.0, 22.0)],
     };
