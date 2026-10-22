@@ -173,6 +173,7 @@ pub struct App {
     pub offset_keep: bool,
     pub text: crate::text::TextTool,
     pub trace: crate::trace::TraceTool,
+    pub model3d: crate::model3d::ModelTool,
     /// Combine dialog: open, how, whether the originals stay and whether the last shape is the base.
     pub combine_open: bool,
     pub array: crate::array::ArrayTool,
@@ -264,7 +265,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
@@ -407,6 +408,8 @@ impl App {
         s.mach_len_in = Some(self.mach_len_in);
         s.mach_speed_idx = Some(self.mach_speed_idx);
         if let Some(o) = self.trace.remember.clone() { s.trace = Some(o); }
+        if let Some(o) = self.model3d.remember_obj { s.model_orient_obj = Some(o); }
+        if let Some(o) = self.model3d.remember_stl { s.model_orient_stl = Some(o); }
         let (inner, outer, maximized) = ctx.input(|i| { let v = i.viewport(); (v.inner_rect, v.outer_rect, v.maximized.unwrap_or(false)) });
         if let Some(r) = inner {
             let mut w = s.window.clone().unwrap_or_default();
@@ -577,13 +580,12 @@ impl App {
     /// Import an STL model as a height map for relief operations. It is centred on the stock, and scaled
     /// down (keeping its proportions) when it is bigger than the stock.
     pub fn import_model(&mut self, path: &str) {
-        let bytes = match std::fs::read(path) { Ok(b) => b, Err(e) => { self.error = Some(format!("Could not read {path}: {e}")); return; } };
-        let name = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "model".into());
-        // about 600 000 height-map cells is plenty of detail for a router
-        let rel = match putiacnc_core::model::Relief::from_stl_auto(&bytes, &name, 600_000) {
-            Ok(r) => r,
-            Err(e) => { self.error = Some(format!("Could not import {path}: {e}")); return; }
-        };
+        let saved = if path.to_lowercase().ends_with(".obj") { self.prefs.model_orient_obj } else { self.prefs.model_orient_stl };
+        self.model3d.load(path, saved);
+    }
+
+    /// Put a height map on the stock, centred, and scaled down (keeping its proportions) when it is bigger than the stock.
+    pub fn place_relief(&mut self, rel: putiacnc_core::model::Relief) {
         let mut rel = rel;
         self.hist.record(&self.project.data);
         let (mw, mh) = rel.size();

@@ -104,14 +104,68 @@ fn parse_mesh(b: &[u8]) -> Result<Vec<Tri>, String> {
     if looks_like_obj(b) { parse_obj(b) } else { parse_stl(b) }
 }
 
+/// Which of the model's axes points up (towards the cutter).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
+pub enum Up { #[default] Z, Y, X }
+
+/// How a model is turned before it is reduced to a height map seen from above.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
+#[serde(default)]
+pub struct Orient {
+    pub up: Up,
+    /// Upside down: the model's top becomes the bottom (a mould of it, or a model built from below).
+    pub flip: bool,
+}
+
+/// A model read from an STL or OBJ file: triangles, in the file's own axes.
+pub struct Mesh { tris: Vec<Tri> }
+
+impl Mesh {
+    pub fn parse(bytes: &[u8]) -> Result<Mesh, String> {
+        let tris = parse_mesh(bytes)?;
+        if tris.is_empty() { return Err("The model has no triangles.".into()); }
+        Ok(Mesh { tris })
+    }
+
+    /// The triangles turned so that `o.up` is Z (a proper rotation, so the model is not mirrored).
+    fn turned(&self, o: Orient) -> Vec<Tri> {
+        let f = |v: [f32; 3]| -> [f32; 3] {
+            // each case is a rotation: Y up = a quarter turn about X, X up = a quarter turn about Y
+            let r = match o.up { Up::Z => v, Up::Y => [v[0], -v[2], v[1]], Up::X => [v[1], v[2], v[0]] };
+            if o.flip { [r[0], -r[1], -r[2]] } else { r }
+        };
+        self.tris.iter().map(|t| [f(t[0]), f(t[1]), f(t[2])]).collect()
+    }
+
+    /// Size in mm along the final X, Y and Z (up).
+    pub fn size(&self, o: Orient) -> [f64; 3] {
+        let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
+        for t in self.turned(o) { for v in t { for k in 0..3 { lo[k] = lo[k].min(v[k]); hi[k] = hi[k].max(v[k]); } } }
+        [(hi[0] - lo[0]) as f64, (hi[1] - lo[1]) as f64, (hi[2] - lo[2]) as f64]
+    }
+
+    /// A height map of about `max_cells` cells (never finer than 0.25 mm per cell).
+    pub fn relief(&self, name: &str, max_cells: usize, o: Orient) -> Result<Relief, String> {
+        let tris = self.turned(o);
+        let (mut lo, mut hi) = ([f32::MAX; 2], [f32::MIN; 2]);
+        for t in &tris { for v in t { for k in 0..2 { lo[k] = lo[k].min(v[k]); hi[k] = hi[k].max(v[k]); } } }
+        let area = ((hi[0] - lo[0]) as f64 * (hi[1] - lo[1]) as f64).max(1e-6);
+        let res = (area / max_cells.max(1000) as f64).sqrt().max(0.25);
+        Relief::from_tris(&tris, name, (res * 100.0).round() / 100.0)
+    }
+}
+
 impl Relief {
     /// Reduce an STL model (binary or ASCII) to a height map seen from above, `res` mm per cell.
     /// The lowest point of the model is height 0.
     pub fn from_stl(bytes: &[u8], name: &str, res: f64) -> Result<Relief, String> {
-        let tris = parse_mesh(bytes)?;
+        Relief::from_tris(&parse_mesh(bytes)?, name, res)
+    }
+
+    fn from_tris(tris: &[Tri], name: &str, res: f64) -> Result<Relief, String> {
         if tris.is_empty() { return Err("The STL file has no triangles.".into()); }
         let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
-        for t in &tris { for v in t { for k in 0..3 {
+        for t in tris { for v in t { for k in 0..3 {
             if !v[k].is_finite() { return Err("The STL file contains invalid numbers.".into()); }
             lo[k] = lo[k].min(v[k]); hi[k] = hi[k].max(v[k]);
         } } }
@@ -122,7 +176,7 @@ impl Relief {
         if nx * ny > 6_000_000 { return Err("The height map would be too large; use a coarser resolution.".into()); }
         let mut g = vec![0f32; nx * ny];
         let (rx, ry) = (res as f32, res as f32);
-        for t in &tris {
+        for t in tris {
             let p: Vec<[f32; 3]> = t.iter().map(|v| [(v[0] - lo[0]) / rx, (v[1] - lo[1]) / ry, v[2] - lo[2]]).collect();
             let area = (p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[2][0] - p[0][0]) * (p[1][1] - p[0][1]);
             if area.abs() < 1e-12 { continue; }
@@ -149,12 +203,7 @@ impl Relief {
 
     /// Like `from_stl`, with the resolution chosen so the height map has about `max_cells` cells (never finer than 0.25 mm).
     pub fn from_stl_auto(bytes: &[u8], name: &str, max_cells: usize) -> Result<Relief, String> {
-        let tris = parse_mesh(bytes)?;
-        let (mut lo, mut hi) = ([f32::MAX; 2], [f32::MIN; 2]);
-        for t in &tris { for v in t { for k in 0..2 { lo[k] = lo[k].min(v[k]); hi[k] = hi[k].max(v[k]); } } }
-        let area = ((hi[0] - lo[0]) as f64 * (hi[1] - lo[1]) as f64).max(1e-6);
-        let res = (area / max_cells.max(1000) as f64).sqrt().max(0.25);
-        Relief::from_stl(bytes, name, (res * 100.0).round() / 100.0)
+        Mesh::parse(bytes)?.relief(name, max_cells, Orient::default())
     }
 
     /// Model size on the stock, mm.
@@ -382,6 +431,26 @@ mod tests {
         let (a, b) = (r.heights(), s.heights());
         assert!(a.iter().zip(&b).all(|(x, y)| (x - y).abs() < 0.02));
         assert!(Relief::from_stl(b"v 0 0 0\nf 1 2 3\n", "x", 1.0).is_err());
+    }
+
+    #[test]
+    fn the_up_axis_decides_what_is_the_height() {
+        // the pyramid lying on its side: its peak points along +Y in the file (x 20 wide, y 10 high, z 20 deep)
+        let obj = b"v 0 0 0\nv 20 0 0\nv 20 0 -20\nv 0 0 -20\nv 10 10 -10\nf 1 2 5\nf 2 3 5\nf 3 4 5\nf 4 1 5\nf 1 4 3\nf 1 3 2\n";
+        let m = Mesh::parse(obj).unwrap();
+        let s = m.size(Orient { up: Up::Y, flip: false });
+        assert!((s[0] - 20.0).abs() < 1e-4 && (s[1] - 20.0).abs() < 1e-4 && (s[2] - 10.0).abs() < 1e-4, "{s:?}");
+        let r = m.relief("p", 4000, Orient { up: Up::Y, flip: false }).unwrap();
+        assert!((r.zmax - 10.0).abs() < 1e-4);
+        let h = r.heights();
+        assert!(h[(r.ny / 2) * r.nx + r.nx / 2] > 0.9 && h[0] < 0.2, "peak in the middle, base at the corners");
+        // with Z up the same file is a flat sheet 10 high in Y: 20 x 10 x 20, a wall, not a pyramid
+        let z = m.size(Orient::default());
+        assert!((z[2] - 20.0).abs() < 1e-4, "{z:?}");
+        // seen from the other side the solid's flat base is the top: a slab, as high in the corners as in the middle
+        let f = m.relief("p", 4000, Orient { up: Up::Y, flip: true }).unwrap();
+        let hf = f.heights();
+        assert!(hf[(f.ny / 2) * f.nx + f.nx / 2] > 0.9 && hf[0] > 0.9, "{} {}", hf[(f.ny / 2) * f.nx + f.nx / 2], hf[0]);
     }
 
     #[test]

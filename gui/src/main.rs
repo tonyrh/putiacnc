@@ -15,6 +15,7 @@ mod prefs;
 mod text;
 mod shortcuts;
 mod theme;
+mod model3d;
 mod trace;
 mod toolmgr;
 mod update;
@@ -136,6 +137,7 @@ impl eframe::App for App {
         corners::dialog(ctx, self);
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
+        model3d::dialog(ctx, self);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }
 

@@ -39,6 +39,9 @@ pub struct Settings {
     pub dir_gcode: Option<String>,
     /// The last settings of the bitmap trace dialog (the width is not kept: it depends on the picture and the stock).
     pub trace: Option<putiacnc_core::bitmap::Opts>,
+    /// Which way is up when importing a 3D model, per file type.
+    pub model_orient_obj: Option<putiacnc_core::relief::Orient>,
+    pub model_orient_stl: Option<putiacnc_core::relief::Orient>,
     pub recent: Vec<String>,
 }
 
