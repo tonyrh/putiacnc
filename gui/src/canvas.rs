@@ -970,9 +970,9 @@ fn handle_screen(view: &View, b: [f64; 4], h: usize) -> Pos2 {
     p + Vec2::new(dx, dy)
 }
 
-/// Resize handles are for real shapes; a selection of only drill points has none (a point keeps its size).
+/// Resize handles are for real shapes and never for a locked drawing; a selection of only drill points has none (a point keeps its size).
 fn handles_apply(app: &App) -> bool {
-    app.sel.iter().any(|&i| app.project.data.loops.get(i).map_or(false, |l| !shapes::is_point(l)))
+    !app.sel_locked() && app.sel.iter().any(|&i| app.project.data.loops.get(i).map_or(false, |l| !shapes::is_point(l)))
 }
 
 fn hit_handle(view: &View, b: [f64; 4], pos: Pos2) -> Option<usize> {
