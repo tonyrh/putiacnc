@@ -76,6 +76,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     if esc {
         if !app.poly.is_empty() { app.poly.clear(); }
         else if !matches!(app.drag, Drag::None) { app.drag = Drag::None; }
+        else if app.rotate_mode { app.rotate_mode = false; app.rot_pivot = None; } // leaves rotate handles, keeps the selection
         else if !app.sel.is_empty() { app.sel.clear(); }
         else { app.mode = Mode::Select; }
     }
@@ -115,9 +116,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             app.scale = ns;
         }
     }
-    // the rotate handles belong to one selection; Esc or a different selection ends them
+    // the rotate handles belong to one selection; a different selection ends them (Esc is handled with the other keys)
     if app.sel != app.rot_sel { app.rotate_mode = false; app.rot_pivot = None; app.rot_sel = app.sel.clone(); }
-    if app.rotate_mode && ctx.input(|i| i.key_pressed(Key::Escape)) && !ctx.wants_keyboard_input() { app.rotate_mode = false; app.rot_pivot = None; }
     if app.mode != Mode::Select { app.rotate_mode = false; }
     let view = View { scale: app.scale, offset: app.offset, origin: rect.min };
     let pointer_w = ctx.input(|i| i.pointer.latest_pos()).map(|p| view.s2w(p));
