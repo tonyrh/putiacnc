@@ -81,6 +81,16 @@ pub fn new_point(c: [f64; 2], op: i64) -> LoopData {
     l
 }
 
+/// `n` drill points evenly spaced on a circle of radius `r` around `c`; the first at `angle` (radians).
+pub fn bolt_circle(c: [f64; 2], r: f64, angle: f64, n: usize, op: i64) -> Vec<LoopData> {
+    let n = n.clamp(1, 200);
+    if r < 1e-6 { return vec![]; }
+    (0..n).map(|k| {
+        let a = angle + 2.0 * PI * k as f64 / n as f64;
+        new_point([c[0] + r * a.cos(), c[1] + r * a.sin()], op)
+    }).collect()
+}
+
 pub fn is_point(l: &LoopData) -> bool { l.pt.is_some() }
 
 pub fn new_circle(c: [f64; 2], r: f64, op: i64) -> LoopData {
@@ -688,6 +698,17 @@ mod tests {
         scale_about(&mut p, 0.0, 0.0, 4.0, 4.0);
         let b = bbox(&p).unwrap();
         assert!(is_point(&p) && (b[2] - b[0]) < 0.5 && ((b[0] + b[2]) / 2.0 - 60.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn bolt_circle_spaces_points_evenly() {
+        let v = bolt_circle([50.0, 50.0], 20.0, 0.0, 4, 2);
+        assert_eq!(v.len(), 4);
+        assert!(v.iter().all(|l| is_point(l) && l.op == 2));
+        let cs: Vec<[f64; 2]> = v.iter().map(|l| { let b = bbox(l).unwrap(); [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0] }).collect();
+        assert!((cs[0][0] - 70.0).abs() < 1e-3 && (cs[0][1] - 50.0).abs() < 1e-3);
+        assert!((cs[1][0] - 50.0).abs() < 1e-3 && (cs[1][1] - 70.0).abs() < 1e-3);
+        assert!(bolt_circle([0.0, 0.0], 0.0, 0.0, 4, 0).is_empty());
     }
 
     #[test]

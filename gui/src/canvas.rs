@@ -228,7 +228,27 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
             }
         }
         Some(Mode::Point) => {
-            if resp.clicked_by(prim) {
+            if app.point_ring {
+                // bolt circle: drag from the centre; the first hole follows the pointer
+                if resp.drag_started_by(prim) {
+                    if let Some(w) = ctx.input(|i| i.pointer.press_origin()).map(|p| view.s2w(p)) {
+                        app.drag = Drag::Draw { start: app.snap(w) };
+                    }
+                }
+                if resp.drag_stopped_by(prim) {
+                    if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
+                        let op = app.project.data.act;
+                        let v = ring_from_drag(app, *start, app.snap(cur), shift, op);
+                        if !v.is_empty() {
+                            app.hist.record(&app.project.data);
+                            app.project.data.loops.extend(v);
+                            app.sel.clear();
+                            app.touch();
+                        }
+                    }
+                    app.drag = Drag::None;
+                }
+            } else if resp.clicked_by(prim) {
                 if let Some(w) = hover_w {
                     // points stay in the tool, so a row of holes is a row of clicks
                     let p = app.snap(w);
@@ -462,7 +482,20 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
         let a = *start;
         let b = draw_end(app, a, app.snap(cur), shift);
-        if app.mode == Mode::Polygon {
+        if app.mode == Mode::Point {
+            let v = ring_from_drag(app, a, app.snap(cur), shift, 0);
+            for l in &v {
+                if let Some(bb) = shapes::bbox(l) {
+                    let s = to_s([(bb[0] + bb[2]) / 2.0, (bb[1] + bb[3]) / 2.0]);
+                    let st = Stroke::new(2.0_f32, prev_col);
+                    painter.circle_stroke(s, 4.0, st);
+                    painter.line_segment([s - Vec2::new(8.0, 0.0), s + Vec2::new(8.0, 0.0)], st);
+                    painter.line_segment([s - Vec2::new(0.0, 8.0), s + Vec2::new(0.0, 8.0)], st);
+                }
+            }
+            painter.circle_stroke(to_s(a), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt() as f32 * app.scale, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
+            hud = Some(format!("{} holes, radius {:.2} mm", v.len(), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
+        } else if app.mode == Mode::Polygon {
             if let Some(l) = poly_from_drag(app, a, app.snap(cur), shift, 0) {
                 let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
                 if let Some(f) = pts.first().copied() { pts.push(f); }
@@ -528,6 +561,14 @@ fn poly_from_drag(app: &App, centre: [f64; 2], to: [f64; 2], shift: bool, op: i6
     shapes::new_polygon(centre, r, angle, app.poly_sides.round() as usize, inner, op)
 }
 
+/// The ring of drill points dragged out from its centre (first hole at the pointer, Shift = straight up).
+fn ring_from_drag(app: &App, centre: [f64; 2], to: [f64; 2], shift: bool, op: i64) -> Vec<putiacnc_core::model::LoopData> {
+    let (dx, dy) = (to[0] - centre[0], to[1] - centre[1]);
+    let r = (dx * dx + dy * dy).sqrt();
+    let angle = if shift { std::f64::consts::FRAC_PI_2 } else { dy.atan2(dx) };
+    shapes::bolt_circle(centre, r, angle, app.point_count.round() as usize, op)
+}
+
 /// Second corner of a rectangle/ellipse drag; Shift forces a square (circle).
 fn draw_end(app: &App, a: [f64; 2], b: [f64; 2], shift: bool) -> [f64; 2] {
     if (app.mode == Mode::Ellipse || app.mode == Mode::Rect) && shift {
@@ -566,6 +607,17 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Edit menu: redo anything)").clicked() { app.do_redo_drawing(); }
             divider(ui);
             if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
+            if app.mode == Mode::Point {
+                divider(ui);
+                if ui.selectable_label(!app.point_ring, "Point").clicked() { app.point_ring = false; }
+                if ui.selectable_label(app.point_ring, "Bolt circle").clicked() { app.point_ring = true; }
+                if app.point_ring {
+                    ui.add_space(6.0);
+                    ui.label("Holes");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [44.0, 24.0], &mut app.point_count, 1.0, 200.0, 0.2, 0, "");
+                }
+            }
             if app.mode == Mode::Polygon {
                 divider(ui);
                 if ui.selectable_label(!app.poly_star, "Polygon").clicked() { app.poly_star = false; if app.poly_sides == 5.0 { app.poly_sides = 6.0; } }
@@ -602,7 +654,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
-        Mode::Point => "Click to place a drill point; keep clicking for more. Assign the points to a Drill operation. Esc finishes.",
+        Mode::Point => "Click to place a drill point, or choose Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Assign the points to a Drill operation. Esc finishes.",
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };
