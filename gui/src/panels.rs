@@ -330,10 +330,15 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
     ui.label("Project notes");
     let row_h = ui.text_style_height(&egui::TextStyle::Body);
     let rows = (((ui.available_height() - reserve - 12.0) / row_h).floor() as usize).max(4);
+    let before = app.project.data.clone();
     let mut notes = std::mem::take(&mut app.project.data.notes);
     let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text("Material, fixtures, jobs to remember..."));
     app.project.data.notes = notes;
-    if r.changed() { app.modified = true; }
+    if r.changed() {
+        // one undo step per editing session; while the field has focus, Ctrl+Z undoes the typing itself
+        if !app.hist.open { app.hist.push(before); app.hist.open = true; }
+        app.modified = true;
+    }
     if !warnings.is_empty() {
         ui.add_space(8.0);
         ui.label(egui::RichText::new("Warnings").strong());

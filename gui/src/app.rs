@@ -824,6 +824,19 @@ mod history_tests {
     }
 
     #[test]
+    fn notes_edits_can_be_undone_from_the_menu_but_not_the_toolbar() {
+        let mut a = App::new(None);
+        a.hist.record(&a.project.data);
+        a.project.data.notes = "clamp at the left".into();
+        a.hist.classify(&a.project.data);
+        assert!(!a.hist.can_undo(Scope::Drawing));
+        a.do_undo();
+        assert_eq!(a.project.data.notes, "");
+        a.do_redo();
+        assert_eq!(a.project.data.notes, "clamp at the left");
+    }
+
+    #[test]
     fn a_new_drawing_edit_keeps_the_project_redo() {
         let mut a = App::new(None);
         a.project.data.loops.clear();
