@@ -96,6 +96,18 @@ pub fn bolt_circle(c: [f64; 2], r: f64, angle: f64, n: usize, sweep: f64, op: i6
     }).collect()
 }
 
+/// A grid of drill points filling the box between two corners, `cols` x `rows`, edges included.
+/// A single column or row sits on the first corner's line.
+pub fn point_grid(a: [f64; 2], b: [f64; 2], cols: usize, rows: usize, op: i64) -> Vec<LoopData> {
+    let (cols, rows) = (cols.clamp(1, 100), rows.clamp(1, 100));
+    let step = |from: f64, to: f64, n: usize, k: usize| if n < 2 { from } else { from + (to - from) * k as f64 / (n - 1) as f64 };
+    let mut v = Vec::new();
+    for j in 0..rows { for i in 0..cols {
+        v.push(new_point([step(a[0], b[0], cols, i), step(a[1], b[1], rows, j)], op));
+    } }
+    v
+}
+
 pub fn is_point(l: &LoopData) -> bool { l.pt.is_some() }
 
 pub fn new_circle(c: [f64; 2], r: f64, op: i64) -> LoopData {
@@ -722,6 +734,18 @@ mod tests {
         // negative sweeps go clockwise
         let cw = bolt_circle([0.0, 0.0], 10.0, 0.0, 2, -90.0, 0);
         assert!((c(&cw[1])[1] + 10.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn point_grid_fills_the_box() {
+        let g = point_grid([10.0, 10.0], [30.0, 20.0], 3, 2, 1);
+        assert_eq!(g.len(), 6);
+        let c = |l: &LoopData| { let b = bbox(l).unwrap(); [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0] };
+        assert!((c(&g[0])[0] - 10.0).abs() < 1e-3 && (c(&g[1])[0] - 20.0).abs() < 1e-3 && (c(&g[2])[0] - 30.0).abs() < 1e-3);
+        assert!((c(&g[3])[1] - 20.0).abs() < 1e-3);
+        // dragging towards the lower left works the same way
+        let r = point_grid([30.0, 20.0], [10.0, 10.0], 2, 1, 0);
+        assert!((c(&r[1])[0] - 10.0).abs() < 1e-3 && (c(&r[1])[1] - 20.0).abs() < 1e-3);
     }
 
     #[test]

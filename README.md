@@ -39,7 +39,7 @@ Features:
 - A keyboard shortcuts reference (Help menu or F1).
 - Inlay: one button makes a pocket operation and a matching plug operation (a mirrored copy of the selection beside it), cut with a V-bit and a flat end mill; depth, tools and the glue gap are editable. The pocket and plug walls slope at the same angle, and the 3D preview shows both.
 - Round-tipped bits: V-bits, engraving bits and tapered ball noses have a tip radius setting, and V-carve also works with ball noses, so the troughs come out rounded. The 3D preview uses the real cutter shape.
-- Drill points (D): click to place points, or drag out a bolt circle or an arc of holes (number of holes and sweep angle in the bar); assign them to a Drill operation. A point is a real shape: it moves, copies and arrays like any other.
+- Drill points (D): click to place points, or drag out a bolt circle, an arc of holes or a columns x rows grid (set them in the bar); assign them to a Drill operation. A point is a real shape: it moves, copies and arrays like any other.
 - Polygon and star tool (P): drag from the centre; choose the number of sides or star points and the star's inner radius in the toolbar.
 - Default tools include two CMT decorative beading bits. Arc profile bits: round-over, flat-bottomed corner-radius and cove form bits are defined by their arc radius (convex or concave; a convex arc smaller than the bit radius leaves a flat bottom) and work in V-carve, giving rounded or flared troughs. Undercut profiles are not supported.
 - Array and copy (Edit menu): repeat the selected shapes in a grid or around a circle.

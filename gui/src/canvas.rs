@@ -228,8 +228,8 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
             }
         }
         Some(Mode::Point) => {
-            if app.point_ring {
-                // bolt circle: drag from the centre; the first hole follows the pointer
+            if app.point_ring || app.point_grid {
+                // bolt circle: drag from the centre; the first hole follows the pointer. Grid: drag a box.
                 if resp.drag_started_by(prim) {
                     if let Some(w) = ctx.input(|i| i.pointer.press_origin()).map(|p| view.s2w(p)) {
                         app.drag = Drag::Draw { start: app.snap(w) };
@@ -493,8 +493,14 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
                     painter.line_segment([s - Vec2::new(0.0, 8.0), s + Vec2::new(0.0, 8.0)], st);
                 }
             }
-            painter.circle_stroke(to_s(a), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt() as f32 * app.scale, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
-            hud = Some(format!("{} holes, radius {:.2} mm", v.len(), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
+            if app.point_grid {
+                painter.rect_stroke(Rect::from_two_pos(to_s(a), to_s(app.snap(cur))), 0.0, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
+                let to = app.snap(cur);
+                hud = Some(format!("{} holes, {:.2} x {:.2} mm", v.len(), (to[0] - a[0]).abs(), (to[1] - a[1]).abs()));
+            } else {
+                painter.circle_stroke(to_s(a), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt() as f32 * app.scale, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
+                hud = Some(format!("{} holes, radius {:.2} mm", v.len(), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
+            }
         } else if app.mode == Mode::Polygon {
             if let Some(l) = poly_from_drag(app, a, app.snap(cur), shift, 0) {
                 let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
@@ -563,6 +569,7 @@ fn poly_from_drag(app: &App, centre: [f64; 2], to: [f64; 2], shift: bool, op: i6
 
 /// The ring of drill points dragged out from its centre (first hole at the pointer, Shift = straight up).
 fn ring_from_drag(app: &App, centre: [f64; 2], to: [f64; 2], shift: bool, op: i64) -> Vec<putiacnc_core::model::LoopData> {
+    if app.point_grid { return shapes::point_grid(centre, to, app.grid_cols.round() as usize, app.grid_rows.round() as usize, op); }
     let (dx, dy) = (to[0] - centre[0], to[1] - centre[1]);
     let r = (dx * dx + dy * dy).sqrt();
     let angle = if shift { std::f64::consts::FRAC_PI_2 } else { dy.atan2(dx) };
@@ -586,8 +593,19 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
           ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
             if app.mode == Mode::Point {
-                if ui.selectable_label(!app.point_ring, "Point").clicked() { app.point_ring = false; }
-                if ui.selectable_label(app.point_ring, "Bolt circle").clicked() { app.point_ring = true; }
+                if ui.selectable_label(!app.point_ring && !app.point_grid, "Point").clicked() { app.point_ring = false; app.point_grid = false; }
+                if ui.selectable_label(app.point_ring, "Bolt circle").clicked() { app.point_ring = true; app.point_grid = false; }
+                if ui.selectable_label(app.point_grid, "Grid").clicked() { app.point_grid = true; app.point_ring = false; }
+                if app.point_grid {
+                    ui.add_space(6.0);
+                    ui.label("Columns");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [44.0, 24.0], &mut app.grid_cols, 1.0, 100.0, 0.2, 0, "");
+                    ui.add_space(8.0);
+                    ui.label("Rows");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [44.0, 24.0], &mut app.grid_rows, 1.0, 100.0, 0.2, 0, "");
+                }
                 if app.point_ring {
                     ui.add_space(6.0);
                     ui.label("Holes");
@@ -670,7 +688,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
-        Mode::Point => "Click to place a drill point, or choose Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Assign the points to a Drill operation. Esc finishes.",
+        Mode::Point => "Click to place a drill point, or choose Grid and drag a box for columns x rows of holes, or Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Assign the points to a Drill operation. Esc finishes.",
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };
