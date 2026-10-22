@@ -182,7 +182,11 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                             // a locked drawing is selected but stays where it is
                             app.drag = if app.sel_locked() { Drag::None } else { Drag::Move { start: w, anchor: [b[0], b[1]], applied: [0.0, 0.0] } };
                         }
-                        None => app.drag = Drag::Box { start: w },
+                        // empty space over the 3D model drags the model (Shift box-selects instead)
+                        None => {
+                            let over_model = app.project.data.relief.as_ref().filter(|_| !shift).filter(|r| { let (mw, mh) = r.size(); w[0] >= r.x && w[0] <= r.x + mw && w[1] >= r.y && w[1] <= r.y + mh }).map(|r| [r.x, r.y]);
+                            app.drag = match over_model { Some(orig) => Drag::Relief { start: w, orig }, None => Drag::Box { start: w } };
+                        }
                     }
                 }
             }
@@ -213,6 +217,15 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     shapes::rotate_selection(&mut d.loops, &mut d.ops, &sel, pivot, deg, &tabs0);
                     app.drag = Drag::Rotate { pivot, a0, orig, tabs0, total: deg };
                     app.touch();
+                }
+                if let (Drag::Relief { start, orig }, Some(cur)) = (&app.drag, pointer_w) {
+                    let t = app.snap([orig[0] + cur[0] - start[0], orig[1] + cur[1] - start[1]]);
+                    let moved = app.project.data.relief.as_ref().map_or(false, |r| (r.x - t[0]).abs() > 1e-9 || (r.y - t[1]).abs() > 1e-9);
+                    if moved {
+                        app.hist.record_once(&app.project.data);
+                        if let Some(r) = app.project.data.relief.as_mut() { r.x = t[0]; r.y = t[1]; }
+                        app.touch();
+                    }
                 }
                 if let (Drag::Pivot, Some(cur)) = (&app.drag, pointer_w) { app.rot_pivot = Some(app.snap(cur)); }
                 if let (Drag::Move { start, anchor, applied }, Some(cur)) = (&app.drag, pointer_w) {
@@ -364,7 +377,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
 
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
-        else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
+        else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot | Drag::Relief { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
         else if matches!(app.drag, Drag::None) {
             let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
             if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.latest_pos()), sel_bb) {
@@ -935,7 +948,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point to move it, click an edge to add one, drag a box to select several. Del removes the selected points, arrows nudge them. Esc or Done finishes." } else if app.tab_edit.is_some() { "Click on an outline to add a tab. Drag a tab to move it, right-click it to remove. Esc or Done finishes." } else { match app.mode {
-        Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Click a selected shape again to rotate it. Double-click or N edits points. Del deletes. Middle/right-drag pans.",
+        Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Click a selected shape again to rotate it. Double-click or N edits points. Del deletes. Drag the 3D model to move it. Middle/right-drag pans.",
         Mode::Node => "Click a shape to edit its points.",
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
