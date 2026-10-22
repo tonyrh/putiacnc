@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Fillet, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
+pub enum Icon { Drill, Fillet, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -75,6 +75,11 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
         }
         Icon::VCarve => {
             closed(vec![p(-10.0, -8.0), p(10.0, -8.0), p(0.0, 9.0)]);
+        }
+        Icon::Drill => {
+            // a hole seen from above, with the bit going in
+            painter.circle_stroke(c, 8.0 * s, st);
+            painter.circle_filled(c, 3.0 * s, fg.gamma_multiply(0.6));
         }
         Icon::Up => line(vec![p(-7.0, 3.5), p(0.0, -3.5), p(7.0, 3.5)]),
         Icon::Down => line(vec![p(-7.0, -3.5), p(0.0, 3.5), p(7.0, -3.5)]),

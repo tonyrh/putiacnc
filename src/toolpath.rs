@@ -453,7 +453,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let open: Vec<Path> = mine.iter().filter(|l| !l.closed()).map(|l| l.path()).collect();
         if depth > st.t { notes.push(format!("⚠ {}depth exceeds stock thickness.", pre)); }
         let region = clip::simplify_even_odd(&closed);
-        if kind != "online" && !open.is_empty() { notes.push(format!("{}{} open path(s) skipped.", pre, open.len())); }
+        if kind != "online" && kind != "drill" && !open.is_empty() { notes.push(format!("{}{} open path(s) skipped.", pre, open.len())); }
 
         let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(pd);
         let nz = (depth / pd - 1e-9).ceil() as usize;
@@ -468,7 +468,30 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let mut jobs: Vec<Job> = Vec::new();
         let mut vr: Vec<(Path, f64)> = Vec::new();
         let mut by_pass = false;
-        if kind == "vcarve" {
+        let mut holes: Vec<[f64; 2]> = Vec::new();
+        if kind == "drill" {
+            let (mut wide, mut odd) = (0, 0);
+            for l in mine.iter().filter(|l| l.closed() && l.pts.len() / 2 > 2) {
+                let Some(b) = crate::shapes::bbox(l) else { continue };
+                holes.push([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
+                if (b[2] - b[0]).max(b[3] - b[1]) > dia * 1.1 + 1e-6 { wide += 1; }
+                if !crate::shapes::is_circle(l) { odd += 1; }
+            }
+            if wide > 0 { notes.push(format!("{}{} hole(s) are wider than the tool, so they will come out the tool's size (use Pocket or Profile inside to cut them to size).", pre, wide)); }
+            if odd > 0 { notes.push(format!("{}{} shape(s) are not circles; drilled at their centre.", pre, odd)); }
+            if !open.is_empty() { notes.push(format!("{}{} open path(s) skipped.", pre, open.len())); }
+            // visit the holes in a short order: always the nearest one next, starting from where the tool is
+            let mut from = [e.cur[0], e.cur[1]];
+            let mut left = std::mem::take(&mut holes);
+            while !left.is_empty() {
+                let k = (0..left.len()).min_by(|&a, &b| {
+                    let (da, db) = ((left[a][0] - from[0]).hypot(left[a][1] - from[1]), (left[b][0] - from[0]).hypot(left[b][1] - from[1]));
+                    da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+                }).unwrap();
+                from = left.remove(k);
+                holes.push(from);
+            }
+        } else if kind == "vcarve" {
             if !geo.cone { return Err(format!("Operation {}: V-carve needs a V-bit, engraving or tapered tool (choose one in Manage…)", k + 1)); }
             let zmax = depth.min(geo.z_full);
             if depth > geo.z_full + 1e-6 { notes.push(format!("{}V-carve depth limited to {} {} (the tool diameter is reached).", pre, num(fl(zmax)), un)); }
@@ -491,7 +514,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             if rm < rr - 1e-6 && kind != "online" { notes.push(format!("{}depth is below the ball radius, so the cut is narrower than the tool ({} {}).", pre, num(fl(rm * 2.0)), un)); }
             jobs = mk_jobs(&ctx, &region, &closed, &open, rm);
         }
-        if if kind == "vcarve" { vr.is_empty() } else { !by_pass && jobs.is_empty() } {
+        if if kind == "drill" { holes.is_empty() } else if kind == "vcarve" { vr.is_empty() } else { !by_pass && jobs.is_empty() } {
             notes.push(format!("{}no toolpath (tool too large?).", pre));
             continue;
         }
@@ -520,7 +543,26 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         e.g.push(format!("(Operation {}: {}, tool {} {}{})", k + 1, kind, num(fl(dia)), un,
             if geo.cone { format!(", {} deg", num(if tool.angle != 0.0 { tool.angle } else { 60.0 })) } else { String::new() }));
 
-        if kind == "vcarve" {
+        if kind == "drill" {
+            let hop = data.job.safe.min(1.0);
+            for (idx, h) in holes.iter().enumerate() {
+                e.pn = 0;
+                e.go("G0", None, None, Some(if idx > 0 { z0 + hop } else { sz }), 0.0);
+                e.go("G0", Some(h[0]), Some(h[1]), None, 0.0);
+                e.go("G0", None, None, Some(z0 + 1.0), 0.0);
+                for (i, &z) in zs.iter().enumerate() {
+                    e.pn = i + 1;
+                    e.go("G1", None, None, Some(z0 + z), plunge);
+                    if i + 1 < zs.len() {
+                        // peck: out of the hole to clear the chips, then back down to just above the bottom
+                        e.go("G0", None, None, Some(z0 + 1.0), 0.0);
+                        e.go("G0", None, None, Some(z0 + z + 0.3), 0.0);
+                    }
+                }
+                e.go("G0", None, None, Some(z0 + hop), 0.0);
+            }
+            e.go("G0", None, None, Some(sz), 0.0);
+        } else if kind == "vcarve" {
             let hop = data.job.safe.min(1.0);
             for (idx, (p, z)) in vr.iter().enumerate() {
                 let mut pts = path_f(p, ctx.rev, true);
@@ -571,6 +613,53 @@ mod tests {
         assert_eq!(num(5.0), "5");
         assert_eq!(num(0.5), "0.5");
     }
+    fn drill_project(depth: f64, pass: Option<f64>) -> ProjectData {
+        let mut d = crate::shapes::blank_project().data;
+        d.loops.clear();
+        d.loops.push(crate::shapes::new_circle([100.0, 20.0], 1.5, 1));
+        d.loops.push(crate::shapes::new_circle([10.0, 10.0], 1.5, 1));
+        d.loops.push(crate::shapes::new_circle([12.0, 30.0], 1.5, 1));
+        d.ops.clear();
+        let mut p = crate::shapes::default_op_params(&d.tools[0].id);
+        p.kind = "drill".into();
+        p.depth = depth;
+        p.pass_depth = pass;
+        d.ops.push(Operation { id: 1, p });
+        d
+    }
+
+    #[test]
+    fn drill_visits_each_hole_nearest_first_and_pecks() {
+        let d = drill_project(6.0, Some(2.0));
+        let o = generate(&d, Units::Metric).unwrap();
+        // the nearest hole to the origin first, then the next closest, then the far one
+        let plunges: Vec<[f64; 2]> = o.moves.iter().filter(|m| m.cut && m.to[2] < m.from[2]).map(|m| [m.to[0], m.to[1]]).collect();
+        let mut order: Vec<[f64; 2]> = vec![];
+        for p in plunges { if order.last() != Some(&p) { order.push(p); } }
+        assert_eq!(order, vec![[10.0, 10.0], [12.0, 30.0], [100.0, 20.0]]);
+        // 6 mm in 2 mm pecks = 3 plunges per hole, never any sideways cutting
+        assert_eq!(o.moves.iter().filter(|m| m.cut).count(), 9);
+        assert!(o.moves.iter().filter(|m| m.cut).all(|m| m.from[0] == m.to[0] && m.from[1] == m.to[1]));
+        let bottom = o.moves.iter().map(|m| m.to[2]).fold(f64::MAX, f64::min);
+        assert!((bottom + 6.0).abs() < 1e-9);
+        assert!(o.gcode().contains("(Operation 1: drill"));
+    }
+
+    #[test]
+    fn drill_in_one_go_when_the_peck_is_deep_enough() {
+        let d = drill_project(3.0, Some(5.0));
+        let o = generate(&d, Units::Metric).unwrap();
+        assert_eq!(o.moves.iter().filter(|m| m.cut).count(), 3);
+    }
+
+    #[test]
+    fn drill_warns_about_holes_wider_than_the_tool() {
+        let mut d = drill_project(3.0, None);
+        d.loops.push(crate::shapes::new_circle([50.0, 50.0], 10.0, 1));
+        let o = generate(&d, Units::Metric).unwrap();
+        assert!(o.notes.iter().any(|n| n.contains("wider than the tool")));
+    }
+
     #[test]
     fn cone_radius_grows_with_depth() {
         let t = Tool { id: "t".into(), name: "v".into(), sys: "mm".into(), shape: "vbit".into(), angle: 90.0, flutes: 2, dia: 6.0, rpm: 1.0, feed: 1.0, plunge: 1.0, so: 40.0, pd: 1.0, notes: String::new() };

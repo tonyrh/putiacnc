@@ -9,7 +9,7 @@ use putiacnc_core::shapes;
 /// The default font has no ″ glyph; show a plain quote instead.
 fn clean(s: &str) -> String { s.replace('″', "\"") }
 
-pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve")];
+pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve"), ("drill", "Drill")];
 const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside", "Inside"), ("online", "On")];
 const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
 const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
@@ -428,13 +428,14 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         // the operation list, its buttons row and the editor frame all share this width
         let lw = ui.available_width();
         ui.horizontal(|ui| {
-            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve)] {
+            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
                 if icon_text_button(ui, icon, label, &format!("Add a {label} operation"), None).clicked() {
                     let base = d.ops.iter().find(|o| o.id == d.act).map(|o| o.p.clone());
                     let mut p = base.unwrap_or_else(|| shapes::default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
                     p.kind = match kind {
                         "pocket" => "pocket".into(),
                         "vcarve" => "vcarve".into(),
+                        "drill" => "drill".into(),
                         _ => if ["outside", "inside", "online"].contains(&p.kind.as_str()) { p.kind.clone() } else { "outside".into() },
                     };
                     if kind == "vcarve" {
@@ -471,7 +472,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let o_kind = o.p.kind.clone();
             let n_ops = d.ops.len();
             {
-                let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, _ => Icon::Profile };
+                let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
                 let selected = d.act == id;
                 let folded = collapsed.contains(&id);
@@ -531,11 +532,13 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp, 10.0]).show(ui, |ui| {
                     rlabel(ui, l1, "Type");
                     let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
-                    let single: [(&str, &str); 1] = [(if p.kind == "vcarve" { "vcarve" } else { "pocket" }, if p.kind == "vcarve" { "V-carve" } else { "Pocket" })];
+                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", "V-carve"), "drill" => ("drill", "Drill"), _ => ("pocket", "Pocket") }];
                     changed |= combo_w(ui, lc + 10.0, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { "Profile: cut outside, inside or on the line" } else { "Operation type" });
                     rlabel(ui, l3, "Cut");
-                    let (c, _) = combo_w2(ui, cw + 10.0, &format!("dir{id}"), &mut p.dir, DIRS, "", "Cut direction: climb or conventional");
-                    changed |= c;
+                    ui.add_enabled_ui(p.kind != "drill", |ui| {
+                        let (c, _) = combo_w2(ui, cw + 10.0, &format!("dir{id}"), &mut p.dir, DIRS, "", "Cut direction: climb or conventional");
+                        changed |= c;
+                    });
                     ui.end_row();
                     ui.end_row();
                 });
@@ -543,7 +546,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 // Tool row: the selector takes all the room left of the right-aligned "Ramp in"
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = sp;
-                    let has_ramp = p.kind != "vcarve";
+                    let has_ramp = p.kind != "vcarve" && p.kind != "drill";
                     let ramp_w = if has_ramp { tw_of(ui, "Ramp in") + 30.0 } else { 0.0 };
                     let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
                     rlabel(ui, l1, "Tool");
@@ -582,7 +585,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     changed |= dv_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
                     ui.weak("mm");
                     ui.add_space(gap);
-                    ui.label("Pass");
+                    ui.label(if p.kind == "drill" { "Peck" } else { "Pass" });
                     let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
                     if dv_w(ui, fw, &mut v, 0.01, 1000.0, "") {
                         p.pass_depth = if tool_pd.map_or(false, |t| (t - v).abs() < 1e-9) { None } else { Some(v) };
@@ -596,7 +599,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     let pd = p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001);
                     let n = ((p.depth / pd) - 1e-9).ceil().max(1.0) as usize;
                     ui.allocate_ui_with_layout(egui::vec2(w_cnt, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.weak(format!("{n} pass{}", if n == 1 { "" } else { "es" }));
+                        ui.weak(if p.kind == "drill" { format!("{n} peck{}", if n == 1 { "" } else { "s" }) } else { format!("{n} pass{}", if n == 1 { "" } else { "es" }) });
                     });
                 });
                 if p.depth > stock_t + 1e-6 {

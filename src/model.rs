@@ -92,7 +92,7 @@ pub struct Operation { pub id: i64, pub p: OpParams }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OpParams {
-    /// outside, inside, online, pocket or vcarve.
+    /// outside, inside, online, pocket, vcarve or drill.
     #[serde(rename = "type", default = "d_outside")] pub kind: String,
     #[serde(default = "d_climb")] pub dir: String,
     pub depth: f64,

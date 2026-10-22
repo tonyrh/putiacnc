@@ -1,7 +1,7 @@
 # PutiaCNC
 
 A CNC toolpath studio for GRBL machines, written in Rust. Draw or import shapes, assign operations
-(profile, pocket, V-carve), preview the result in 2D and in a simulated 3D view of the machined
+(profile, pocket, V-carve, drill), preview the result in 2D and in a simulated 3D view of the machined
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
 ![2D design: shapes assigned to a profile and a pocket operation](docs/screenshot-2d.png)
@@ -32,7 +32,7 @@ Features:
   the selected shapes by a distance (inlays, clearances); Edit → Combine shapes does union, subtract, intersect
   and exclude. The text tool (T) turns typed text, in any font
   installed on the computer, into outlines you can profile or pocket.
-- Operations: profile (outside, inside, on the line), pocket and V-carve, each with its own tool,
+- Operations: profile (outside, inside, on the line), pocket, V-carve and drill (pecked, nearest hole first), each with its own tool,
   depth, pass depth (defaults to the tool's value), cut direction, ramp-in, air cut and holding tabs
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks
   to fit, with a note if there is no room). Warns when the depth exceeds the stock thickness.
@@ -97,7 +97,7 @@ It turns a project into GRBL G-code; the output is checked against reference G-c
 |---|---|
 | `src/model.rs` | Data model (serde). Reads and writes the project files (`"app": "putia-cnc"`). |
 | `src/clip.rs` | Safe wrapper around Clipper 6.4 (Clipper 6.4): even-odd union, round-join offset, cleaning, area. |
-| `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
+| `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, drill, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
 | `src/svg.rs` | SVG import into closed and open shapes. |
 | `src/dxf.rs` | ASCII DXF import (lines, arcs, circles, polylines, splines, blocks). |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
