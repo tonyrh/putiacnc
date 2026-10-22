@@ -95,6 +95,19 @@ pub fn translate(l: &mut LoopData, dx: f64, dy: f64) {
     for c in l.pts.chunks_exact_mut(2) { c[0] += ix; c[1] += iy; }
 }
 
+/// Rotate about a point (mm), counter-clockwise in degrees. A rotated rectangle or ellipse is no longer
+/// axis-aligned, so it becomes a plain polygon; a circle stays a circle.
+pub fn rotate_about(l: &mut LoopData, cx: f64, cy: f64, deg: f64) {
+    let (sn, cs) = deg.to_radians().sin_cos();
+    for c in l.pts.chunks_exact_mut(2) {
+        let (x, y) = (c[0] as f64 / S - cx, c[1] as f64 / S - cy);
+        c[0] = to_i(cx + x * cs - y * sn);
+        c[1] = to_i(cy + x * sn + y * cs);
+    }
+    l.rc = None;
+    l.el = None;
+}
+
 /// Scale about an anchor point (mm). Rectangles are rebuilt from their new bounding box so the
 /// corner radius stays circular; a circle scaled non-uniformly becomes a plain ellipse.
 pub fn scale_about(l: &mut LoopData, ax: f64, ay: f64, sx: f64, sy: f64) {
@@ -462,6 +475,20 @@ mod tests {
         f.data.notes = "Cherry, vacuum table".into();
         let back = load_project(&save_project(&f).unwrap()).unwrap();
         assert_eq!(back.data.notes, "Cherry, vacuum table");
+    }
+
+    #[test]
+    fn rotation_turns_a_shape_about_a_point() {
+        let mut l = new_rect([10.0, 0.0], [20.0, 4.0], 0.0, 1);
+        rotate_about(&mut l, 0.0, 0.0, 90.0);
+        let b = bbox(&l).unwrap();
+        assert!((b[0] + 4.0).abs() < 1e-3 && (b[1] - 10.0).abs() < 1e-3 && b[2].abs() < 1e-3 && (b[3] - 20.0).abs() < 1e-3, "{b:?}");
+        assert!(l.rc.is_none());
+        let mut c = new_circle([5.0, 0.0], 2.0, 1);
+        rotate_about(&mut c, 0.0, 0.0, 180.0);
+        assert!(is_circle(&c));
+        let bc = bbox(&c).unwrap();
+        assert!((bc[0] + 7.0).abs() < 1e-3, "{bc:?}");
     }
 
     #[test]

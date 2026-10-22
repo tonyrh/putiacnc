@@ -37,6 +37,7 @@ Features:
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks
   to fit, with a note if there is no room). Warns when the depth exceeds the stock thickness.
 - A keyboard shortcuts reference (Help menu or F1).
+- Array and copy (Edit menu): repeat the selected shapes in a grid or around a circle.
 - Remembers window size and position, panel layout, view toggles, last folders and recent files (File → Open recent) between sessions.
 - A Notes tab with free-form project notes (saved with the project), plus the generator's warnings.
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
