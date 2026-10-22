@@ -490,42 +490,47 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         // ---- operations --------------------------------------------------------------
         // the operation list, its buttons row and the editor frame all share this width
         let lw = ui.available_width();
-        ui.horizontal_wrapped(|ui| {
-            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill), ("inlay", "Inlay", Icon::Inlay)] {
-                let tip = if kind == "inlay" { "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)".to_string() } else { format!("Add a {label} operation") };
-                if icon_text_button(ui, icon, label, &tip, None).clicked() {
-                    if kind == "inlay" {
-                        add_inlay(d, sel);
-                        changed = true;
-                        continue;
-                    }
-                    let base = d.ops.iter().find(|o| o.id == d.act).map(|o| o.p.clone());
-                    let mut p = base.unwrap_or_else(|| shapes::default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
-                    p.kind = match kind {
-                        "pocket" => "pocket".into(),
-                        "vcarve" => "vcarve".into(),
-                        "drill" => "drill".into(),
-                        _ => if ["outside", "inside", "online"].contains(&p.kind.as_str()) { p.kind.clone() } else { "outside".into() },
-                    };
-                    if kind == "vcarve" {
-                        if let Some(t) = d.tools.iter().find(|t| ["vbit", "engrave", "taper"].contains(&t.shape.as_str())) { p.tool = t.id.clone(); }
-                    }
-                    d.oid = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
-                    let id = d.oid;
-                    d.ops.push(Operation { id, p });
-                    for &i in sel.iter() { d.loops[i].op = id; }
-                    d.act = id;
-                    changed = true;
-                }
+        // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
+        let mut add_kind: Option<&str> = None;
+        ui.horizontal(|ui| {
+            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
+                if icon_text_button(ui, icon, label, &format!("Add a {label} operation"), None).clicked() { add_kind = Some(kind); }
             }
             if !d.ops.is_empty() {
-                let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
-                let (icon, tip) = if all_folded { (Icon::Unfold, "Expand all operations") } else { (Icon::Fold, "Collapse all operations") };
-                if small_icon_button(ui, icon, true, tip).clicked() {
-                    if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
-                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
+                    let (icon, tip) = if all_folded { (Icon::Unfold, "Expand all operations") } else { (Icon::Fold, "Collapse all operations") };
+                    if small_icon_button(ui, icon, true, tip).clicked() {
+                        if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
+                    }
+                });
             }
         });
+        if icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None).clicked() { add_kind = Some("inlay"); }
+        if let Some(kind) = add_kind {
+            if kind == "inlay" {
+                add_inlay(d, sel);
+                changed = true;
+            } else {
+                let base = d.ops.iter().find(|o| o.id == d.act).map(|o| o.p.clone());
+                let mut p = base.unwrap_or_else(|| shapes::default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
+                p.kind = match kind {
+                    "pocket" => "pocket".into(),
+                    "vcarve" => "vcarve".into(),
+                    "drill" => "drill".into(),
+                    _ => if ["outside", "inside", "online"].contains(&p.kind.as_str()) { p.kind.clone() } else { "outside".into() },
+                };
+                if kind == "vcarve" {
+                    if let Some(t) = d.tools.iter().find(|t| ["vbit", "engrave", "taper"].contains(&t.shape.as_str())) { p.tool = t.id.clone(); }
+                }
+                d.oid = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
+                let id = d.oid;
+                d.ops.push(Operation { id, p });
+                for &i in sel.iter() { d.loops[i].op = id; }
+                d.act = id;
+                changed = true;
+            }
+        }
         let tools = d.tools.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
