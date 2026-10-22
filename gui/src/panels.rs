@@ -97,7 +97,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                     if ui.button("Clear list").clicked() { app.prefs.recent.clear(); ui.close_menu(); }
                 });
             });
-            if item(ui, "Import...", "Ctrl+I", true) { app.import_dialog(); }
+            if item(ui, "Import Vectors...", "Ctrl+I", true) { app.import_dialog(); }
             ui.separator();
             if item(ui, "Save", "Ctrl+S", true) { app.save(); }
             if item(ui, "Save as...", "Ctrl+Shift+S", true) { app.save_as_dialog(); }
