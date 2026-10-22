@@ -68,7 +68,7 @@ impl App {
                 self.tool_libs.switch(&id);
                 self.after_lib_switch(None);
             }
-            LibAct::New => { self.tool_libs.new_library(); self.after_lib_switch(Some("Created a new library with the starter tools.".into())); }
+            LibAct::New => { self.tool_libs.new_library(); self.after_lib_switch(Some("Created a library with the common hobby tools.".into())); }
             LibAct::Duplicate => { self.tool_libs.duplicate(); self.after_lib_switch(Some("Saved a copy. You are now editing the copy.".into())); }
             LibAct::Delete => match self.tool_libs.delete_current() {
                 Ok(name) => self.after_lib_switch(Some(format!("Deleted \"{name}\"."))),
@@ -315,7 +315,7 @@ fn lib_row_inner(ui: &mut Ui, app: &mut App) {
                 if app.tool_libs.libs.len() < 2 { app.tool_msg = "Keep at least one library.".into(); } else { app.confirm_lib_del = true; }
             }
             if icon_button(ui, Icon::Copy, false, true, "Duplicate library (edit the copy)").clicked() { act = Some(LibAct::Duplicate); }
-            if icon_button(ui, Icon::Add, false, true, "New library (starter tools)").clicked() { act = Some(LibAct::New); }
+            if icon_button(ui, Icon::Add, false, true, "New library with the common hobby tools").clicked() { act = Some(LibAct::New); }
             ui.add_space(6.0);
             let r = ui.add(egui::TextEdit::singleline(&mut app.lib_name_buf).desired_width(180.0).hint_text("Library name"));
             if !r.has_focus() { app.lib_name_buf = cur.name.clone(); }

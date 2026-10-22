@@ -53,18 +53,35 @@ pub fn normalize_tool(t: &mut Tool) {
     t.pd = if t.pd.is_finite() { t.pd.max(0.01) } else { 1.0 };
 }
 
-fn tool(name: &str, sys: &str, shape: &str, angle: f64, dia: f64, rpm: f64, feed: f64, plunge: f64, pd: f64) -> Tool {
-    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes: 2, dia, rpm, feed, plunge, so: 40.0, pd, notes: String::new() }
+#[allow(clippy::too_many_arguments)]
+fn tool(name: &str, sys: &str, shape: &str, angle: f64, dia: f64, flutes: u32, rpm: f64, feed: f64, plunge: f64, so: f64, pd: f64, notes: &str) -> Tool {
+    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes, dia, rpm, feed, plunge, so, pd, notes: notes.into() }
 }
 
-/// The starter tools (fresh ids on every call).
+/// The tools most hobby routers use (fresh ids on every call). The speeds are cautious starting points for
+/// wood, MDF and plastics on a light machine: adjust them to your machine, spindle and material.
+/// The first five are the original starter tools and keep their order.
 pub fn seed_tools() -> Vec<Tool> {
+    let up = "2-flute upcut: general purpose for wood, MDF and plastics.";
     vec![
-        tool("1/8″ flat end mill", "in", "flat", 60.0, 3.175, 12000.0, 800.0, 250.0, 1.0),
-        tool("6 mm flat end mill", "mm", "flat", 60.0, 6.0, 10000.0, 1000.0, 300.0, 2.0),
-        tool("1/4″ flat end mill", "in", "flat", 60.0, 6.35, 10000.0, 1000.0, 300.0, 2.0),
-        tool("60° V-bit (1/4″)", "in", "vbit", 60.0, 6.35, 12000.0, 800.0, 250.0, 2.0),
-        tool("90° V-bit (6 mm)", "mm", "vbit", 90.0, 6.0, 12000.0, 800.0, 250.0, 2.0),
+        tool("1/8″ flat end mill", "in", "flat", 60.0, 3.175, 2, 12000.0, 800.0, 250.0, 40.0, 1.0, up),
+        tool("6 mm flat end mill", "mm", "flat", 60.0, 6.0, 2, 10000.0, 1000.0, 300.0, 40.0, 2.0, up),
+        tool("1/4″ flat end mill", "in", "flat", 60.0, 6.35, 2, 10000.0, 1000.0, 300.0, 40.0, 2.0, up),
+        tool("60° V-bit (1/4″)", "in", "vbit", 60.0, 6.35, 2, 12000.0, 800.0, 250.0, 40.0, 2.0, "V-carving and engraving; also chamfers."),
+        tool("90° V-bit (6 mm)", "mm", "vbit", 90.0, 6.0, 2, 12000.0, 800.0, 250.0, 40.0, 2.0, "V-carving, chamfers and lettering."),
+        tool("1 mm flat end mill", "mm", "flat", 60.0, 1.0, 2, 12000.0, 300.0, 100.0, 40.0, 0.5, "Fine detail and small text. Fragile: shallow passes, slow plunge."),
+        tool("2 mm flat end mill", "mm", "flat", 60.0, 2.0, 2, 12000.0, 500.0, 150.0, 40.0, 0.8, "Small details and tight corners."),
+        tool("3 mm flat end mill", "mm", "flat", 60.0, 3.0, 2, 12000.0, 800.0, 250.0, 40.0, 1.0, "Metric twin of the 1/8″: profiles and pockets."),
+        tool("4 mm flat end mill", "mm", "flat", 60.0, 4.0, 2, 12000.0, 900.0, 250.0, 40.0, 1.5, up),
+        tool("8 mm flat end mill", "mm", "flat", 60.0, 8.0, 2, 10000.0, 1200.0, 350.0, 40.0, 3.0, "Large pockets and fast roughing; needs a rigid machine."),
+        tool("1/8″ downcut end mill", "in", "flat", 60.0, 3.175, 2, 12000.0, 800.0, 250.0, 40.0, 1.0, "Downcut: a clean top edge on plywood and laminates; it packs chips into the cut."),
+        tool("1/4″ downcut end mill", "in", "flat", 60.0, 6.35, 2, 10000.0, 1000.0, 300.0, 40.0, 2.0, "Downcut: a clean top edge on plywood and laminates; it packs chips into the cut."),
+        tool("1/4″ compression bit", "in", "flat", 60.0, 6.35, 2, 12000.0, 1200.0, 300.0, 40.0, 3.0, "Upcut at the bottom, downcut at the top: clean faces on both sides of plywood. Cut deeper than its downcut section."),
+        tool("1/8″ ball nose", "in", "ball", 60.0, 3.175, 2, 12000.0, 700.0, 200.0, 15.0, 1.0, "Relief carving and rounded edges; a small stepover leaves a smoother surface."),
+        tool("1/4″ ball nose", "in", "ball", 60.0, 6.35, 2, 10000.0, 900.0, 250.0, 15.0, 2.0, "Relief carving and smooth, rounded pockets."),
+        tool("90° V-bit (1/4″)", "in", "vbit", 90.0, 6.35, 2, 12000.0, 800.0, 250.0, 40.0, 2.0, "V-carving, chamfers and lettering."),
+        tool("30° engraving bit (1/8″)", "in", "engrave", 30.0, 3.175, 2, 12000.0, 500.0, 150.0, 40.0, 0.5, "Fine lettering and detailed engraving; shallow cuts."),
+        tool("1″ surfacing bit", "in", "flat", 60.0, 25.4, 2, 12000.0, 1200.0, 300.0, 80.0, 0.5, "Flattening the spoilboard or a slab: light passes with a wide stepover."),
     ]
 }
 
@@ -128,9 +145,9 @@ impl ToolLibs {
         nm
     }
 
-    /// Create a library with the starter tools and make it current.
+    /// Create a library with the common hobby tools and make it current.
     pub fn new_library(&mut self) {
-        let name = self.unique_name("New library", None);
+        let name = self.unique_name("Hobby CNC", None);
         self.add(name, seed_tools());
     }
 
@@ -264,7 +281,7 @@ mod tests {
         let mut ids: Vec<&str> = a.iter().chain(b.iter()).map(|t| t.id.as_str()).collect();
         ids.sort();
         ids.dedup();
-        assert_eq!(ids.len(), 10);
+        assert_eq!(ids.len(), 2 * a.len());
     }
 
     #[test]
@@ -289,9 +306,9 @@ mod tests {
         let mut l = ToolLibs::default();
         assert_eq!(l.current().name, "My tools");
         l.new_library();
-        assert_eq!(l.current().name, "New library");
+        assert_eq!(l.current().name, "Hobby CNC");
         l.new_library();
-        assert_eq!(l.current().name, "New library (2)");
+        assert_eq!(l.current().name, "Hobby CNC (2)");
         l.rename_current("My tools"); // clashes with the first one
         assert_eq!(l.current().name, "My tools (2)");
         l.duplicate();
@@ -310,7 +327,7 @@ mod tests {
         let json = l.export_current();
         assert!(json.contains("putia-cnc-tools"));
         let (name, n) = l.import(&json).unwrap();
-        assert_eq!((name.as_str(), n), ("My tools (2)", 5));
+        assert_eq!((name.as_str(), n), ("My tools (2)", seed_tools().len()));
         assert_eq!(l.current().tools[0].name, "Custom");
         assert!(l.import("{\"app\":\"other\",\"tools\":[]}").is_err());
         assert!(l.import("nonsense").is_err());
@@ -324,7 +341,7 @@ mod tests {
         let broken = r#"{"app":"putia-cnc-toollibs","v":1,"cur":"nope","libs":[{"id":"a","name":"A","tools":[]}]}"#;
         let fixed = ToolLibs::from_json(broken).unwrap();
         assert_eq!(fixed.cur, "a");
-        assert_eq!(fixed.libs[0].tools.len(), 5); // empty library gets the starter tools
+        assert_eq!(fixed.libs[0].tools.len(), seed_tools().len()); // empty library gets the starter tools
     }
 
     #[test]
@@ -334,11 +351,30 @@ mod tests {
         extra.id = "from-project".into();
         let known = l.current().tools[0].clone();
         merge_project_tools(l.current_mut(), &[extra.clone(), known]);
-        assert_eq!(l.current().tools.len(), 6); // only the unknown one was added
+        assert_eq!(l.current().tools.len(), seed_tools().len() + 1); // only the unknown one was added
         let mut ops = vec![op(1, "from-project"), op(2, "gone")];
         let n = reassign_missing(&mut ops, &l.current().tools);
         assert_eq!(n, 1);
         assert_eq!(ops[0].p.tool, "from-project");
         assert_eq!(ops[1].p.tool, l.current().tools[0].id);
+    }
+
+    #[test]
+    fn hobby_set_is_sound() {
+        let t = seed_tools();
+        // the original starter tools come first, in their old order
+        let first: Vec<&str> = t.iter().take(5).map(|x| x.name.as_str()).collect();
+        assert_eq!(first, ["1/8″ flat end mill", "6 mm flat end mill", "1/4″ flat end mill", "60° V-bit (1/4″)", "90° V-bit (6 mm)"]);
+        let mut names: Vec<&str> = t.iter().map(|x| x.name.as_str()).collect();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), t.len(), "names are unique");
+        for x in &t {
+            let mut y = x.clone();
+            normalize_tool(&mut y);
+            assert_eq!((y.dia, y.feed, y.plunge, y.pd, y.so, y.angle), (x.dia, x.feed, x.plunge, x.pd, x.so, x.angle), "{} is within the limits", x.name);
+            assert_eq!(infer_sys(x.dia) == "in", x.sys == "in", "{}: the unit matches the size", x.name);
+            assert!(x.plunge <= x.feed && !x.notes.is_empty(), "{}", x.name);
+        }
     }
 }

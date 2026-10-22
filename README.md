@@ -39,6 +39,7 @@ Features:
 - A keyboard shortcuts reference (Help menu or F1).
 - Array and copy (Edit menu): repeat the selected shapes in a grid or around a circle.
 - Fillet and chamfer: a toolbar tool (shown when the selection has corners) that rounds or bevels the corners of shapes.
+- A default tool library with 18 common hobby-router tools (flat, downcut, compression, ball nose, V-bits, engraving, surfacing); cautious starting speeds and feeds.
 - Remembers window size and position, panel layout, view toggles, last folders and recent files (File → Open recent) between sessions.
 - A Notes tab with free-form project notes (saved with the project), plus the generator's warnings.
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
