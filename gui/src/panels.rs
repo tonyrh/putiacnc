@@ -165,12 +165,6 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
                 ui.add_visible(false, egui::Checkbox::new(&mut dummy, "Guides ▼")); // keeps the spacing identical
                 ui.checkbox(&mut app.show_rapids, "Rapids");
                 ui.checkbox(&mut app.show_toolpath, "Toolpaths");
-                let hint = "Drag: orbit  ·  Right-drag: pan  ·  Scroll: zoom  ·  Double-click: reset";
-                if ui.available_width() > tw(ui, hint) + 24.0 {
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(egui::RichText::new(hint).color(ui.visuals().weak_text_color()));
-                    });
-                }
             });
         });
         return;

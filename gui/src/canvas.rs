@@ -577,7 +577,7 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         if let Some(t) = hud {
             painter.text(to_s(c) + Vec2::new(12.0, -12.0), egui::Align2::LEFT_BOTTOM, t, egui::FontId::monospace(12.0), th.hud());
         }
-        painter.text(rect.right_bottom() + Vec2::new(-10.0, -8.0), egui::Align2::RIGHT_BOTTOM,
+        painter.text(rect.right_bottom() + Vec2::new(-10.0, -6.0), egui::Align2::RIGHT_BOTTOM,
             format!("X {:.2}  Y {:.2} mm", c[0], c[1]), egui::FontId::monospace(12.0), th.hud().gamma_multiply(0.6));
     }
     if app.show_axes { draw_axes(&painter, &view, app.scale, (sw, sh), th.dark, ui); }
@@ -834,8 +834,8 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };
-    egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -10.0)).interactable(false).show(ctx, |ui| {
-        ui.set_max_width((rect.width() - 220.0).max(120.0));
+    egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
+        ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.label(egui::RichText::new(hint).weak());
     });
 }

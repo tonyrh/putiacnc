@@ -204,6 +204,11 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let rect = resp.rect;
     let painter = painter.with_clip_rect(rect);
     let dark = app.theme.dark;
+    // hint line, as wide as the view
+    egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
+        ui.set_max_width((rect.width() - 24.0).max(120.0));
+        ui.label(egui::RichText::new("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll: zoom  ·  Double-click: reset").weak());
+    });
 
     // camera controls
     {
