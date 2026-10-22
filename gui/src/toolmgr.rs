@@ -342,7 +342,8 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
         ui.vertical(|ui| {
             let aw = ui.available_width() - 10.0;
             let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")).max(crate::panels::tw(ui, "Arc radius")) + 2.0;
-            let fw = 120.0_f32;
+            // wide enough for the longest shape name, or the dropdown pushes the form (and the window) wider every frame
+            let fw = SHAPES.iter().map(|(_, l)| crate::panels::tw(ui, l) + 34.0).fold(120.0_f32, f32::max);
             let sp = 8.0_f32; // label-to-field gap
             let gap = (aw - 2.0 * (lw + fw) - 4.0 * sp).max(8.0); // space between the two column pairs
             egui::Grid::new("tool_form_top").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
