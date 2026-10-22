@@ -619,7 +619,8 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = sp;
                     let has_ramp = p.kind != "vcarve" && p.kind != "drill";
-                    let ramp_w = if has_ramp { tw_of(ui, "Ramp in") + 30.0 } else { 0.0 };
+                    // the room for "Ramp in" is kept even when it is not shown, so the selector is the same width in every operation
+                    let ramp_w = tw_of(ui, "Ramp in") + 30.0;
                     let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
                     rlabel(ui, l1, "Tool");
                     let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
