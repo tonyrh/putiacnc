@@ -522,7 +522,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.label("Height");
                     ui.weak(format!("{:.1} mm", h));
                     ui.add_space(6.0);
-                    ui.weak(format!("model is {:.1} mm tall", rel.zmax));
+                    ui.weak(format!("model is {:.1} mm tall", rel.zmax * rel.scale));
                 });
             });
         }
@@ -563,7 +563,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     // a ball nose to finish, a flat end mill to rough, and the model's height as the depth
                     if let Some(t) = d.tools.iter().find(|t| t.shape == "ball") { p.tool = t.id.clone(); }
                     p.tool2 = d.tools.iter().filter(|t| t.shape == "flat").min_by(|a, b| (a.dia - 6.0).abs().partial_cmp(&(b.dia - 6.0).abs()).unwrap_or(std::cmp::Ordering::Equal)).map(|t| t.id.clone());
-                    p.depth = d.relief.as_ref().map_or(p.depth, |r| (r.zmax.min(d.stock.t) * 10.0).round() / 10.0);
+                    p.depth = d.relief.as_ref().map_or(p.depth, |r| ((r.zmax * r.scale).min(d.stock.t) * 10.0).round() / 10.0);
                     p.pass_depth = Some(2.0);
                     p.tabs = false; p.lead = None;
                 }

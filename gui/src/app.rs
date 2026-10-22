@@ -284,7 +284,7 @@ impl App {
             p.kind = "relief".into();
             if let Some(t) = d.tools.iter().find(|t| t.shape == "ball") { p.tool = t.id.clone(); }
             p.tool2 = d.tools.iter().filter(|t| t.shape == "flat").min_by(|x, y| (x.dia - 6.0).abs().partial_cmp(&(y.dia - 6.0).abs()).unwrap()).map(|t| t.id.clone());
-            p.depth = d.relief.as_ref().map_or(5.0, |r| r.zmax.round());
+            p.depth = d.relief.as_ref().map_or(5.0, |r| (r.zmax * r.scale).round().max(1.0));
             p.pass_depth = Some(2.0);
             d.oid += 1; let id = d.oid;
             d.ops.push(putiacnc_core::model::Operation { id, p });
@@ -534,8 +534,8 @@ impl App {
 
     pub fn is_model(path: &str) -> bool { path.to_lowercase().ends_with(".stl") }
 
-    /// Import an STL model as a height map for relief operations. It is centred on the stock; when it does
-    /// not fit, the stock is enlarged to hold it (the model and a 10 mm border, and its height plus 3 mm).
+    /// Import an STL model as a height map for relief operations. It is centred on the stock, and scaled
+    /// down (keeping its proportions) when it is bigger than the stock.
     pub fn import_model(&mut self, path: &str) {
         let bytes = match std::fs::read(path) { Ok(b) => b, Err(e) => { self.error = Some(format!("Could not read {path}: {e}")); return; } };
         let name = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "model".into());
@@ -548,9 +548,12 @@ impl App {
         self.hist.record(&self.project.data);
         let (mw, mh) = rel.size();
         let mut note = vec![format!("Imported {}: {:.1} x {:.1} x {:.1} mm.", rel.name, mw, mh, rel.zmax)];
-        let st = &mut self.project.data.stock;
-        if mw > st.w || mh > st.h { st.w = st.w.max(mw + 20.0).ceil(); st.h = st.h.max(mh + 20.0).ceil(); note.push("The stock was enlarged to hold the model.".into()); }
-        if rel.zmax + 3.0 > st.t { st.t = (rel.zmax + 3.0).ceil(); note.push("The stock thickness was increased to fit the model's height.".into()); }
+        let st = &self.project.data.stock;
+        if mw > st.w || mh > st.h {
+            rel.scale = (st.w / mw).min(st.h / mh);
+            note.push(format!("Scaled down to {:.0}% to fit the stock ({:.1} x {:.1} mm); change the size with Width in the 3D model box.", rel.scale * 100.0, rel.size().0, rel.size().1));
+        }
+        let (mw, mh) = rel.size();
         rel.x = (st.w - mw) / 2.0;
         rel.y = (st.h - mh) / 2.0;
         self.project.data.relief = Some(rel);
