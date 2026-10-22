@@ -36,7 +36,7 @@ Features:
   depth, pass depth (defaults to the tool's value), cut direction, ramp-in, air cut and holding tabs
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks
   to fit, with a note if there is no room). Warns when the depth exceeds the stock thickness.
-- Rotate: click an already selected shape again to swap its resize handles for rotate handles (drag a corner; Shift snaps to 15°; the centre mark can be dragged to move the pivot), or type an angle in the Rotate field of the selection bar. Manual holding tabs turn with their shape.
+- Rotate: click an already selected shape again to swap its resize handles for rotate handles (drag a corner; Shift snaps to 15°; the centre mark can be dragged to move the pivot), or type an angle in the Rotate field that floats above the shape. Manual holding tabs turn with their shape.
 - Imported drawings (SVG/DXF) are listed in the left panel with position and size fields, Fit to stock, rotate 90° either way, flip horizontally or vertically, and a Lock that stops them being moved, resized or flipped by accident.
 - Rulers in mm along the top and left of the drawing area, counting from the XY zero you chose (the pointer and the selection are marked on them) and optional graduated X / Y axes along the stock edges; both are under Guides in the bottom bar.
 - A keyboard shortcuts reference (Help menu or F1).

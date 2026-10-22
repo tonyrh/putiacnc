@@ -662,7 +662,43 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         draw_rulers(&painter, rect, &view, app.scale, zero, hover_w, sel_bb, th.accent, ui);
         orect = Rect::from_min_max(rect.min + Vec2::splat(RULER), rect.max);
     }
-    if !app.tools_open && !app.machines_open { overlays(&ctx, app, orect); }
+    if !app.tools_open && !app.machines_open { overlays(&ctx, app, orect); rotate_popup(&ctx, app, rect); }
+}
+
+/// In rotate mode: a small field above the selection to turn it by a typed angle (counter-clockwise is positive).
+/// While a corner is being dragged it shows the angle turned so far.
+fn rotate_popup(ctx: &egui::Context, app: &mut App, rect: Rect) {
+    if !app.rotate_mode || app.mode != Mode::Select || app.sel.is_empty() || app.sel_locked() { return; }
+    let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))) else { return };
+    let view = View { scale: app.scale, offset: app.offset, origin: rect.min };
+    let top = view.w2s([(b[0] + b[2]) / 2.0, b[3]]);
+    let live = if let Drag::Rotate { total, .. } = &app.drag { Some(*total) } else { None };
+    let mut v = live.unwrap_or(0.0);
+    let mut delta: Option<f64> = None;
+    let pos = Pos2::new((top.x - 62.0).clamp(rect.min.x + RULER + 4.0, (rect.max.x - 130.0).max(rect.min.x + RULER + 4.0)), (top.y - 52.0).max(rect.min.y + RULER + 4.0));
+    egui::Area::new(egui::Id::new("rotate_popup")).order(egui::Order::Foreground).fixed_pos(pos).show(ctx, |ui| {
+        egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 4.0;
+                ui.label("Rotate");
+                let r = crate::widgets::num(ui, [62.0, 24.0], &mut v, -360.0, 360.0, 0.5, 1, "")
+                    .on_hover_text("Turn the selection by this many degrees about the centre mark (counter-clockwise is positive). Drag a corner handle to turn it with the mouse; Shift snaps to 15°.");
+                if r.changed() && live.is_none() && v != 0.0 { delta = Some(v); }
+                ui.weak("°");
+            });
+        });
+    });
+    if let Some(deg) = delta {
+        let before = app.project.data.clone();
+        let pivot = app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
+        let sel = app.sel.clone();
+        let d = &mut app.project.data;
+        let tabs0 = shapes::tab_positions(&d.loops, &d.ops, &sel);
+        shapes::rotate_selection(&mut d.loops, &mut d.ops, &sel, pivot, deg, &tabs0);
+        app.rot_pivot = Some(pivot);
+        if !app.hist.open { app.hist.push(before); app.hist.open = true; }
+        app.touch();
+    }
 }
 
 const RULER: f32 = 20.0;
@@ -1055,8 +1091,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let mut pick: Option<i64> = None;
     let mut align: Option<u8> = None;
     let mut align_each: Option<u8> = None;
-    let mut rot_delta: Option<f64> = None;
-    let can_rot = sel.iter().any(|&i| !shapes::is_point(&d.loops[i])) && !sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
     let _ = n;
     // shapes of a locked drawing can be assigned to operations but not moved, resized or aligned
     let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
@@ -1101,18 +1135,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     if icon_button(ui, icon, false, true, tip).clicked() { align = Some(k); }
                 }
             });
-            if can_rot {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 2.0;
-                    let lw = crate::panels::tw(ui, "Align to stock");
-                    ui.label("Rotate");
-                    ui.add_space((lw - crate::panels::tw(ui, "Rotate")).max(0.0) + 4.0);
-                    let mut v = 0.0;
-                    if crate::widgets::num(ui, [66.0, 24.0], &mut v, -360.0, 360.0, 0.5, 2, "").on_hover_text("Turn the selection by this many degrees about its centre (counter-clockwise is positive). Or click a selected shape again and drag a corner.").changed() && v != 0.0 { rot_delta = Some(v); }
-                    ui.add_space(2.0);
-                    ui.weak("°");
-                });
-            }
             if sel.len() >= 2 {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
@@ -1132,16 +1154,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             }
         });
     });
-    if locked { geom = false; radius_changed = false; align = None; align_each = None; rot_delta = None; }
-    if let Some(deg) = rot_delta {
-        let pivot = app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
-        let tabs0 = shapes::tab_positions(&d.loops, &d.ops, &sel);
-        shapes::rotate_selection(&mut d.loops, &mut d.ops, &sel, pivot, deg, &tabs0);
-        // keep turning about the same centre
-        app.rotate_mode = true;
-        app.rot_pivot = Some(pivot);
-        changed = true;
-    }
+    if locked { geom = false; radius_changed = false; align = None; align_each = None; }
     if let Some(k) = align {
         let (sw, sh) = (d.stock.w, d.stock.h);
         let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
