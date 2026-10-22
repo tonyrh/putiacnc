@@ -366,7 +366,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                         // a tapered ball nose has a rounded tip by definition
                         if key == "taper" && t.tip <= 0.0 { t.tip = 0.5; }
                         // an arc profile bit starts as a plain round-over (arc = half the diameter)
-                        if key == "arc" && t.arc < t.dia / 2.0 { t.arc = t.dia / 2.0; }
+                        if key == "arc" && t.arc <= 0.0 { t.arc = t.dia / 2.0; }
                         changed = true;
                     } }
                 });
@@ -374,7 +374,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 if t.shape == "arc" {
                     rlabel(ui, lw, "Arc radius");
                     let mut r = t.arc / k;
-                    if crate::widgets::num(ui, [72.0, 22.0], &mut r, t.dia / 2.0 / k, 100.0 / k, 0.1 / k, 3, uname).changed() { t.arc = (r * k).max(t.dia / 2.0); changed = true; }
+                    if crate::widgets::num(ui, [72.0, 22.0], &mut r, if t.concave { t.dia / 2.0 / k } else { 0.1 / k }, 100.0 / k, 0.1 / k, 3, uname).changed() { t.arc = (r * k).max(if t.concave { t.dia / 2.0 } else { 0.1 }); changed = true; }
                     side!(false);
                     rlabel(ui, lw, "Edge");
                     ui.horizontal(|ui| {

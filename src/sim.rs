@@ -306,14 +306,23 @@ mod tests {
     }
 
     #[test]
+    fn a_tight_convex_arc_leaves_a_flat_bottom_like_a_bull_nose() {
+        // 12 mm bit with a 2 mm corner arc: flat bottom 8 mm across, quarter round beyond that
+        let g = ToolGeo::new(&tool("arc", 2.0, 12.0, 0.0));
+        assert!(g.rise(3.9).abs() < 1e-9 && (g.rise(6.0) - 2.0).abs() < 1e-9 && (g.z_full - 2.0).abs() < 1e-9);
+        assert!((g.rise(5.0) - (2.0 - 3.0f64.sqrt())).abs() < 1e-9);
+    }
+
+    #[test]
     fn tool_profile_and_its_inverse_agree() {
         let mut cc = tool("arc", 5.0, 6.0, 0.0);
         cc.concave = true;
-        for t in [tool("arc", 10.0, 6.0, 0.0), cc, tool("vbit", 60.0, 6.0, 0.0), tool("vbit", 60.0, 6.0, 0.8), tool("taper", 12.0, 3.0, 0.4), tool("ball", 60.0, 6.0, 0.0)] {
+        for t in [tool("arc", 10.0, 6.0, 0.0), tool("arc", 1.0, 6.0, 0.0), cc, tool("vbit", 60.0, 6.0, 0.0), tool("vbit", 60.0, 6.0, 0.8), tool("taper", 12.0, 3.0, 0.4), tool("ball", 60.0, 6.0, 0.0)] {
             let g = ToolGeo::new(&t);
             for k in 1..20 {
                 let rho = g.r * k as f64 / 20.0;
                 let z = g.rise(rho);
+                if z < 1e-9 { continue; } // a flat bottom has no single radius for height 0
                 assert!((g.r_at(z) - rho).abs() < 1e-6, "{} {rho}: {z} -> {}", t.shape, g.r_at(z));
             }
             assert!(g.z_full > 0.0 && (g.r_at(g.z_full) - g.r).abs() < 1e-6);

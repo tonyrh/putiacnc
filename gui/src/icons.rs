@@ -244,9 +244,10 @@ pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64
         }
         "arc" => {
             // the real cutting profile; `prof.0` is the arc radius as a multiple of the bit radius
-            let rs = 10.0 * prof.0.max(1.0) as f32;
+            let rs = if prof.1 { 10.0 * prof.0.max(1.0) as f32 } else { 10.0 * prof.0.max(0.05) as f32 };
+            let flat = if prof.1 { 0.0 } else { (10.0 - rs).max(0.0) };
             let sag = |u: f32| rs - (rs * rs - u * u).max(0.0).sqrt();
-            let rise = |u: f32| if prof.1 { sag(10.0) - sag(10.0 - u) } else { sag(u) };
+            let rise = |u: f32| if prof.1 { sag(10.0) - sag(10.0 - u) } else { sag((u - flat).max(0.0)) };
             let mut v = vec![p(14.0, 22.0)];
             v.extend((0..=24).map(|k| { let u = -10.0 + 20.0 * k as f32 / 24.0; p(24.0 + u, 56.0 - rise(u.abs())) }));
             v.push(p(34.0, 22.0)); v

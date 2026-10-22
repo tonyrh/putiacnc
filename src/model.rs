@@ -96,7 +96,7 @@ pub struct Tool {
     #[serde(default)] pub notes: String,
     /// Tip radius in mm of a V-bit, engraving bit or tapered ball nose (0 = sharp tip).
     #[serde(default, skip_serializing_if = "is_zero")] pub tip: f64,
-    /// Arc profile bit: radius in mm of the arc that forms the cutting edge (never less than half the diameter).
+    /// Arc profile bit: radius in mm of the arc that forms the cutting edge. Convex: below half the diameter leaves a flat bottom (a bull nose); above it is a shallow dome. Concave: never less than half the diameter.
     #[serde(default, skip_serializing_if = "is_zero")] pub arc: f64,
     /// Arc profile bit: the edge is a concave arc (flared, like a cove) instead of a convex one (rounded, like a ball).
     #[serde(default, skip_serializing_if = "is_false")] pub concave: bool,

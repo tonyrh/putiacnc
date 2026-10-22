@@ -95,7 +95,11 @@ impl ToolGeo {
         // the tip sphere has to fit inside the diameter
         let rt = if cone && t.tip.is_finite() { t.tip.clamp(0.0, r / half.cos()) } else { 0.0 };
         // the arc cannot be tighter than the bit is wide
-        let arc = if shape == ShapeKind::Arc { if t.arc.is_finite() { t.arc.max(r) } else { r } } else { 0.0 };
+        // a concave arc cannot be tighter than the bit is wide; a convex one smaller than the bit radius leaves a flat bottom
+        let arc = if shape == ShapeKind::Arc {
+            let a = if t.arc.is_finite() { t.arc } else { r };
+            if t.concave { a.max(r) } else { a.max(0.05) }
+        } else { 0.0 };
         let mut g = ToolGeo { r, shape, cone, tn, z_full: 0.0, rt, arc, concave: shape == ShapeKind::Arc && t.concave };
         g.z_full = if cone || matches!(shape, ShapeKind::Ball | ShapeKind::Arc) { g.rise(r) } else { 0.0 };
         g
@@ -117,7 +121,10 @@ impl ToolGeo {
             let rs = self.arc;
             let sag = |u: f64| rs - (rs * rs - u * u).max(0.0).sqrt();
             // convex: part of a sphere; concave: the same arc turned over, flaring out towards the rim
-            return if self.concave { sag(self.r) - sag(self.r - rho) } else { sag(rho) };
+            if self.concave { return sag(self.r) - sag(self.r - rho); }
+            // flat bottom of radius r - rs when the arc is tighter than the bit
+            let flat = (self.r - rs).max(0.0);
+            return sag((rho - flat).max(0.0));
         }
         0.0
     }
