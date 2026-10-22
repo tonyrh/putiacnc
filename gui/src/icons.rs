@@ -208,7 +208,7 @@ pub fn icon_text_button(ui: &mut Ui, icon: Icon, text: &str, tip: &str, width: O
 /// `rect` is the drawing box; the artwork is laid out on a 48 x 72 grid.
 ///
 /// `tip` is the tip radius as a fraction of the bit's radius (0 = sharp); it rounds the point of V-bits and tapers.
-pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64, tip: f64, col: Color32) {
+pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64, tip: f64, prof: (f64, bool), col: Color32) {
     let s = (rect.width() / 48.0).min(rect.height() / 72.0);
     let ox = rect.center().x - 24.0 * s;
     let oy = rect.center().y - 36.0 * s;
@@ -241,6 +241,15 @@ pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64
                 v.extend((0..=12).map(|k| { let f = -lim + 2.0 * lim * k as f32 / 12.0; p(24.0 + rg * f.sin(), cy + rg * f.cos()) }));
                 v.push(p(24.0 + hw, y0)); v.push(p(24.0 + hw, 22.0)); let _ = ca; v
             }
+        }
+        "arc" => {
+            // the real cutting profile; `prof.0` is the arc radius as a multiple of the bit radius
+            let rs = 10.0 * prof.0.max(1.0) as f32;
+            let sag = |u: f32| rs - (rs * rs - u * u).max(0.0).sqrt();
+            let rise = |u: f32| if prof.1 { sag(10.0) - sag(10.0 - u) } else { sag(u) };
+            let mut v = vec![p(14.0, 22.0)];
+            v.extend((0..=24).map(|k| { let u = -10.0 + 20.0 * k as f32 / 24.0; p(24.0 + u, 56.0 - rise(u.abs())) }));
+            v.push(p(34.0, 22.0)); v
         }
         "engrave" => {
             let hw = (36.0 * t + 3.0).clamp(3.6, 10.0); let h = (hw - 3.0) / t; let y0 = 62.0 - h; sk = sk.min(hw * 0.8);

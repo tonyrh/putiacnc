@@ -186,7 +186,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                 else if resp.hovered() { ui.painter().rect_filled(rect, 6.0, vis.widgets.hovered.bg_fill); }
                 let col = if sel { Color32::WHITE } else { vis.text_color() };
                 let ic = egui::Rect::from_center_size(egui::pos2(rect.min.x + 18.0, rect.center().y), egui::vec2(16.0, 24.0));
-                paint_cutter(ui.painter(), ic, &t.shape, t.angle, t.tip / (t.dia / 2.0).max(1e-6), if sel { Color32::WHITE } else { vis.text_color() });
+                paint_cutter(ui.painter(), ic, &t.shape, t.angle, t.tip / (t.dia / 2.0).max(1e-6), (t.arc / (t.dia / 2.0).max(1e-6), t.concave), if sel { Color32::WHITE } else { vis.text_color() });
                 let font = egui::TextStyle::Body.resolve(ui.style());
                 let dia = format!("Ø{}", toollib::fmt_dia(t.dia, &t.sys, false));
                 let gd = ui.painter().layout_no_wrap(dia, font.clone(), col.gamma_multiply(0.7));
@@ -337,7 +337,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
             let aw = ui.available_width() - 10.0;
-            let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")) + 2.0;
+            let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")).max(crate::panels::tw(ui, "Arc radius")) + 2.0;
             let fw = 120.0_f32;
             let sp = 8.0_f32; // label-to-field gap
             let gap = (aw - 2.0 * (lw + fw) - 4.0 * sp).max(8.0); // space between the two column pairs
@@ -353,8 +353,8 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     ui.allocate_exact_size(egui::vec2(gap, 1.0), Sense::hover());
                     if $first {
                         let (cell, _) = ui.allocate_exact_size(egui::vec2(10.0, 22.0), Sense::hover());
-                        let rect = egui::Rect::from_min_size(egui::pos2(cell.min.x + (lw + sp + fw) / 2.0 - 30.0, cell.min.y - 2.0), egui::vec2(60.0, if has_angle(&t.shape) { 128.0 } else { 62.0 }));
-                        paint_cutter(ui.painter(), rect, &t.shape, t.angle, t.tip / (t.dia / 2.0).max(1e-6), ui.visuals().text_color());
+                        let rect = egui::Rect::from_min_size(egui::pos2(cell.min.x + (lw + sp + fw) / 2.0 - 30.0, cell.min.y - 2.0), egui::vec2(60.0, if has_angle(&t.shape) { 128.0 } else if t.shape == "arc" { 98.0 } else { 62.0 }));
+                        paint_cutter(ui.painter(), rect, &t.shape, t.angle, t.tip / (t.dia / 2.0).max(1e-6), (t.arc / (t.dia / 2.0).max(1e-6), t.concave), ui.visuals().text_color());
                     } else { ui.label(""); }
                     ui.label("");
                     ui.end_row();
@@ -365,10 +365,24 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                         t.shape = key.into();
                         // a tapered ball nose has a rounded tip by definition
                         if key == "taper" && t.tip <= 0.0 { t.tip = 0.5; }
+                        // an arc profile bit starts as a plain round-over (arc = half the diameter)
+                        if key == "arc" && t.arc < t.dia / 2.0 { t.arc = t.dia / 2.0; }
                         changed = true;
                     } }
                 });
                 side!(true);
+                if t.shape == "arc" {
+                    rlabel(ui, lw, "Arc radius");
+                    let mut r = t.arc / k;
+                    if crate::widgets::num(ui, [72.0, 22.0], &mut r, t.dia / 2.0 / k, 100.0 / k, 0.1 / k, 3, uname).changed() { t.arc = (r * k).max(t.dia / 2.0); changed = true; }
+                    side!(false);
+                    rlabel(ui, lw, "Edge");
+                    ui.horizontal(|ui| {
+                        if ui.selectable_label(!t.concave, "Convex").clicked() { t.concave = false; changed = true; }
+                        if ui.selectable_label(t.concave, "Concave").clicked() { t.concave = true; changed = true; }
+                    });
+                    side!(false);
+                }
                 if has_angle(&t.shape) {
                     rlabel(ui, lw, "Angle");
                     changed |= crate::widgets::num(ui, [60.0, 22.0], &mut t.angle, 10.0, 150.0, 0.5, 3, "°").changed();

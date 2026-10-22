@@ -68,16 +68,19 @@ pub struct ToolGeo {
     pub z_full: f64,
     /// Tip radius of a cone-shaped tool (0 = sharp).
     pub rt: f64,
+    /// Arc profile bit: radius of the arc that forms the cutting edge, and whether it is concave.
+    pub arc: f64,
+    pub concave: bool,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ShapeKind { Flat, Ball, Bull, VBit, Engrave, Taper }
+pub enum ShapeKind { Flat, Ball, Bull, VBit, Engrave, Taper, Arc }
 
 impl ShapeKind {
     pub fn parse(s: &str) -> Self {
-        match s { "ball" => Self::Ball, "bull" => Self::Bull, "vbit" => Self::VBit, "engrave" => Self::Engrave, "taper" => Self::Taper, _ => Self::Flat }
+        match s { "ball" => Self::Ball, "bull" => Self::Bull, "vbit" => Self::VBit, "engrave" => Self::Engrave, "taper" => Self::Taper, "arc" => Self::Arc, _ => Self::Flat }
     }
     pub fn label(self) -> &'static str {
-        match self { Self::Flat => "Flat end mill", Self::Ball => "Ball nose", Self::Bull => "Bull nose", Self::VBit => "V-bit", Self::Engrave => "Engraving bit", Self::Taper => "Tapered ball nose" }
+        match self { Self::Flat => "Flat end mill", Self::Ball => "Ball nose", Self::Bull => "Bull nose", Self::VBit => "V-bit", Self::Engrave => "Engraving bit", Self::Taper => "Tapered ball nose", Self::Arc => "Arc profile bit" }
     }
 }
 
@@ -91,8 +94,10 @@ impl ToolGeo {
         let tn = half.tan();
         // the tip sphere has to fit inside the diameter
         let rt = if cone && t.tip.is_finite() { t.tip.clamp(0.0, r / half.cos()) } else { 0.0 };
-        let mut g = ToolGeo { r, shape, cone, tn, z_full: 0.0, rt };
-        g.z_full = if cone || shape == ShapeKind::Ball { g.rise(r) } else { 0.0 };
+        // the arc cannot be tighter than the bit is wide
+        let arc = if shape == ShapeKind::Arc { if t.arc.is_finite() { t.arc.max(r) } else { r } } else { 0.0 };
+        let mut g = ToolGeo { r, shape, cone, tn, z_full: 0.0, rt, arc, concave: shape == ShapeKind::Arc && t.concave };
+        g.z_full = if cone || matches!(shape, ShapeKind::Ball | ShapeKind::Arc) { g.rise(r) } else { 0.0 };
         g
     }
     /// Height of the cutting edge above the tip at distance `rho` from the axis (infinity beyond the tool).
@@ -108,6 +113,12 @@ impl ToolGeo {
             return z_t + (rho - rho_t) / self.tn;
         }
         if self.shape == ShapeKind::Ball { return self.r - (self.r * self.r - rho * rho).max(0.0).sqrt(); }
+        if self.shape == ShapeKind::Arc {
+            let rs = self.arc;
+            let sag = |u: f64| rs - (rs * rs - u * u).max(0.0).sqrt();
+            // convex: part of a sphere; concave: the same arc turned over, flaring out towards the rim
+            return if self.concave { sag(self.r) - sag(self.r - rho) } else { sag(rho) };
+        }
         0.0
     }
     /// Radius of the cutting edge at the surface when the tip is `d` below it.
@@ -121,6 +132,13 @@ impl ToolGeo {
             return r.min(self.r);
         }
         if self.shape == ShapeKind::Ball { return if d >= self.r { self.r } else { (2.0 * self.r * d - d * d).max(0.0).sqrt() }; }
+        if self.shape == ShapeKind::Arc {
+            // the profile only rises, so find where it reaches height d
+            if d >= self.rise(self.r) { return self.r; }
+            let (mut lo, mut hi) = (0.0, self.r);
+            for _ in 0..50 { let mid = (lo + hi) / 2.0; if self.rise(mid) < d { lo = mid; } else { hi = mid; } }
+            return (lo + hi) / 2.0;
+        }
         self.r
     }
 }
@@ -699,7 +717,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 holes.push(from);
             }
         } else if kind == "vcarve" {
-            if !(geo.cone || geo.shape == ShapeKind::Ball) { return Err(format!("Operation {}: V-carve needs a V-bit, engraving, tapered or ball nose tool (choose one in Manage…)", k + 1)); }
+            if !(geo.cone || matches!(geo.shape, ShapeKind::Ball | ShapeKind::Arc)) { return Err(format!("Operation {}: V-carve needs a V-bit, engraving, tapered, ball nose or arc profile tool (choose one in Manage…)", k + 1)); }
             let zmax = depth.min(geo.z_full);
             if depth > geo.z_full + 1e-6 { notes.push(format!("{}V-carve depth limited to {} {} (the tool diameter is reached).", pre, num(fl(zmax)), un)); }
             let sv = (dia * so / 100.0 * 0.25).min(0.3).max(0.05);
@@ -734,7 +752,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             notes.push(format!("{}{}: walls are sloped, with the top edge on the line.", pre, geo.shape.label()));
             if kind == "pocket" { notes.push(format!("{}a pocket cut with a cone tool has a ridged floor (try V-carve or a flat tool).", pre)); }
         } else {
-            let rm = if geo.shape == ShapeKind::Ball && depth < rr { geo.r_at(depth) } else { rr };
+            let rm = if matches!(geo.shape, ShapeKind::Ball | ShapeKind::Arc) && depth < geo.z_full { geo.r_at(depth) } else { rr };
             if rm < rr - 1e-6 && kind != "online" { notes.push(format!("{}depth is below the ball radius, so the cut is narrower than the tool ({} {}).", pre, num(fl(rm * 2.0)), un)); }
             jobs = mk_jobs(&ctx, &region, &closed, &open, rm);
         }
@@ -925,7 +943,7 @@ mod tests {
 
     #[test]
     fn cone_radius_grows_with_depth() {
-        let t = Tool { id: "t".into(), name: "v".into(), sys: "mm".into(), shape: "vbit".into(), angle: 90.0, flutes: 2, dia: 6.0, rpm: 1.0, feed: 1.0, plunge: 1.0, so: 40.0, pd: 1.0, notes: String::new(), tip: 0.0 };
+        let t = Tool { id: "t".into(), name: "v".into(), sys: "mm".into(), shape: "vbit".into(), angle: 90.0, flutes: 2, dia: 6.0, rpm: 1.0, feed: 1.0, plunge: 1.0, so: 40.0, pd: 1.0, notes: String::new(), tip: 0.0, arc: 0.0, concave: false };
         let g = ToolGeo::new(&t);
         assert!((g.r_at(1.5) - 1.5).abs() < 1e-9);
         assert!((g.r_at(10.0) - 3.0).abs() < 1e-9);

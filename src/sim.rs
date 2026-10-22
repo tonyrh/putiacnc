@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn vbit_profile_rises_with_radius() {
-        let g = ToolGeo { r: 3.0, shape: ShapeKind::VBit, cone: true, tn: 1.0, z_full: 3.0, rt: 0.0 };
+        let g = ToolGeo { r: 3.0, shape: ShapeKind::VBit, cone: true, tn: 1.0, z_full: 3.0, rt: 0.0, arc: 0.0, concave: false };
         assert_eq!(rise(&g, 0.0), 0.0);
         assert!((rise(&g, 2.0) - 2.0).abs() < 1e-9);
         assert!(rise(&g, 3.5).is_infinite());
@@ -276,6 +276,7 @@ mod tests {
     fn tool(shape: &str, angle: f64, dia: f64, tip: f64) -> crate::model::Tool {
         let mut t = shapes::seed_tools().remove(0);
         t.id = "curved".into(); t.shape = shape.into(); t.angle = angle; t.dia = dia; t.tip = tip;
+        if shape == "arc" { t.arc = angle; } // for arc bits `angle` carries the arc radius in these tests
         t
     }
 
@@ -293,8 +294,22 @@ mod tests {
     }
 
     #[test]
+    fn arc_profile_bits_carve_round_and_flared_troughs() {
+        // 6 mm bit, 10 mm arc, convex: a 4 mm slot is only 10 - sqrt(100 - 4) = 0.202 mm deep
+        let convex = carve_depth(tool("arc", 10.0, 6.0, 0.0), 4.0);
+        assert!((convex - 0.202).abs() < 0.06, "convex {convex}");
+        // concave with the arc as tight as the bit allows (3 mm): at 2 mm out the edge is 3 - (3 - sqrt(9 - 1)) = 2.83 mm up
+        let mut t = tool("arc", 3.0, 6.0, 0.0);
+        t.concave = true;
+        let concave = carve_depth(t, 4.0);
+        assert!((concave - 2.828).abs() < 0.08, "concave {concave}");
+    }
+
+    #[test]
     fn tool_profile_and_its_inverse_agree() {
-        for t in [tool("vbit", 60.0, 6.0, 0.0), tool("vbit", 60.0, 6.0, 0.8), tool("taper", 12.0, 3.0, 0.4), tool("ball", 60.0, 6.0, 0.0)] {
+        let mut cc = tool("arc", 5.0, 6.0, 0.0);
+        cc.concave = true;
+        for t in [tool("arc", 10.0, 6.0, 0.0), cc, tool("vbit", 60.0, 6.0, 0.0), tool("vbit", 60.0, 6.0, 0.8), tool("taper", 12.0, 3.0, 0.4), tool("ball", 60.0, 6.0, 0.0)] {
             let g = ToolGeo::new(&t);
             for k in 1..20 {
                 let rho = g.r * k as f64 / 20.0;

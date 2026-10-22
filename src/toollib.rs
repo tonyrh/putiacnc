@@ -4,9 +4,9 @@ use crate::model::{Operation, Tool};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-pub const SHAPES: [(&str, &str); 6] = [
+pub const SHAPES: [(&str, &str); 7] = [
     ("flat", "Flat end mill"), ("ball", "Ball nose"), ("bull", "Bull nose"),
-    ("vbit", "V-bit"), ("engrave", "Engraving bit"), ("taper", "Tapered ball nose"),
+    ("vbit", "V-bit"), ("engrave", "Engraving bit"), ("taper", "Tapered ball nose"), ("arc", "Arc profile bit"),
 ];
 
 pub fn shape_label(s: &str) -> &'static str {
@@ -52,11 +52,12 @@ pub fn normalize_tool(t: &mut Tool) {
     t.so = if t.so.is_finite() { t.so.clamp(1.0, 100.0) } else { 40.0 };
     t.pd = if t.pd.is_finite() { t.pd.max(0.01) } else { 1.0 };
     t.tip = if t.tip.is_finite() { t.tip.max(0.0) } else { 0.0 };
+    t.arc = if t.arc.is_finite() { t.arc.max(0.0) } else { 0.0 };
 }
 
 #[allow(clippy::too_many_arguments)]
 fn tool(name: &str, sys: &str, shape: &str, angle: f64, dia: f64, flutes: u32, rpm: f64, feed: f64, plunge: f64, so: f64, pd: f64, notes: &str) -> Tool {
-    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes, dia, rpm, feed, plunge, so, pd, notes: notes.into(), tip: 0.0 }
+    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes, dia, rpm, feed, plunge, so, pd, notes: notes.into(), tip: 0.0, arc: 0.0, concave: false }
 }
 
 /// The tools most hobby routers use (fresh ids on every call). The speeds are cautious starting points for
@@ -95,7 +96,7 @@ pub fn chip_load(t: &Tool) -> Option<f64> {
 /// A typical chip-load range (mm per tooth) for wood, MDF and plastics on a light machine. It grows with the
 /// diameter; ball and V-shaped bits take less because only part of their edge is cutting.
 pub fn chip_load_range(t: &Tool) -> (f64, f64) {
-    let k = match t.shape.as_str() { "ball" | "bull" | "taper" => 0.8, "vbit" | "engrave" => 0.5, _ => 1.0 };
+    let k = match t.shape.as_str() { "ball" | "bull" | "taper" | "arc" => 0.8, "vbit" | "engrave" => 0.5, _ => 1.0 };
     let mid = (0.012 * t.dia * k).clamp(0.004, 0.12);
     (0.45 * mid, 1.5 * mid)
 }
