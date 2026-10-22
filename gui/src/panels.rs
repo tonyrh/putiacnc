@@ -729,95 +729,196 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.end_row();
                 });
                 ui.add_space(4.0);
-                // Tool row: the selector takes all the room left of the right-aligned "Ramp in"
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = sp;
-                    let has_ramp = p.kind != "vcarve" && p.kind != "drill" && p.kind != "relief";
-                    // the room for "Ramp in" is kept even when it is not shown, so the selector is the same width in every operation
-                    let ramp_w = tw_of(ui, "Ramp in") + 30.0;
-                    let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
-                    rlabel(ui, l1, if p.kind == "relief" { "Finish" } else { "Tool" });
-                    let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
-                    let cur = elide(ui, &cur, tool_w - 30.0);
-                    egui::ComboBox::from_id_source(("optool", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
-                        for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
-                            if !tools.iter().any(|t| t.sys == sys) { continue; }
-                            ui.weak(label);
-                            for t in tools.iter().filter(|t| t.sys == sys) {
-                                let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
-                                if ui.selectable_label(p.tool == t.id, format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool = t.id.clone(); changed = true; }
-                            }
-                        }
-                        ui.separator();
-                        if ui.selectable_label(false, "Manage tools…").on_hover_text("Open the tool library").clicked() { open_tools = true; ui.close_menu(); }
-                    });
-                    if has_ramp {
-                        let rest = ui.available_width() - ramp_w;
-                        if rest > 0.0 { ui.add_space(rest); }
-                        changed |= ui.add_enabled(p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), egui::Checkbox::new(&mut p.ramp, "Ramp in")).on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
-                    }
-                });
-                if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
-                    ui.add_space(2.0);
+                if p.kind == "relief" {
+                    ui.add_space(4.0);
+                    // total depth, shared by both steps
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
-                        let tool_w = (ui.available_width() - l1 - sp - 8.0).max(100.0);
-                        rlabel(ui, l1, if p.kind == "relief" { "Rough" } else { "Flat" });
-                        let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
-                        let cur = elide(ui, &cur, tool_w - 30.0);
-                        egui::ComboBox::from_id_source(("optool2", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
-                            for t in tools.iter().filter(|t| t.shape == "flat") {
-                                let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
-                                if ui.selectable_label(p.tool2.as_deref() == Some(t.id.as_str()), format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool2 = Some(t.id.clone()); changed = true; }
-                            }
-                        }).response.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
+                        rlabel(ui, l1, "Depth");
+                        changed |= dv_w(ui, 48.0, &mut p.depth, 0.01, 1000.0, "");
+                        ui.weak("mm");
+                        ui.weak("total, from the stock top");
                     });
-                    if p.kind == "plug" {
+                    let tools_ref: &[putiacnc_core::model::Tool] = &tools;
+                    // one pick list for both steps; `flat_only` limits it to flat end mills
+                    let pick = |ui: &mut Ui, src: (&str, i64), w: f32, cur: &str, flat_only: bool, tip: &str| -> Option<String> {
+                        let name = tools_ref.iter().find(|t| t.id == cur).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                        let name = elide(ui, &name, w - 30.0);
+                        let mut got = None;
+                        egui::ComboBox::from_id_source(src).width(w).height(420.0).selected_text(name).show_ui(ui, |ui| {
+                            for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
+                                if !tools_ref.iter().any(|t| t.sys == sys && (!flat_only || t.shape == "flat")) { continue; }
+                                ui.weak(label);
+                                for t in tools_ref.iter().filter(|t| t.sys == sys && (!flat_only || t.shape == "flat")) {
+                                    let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
+                                    if ui.selectable_label(cur == t.id, format!("{}  ({})", clean(&t.name), dia)).clicked() { got = Some(t.id.clone()); }
+                                }
+                            }
+                        }).response.on_hover_text(tip);
+                        got
+                    };
+                    let lw2 = tw_of(ui, "Stepover").max(tw_of(ui, "Pass")).max(tw_of(ui, "Leave")).max(tw_of(ui, "Tool"));
+                    let tool_w = (ui.available_width() - lw2 - sp - 28.0).max(100.0);
+                    // ---- roughing
+                    ui.add_space(4.0);
+                    egui::Frame::group(ui.style()).show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        let mut on = !p.r_off;
+                        if ui.checkbox(&mut on, egui::RichText::new("Roughing").strong()).on_hover_text("Removes the bulk with a flat end mill, leaving a little for the finishing step").changed() { p.r_off = !on; changed = true; }
+                        if on {
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw2, "Tool");
+                                let cur = p.tool2.clone().unwrap_or_default();
+                                if let Some(id) = pick(ui, ("optool2", id), tool_w, &cur, true, "Flat end mill that removes the bulk (leave empty to skip)") { p.tool2 = Some(id); changed = true; }
+                            });
+                            let tool_pd = p.tool2.as_deref().and_then(|id| tool_pd_of(&tools, id));
+                            let tool_so = p.tool2.as_deref().and_then(|id| tools_ref.iter().find(|t| t.id == id)).map(|t| t.so);
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw2, "Pass");
+                                let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
+                                if dv_w(ui, 48.0, &mut v, 0.01, 1000.0, "") { p.pass_depth = Some(v); changed = true; }
+                                ui.weak("mm");
+                                let n = ((p.depth / p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001)) - 1e-9).ceil().max(1.0) as usize;
+                                ui.weak(format!("{n} layer{}", if n == 1 { "" } else { "s" }));
+                                if p.pass_depth.is_some() && ui.small_button("↺").on_hover_text("Use the tool's pass depth").clicked() { p.pass_depth = None; changed = true; }
+                            });
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw2, "Stepover");
+                                let mut v = p.r_so.or(tool_so).unwrap_or(40.0);
+                                if dv_w(ui, 48.0, &mut v, 1.0, 100.0, "") { p.r_so = Some(v); changed = true; }
+                                ui.weak("%");
+                                if p.r_so.is_some() && ui.small_button("↺").on_hover_text("Use the tool's stepover").clicked() { p.r_so = None; changed = true; }
+                            });
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw2, "Leave");
+                                let mut v = p.r_leave.unwrap_or(0.3);
+                                if dv_w(ui, 48.0, &mut v, 0.0, 5.0, "") { p.r_leave = Some(v); changed = true; }
+                                ui.weak("mm");
+                                ui.weak("left for the finishing step");
+                            });
+                        }
+                    });
+                    // ---- finishing
+                    ui.add_space(4.0);
+                    egui::Frame::group(ui.style()).show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        let mut on = !p.f_off;
+                        if ui.checkbox(&mut on, egui::RichText::new("Finishing").strong()).on_hover_text("Follows the surface line by line, usually with a ball nose").changed() { p.f_off = !on; changed = true; }
+                        if on {
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw2, "Tool");
+                                let cur = p.tool.clone();
+                                if let Some(id) = pick(ui, ("optool", id), tool_w, &cur, false, "Tool that carves the final surface (a ball nose works best)") { p.tool = id; changed = true; }
+                            });
+                            let tool_so = tools_ref.iter().find(|t| t.id == p.tool).map(|t| t.so);
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw2, "Stepover");
+                                let mut v = p.f_so.or(tool_so).unwrap_or(10.0);
+                                if dv_w(ui, 48.0, &mut v, 1.0, 100.0, "") { p.f_so = Some(v); changed = true; }
+                                ui.weak("%");
+                                ui.weak("of the tool diameter");
+                                if p.f_so.is_some() && ui.small_button("↺").on_hover_text("Use the tool's stepover").clicked() { p.f_so = None; changed = true; }
+                            });
+                        }
+                    });
+                    if p.r_off && p.f_off { ui.add_space(2.0); ui.colored_label(Color32::from_rgb(220, 120, 0), "Both steps are off: nothing will be cut."); }
+                } else {
+                    // Tool row: the selector takes all the room left of the right-aligned "Ramp in"
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        let has_ramp = p.kind != "vcarve" && p.kind != "drill" && p.kind != "relief";
+                        // the room for "Ramp in" is kept even when it is not shown, so the selector is the same width in every operation
+                        let ramp_w = tw_of(ui, "Ramp in") + 30.0;
+                        let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
+                        rlabel(ui, l1, if p.kind == "relief" { "Finish" } else { "Tool" });
+                        let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                        let cur = elide(ui, &cur, tool_w - 30.0);
+                        egui::ComboBox::from_id_source(("optool", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
+                            for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
+                                if !tools.iter().any(|t| t.sys == sys) { continue; }
+                                ui.weak(label);
+                                for t in tools.iter().filter(|t| t.sys == sys) {
+                                    let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
+                                    if ui.selectable_label(p.tool == t.id, format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool = t.id.clone(); changed = true; }
+                                }
+                            }
+                            ui.separator();
+                            if ui.selectable_label(false, "Manage tools…").on_hover_text("Open the tool library").clicked() { open_tools = true; ui.close_menu(); }
+                        });
+                        if has_ramp {
+                            let rest = ui.available_width() - ramp_w;
+                            if rest > 0.0 { ui.add_space(rest); }
+                            changed |= ui.add_enabled(p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), egui::Checkbox::new(&mut p.ramp, "Ramp in")).on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
+                        }
+                    });
+                    if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
                         ui.add_space(2.0);
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
-                            rlabel(ui, l1, "Gap");
-                            let mut g = p.fit.unwrap_or(0.05);
-                            if dv_w(ui, 42.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
-                            ui.weak("mm").on_hover_text("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
-                            ui.weak("smaller than the pocket, for glue");
+                            let tool_w = (ui.available_width() - l1 - sp - 8.0).max(100.0);
+                            rlabel(ui, l1, if p.kind == "relief" { "Rough" } else { "Flat" });
+                            let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                            let cur = elide(ui, &cur, tool_w - 30.0);
+                            egui::ComboBox::from_id_source(("optool2", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
+                                for t in tools.iter().filter(|t| t.shape == "flat") {
+                                    let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
+                                    if ui.selectable_label(p.tool2.as_deref() == Some(t.id.as_str()), format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool2 = Some(t.id.clone()); changed = true; }
+                                }
+                            }).response.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
                         });
+                        if p.kind == "plug" {
+                            ui.add_space(2.0);
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, l1, "Gap");
+                                let mut g = p.fit.unwrap_or(0.05);
+                                if dv_w(ui, 42.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
+                                ui.weak("mm").on_hover_text("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
+                                ui.weak("smaller than the pocket, for glue");
+                            });
+                        }
                     }
+                    // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
+                    let inlay = p.kind == "inlay" || p.kind == "plug" || p.kind == "relief";
+                    // an inlay clears and cuts out with its second tool, so the pass depth is that tool's
+                    let tool_pd = if inlay { p.tool2.as_deref().and_then(|id| tool_pd_of(&tools, id)).or_else(|| tool_pd_of(&tools, &p.tool)) } else { tool_pd_of(&tools, &p.tool) };
+                    ui.add_space(2.0);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        // the row fills the panel: both fields share what the fixed parts leave over
+                        let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, "mm"), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 22.0);
+                        // short fields; whatever width is left is shared out as gaps between the three groups
+                        let fw = 42.0;
+                        let fixed = l1 + w_pass + 2.0 * w_mm + 2.0 * fw + w_cnt + w_rst + 7.0 * sp;
+                        let gap = ((ui.available_width() - fixed) / 2.0).max(6.0);
+                        rlabel(ui, l1, "Depth");
+                        changed |= dv_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
+                        ui.weak("mm");
+                        ui.add_space(gap);
+                        ui.label(if p.kind == "drill" { "Peck" } else { "Pass" });
+                        let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
+                        if dv_w(ui, fw, &mut v, 0.01, 1000.0, "") {
+                            p.pass_depth = if tool_pd.map_or(false, |t| (t - v).abs() < 1e-9) { None } else { Some(v) };
+                            changed = true;
+                        }
+                        ui.weak("mm");
+                        ui.add_space(gap - sp.min(gap));
+                        ui.allocate_ui_with_layout(egui::vec2(w_rst, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            if p.pass_depth.is_some() && ui.small_button("↺").on_hover_text("Use the tool's pass depth").clicked() { p.pass_depth = None; changed = true; }
+                        });
+                        let pd = p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001);
+                        let n = ((p.depth / pd) - 1e-9).ceil().max(1.0) as usize;
+                        ui.allocate_ui_with_layout(egui::vec2(w_cnt, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.weak(if p.kind == "drill" { format!("{n} peck{}", if n == 1 { "" } else { "s" }) } else { format!("{n} pass{}", if n == 1 { "" } else { "es" }) });
+                        });
+                    });
                 }
-                // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
-                let inlay = p.kind == "inlay" || p.kind == "plug" || p.kind == "relief";
-                // an inlay clears and cuts out with its second tool, so the pass depth is that tool's
-                let tool_pd = if inlay { p.tool2.as_deref().and_then(|id| tool_pd_of(&tools, id)).or_else(|| tool_pd_of(&tools, &p.tool)) } else { tool_pd_of(&tools, &p.tool) };
-                ui.add_space(2.0);
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = sp;
-                    // the row fills the panel: both fields share what the fixed parts leave over
-                    let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, "mm"), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 22.0);
-                    // short fields; whatever width is left is shared out as gaps between the three groups
-                    let fw = 42.0;
-                    let fixed = l1 + w_pass + 2.0 * w_mm + 2.0 * fw + w_cnt + w_rst + 7.0 * sp;
-                    let gap = ((ui.available_width() - fixed) / 2.0).max(6.0);
-                    rlabel(ui, l1, "Depth");
-                    changed |= dv_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
-                    ui.weak("mm");
-                    ui.add_space(gap);
-                    ui.label(if p.kind == "drill" { "Peck" } else { "Pass" });
-                    let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
-                    if dv_w(ui, fw, &mut v, 0.01, 1000.0, "") {
-                        p.pass_depth = if tool_pd.map_or(false, |t| (t - v).abs() < 1e-9) { None } else { Some(v) };
-                        changed = true;
-                    }
-                    ui.weak("mm");
-                    ui.add_space(gap - sp.min(gap));
-                    ui.allocate_ui_with_layout(egui::vec2(w_rst, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        if p.pass_depth.is_some() && ui.small_button("↺").on_hover_text("Use the tool's pass depth").clicked() { p.pass_depth = None; changed = true; }
-                    });
-                    let pd = p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001);
-                    let n = ((p.depth / pd) - 1e-9).ceil().max(1.0) as usize;
-                    ui.allocate_ui_with_layout(egui::vec2(w_cnt, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.weak(if p.kind == "drill" { format!("{n} peck{}", if n == 1 { "" } else { "s" }) } else { format!("{n} pass{}", if n == 1 { "" } else { "es" }) });
-                    });
-                });
                 if p.depth > stock_t + 1e-6 {
                     ui.add_space(2.0);
                     let col = if ui.visuals().dark_mode { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(190, 100, 0) };

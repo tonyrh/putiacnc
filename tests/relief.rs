@@ -65,6 +65,36 @@ fn relief_needs_a_model() {
     assert!(generate(&d, Units::Metric).unwrap_err().contains("3D model"));
 }
 
+#[test]
+fn relief_steps_can_be_switched_off_and_tuned() {
+    let full = generate(&project(true), Units::Metric).unwrap();
+    // finishing only: nothing from the second tool
+    let mut d = project(true);
+    d.ops[0].p.r_off = true;
+    let o = generate(&d, Units::Metric).unwrap();
+    assert!(!o.moves.iter().any(|m| m.alt) && o.moves.iter().any(|m| m.cut));
+    assert!(!o.gcode().contains("roughing"));
+    // roughing only: no finishing lines, and the finishing tool is not even needed
+    let mut d = project(true);
+    d.ops[0].p.f_off = true;
+    d.ops[0].p.tool = String::new();
+    let o = generate(&d, Units::Metric).unwrap();
+    assert!(o.moves.iter().all(|m| !m.cut || m.alt) && o.moves.iter().any(|m| m.alt));
+    assert!(!o.gcode().contains("finishing"));
+    // both off is an error
+    let mut d = project(true);
+    d.ops[0].p.r_off = true; d.ops[0].p.f_off = true;
+    assert!(generate(&d, Units::Metric).unwrap_err().contains("nothing to cut"));
+    // a wider finishing stepover means fewer lines; a bigger leave shows in the comment
+    let mut d = project(true);
+    d.ops[0].p.f_so = Some(40.0);
+    let wide = generate(&d, Units::Metric).unwrap();
+    assert!(wide.gcode().lines().count() < full.gcode().lines().count());
+    let mut d = project(true);
+    d.ops[0].p.r_leave = Some(0.8);
+    assert!(generate(&d, Units::Metric).unwrap().gcode().contains("leaving 0.8 mm"));
+}
+
 /// Timing and size on a real model: PUTIA_STL=/path/model.stl cargo test --release -- --ignored real_model
 #[test]
 #[ignore]

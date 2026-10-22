@@ -604,7 +604,7 @@ pub fn auto_tab_points(loops: &[LoopData], op: i64, n: usize) -> Vec<[f64; 2]> {
 pub fn default_op_params(tool: &str) -> OpParams {
     OpParams {
         kind: "outside".into(), dir: "climb".into(), depth: 3.0, ramp: true, tool: tool.into(),
-        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None,
+        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None, r_off: false, f_off: false, r_leave: None, r_so: None, f_so: None,
     }
 }
 

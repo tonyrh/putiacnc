@@ -522,9 +522,19 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let un = if e.imp { "in" } else { "mm" };
     let ku = e.ku;
     let Some(rel) = &data.relief else { return Err(format!("Operation {}: import a 3D model first (File menu, Import 3D Model)", k + 1)); };
-    let tool = data.tools.iter().find(|t| t.id == o.p.tool).ok_or_else(|| format!("Operation {}: choose a tool (Manage… to create one)", k + 1))?;
     let depth = o.p.depth;
-    if !(tool.dia > 0.0 && depth > 0.0 && tool.so > 0.0 && tool.feed > 0.0 && tool.plunge > 0.0) { return Err(format!("Operation {}: check tool, depth and feed values", k + 1)); }
+    let tool_opt = data.tools.iter().find(|t| t.id == o.p.tool);
+    let rough = if o.p.r_off { None } else { o.p.tool2.as_deref().and_then(|id| data.tools.iter().find(|t| t.id == id)) };
+    if o.p.r_off && o.p.f_off { return Err(format!("Operation {}: roughing and finishing are both switched off, so there is nothing to cut", k + 1)); }
+    if !(depth > 0.0) { return Err(format!("Operation {}: check the depth", k + 1)); }
+    // the finishing tool is only needed when finishing; without it the roughing tool sets the margins
+    let tool = match (tool_opt, o.p.f_off) {
+        (Some(t), _) => t,
+        (None, true) => rough.ok_or_else(|| format!("Operation {}: choose a roughing tool", k + 1))?,
+        (None, false) => return Err(format!("Operation {}: choose a finishing tool (Manage… to create one)", k + 1)),
+    };
+    if !o.p.f_off && !(tool.dia > 0.0 && tool.so > 0.0 && tool.feed > 0.0 && tool.plunge > 0.0) { return Err(format!("Operation {}: check the finishing tool's values", k + 1)); }
+    let leave = o.p.r_leave.unwrap_or(RELIEF_LEAVE).clamp(0.0, 5.0);
     let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };
     let sz = data.job.safe + z0;
     let hop = data.job.safe.min(1.0);
@@ -535,7 +545,6 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         notes.push(format!("⚠ {}the model ({:.0} x {:.0} mm) extends beyond the stock.", pre, mw, mh));
     }
     let fgeo = ToolGeo::new(tool);
-    let rough = o.p.tool2.as_deref().and_then(|id| data.tools.iter().find(|t| t.id == id));
     let rmax = tool.dia / 2.0 + 0.2;
     let rmax = rough.map_or(rmax, |r| rmax.max(r.dia / 2.0 + 0.2));
     let f = Field::new(rel, depth, rmax + 1.0);
@@ -550,16 +559,16 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         let rg = ToolGeo::new(rt);
         let kc = ((rt.dia / 6.0 / g).round() as usize).max(1);
         let margin = (((rt.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
-        let rp = Rough::new(&f, kc, rt.dia / 2.0, RELIEF_LEAVE as f32, |rho| rg.rise(rho), margin);
+        let rp = Rough::new(&f, kc, rt.dia / 2.0, leave as f32, |rho| rg.rise(rho), margin);
         let range = -(rp.min_t as f64);
         if range > 1e-6 {
             let pdr = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(rt.pd);
             let n = ((range / pdr) - 1e-9).ceil().max(1.0) as usize;
             let dz = range / n as f64;
-            let rstep = ((rt.dia * rt.so / 100.0 / rp.gc).round() as usize).max(1);
+            let rstep = ((rt.dia * o.p.r_so.filter(|v| *v > 0.0).unwrap_or(rt.so) / 100.0 / rp.gc).round() as usize).max(1);
             select_tool(e, ts, mach, rt, sz, &fnum(rt.dia), un);
             e.alt = true;
-            e.g.push(format!("(Operation {}: relief, roughing in {} layers, {} {} {}, leaving {} {})", k + 1, n, rg.shape.label(), fnum(rt.dia), un, fnum(RELIEF_LEAVE), un));
+            e.g.push(format!("(Operation {}: relief, roughing in {} layers, {} {} {}, leaving {} {})", k + 1, n, rg.shape.label(), fnum(rt.dia), un, fnum(leave), un));
             let mut first = true;
             for li in 0..n {
                 let z = -dz * (li as f64 + 1.0);
@@ -599,34 +608,37 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         } else {
             notes.push(format!("{}nothing to rough: the model is flat.", pre));
         }
-    } else {
+    } else if !o.p.r_off {
         notes.push(format!("{}no roughing tool chosen: the finishing tool cuts everything (slow, and hard on the tool). Pick a flat end mill as the roughing tool.", pre));
     }
 
-    // 2. finishing with the main tool, lines along X following the surface
-    let fp = Footprint::new(g, tool.dia / 2.0, |rho| fgeo.rise(rho));
-    let step = ((tool.dia * tool.so / 100.0 / g).round() as usize).max(1);
-    if step as f64 * g > tool.dia * tool.so / 100.0 * 1.6 { notes.push(format!("{}the model's resolution ({} {}) limits the finishing line spacing; re-import it finer for a smoother surface.", pre, fnum(g), un)); }
-    let margin = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
-    let lines = finish_lines(&f, &fp, margin, step, 0.01);
-    select_tool(e, ts, mach, tool, sz, &fnum(tool.dia), un);
-    e.g.push(format!("(Operation {}: relief, finishing, {} {} {}, lines {} {} apart)", k + 1, fgeo.shape.label(), fnum(tool.dia), un, fnum(step as f64 * g), un));
-    for (li, line) in lines.iter().enumerate() {
-        let pts: Vec<[f64; 3]> = if li % 2 == 1 { line.iter().rev().copied().collect() } else { line.clone() };
-        e.pn = layers + li + 1;
-        let a = pts[0];
-        if li == 0 {
-            e.go("G0", None, None, Some(sz), 0.0);
-            e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
-            e.go("G0", None, None, Some(z0 + hop), 0.0);
-            e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
-        } else {
-            e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + a[2]), tool.feed);
+    if !o.p.f_off {
+        // 2. finishing with the main tool, lines along X following the surface
+        let fp = Footprint::new(g, tool.dia / 2.0, |rho| fgeo.rise(rho));
+        let fso = o.p.f_so.filter(|v| *v > 0.0).unwrap_or(tool.so);
+        let step = ((tool.dia * fso / 100.0 / g).round() as usize).max(1);
+        if step as f64 * g > tool.dia * fso / 100.0 * 1.6 { notes.push(format!("{}the model's resolution ({} {}) limits the finishing line spacing; re-import it finer for a smoother surface.", pre, fnum(g), un)); }
+        let margin = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
+        let lines = finish_lines(&f, &fp, margin, step, 0.01);
+        select_tool(e, ts, mach, tool, sz, &fnum(tool.dia), un);
+        e.g.push(format!("(Operation {}: relief, finishing, {} {} {}, lines {} {} apart)", k + 1, fgeo.shape.label(), fnum(tool.dia), un, fnum(step as f64 * g), un));
+        for (li, line) in lines.iter().enumerate() {
+            let pts: Vec<[f64; 3]> = if li % 2 == 1 { line.iter().rev().copied().collect() } else { line.clone() };
+            e.pn = layers + li + 1;
+            let a = pts[0];
+            if li == 0 {
+                e.go("G0", None, None, Some(sz), 0.0);
+                e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+                e.go("G0", None, None, Some(z0 + hop), 0.0);
+                e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
+            } else {
+                e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + a[2]), tool.feed);
+            }
+            for p in &pts[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), tool.feed); }
         }
-        for p in &pts[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), tool.feed); }
+        e.go("G0", None, None, Some(sz), 0.0);
+        if tool.shape == "flat" { notes.push(format!("{}a flat end mill as the finishing tool leaves a stepped surface; use a ball nose.", pre)); }
     }
-    e.go("G0", None, None, Some(sz), 0.0);
-    if tool.shape == "flat" { notes.push(format!("{}a flat end mill as the finishing tool leaves a stepped surface; use a ball nose.", pre)); }
     let _ = sz_init;
     Ok(())
 }

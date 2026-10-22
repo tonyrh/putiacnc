@@ -157,6 +157,16 @@ pub struct OpParams {
     #[serde(default, rename = "tool2", skip_serializing_if = "Option::is_none")] pub tool2: Option<String>,
     /// Inlay plug: how much smaller the plug is than the pocket, measured sideways, in mm (the glue gap).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub fit: Option<f64>,
+    /// 3D relief: skip the roughing step.
+    #[serde(default, rename = "rOff", skip_serializing_if = "is_false")] pub r_off: bool,
+    /// 3D relief: skip the finishing step.
+    #[serde(default, rename = "fOff", skip_serializing_if = "is_false")] pub f_off: bool,
+    /// 3D relief roughing: material left on the surface for the finishing pass, in mm (default 0.3).
+    #[serde(default, rename = "rLeave", skip_serializing_if = "Option::is_none")] pub r_leave: Option<f64>,
+    /// 3D relief roughing: stepover in % of the tool diameter; `None` = the roughing tool's own.
+    #[serde(default, rename = "rSo", skip_serializing_if = "Option::is_none")] pub r_so: Option<f64>,
+    /// 3D relief finishing: stepover in % of the tool diameter; `None` = the finishing tool's own.
+    #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
 }
 
 /// A manually placed holding tab, anchored to a shape: `l` is the index of the shape in the project's
