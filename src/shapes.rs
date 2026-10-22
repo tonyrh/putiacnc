@@ -192,6 +192,16 @@ pub fn rotate_about(l: &mut LoopData, cx: f64, cy: f64, deg: f64) {
 
 /// Scale about an anchor point (mm). Rectangles are rebuilt from their new bounding box so the
 /// corner radius stays circular; a circle scaled non-uniformly becomes a plain ellipse.
+/// Mirror a shape left to right about the vertical line x = `cx` (mm). Keeps the shape's kind.
+pub fn mirror_x(l: &mut LoopData, cx: f64) {
+    for c in l.pts.chunks_exact_mut(2) { c[0] = to_i(2.0 * cx - c[0] as f64 / S); }
+    // a mirrored loop runs the other way round; keep the original order of the points
+    let n = l.pts.len() / 2;
+    let mut v: Vec<[i64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+    if n > 2 && l.closed() { v.reverse(); }
+    l.pts = v.into_iter().flat_map(|p| p).collect();
+}
+
 pub fn scale_about(l: &mut LoopData, ax: f64, ay: f64, sx: f64, sy: f64) {
     for c in l.pts.chunks_exact_mut(2) {
         c[0] = to_i(ax + (c[0] as f64 / S - ax) * sx);
@@ -531,7 +541,7 @@ pub fn auto_tab_points(loops: &[LoopData], op: i64, n: usize) -> Vec<[f64; 2]> {
 pub fn default_op_params(tool: &str) -> OpParams {
     OpParams {
         kind: "outside".into(), dir: "climb".into(), depth: 3.0, ramp: true, tool: tool.into(),
-        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None,
+        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None,
     }
 }
 

@@ -101,7 +101,7 @@ pub struct Operation { pub id: i64, pub p: OpParams }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct OpParams {
-    /// outside, inside, online, pocket, vcarve or drill.
+    /// outside, inside, online, pocket, vcarve, drill, inlay (pocket) or plug (inlay plug).
     #[serde(rename = "type", default = "d_outside")] pub kind: String,
     #[serde(default = "d_climb")] pub dir: String,
     pub depth: f64,
@@ -120,6 +120,10 @@ pub struct OpParams {
     /// Manually placed holding tabs. `Some` = manual placement, `None` = evenly spaced tabs (`tabN`).
     /// Each tab is anchored to a shape, so it follows when the shape is moved or resized.
     #[serde(default, rename = "tabPts", skip_serializing_if = "Option::is_none")] pub tab_pts: Option<Vec<TabPt>>,
+    /// Second tool of an inlay operation: the flat end mill that clears the pocket floor or cuts the plug out.
+    #[serde(default, rename = "tool2", skip_serializing_if = "Option::is_none")] pub tool2: Option<String>,
+    /// Inlay plug: how much smaller the plug is than the pocket, measured sideways, in mm (the glue gap).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub fit: Option<f64>,
 }
 
 /// A manually placed holding tab, anchored to a shape: `l` is the index of the shape in the project's

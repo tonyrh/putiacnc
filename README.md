@@ -1,7 +1,7 @@
 # PutiaCNC
 
 A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC output too), written in Rust. Draw or import shapes, assign operations
-(profile, pocket, V-carve, drill), preview the result in 2D and in a simulated 3D view of the machined
+(profile, pocket, V-carve, drill, inlay), preview the result in 2D and in a simulated 3D view of the machined
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
 ![2D design: shapes assigned to a profile and a pocket operation](docs/screenshot-2d.png)
@@ -37,6 +37,7 @@ Features:
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks
   to fit, with a note if there is no room). Warns when the depth exceeds the stock thickness.
 - A keyboard shortcuts reference (Help menu or F1).
+- Inlay: one button makes a pocket operation and a matching plug operation (a mirrored copy of the selection beside it), cut with a V-bit and a flat end mill; depth, tools and the glue gap are editable. The pocket and plug walls slope at the same angle, and the 3D preview shows both.
 - Array and copy (Edit menu): repeat the selected shapes in a grid or around a circle.
 - Fillet and chamfer: a toolbar tool (shown when the selection has corners) that rounds or bevels the corners of shapes.
 - A default tool library with 18 common hobby-router tools (flat, downcut, compression, ball nose, V-bits, engraving, surfacing); cautious starting speeds and feeds. The tool manager estimates the chip load and material removal rate from the speeds, feed and pass depth.
@@ -97,7 +98,7 @@ It turns a project into GRBL G-code; the output is checked against reference G-c
 |---|---|
 | `src/model.rs` | Data model (serde). Reads and writes the project files (`"app": "putia-cnc"`). |
 | `src/clip.rs` | Safe wrapper around Clipper 6.4 (Clipper 6.4): even-odd union, round-join offset, cleaning, area. |
-| `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, drill, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
+| `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, drill, inlay pocket and plug, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
 | `src/svg.rs` | SVG import into closed and open shapes. |
 | `src/dxf.rs` | ASCII DXF import (lines, arcs, circles, polylines, splines, blocks). |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |

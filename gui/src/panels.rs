@@ -9,7 +9,7 @@ use putiacnc_core::shapes;
 /// The default font has no ″ glyph; show a plain quote instead.
 fn clean(s: &str) -> String { s.replace('″', "\"") }
 
-pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve"), ("drill", "Drill")];
+pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve"), ("drill", "Drill"), ("inlay", "Inlay pocket"), ("plug", "Inlay plug")];
 const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside", "Inside"), ("online", "On")];
 const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
 const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
@@ -366,6 +366,41 @@ pub fn left_panel(ui: &mut Ui, app: &mut App) { project_panel(ui, app, false); }
 /// The Operations tab of the right panel.
 pub fn ops_panel(ui: &mut Ui, app: &mut App) { project_panel(ui, app, true); }
 
+/// The Inlay button: a pocket operation for the selected shapes and a plug operation for a mirrored copy
+/// of them, placed to the right of the selection.
+fn add_inlay(d: &mut putiacnc_core::model::ProjectData, sel: &std::collections::BTreeSet<usize>) {
+    use putiacnc_core::shapes as sh;
+    let is_cone = |t: &&putiacnc_core::model::Tool| ["vbit", "engrave", "taper"].contains(&t.shape.as_str());
+    let vbit = d.tools.iter().find(|t| is_cone(t) && t.angle == 60.0).or_else(|| d.tools.iter().find(is_cone)).or(d.tools.first()).map(|t| t.id.clone()).unwrap_or_default();
+    let flats: Vec<&putiacnc_core::model::Tool> = d.tools.iter().filter(|t| t.shape == "flat").collect();
+    let flat = flats.iter().find(|t| t.dia <= 3.5).or(flats.first()).map(|t| t.id.clone());
+    let mut base = sh::default_op_params(&vbit);
+    base.kind = "inlay".into();
+    base.depth = 3.0;
+    base.tool2 = flat;
+    let mut plug = base.clone();
+    plug.kind = "plug".into();
+    plug.fit = Some(0.05);
+    let first = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
+    d.oid = first + 1;
+    d.ops.push(Operation { id: first, p: base });
+    d.ops.push(Operation { id: first + 1, p: plug });
+    d.act = first;
+    let picked: Vec<usize> = sel.iter().copied().filter(|&i| i < d.loops.len()).collect();
+    for &i in &picked { d.loops[i].op = first; }
+    if let Some(b) = sh::bbox_many(picked.iter().map(|&i| &d.loops[i])) {
+        let (cx, w) = ((b[0] + b[2]) / 2.0, b[2] - b[0]);
+        let copies: Vec<putiacnc_core::model::LoopData> = picked.iter().filter(|&&i| d.loops[i].closed()).map(|&i| {
+            let mut l = d.loops[i].clone();
+            sh::mirror_x(&mut l, cx);
+            sh::translate(&mut l, w + 10.0, 0.0);
+            l.op = first + 1;
+            l
+        }).collect();
+        d.loops.extend(copies);
+    }
+}
+
 /// One body for both panels: `ops` picks the Operations section (right panel) or the
 /// Name / Stock / Selection / Tools sections (left panel), so editing and undo logic is shared.
 fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
@@ -455,9 +490,15 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         // ---- operations --------------------------------------------------------------
         // the operation list, its buttons row and the editor frame all share this width
         let lw = ui.available_width();
-        ui.horizontal(|ui| {
-            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
-                if icon_text_button(ui, icon, label, &format!("Add a {label} operation"), None).clicked() {
+        ui.horizontal_wrapped(|ui| {
+            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill), ("inlay", "Inlay", Icon::Inlay)] {
+                let tip = if kind == "inlay" { "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)".to_string() } else { format!("Add a {label} operation") };
+                if icon_text_button(ui, icon, label, &tip, None).clicked() {
+                    if kind == "inlay" {
+                        add_inlay(d, sel);
+                        changed = true;
+                        continue;
+                    }
                     let base = d.ops.iter().find(|o| o.id == d.act).map(|o| o.p.clone());
                     let mut p = base.unwrap_or_else(|| shapes::default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
                     p.kind = match kind {
@@ -478,13 +519,11 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 }
             }
             if !d.ops.is_empty() {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
-                    let (icon, tip) = if all_folded { (Icon::Unfold, "Expand all operations") } else { (Icon::Fold, "Collapse all operations") };
-                    if small_icon_button(ui, icon, true, tip).clicked() {
-                        if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
-                    }
-                });
+                let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
+                let (icon, tip) = if all_folded { (Icon::Unfold, "Expand all operations") } else { (Icon::Fold, "Collapse all operations") };
+                if small_icon_button(ui, icon, true, tip).clicked() {
+                    if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
+                }
             }
         });
         let tools = d.tools.clone();
@@ -500,7 +539,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let o_kind = o.p.kind.clone();
             let n_ops = d.ops.len();
             {
-                let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, _ => Icon::Profile };
+                let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
                 let selected = d.act == id;
                 let folded = collapsed.contains(&id);
@@ -560,7 +599,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp, 10.0]).show(ui, |ui| {
                     rlabel(ui, l1, "Type");
                     let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
-                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", "V-carve"), "drill" => ("drill", "Drill"), _ => ("pocket", "Pocket") }];
+                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", "V-carve"), "drill" => ("drill", "Drill"), "inlay" => ("inlay", "Inlay pocket"), "plug" => ("plug", "Inlay plug"), _ => ("pocket", "Pocket") }];
                     changed |= combo_w(ui, lc + 10.0, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { "Profile: cut outside, inside or on the line" } else { "Operation type" });
                     rlabel(ui, l3, "Cut");
                     ui.add_enabled_ui(p.kind != "drill", |ui| {
@@ -598,8 +637,37 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         changed |= ui.add_enabled(p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), egui::Checkbox::new(&mut p.ramp, "Ramp in")).on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
                     }
                 });
+                if p.kind == "inlay" || p.kind == "plug" {
+                    ui.add_space(2.0);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        let tool_w = (ui.available_width() - l1 - sp - 8.0).max(100.0);
+                        rlabel(ui, l1, "Flat");
+                        let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                        let cur = elide(ui, &cur, tool_w - 30.0);
+                        egui::ComboBox::from_id_source(("optool2", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
+                            for t in tools.iter().filter(|t| t.shape == "flat") {
+                                let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
+                                if ui.selectable_label(p.tool2.as_deref() == Some(t.id.as_str()), format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool2 = Some(t.id.clone()); changed = true; }
+                            }
+                        }).response.on_hover_text(if p.kind == "inlay" { "Flat end mill that clears the pocket floor" } else { "Flat end mill that cuts the plug out of the stock" });
+                    });
+                    if p.kind == "plug" {
+                        ui.add_space(2.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
+                            rlabel(ui, l1, "Gap");
+                            let mut g = p.fit.unwrap_or(0.05);
+                            if dv_w(ui, 42.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
+                            ui.weak("mm").on_hover_text("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
+                            ui.weak("smaller than the pocket, for glue");
+                        });
+                    }
+                }
                 // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
-                let tool_pd = tool_pd_of(&tools, &p.tool);
+                let inlay = p.kind == "inlay" || p.kind == "plug";
+                // an inlay clears and cuts out with its second tool, so the pass depth is that tool's
+                let tool_pd = if inlay { p.tool2.as_deref().and_then(|id| tool_pd_of(&tools, id)).or_else(|| tool_pd_of(&tools, &p.tool)) } else { tool_pd_of(&tools, &p.tool) };
                 ui.add_space(2.0);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = sp;
@@ -850,4 +918,42 @@ fn icon_close(ui: &mut Ui) -> egui::Response {
     if resp.hovered() { ui.painter().rect_filled(r, 5.0, ui.visuals().widgets.hovered.weak_bg_fill); }
     paint_icon(ui.painter(), Icon::Close, r.center(), ui.visuals().text_color(), 0.55);
     resp.on_hover_text("Dismiss")
+}
+
+#[cfg(test)]
+mod inlay_tests {
+    use super::*;
+    use putiacnc_core::shapes;
+
+    #[test]
+    fn the_inlay_button_makes_a_pocket_and_a_mirrored_plug_beside_it() {
+        let mut f = shapes::blank_project();
+        let d = &mut f.data;
+        d.loops.clear();
+        // an arrow-like shape, so a mirror image is not the same shape
+        d.loops.push(shapes::new_poly(&[[10.0, 10.0], [30.0, 10.0], [30.0, 20.0], [15.0, 30.0]], true, 0).unwrap());
+        d.loops.push(shapes::new_circle([50.0, 20.0], 5.0, 0));
+        let sel: std::collections::BTreeSet<usize> = [0, 1].into_iter().collect();
+        add_inlay(d, &sel);
+        assert_eq!(d.ops.len(), 2);
+        assert_eq!((d.ops[0].p.kind.as_str(), d.ops[1].p.kind.as_str()), ("inlay", "plug"));
+        assert_eq!(d.ops[0].p.depth, 3.0);
+        assert_eq!(d.ops[1].p.fit, Some(0.05));
+        // 60 degree V-bit and a small flat end mill
+        let vb = d.tools.iter().find(|t| t.id == d.ops[0].p.tool).unwrap();
+        assert!(vb.shape == "vbit" && vb.angle == 60.0);
+        let fl = d.tools.iter().find(|t| Some(&t.id) == d.ops[0].p.tool2.as_ref()).unwrap();
+        assert!(fl.shape == "flat" && fl.dia <= 3.5);
+        assert_eq!(d.ops[1].p.tool2, d.ops[0].p.tool2);
+        // the originals go to the pocket, the copies to the plug
+        assert_eq!(d.loops.len(), 4);
+        assert!(d.loops[0].op == d.ops[0].id && d.loops[1].op == d.ops[0].id);
+        assert!(d.loops[2].op == d.ops[1].id && d.loops[3].op == d.ops[1].id);
+        // selection spans x 10..55: the copies start 10 mm to its right, mirrored
+        let b = shapes::bbox_many(d.loops[2..].iter()).unwrap();
+        assert!((b[0] - 65.0).abs() < 0.01 && (b[2] - 110.0).abs() < 0.01, "{b:?}");
+        // mirrored: the slanted corner (15, 30) was near the left of the selection, now it is near the right (105)
+        let p = d.loops[2].path();
+        assert!(p.iter().any(|q| q[1] == 30_000 && (q[0] as f64 / 1000.0 - 105.0).abs() < 0.01), "{p:?}");
+    }
 }

@@ -26,7 +26,7 @@ pub struct Sim {
     pub z: Vec<f32>,
     /// Number of moves applied so far.
     pub done: usize,
-    tools: Vec<(f64, Vec<f32>)>, // per operation: radius, rise table with step = cell / 2
+    tools: Vec<(f64, Vec<f32>)>, // two per operation (tool, second tool): radius, rise table with step = cell / 2
     pub tip: [f64; 3],
     /// Bumped whenever the surface changes (the GUI uploads it again when this moves).
     pub rev: u64,
@@ -42,8 +42,9 @@ impl Sim {
         let cell = (area / max_cells.max(1000) as f64).sqrt().max(0.05);
         let nx = ((st.w / cell).ceil() as usize).max(2) + 1;
         let ny = ((st.h / cell).ceil() as usize).max(2) + 1;
-        let tools = data.ops.iter().map(|o| {
-            let t: Option<&Tool> = data.tools.iter().find(|t| t.id == o.p.tool);
+        // two slots per operation: its tool and its second tool (inlays)
+        let tools = data.ops.iter().flat_map(|o| [Some(o.p.tool.as_str()), o.p.tool2.as_deref()]).map(|id| {
+            let t: Option<&Tool> = id.and_then(|id| data.tools.iter().find(|t| t.id == id));
             match t {
                 Some(t) => {
                     let g = ToolGeo::new(t);
@@ -126,7 +127,7 @@ impl Sim {
             // skip samples clearly above the stock
             let z = m.from[2] + (m.to[2] - m.from[2]) * f;
             if z > 0.0 { continue; }
-            self.stamp(m.op, m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, z);
+            self.stamp(m.op * 2 + m.alt as usize, m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, z);
         }
     }
 
@@ -221,5 +222,41 @@ mod tests {
         // going back within the move restarts the replay
         s.advance_into(&out.moves, 0.2);
         assert_eq!(s.done, 0);
+    }
+
+    #[test]
+    fn inlay_pocket_and_plug_have_matching_slopes() {
+        let mut f = shapes::blank_project();
+        let d = &mut f.data;
+        d.stock.w = 80.0; d.stock.h = 40.0; d.stock.t = 12.0;
+        let vbit = d.tools.iter().find(|t| t.shape == "vbit" && t.angle == 60.0).unwrap().id.clone();
+        let flat = d.tools.iter().find(|t| t.shape == "flat" && t.dia < 3.5).unwrap().id.clone();
+        for (id, kind) in [(1, "inlay"), (2, "plug")] {
+            let mut p = shapes::default_op_params(&vbit);
+            p.kind = kind.into();
+            p.depth = 3.0;
+            p.tool2 = Some(flat.clone());
+            d.ops.push(crate::model::Operation { id, p });
+        }
+        d.oid = 2; d.act = 1;
+        d.loops.push(shapes::new_rect([10.0, 10.0], [30.0, 30.0], 0.0, 1));
+        d.loops.push(shapes::new_rect([50.0, 10.0], [70.0, 30.0], 0.0, 2));
+        let out = generate(&f.data, Units::Metric).unwrap();
+        assert!(out.moves.iter().any(|m| m.alt), "the flat end mill takes part");
+        let mut s = Sim::new(&f.data, 200_000);
+        s.advance(&out.moves, out.moves.len());
+        let h = |x: f64, y: f64| s.at((x / s.cell).round() as usize, (y / s.cell).round() as usize) as f64;
+        let tn = (30.0_f64).to_radians().tan();
+        // pocket: flat floor 3 mm deep, walls sloping at the V-bit's angle
+        assert!((h(20.0, 20.0) + 3.0).abs() < 0.05, "floor {}", h(20.0, 20.0));
+        assert!((h(11.0, 20.0) + 1.0 / tn).abs() < 0.2, "wall {} vs {}", h(11.0, 20.0), -1.0 / tn);
+        assert!(h(5.0, 20.0).abs() < 1e-6, "outside the pocket is untouched");
+        // plug: top of the boss is the original surface, walls slope the same way, 0.05 mm smaller sideways
+        assert!(h(60.0, 20.0).abs() < 0.05, "boss top {}", h(60.0, 20.0));
+        let want = (1.0 - 0.05) / tn - 3.0;
+        assert!((h(51.0, 20.0) - want).abs() < 0.2, "boss wall {} vs {}", h(51.0, 20.0), want);
+        // the plug is cut free of the stock around its base
+        assert!(s.through((49.0 / s.cell).round() as usize, (20.0 / s.cell).round() as usize));
+        assert!(h(40.0, 20.0).abs() < 1e-6, "between the two is untouched");
     }
 }

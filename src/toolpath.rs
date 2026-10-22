@@ -15,6 +15,8 @@ pub struct Move {
     /// 1-based pass number inside the operation (0 = approach).
     pub pass: usize,
     pub op: usize,
+    /// Made with the operation's second tool (inlay operations use a V-bit and a flat end mill).
+    pub alt: bool,
 }
 
 /// Where the generated toolpath leaves a holding tab uncut: the middle of the tab on the toolpath
@@ -93,7 +95,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize,
-    moves: Vec<Move>, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
+    moves: Vec<Move>, alt: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
 }
 
 impl Em {
@@ -115,7 +117,7 @@ impl Em {
         self.g.push(s);
         let dist = ((x - self.cur[0]).powi(2) + (y - self.cur[1]).powi(2) + (z - self.cur[2]).powi(2)).sqrt();
         let dt = dist / (if is_cut { fd } else { self.rap }) * self.tsc;
-        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, pass: self.pn, op: self.oi });
+        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, pass: self.pn, op: self.oi, alt: self.alt });
         self.time += dt;
         if is_cut { self.tc += dt; }
         self.cur = [x, y, z];
@@ -407,6 +409,51 @@ pub fn number_lines(lines: Vec<String>) -> Vec<String> {
     lines.into_iter().enumerate().map(|(i, l)| format!("N{} {}", (i + 1) * 10, l)).collect()
 }
 
+/// Which tool is in the spindle, and the Mach3 / LinuxCNC tool numbers (in order of first use).
+#[derive(Default)]
+struct ToolSt { d: Option<f64>, r: Option<f64>, t: Option<String>, ids: Vec<String> }
+
+/// Emit what it takes to start cutting with `tool`: spindle start, or a tool change when another tool was in.
+fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, dia_txt: &str, un: &str) {
+    if !st.ids.contains(&tool.id) { st.ids.push(tool.id.clone()); }
+    let tno = st.ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
+    // Mach3 and some LinuxCNC setups choke on anything but plain ASCII inside a comment
+    let tname: String = tool.name.replace('″', "in").replace('"', "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect();
+    let m6 = format!("T{} M6 (Tool {}: {})", tno, tno, tname);
+    let rpm = tool.rpm;
+    match st.d {
+        None => {
+            if mach { e.g.push(m6); }
+            e.g.push(format!("M3 S{}", num(rpm))); e.g.push("G4 P2".into());
+        }
+        Some(ld) if if mach { st.t.as_deref() != Some(tool.id.as_str()) } else { ld != tool.dia } => {
+            e.go("G0", None, None, Some(sz), 0.0);
+            e.g.push("M5".into());
+            if mach { e.g.push(m6); }
+            else { e.g.push(format!("M0 (Change tool to {} {}, then resume)", dia_txt, un)); }
+            e.g.push(format!("M3 S{}", num(rpm)));
+            e.g.push("G4 P2".into());
+        }
+        Some(_) if st.r != Some(rpm) => e.g.push(format!("M3 S{}", num(rpm))),
+        _ => {}
+    }
+    st.d = Some(tool.dia); st.r = Some(rpm); st.t = Some(tool.id.clone()); e.lf = None;
+}
+
+/// Trace closed rings with a V-bit, each at its own depth (the tip's Z).
+fn emit_rings(e: &mut Em, rings: &[(Path, f64)], rev: bool, z0: f64, sz: f64, hop: f64, plunge: f64, feed: f64) {
+    for (idx, (p, z)) in rings.iter().enumerate() {
+        let pts = path_f(p, rev, true);
+        let a = pts[0];
+        e.pn = idx + 1;
+        e.go("G0", None, None, Some(if idx > 0 { z0 + hop } else { sz }), 0.0);
+        e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+        e.go("G1", None, None, Some(z0 + z), plunge);
+        for q in pts { e.go("G1", Some(q[0]), Some(q[1]), Some(z0 + z), feed); }
+    }
+    e.go("G0", None, None, Some(sz), 0.0);
+}
+
 pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let ku = units.factor();
     let un = units.name();
@@ -418,7 +465,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
+    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
     let mut notes: Vec<String> = Vec::new();
 
     if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
@@ -441,11 +488,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         e.g.push(format!("{} G90 G17", if imp { "G20" } else { "G21" }));
     }
 
-    let mut last_d: Option<f64> = None;
-    let mut last_r: Option<f64> = None;
-    let mut last_t: Option<String> = None;
-    // Mach3 / LinuxCNC tool numbers: in order of first use
-    let mut tool_ids: Vec<String> = Vec::new();
+    let mut ts = ToolSt::default();
     let mut any = false;
 
     for (k, o) in data.ops.iter().enumerate() {
@@ -455,7 +498,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         if mine.is_empty() { notes.push(format!("Op {} has no shapes.", k + 1)); continue; }
         let tool = data.tools.iter().find(|t| t.id == o.p.tool)
             .ok_or_else(|| format!("Operation {}: choose a tool (Manage… to create one)", k + 1))?;
-        let (dia, so, pd, feed, plunge, rpm) = (tool.dia, tool.so, tool.pd, tool.feed, tool.plunge, tool.rpm);
+        let (dia, so, pd, feed, plunge) = (tool.dia, tool.so, tool.pd, tool.feed, tool.plunge);
         let depth = o.p.depth;
         let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };
         let sz = data.job.safe + z0;
@@ -480,6 +523,120 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, z0, sz, zs: zs.clone(),
             tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
             lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 } };
+
+        if kind == "inlay" || kind == "plug" {
+            let female = kind == "inlay";
+            let label = if female { "inlay pocket" } else { "inlay plug" };
+            if !geo.cone { return Err(format!("Operation {}: an inlay needs a V-bit, engraving or tapered tool; choose one in Manage…", k + 1)); }
+            let Some(ft) = o.p.tool2.as_deref().and_then(|id| data.tools.iter().find(|t| t.id == id)) else {
+                return Err(format!("Operation {}: choose the flat end mill that clears the pocket and cuts the plug out", k + 1));
+            };
+            if ToolGeo::new(ft).cone { return Err(format!("Operation {}: the clearing tool of an inlay must be a flat end mill", k + 1)); }
+            if !(ft.dia > 0.0 && ft.pd > 0.0 && ft.so > 0.0 && ft.feed > 0.0 && ft.plunge > 0.0) {
+                return Err(format!("Operation {}: check the clearing tool's values", k + 1));
+            }
+            if region.is_empty() { notes.push(format!("{}no closed shapes to cut.", pre)); continue; }
+            let tn = geo.tn;
+            let pdepth = depth.min(geo.z_full);
+            if depth > geo.z_full + 1e-6 { notes.push(format!("{}depth limited to {} {} (the V-bit diameter is reached).", pre, num(fl(pdepth)), un)); }
+            // how far the walls slope sideways over the whole depth
+            let total = pdepth * tn;
+            let fit = o.p.fit.unwrap_or(0.05).max(0.0);
+            let rf = ft.dia / 2.0;
+            let hop = data.job.safe.min(1.0);
+            let sv = (dia * so / 100.0 * 0.25).min(0.3).max(0.05);
+            let fpd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(ft.pd);
+            let conv = o.p.dir == "conv";
+            let mkzs = |d: f64| -> Vec<f64> { let n = ((d / fpd) - 1e-9).ceil().max(1.0) as usize; (0..n).map(|i| -(d / n as f64) * (i as f64 + 1.0)).collect() };
+            let fctx = |kind: &'static str, zs: Vec<f64>, rev: bool| OpCtx {
+                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, z0, sz, zs,
+                tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0,
+            };
+            let ring_rev = !conv;
+            let fdia = num(fl(ft.dia));
+            let vtxt = format!("{} deg V-bit {} {}", num(if tool.angle != 0.0 { tool.angle } else { 60.0 }), num(fl(dia)), un);
+            let ftxt = format!("flat {} {}", fdia, un);
+            // V-bit rings: tip depth and the sideways position of the tool go together along the slope
+            let mut rings: Vec<(Path, f64)> = Vec::new();
+            if female {
+                // the tool at offset d inside the outline has its tip d / tn deep, so the wall slopes at the cone's angle
+                let mut cur = region.clone();
+                let mut d = 0.0;
+                loop {
+                    let next = (d + sv).min(total);
+                    if next - d < 1e-9 { break; }
+                    cur = off_raw(&cur, -(next - d) * S);
+                    d = next;
+                    let q = clean_paths(&cur);
+                    if q.is_empty() { break; }
+                    let z = (d / tn).min(pdepth);
+                    for p in q { rings.push((p, -z)); }
+                    if d >= total - 1e-9 { break; }
+                }
+            } else {
+                // plug: the V-bit runs along the wall of the boss, deepest at the base of the boss
+                let base = if fit > 0.0 { off(&region, -fit * S) } else { region.clone() };
+                let mut cur = base;
+                let mut d = 0.0;
+                loop {
+                    let z = pdepth - d / tn;
+                    if z < 0.02 || cur.is_empty() { break; }
+                    let q = clean_paths(&cur);
+                    if q.is_empty() { break; }
+                    for p in q { rings.push((p, -z)); }
+                    let step = sv.min(total - d);
+                    if step < 1e-6 { break; }
+                    cur = off_raw(&cur, -step * S);
+                    d += step;
+                }
+                // shallow rings first
+                rings.reverse();
+            }
+            if rings.is_empty() { notes.push(format!("{}no V-bit toolpath: the shapes are too thin for this depth.", pre)); }
+
+            if female {
+                // 1. flat end mill clears the floor, up to where the walls begin
+                let floor = off(&region, -total * S);
+                let zsf = mkzs(pdepth);
+                let c = fctx("pocket", zsf.clone(), !conv);
+                let mut jobs = mk_jobs(&c, &floor, &[], &[], rf);
+                if jobs.is_empty() {
+                    notes.push(format!("{}the floor is too narrow for the flat end mill; the V-bit cuts all of it.", pre));
+                } else {
+                    select_tool(&mut e, &mut ts, mach, ft, sz, &fdia, un);
+                    e.alt = true;
+                    e.g.push(format!("(Operation {}: {}, clear the floor, {})", k + 1, label, ftxt));
+                    for &z in &zsf { for j in jobs.iter_mut() { cut(&mut e, &c, j, &[z], &[]); } }
+                    e.alt = false;
+                }
+                // 2. V-bit cuts the sloped walls
+                select_tool(&mut e, &mut ts, mach, tool, sz, &num(fl(dia)), un);
+                e.g.push(format!("(Operation {}: {}, sloped walls, {})", k + 1, label, vtxt));
+                emit_rings(&mut e, &rings, ring_rev, z0, sz, hop, plunge, feed);
+            } else {
+                // 1. V-bit carves the sloped sides of the plug
+                select_tool(&mut e, &mut ts, mach, tool, sz, &num(fl(dia)), un);
+                e.g.push(format!("(Operation {}: {}, sloped sides, {})", k + 1, label, vtxt));
+                emit_rings(&mut e, &rings, ring_rev, z0, sz, hop, plunge, feed);
+                // 2. flat end mill cuts the plug out, through the stock
+                let base = if fit > 0.0 { off(&region, -fit * S) } else { region.clone() };
+                let zso = mkzs(st.t);
+                let c = fctx("outside", zso.clone(), conv);
+                let mut jobs = mk_jobs(&c, &base, &[], &[], rf);
+                if jobs.is_empty() { notes.push(format!("{}nothing to cut out.", pre)); }
+                else {
+                    select_tool(&mut e, &mut ts, mach, ft, sz, &fdia, un);
+                    e.alt = true;
+                    e.g.push(format!("(Operation {}: {}, cut out through the stock, {})", k + 1, label, ftxt));
+                    let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
+                    for j in jobs.iter_mut() { cut(&mut e, &c, j, &zso, &guard); }
+                    e.alt = false;
+                    notes.push(format!("{}the plug is cut free of the stock: hold it down, and it is sanded flush after gluing.", pre));
+                }
+            }
+            any = true;
+            continue;
+        }
 
         let mut jobs: Vec<Job> = Vec::new();
         let mut vr: Vec<(Path, f64)> = Vec::new();
@@ -543,28 +700,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             }
         }
 
-        if !tool_ids.contains(&tool.id) { tool_ids.push(tool.id.clone()); }
-        let tno = tool_ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
-        // Mach3 and some LinuxCNC setups choke on anything but plain ASCII inside a comment
-        let tname: String = tool.name.replace('″', "in").replace('"', "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect();
-        let m6 = format!("T{} M6 (Tool {}: {})", tno, tno, tname);
-        match last_d {
-            None => {
-                if mach { e.g.push(m6); }
-                e.g.push(format!("M3 S{}", num(rpm))); e.g.push("G4 P2".into());
-            }
-            Some(ld) if if mach { last_t.as_deref() != Some(tool.id.as_str()) } else { ld != dia } => {
-                e.go("G0", None, None, Some(sz), 0.0);
-                e.g.push("M5".into());
-                if mach { e.g.push(m6); }
-                else { e.g.push(format!("M0 (Change tool to {} {}, then resume)", num(fl(dia)), un)); }
-                e.g.push(format!("M3 S{}", num(rpm)));
-                e.g.push("G4 P2".into());
-            }
-            Some(_) if last_r != Some(rpm) => e.g.push(format!("M3 S{}", num(rpm))),
-            _ => {}
-        }
-        last_d = Some(dia); last_r = Some(rpm); last_t = Some(tool.id.clone()); e.lf = None;
+        select_tool(&mut e, &mut ts, mach, tool, sz, &num(fl(dia)), un);
         e.g.push(format!("(Operation {}: {}, tool {} {}{})", k + 1, kind, num(fl(dia)), un,
             if geo.cone { format!(", {} deg", num(if tool.angle != 0.0 { tool.angle } else { 60.0 })) } else { String::new() }));
 

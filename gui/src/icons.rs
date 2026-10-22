@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Drill, Fillet, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
+pub enum Icon { Inlay, Drill, Fillet, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -75,6 +75,11 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
         }
         Icon::VCarve => {
             closed(vec![p(-10.0, -8.0), p(10.0, -8.0), p(0.0, 9.0)]);
+        }
+        Icon::Inlay => {
+            // a pocket with a plug beside it
+            painter.rect_stroke(Rect::from_center_size(p(-6.0, 0.0), Vec2::new(11.0, 16.0) * s), 1.5 * s, st);
+            painter.rect_filled(Rect::from_center_size(p(7.0, 0.0), Vec2::new(10.0, 13.0) * s), 1.5 * s, fg.gamma_multiply(0.55));
         }
         Icon::Drill => {
             // a hole seen from above, with the bit going in
