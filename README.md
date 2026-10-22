@@ -1,6 +1,6 @@
 # PutiaCNC
 
-A CNC toolpath studio for GRBL machines, written in Rust. Draw or import shapes, assign operations
+A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC output too), written in Rust. Draw or import shapes, assign operations
 (profile, pocket, V-carve, drill), preview the result in 2D and in a simulated 3D view of the machined
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
@@ -49,7 +49,7 @@ Features:
 - 3D preview: GPU ray-marched height field of the stock with the toolpath, rapids and cutter
   marker, and a play bar to replay the job.
 - Help → Check for updates asks GitHub for the latest release and offers to download it (an AppImage can replace itself). It only contacts GitHub when you ask, or at startup if you tick that option.
-- G-code tab with a time estimate and warnings, optional output in inches and optional line numbers (N10, N20, ...).
+- G-code tab with a time estimate and warnings, optional output in inches, optional line numbers (N10, N20, ...), and a choice of GRBL or Mach3 / LinuxCNC G-code (tool changes as `T1 M6`, safe-start line, `G54`, `M30`).
 - Unsaved-changes prompts, native file dialogs, light and dark themes.
 
 ### Build and run

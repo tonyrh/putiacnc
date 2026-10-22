@@ -55,6 +55,13 @@ pub struct Job {
     #[serde(default)] pub air: bool,
     /// Number the G-code lines (N10, N20, ...).
     #[serde(default, skip_serializing_if = "is_false")] pub numbered: bool,
+    /// G-code dialect: "grbl" (default) or "mach" (Mach3 / LinuxCNC).
+    #[serde(default, skip_serializing_if = "String::is_empty")] pub post: String,
+}
+
+impl Job {
+    /// True for the Mach3 / LinuxCNC dialect.
+    pub fn mach(&self) -> bool { self.post == "mach" }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

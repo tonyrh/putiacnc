@@ -540,7 +540,7 @@ pub fn blank_project() -> ProjectFile {
         app: "putia-cnc".into(), v: 1, name: "Untitled".into(),
         data: ProjectData {
             stock: Stock { w: 200.0, h: 150.0, t: 12.0, mat: "wood".into(), zr: "ll".into(), zm: "top".into(), zh: 0.0 },
-            job: Job { safe: 5.0, air: false, numbered: false },
+            job: Job { safe: 5.0, air: false, numbered: false, post: String::new() },
             machine: None, ops: vec![], tools: seed_tools(), loops: vec![], gcode: String::new(), notes: String::new(), act: 0, oid: 0,
         },
     }

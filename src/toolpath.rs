@@ -428,13 +428,24 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     if st.w > machine.x + 1e-6 || st.h > machine.y + 1e-6 || st.t > machine.z + 1e-6 {
         notes.push(format!("⚠ The stock is larger than the machine work area ({} × {} × {} {}).", num(fl(machine.x)), num(fl(machine.y)), num(fl(machine.z)), un));
     }
-    e.g.push("(PutiaCNC - GRBL)".into());
+    let mach = data.job.mach();
+    e.g.push(format!("(PutiaCNC - {})", if mach { "Mach3 / LinuxCNC" } else { "GRBL" }));
     e.g.push(format!("(Stock {} x {} x {} {}; XY0 = {} of stock, Z0 = {})", num(fl(st.w)), num(fl(st.h)), num(fl(st.t)), un, zero_label(&st.zr),
         if st.zm == "top" { "top surface".to_string() } else { format!("stock bottom + {} {}", num(fl(st.zh)), un) }));
-    e.g.push(format!("{} G90 G17", if imp { "G20" } else { "G21" }));
+    if mach {
+        // metric or imperial, absolute, XY plane, feed per minute; cancel cutter compensation, tool length and canned cycles
+        e.g.push(format!("{} G90 G17 G94", if imp { "G20" } else { "G21" }));
+        e.g.push("G40 G49 G80".into());
+        e.g.push("G54".into());
+    } else {
+        e.g.push(format!("{} G90 G17", if imp { "G20" } else { "G21" }));
+    }
 
     let mut last_d: Option<f64> = None;
     let mut last_r: Option<f64> = None;
+    let mut last_t: Option<String> = None;
+    // Mach3 / LinuxCNC tool numbers: in order of first use
+    let mut tool_ids: Vec<String> = Vec::new();
     let mut any = false;
 
     for (k, o) in data.ops.iter().enumerate() {
@@ -532,19 +543,28 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             }
         }
 
+        if !tool_ids.contains(&tool.id) { tool_ids.push(tool.id.clone()); }
+        let tno = tool_ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
+        // Mach3 and some LinuxCNC setups choke on anything but plain ASCII inside a comment
+        let tname: String = tool.name.replace('″', "in").replace('"', "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect();
+        let m6 = format!("T{} M6 (Tool {}: {})", tno, tno, tname);
         match last_d {
-            None => { e.g.push(format!("M3 S{}", num(rpm))); e.g.push("G4 P2".into()); }
-            Some(ld) if ld != dia => {
+            None => {
+                if mach { e.g.push(m6); }
+                e.g.push(format!("M3 S{}", num(rpm))); e.g.push("G4 P2".into());
+            }
+            Some(ld) if if mach { last_t.as_deref() != Some(tool.id.as_str()) } else { ld != dia } => {
                 e.go("G0", None, None, Some(sz), 0.0);
                 e.g.push("M5".into());
-                e.g.push(format!("M0 (Change tool to {} {}, then resume)", num(fl(dia)), un));
+                if mach { e.g.push(m6); }
+                else { e.g.push(format!("M0 (Change tool to {} {}, then resume)", num(fl(dia)), un)); }
                 e.g.push(format!("M3 S{}", num(rpm)));
                 e.g.push("G4 P2".into());
             }
             Some(_) if last_r != Some(rpm) => e.g.push(format!("M3 S{}", num(rpm))),
             _ => {}
         }
-        last_d = Some(dia); last_r = Some(rpm); e.lf = None;
+        last_d = Some(dia); last_r = Some(rpm); last_t = Some(tool.id.clone()); e.lf = None;
         e.g.push(format!("(Operation {}: {}, tool {} {}{})", k + 1, kind, num(fl(dia)), un,
             if geo.cone { format!(", {} deg", num(if tool.angle != 0.0 { tool.angle } else { 60.0 })) } else { String::new() }));
 
@@ -598,7 +618,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         any = true;
     }
     if !any { return Err(format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" "))); }
-    e.g.push("M5".into()); e.g.push("G0 X0 Y0".into()); e.g.push("M2".into());
+    e.g.push("M5".into()); e.g.push("G0 X0 Y0".into()); e.g.push(if mach { "M30" } else { "M2" }.into());
     let cut_len: f64 = e.moves.iter().filter(|m| m.cut).map(|m| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt()).sum();
     if data.job.numbered { e.g = number_lines(e.g); }
     Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
@@ -681,6 +701,39 @@ mod tests {
         // the setting survives a save and load
         let j = serde_json::to_string(&d).unwrap();
         assert!(serde_json::from_str::<ProjectData>(&j).unwrap().job.numbered);
+    }
+
+    #[test]
+    fn mach_dialect_has_its_own_header_tool_changes_and_end() {
+        let mut d = drill_project(3.0, None);
+        // a second operation with a different tool
+        let t2 = d.tools[1].id.clone();
+        let mut p = crate::shapes::default_op_params(&t2);
+        p.kind = "drill".into();
+        p.depth = 3.0;
+        d.ops.push(Operation { id: 2, p });
+        d.loops.push(crate::shapes::new_circle([80.0, 40.0], 1.0, 2));
+        let grbl = generate(&d, Units::Metric).unwrap();
+        assert!(grbl.gcode().contains("M0 (Change tool") && grbl.lines.last().unwrap() == "M2" && !grbl.gcode().contains("M6"));
+
+        d.job.post = "mach".into();
+        let o = generate(&d, Units::Metric).unwrap();
+        let g = o.gcode();
+        assert!(o.lines[0].contains("Mach3"));
+        assert!(g.contains("G21 G90 G17 G94") && g.contains("G40 G49 G80") && g.contains("\nG54"));
+        let m6: Vec<&String> = o.lines.iter().filter(|l| l.contains("M6")).collect();
+        assert_eq!(m6.len(), 2, "{m6:?}");
+        assert!(m6[0].starts_with("T1 M6") && m6[1].starts_with("T2 M6"));
+        assert!(m6.iter().all(|l| l.is_ascii()), "{m6:?}");
+        assert!(!g.contains("M0"));
+        // the spindle starts after the first tool is in
+        let (i6, i3) = (o.lines.iter().position(|l| l.starts_with("T1")).unwrap(), o.lines.iter().position(|l| l.starts_with("M3")).unwrap());
+        assert!(i6 < i3);
+        assert_eq!(o.lines.last().unwrap(), "M30");
+        // the same moves as the GRBL output
+        assert_eq!(o.moves.len(), grbl.moves.len());
+        let j = serde_json::to_string(&d).unwrap();
+        assert!(serde_json::from_str::<ProjectData>(&j).unwrap().job.mach());
     }
 
     #[test]
