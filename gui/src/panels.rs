@@ -385,7 +385,7 @@ fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool,
         if dv_w(ui, 62.0, &mut h, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = h * (b[2] - b[0]) / (b[3] - b[1]); } }
         ui.weak("mm"); ui.end_row();
     });
-    ui.add_space(2.0);
+    ui.add_space(8.0);
     ui.horizontal(|ui| {
         if !aspect_fixed && ui.checkbox(&mut keep, "Keep proportions").changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
