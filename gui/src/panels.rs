@@ -110,10 +110,8 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             use crate::app::Scope;
-            if item(ui, "Undo drawing change", "Ctrl+Z", app.hist.can_undo(Scope::Drawing)) { app.do_undo(); }
-            if item(ui, "Redo drawing change", "Ctrl+Shift+Z", app.hist.can_redo(Scope::Drawing)) { app.do_redo(); }
-            if item(ui, "Undo project change", "", app.hist.can_undo(Scope::Project)) { app.do_undo_project(); }
-            if item(ui, "Redo project change", "", app.hist.can_redo(Scope::Project)) { app.do_redo_project(); }
+            if item(ui, "Undo", "Ctrl+Z", app.hist.can_undo(Scope::All)) { app.do_undo(); }
+            if item(ui, "Redo", "Ctrl+Shift+Z", app.hist.can_redo(Scope::All)) { app.do_redo(); }
             ui.separator();
             if item(ui, "Select all", "Ctrl+A", true) { app.sel = (0..app.project.data.loops.len()).collect(); }
             if item(ui, "Duplicate", "Ctrl+D", !app.sel.is_empty()) { app.duplicate_selection(); }

@@ -52,13 +52,12 @@ pub enum Drag {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind { Drawing, Project, Both }
 
-/// What an undo or redo command works on: the drawing (the shapes) or everything else
-/// (stock, operations, tools, machine, notes).
+/// What an undo or redo command works on: the drawing (the shapes) only, or every change.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Scope { Drawing, Project }
+pub enum Scope { Drawing, All }
 
 impl Kind {
-    fn matches(self, s: Scope) -> bool { self == Kind::Both || (self == Kind::Drawing) == (s == Scope::Drawing) }
+    fn matches(self, s: Scope) -> bool { s == Scope::All || self != Kind::Project }
 }
 
 pub struct Entry {
@@ -75,7 +74,7 @@ fn rest_eq(a: &ProjectData, b: &ProjectData) -> bool {
 
 /// Undo/redo as whole-project snapshots (projects are small, this is simple and robust). Each edit is
 /// classified as a change to the drawing, to the rest of the project, or both, so that the toolbar can
-/// undo drawing edits only while the Edit menu can also undo the other changes.
+/// undo drawing edits only while the Edit menu and Ctrl+Z undo every change.
 #[derive(Default)]
 pub struct History {
     pub undo: Vec<Entry>,
@@ -562,12 +561,12 @@ impl App {
     /// Call after any change to the project.
     pub fn touch(&mut self) { self.modified = true; self.gen_pending = true; }
 
-    /// Undo the last change to the drawing.
-    pub fn do_undo(&mut self) { self.step(Scope::Drawing, true); }
-    pub fn do_redo(&mut self) { self.step(Scope::Drawing, false); }
-    /// Undo the last change that is not about the drawing (stock, operations, tools, machine, notes).
-    pub fn do_undo_project(&mut self) { self.step(Scope::Project, true); }
-    pub fn do_redo_project(&mut self) { self.step(Scope::Project, false); }
+    /// Undo the last change of any kind (Edit menu, Ctrl+Z).
+    pub fn do_undo(&mut self) { self.step(Scope::All, true); }
+    pub fn do_redo(&mut self) { self.step(Scope::All, false); }
+    /// Undo the last change to the drawing, leaving stock, operations, tools and the rest alone (toolbar).
+    pub fn do_undo_drawing(&mut self) { self.step(Scope::Drawing, true); }
+    pub fn do_redo_drawing(&mut self) { self.step(Scope::Drawing, false); }
 
     fn step(&mut self, s: Scope, undo: bool) {
         self.hist.classify(&self.project.data);
@@ -796,27 +795,32 @@ mod history_tests {
         a.project.data.loops.push(shapes::new_circle([60.0, 20.0], 4.0, 1));
         a.hist.classify(&a.project.data);
 
-        assert!(a.hist.can_undo(Scope::Drawing) && a.hist.can_undo(Scope::Project));
+        assert!(a.hist.can_undo(Scope::Drawing) && a.hist.can_undo(Scope::All));
         // the toolbar steps back over the stock change without touching it
-        a.do_undo();
+        a.do_undo_drawing();
         assert_eq!(a.project.data.loops.len(), 1);
         assert_eq!(a.project.data.stock.w, w0 + 50.0);
-        a.do_undo();
+        a.do_undo_drawing();
         assert_eq!(a.project.data.loops.len(), 0);
         assert_eq!(a.project.data.stock.w, w0 + 50.0);
         assert!(!a.hist.can_undo(Scope::Drawing));
-        // the menu undoes the stock change; the drawing stays as it is now
-        assert!(a.hist.can_undo(Scope::Project));
-        a.do_undo_project();
+        // the menu still has the stock change to undo; the drawing stays as it is now
+        assert!(a.hist.can_undo(Scope::All));
+        a.do_undo();
         assert_eq!(a.project.data.stock.w, w0);
         assert_eq!(a.project.data.loops.len(), 0);
-        // redo both, independently
-        a.do_redo_project();
+        assert!(!a.hist.can_undo(Scope::All));
+        // the menu redo goes forward through everything, in order
+        a.do_redo();
         assert_eq!(a.project.data.stock.w, w0 + 50.0);
         a.do_redo();
         a.do_redo();
         assert_eq!(a.project.data.loops.len(), 2);
-        assert!(!a.hist.can_redo(Scope::Drawing) && !a.hist.can_redo(Scope::Project));
+        assert!(!a.hist.can_redo(Scope::All));
+
+        // the menu undo alone walks back through all three edits
+        a.do_undo(); a.do_undo(); a.do_undo();
+        assert_eq!((a.project.data.loops.len(), a.project.data.stock.w), (0, w0));
     }
 
     #[test]
@@ -827,15 +831,20 @@ mod history_tests {
         a.hist.record(&a.project.data);
         a.project.data.stock.w = w0 + 10.0;
         a.hist.classify(&a.project.data);
-        a.do_undo_project();
-        assert!(a.hist.can_redo(Scope::Project));
+        a.do_undo();
+        assert!(a.hist.can_redo(Scope::All));
         a.hist.record(&a.project.data);
         a.project.data.loops.push(shapes::new_circle([20.0, 20.0], 4.0, 1));
         a.hist.classify(&a.project.data);
-        assert!(a.hist.can_redo(Scope::Project));
+        // the stock redo survives for the menu; the toolbar redo has nothing
+        assert!(a.hist.can_redo(Scope::All) && !a.hist.can_redo(Scope::Drawing));
+        a.do_redo();
+        assert_eq!(a.project.data.stock.w, w0 + 10.0);
+        assert_eq!(a.project.data.loops.len(), 1);
         // an edit that changes nothing leaves no step behind
+        let n = a.hist.undo.len();
         a.hist.record(&a.project.data);
         a.hist.classify(&a.project.data);
-        assert_eq!(a.hist.undo.len(), 1);
+        assert_eq!(a.hist.undo.len(), n);
     }
 }

@@ -33,7 +33,7 @@ const LEFT: &[Section] = &[
 
 const RIGHT: &[Section] = &[
     ("Editing", &[
-        ("Ctrl+Z", "Undo drawing change (Edit menu: also project changes)"),
+        ("Ctrl+Z", "Undo (any change)"),
         ("Ctrl+Shift+Z", "Redo (also Ctrl+Y)"),
         ("Ctrl+A", "Select all"),
         ("Ctrl+D", "Duplicate"),

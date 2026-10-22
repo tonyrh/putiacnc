@@ -507,8 +507,8 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.painter().line_segment([sep.center_top() + Vec2::new(0.0, 6.0), sep.center_bottom() - Vec2::new(0.0, 6.0)], ui.visuals().widgets.noninteractive.bg_stroke);
             };
             divider(ui);
-            if icon_button(ui, Icon::Undo, false, app.hist.can_undo(crate::app::Scope::Drawing), "Undo drawing change (Ctrl+Z)").clicked() { app.do_undo(); }
-            if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Ctrl+Shift+Z)").clicked() { app.do_redo(); }
+            if icon_button(ui, Icon::Undo, false, app.hist.can_undo(crate::app::Scope::Drawing), "Undo drawing change (Edit menu: undo anything)").clicked() { app.do_undo_drawing(); }
+            if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Edit menu: redo anything)").clicked() { app.do_redo_drawing(); }
             divider(ui);
             if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
             if app.mode == Mode::Rect {
