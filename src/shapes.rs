@@ -82,11 +82,16 @@ pub fn new_point(c: [f64; 2], op: i64) -> LoopData {
 }
 
 /// `n` drill points evenly spaced on a circle of radius `r` around `c`; the first at `angle` (radians).
-pub fn bolt_circle(c: [f64; 2], r: f64, angle: f64, n: usize, op: i64) -> Vec<LoopData> {
+/// `sweep` is how far round the circle they go, in degrees (counter-clockwise; negative = clockwise):
+/// 360 or more is the full circle, anything less puts the last hole at the end of the arc.
+pub fn bolt_circle(c: [f64; 2], r: f64, angle: f64, n: usize, sweep: f64, op: i64) -> Vec<LoopData> {
     let n = n.clamp(1, 200);
     if r < 1e-6 { return vec![]; }
+    let full = sweep.abs() >= 360.0 - 1e-9;
+    let sw = if full { 2.0 * PI * if sweep < 0.0 { -1.0 } else { 1.0 } } else { sweep.to_radians() };
+    let steps = if full || n < 2 { n as f64 } else { (n - 1) as f64 };
     (0..n).map(|k| {
-        let a = angle + 2.0 * PI * k as f64 / n as f64;
+        let a = angle + sw * k as f64 / steps;
         new_point([c[0] + r * a.cos(), c[1] + r * a.sin()], op)
     }).collect()
 }
@@ -702,13 +707,21 @@ mod tests {
 
     #[test]
     fn bolt_circle_spaces_points_evenly() {
-        let v = bolt_circle([50.0, 50.0], 20.0, 0.0, 4, 2);
+        let v = bolt_circle([50.0, 50.0], 20.0, 0.0, 4, 360.0, 2);
         assert_eq!(v.len(), 4);
         assert!(v.iter().all(|l| is_point(l) && l.op == 2));
         let cs: Vec<[f64; 2]> = v.iter().map(|l| { let b = bbox(l).unwrap(); [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0] }).collect();
         assert!((cs[0][0] - 70.0).abs() < 1e-3 && (cs[0][1] - 50.0).abs() < 1e-3);
         assert!((cs[1][0] - 50.0).abs() < 1e-3 && (cs[1][1] - 70.0).abs() < 1e-3);
-        assert!(bolt_circle([0.0, 0.0], 0.0, 0.0, 4, 0).is_empty());
+        assert!(bolt_circle([0.0, 0.0], 0.0, 0.0, 4, 360.0, 0).is_empty());
+        // a quarter arc: the last hole sits at the end of the arc, 90 degrees round
+        let q = bolt_circle([0.0, 0.0], 10.0, 0.0, 3, 90.0, 0);
+        let c = |l: &LoopData| { let b = bbox(l).unwrap(); [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0] };
+        assert!((c(&q[2])[0]).abs() < 1e-3 && (c(&q[2])[1] - 10.0).abs() < 1e-3);
+        assert!((c(&q[1])[0] - 7.071).abs() < 1e-2);
+        // negative sweeps go clockwise
+        let cw = bolt_circle([0.0, 0.0], 10.0, 0.0, 2, -90.0, 0);
+        assert!((c(&cw[1])[1] + 10.0).abs() < 1e-3);
     }
 
     #[test]

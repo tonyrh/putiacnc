@@ -566,7 +566,7 @@ fn ring_from_drag(app: &App, centre: [f64; 2], to: [f64; 2], shift: bool, op: i6
     let (dx, dy) = (to[0] - centre[0], to[1] - centre[1]);
     let r = (dx * dx + dy * dy).sqrt();
     let angle = if shift { std::f64::consts::FRAC_PI_2 } else { dy.atan2(dx) };
-    shapes::bolt_circle(centre, r, angle, app.point_count.round() as usize, op)
+    shapes::bolt_circle(centre, r, angle, app.point_count.round() as usize, app.point_sweep, op)
 }
 
 /// Second corner of a rectangle/ellipse drag; Shift forces a square (circle).
@@ -616,6 +616,12 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     ui.label("Holes");
                     ui.add_space(6.0);
                     crate::widgets::num(ui, [44.0, 24.0], &mut app.point_count, 1.0, 200.0, 0.2, 0, "");
+                    ui.add_space(8.0);
+                    ui.label("Sweep");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [56.0, 24.0], &mut app.point_sweep, -360.0, 360.0, 1.0, 0, "");
+                    ui.add_space(2.0);
+                    ui.weak("°");
                 }
             }
             if app.mode == Mode::Polygon {
@@ -654,7 +660,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
-        Mode::Point => "Click to place a drill point, or choose Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Assign the points to a Drill operation. Esc finishes.",
+        Mode::Point => "Click to place a drill point, or choose Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Assign the points to a Drill operation. Esc finishes.",
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };

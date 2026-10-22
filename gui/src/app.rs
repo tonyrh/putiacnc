@@ -196,6 +196,7 @@ pub struct App {
     /// Point tool: place a ring of holes (bolt circle) instead of single points, and how many.
     pub point_ring: bool,
     pub point_count: f64,
+    pub point_sweep: f64,
     pub poly_inner: f64,
     pub scale: f32,
     pub offset: Vec2,
@@ -244,7 +245,7 @@ impl App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
-            grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, poly_sides: 6.0, poly_star: false, point_ring: false, point_count: 6.0, poly_inner: 50.0,
+            grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, poly_sides: 6.0, poly_star: false, point_ring: false, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
@@ -280,7 +281,7 @@ impl App {
             a.poly_star = true;
             for l in [shapes::new_polygon([50.0, 75.0], 25.0, 1.5708, 6, None, 0), shapes::new_polygon([130.0, 75.0], 30.0, 1.5708, 5, Some(0.5), 0)].into_iter().flatten() { a.add_loop(l); }
             if std::env::var("PUTIACNC_POLYGON").map_or(false, |v| v == "ring") {
-                a.project.data.loops.extend(shapes::bolt_circle([100.0, 60.0], 30.0, 0.0, 6, 0));
+                a.project.data.loops.extend(shapes::bolt_circle([100.0, 60.0], 30.0, 0.0, 5, 240.0, 0));
                 a.mode = Mode::Point; a.point_ring = true;
             } else if std::env::var("PUTIACNC_POLYGON").map_or(false, |v| v == "point") {
                 for x in [30.0, 60.0, 90.0] { a.project.data.loops.push(shapes::new_point([x, 30.0], 0)); }
