@@ -5,7 +5,7 @@ use putiacnc_core::{generate, load_project, save_project, Output, ProjectData, P
 use std::collections::BTreeSet;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum Mode { Select, Node, Line, Rect, Ellipse, Text }
+pub enum Mode { Select, Node, Line, Rect, Ellipse, Polygon, Text }
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum RightTab { Ops, Gcode, Info }
@@ -190,6 +190,10 @@ pub struct App {
     pub snap_on: bool,
     pub snap_mm: f64,
     pub rect_radius: f64,
+    /// Polygon tool: number of sides (points for a star), star or plain polygon, and the star's inner radius in percent.
+    pub poly_sides: f64,
+    pub poly_star: bool,
+    pub poly_inner: f64,
     pub scale: f32,
     pub offset: Vec2,
     pub fit_pending: bool,
@@ -237,7 +241,7 @@ impl App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
-            grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0,
+            grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, poly_sides: 6.0, poly_star: false, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
@@ -269,6 +273,11 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_CORNERS").is_some() { a.corners.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_COMBINE").is_some() { a.combine_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
+        if std::env::var_os("PUTIACNC_POLYGON").is_some() {
+            a.poly_star = true;
+            for l in [shapes::new_polygon([50.0, 75.0], 25.0, 1.5708, 6, None, 0), shapes::new_polygon([130.0, 75.0], 30.0, 1.5708, 5, Some(0.5), 0)].into_iter().flatten() { a.add_loop(l); }
+            a.mode = Mode::Polygon; a.sel.clear();
+        }
         if let Ok(s) = std::env::var("PUTIACNC_SHOW_TEXT") {
             a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");
         }

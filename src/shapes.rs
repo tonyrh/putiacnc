@@ -55,6 +55,24 @@ pub fn new_ellipse(a: [f64; 2], b: [f64; 2], op: i64) -> LoopData {
     l
 }
 
+/// A regular polygon (`inner` = None) or a star (`inner` = Some(ratio of the inner to the outer radius)).
+/// `c` is the centre, `r` the outer radius and `angle` the direction of the first corner in radians.
+pub fn new_polygon(c: [f64; 2], r: f64, angle: f64, sides: usize, inner: Option<f64>, op: i64) -> Option<LoopData> {
+    let n = sides.clamp(3, 200);
+    if r < 1e-6 { return None; }
+    let mut p: Vec<[f64; 2]> = Vec::new();
+    for k in 0..n {
+        let a = angle + 2.0 * PI * k as f64 / n as f64;
+        p.push([c[0] + r * a.cos(), c[1] + r * a.sin()]);
+        if let Some(q) = inner {
+            let b = a + PI / n as f64;
+            let ri = r * q.clamp(0.05, 0.98);
+            p.push([c[0] + ri * b.cos(), c[1] + ri * b.sin()]);
+        }
+    }
+    Some(loop_from(&p, true, op))
+}
+
 pub fn new_circle(c: [f64; 2], r: f64, op: i64) -> LoopData {
     new_ellipse([c[0] - r, c[1] - r], [c[0] + r, c[1] + r], op)
 }
@@ -628,6 +646,18 @@ mod tests {
         let l2 = new_rect([0.0, 0.0], [10.0, 4.0], 99.0, 1);
         assert_eq!(l2.rc, Some(2.0)); // clamped
         assert_eq!(new_rect([0.0, 0.0], [10.0, 4.0], 0.0, 1).pts.len(), 8);
+    }
+
+    #[test]
+    fn polygons_and_stars() {
+        let hex = new_polygon([0.0, 0.0], 10.0, 0.0, 6, None, 1).unwrap();
+        assert_eq!(hex.pts.len(), 12);
+        assert_eq!(&hex.pts[0..2], &[10000, 0]);
+        let star = new_polygon([5.0, 5.0], 10.0, std::f64::consts::FRAC_PI_2, 5, Some(0.5), 1).unwrap();
+        assert_eq!(star.pts.len(), 20);
+        assert_eq!(&star.pts[0..2], &[5000, 15000]); // the first point is straight up
+        assert!(new_polygon([0.0, 0.0], 0.0, 0.0, 6, None, 1).is_none());
+        assert_eq!(new_polygon([0.0, 0.0], 5.0, 0.0, 1, None, 1).unwrap().pts.len(), 6); // at least a triangle
     }
 
     #[test]

@@ -56,17 +56,17 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         set_mode(app, Mode::Text);
         return;
     }
-    let (v, l, r, e, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
+    let (v, l, r, e, pg, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
         (
-            free && i.key_pressed(Key::V), free && i.key_pressed(Key::L), free && i.key_pressed(Key::R), free && i.key_pressed(Key::E),
+            free && i.key_pressed(Key::V), free && i.key_pressed(Key::L), free && i.key_pressed(Key::R), free && i.key_pressed(Key::E), free && i.key_pressed(Key::P),
             free && (i.key_pressed(Key::Delete) || i.key_pressed(Key::Backspace)),
             i.key_pressed(Key::Escape), i.key_pressed(Key::Enter), free && i.key_pressed(Key::C),
             i.key_pressed(Key::ArrowUp), i.key_pressed(Key::ArrowDown), i.key_pressed(Key::ArrowLeft), i.key_pressed(Key::ArrowRight),
             i.modifiers.shift,
         )
     });
-    for (hit, m) in [(v, Mode::Select), (l, Mode::Line), (r, Mode::Rect), (e, Mode::Ellipse)] {
+    for (hit, m) in [(v, Mode::Select), (l, Mode::Line), (r, Mode::Rect), (e, Mode::Ellipse), (pg, Mode::Polygon)] {
         if hit { set_mode(app, m); }
     }
     if app.mode == Mode::Line && !app.poly.is_empty() {
@@ -225,6 +225,20 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
         Some(Mode::Text) => {
             if resp.clicked_by(prim) {
                 if let Some(w) = hover_w { app.text.pos = Some(app.snap(w)); app.text.open = true; app.text.focus = true; }
+            }
+        }
+        Some(Mode::Polygon) => {
+            if resp.drag_started_by(prim) {
+                if let Some(w) = ctx.input(|i| i.pointer.press_origin()).map(|p| view.s2w(p)) {
+                    app.drag = Drag::Draw { start: app.snap(w) };
+                }
+            }
+            if resp.drag_stopped_by(prim) {
+                if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
+                    let op = app.project.data.act;
+                    if let Some(l) = poly_from_drag(app, *start, app.snap(cur), shift, op) { app.add_loop(l); }
+                }
+                app.drag = Drag::None;
             }
         }
         Some(Mode::Rect) | Some(Mode::Ellipse) => {
@@ -425,11 +439,20 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
         let a = *start;
         let b = draw_end(app, a, app.snap(cur), shift);
+        if app.mode == Mode::Polygon {
+            if let Some(l) = poly_from_drag(app, a, app.snap(cur), shift, 0) {
+                let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
+                if let Some(f) = pts.first().copied() { pts.push(f); }
+                painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
+                hud = Some(format!("radius {:.2} mm", ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
+            }
+        } else {
         let l = if app.mode == Mode::Rect { shapes::new_rect(a, b, app.rect_radius, 0) } else { shapes::new_ellipse(a, b, 0) };
         let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
         if let Some(f) = pts.first().copied() { pts.push(f); }
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
         hud = Some(format!("{:.2} x {:.2} mm", (b[0] - a[0]).abs(), (b[1] - a[1]).abs()));
+        }
     }
     if app.text.open {
         for l in &app.text.preview {
@@ -473,6 +496,15 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     if !app.tools_open && !app.machines_open { overlays(&ctx, app, rect); }
 }
 
+/// The polygon or star dragged out from its centre: the first corner follows the pointer, Shift points it straight up.
+fn poly_from_drag(app: &App, centre: [f64; 2], to: [f64; 2], shift: bool, op: i64) -> Option<putiacnc_core::model::LoopData> {
+    let (dx, dy) = (to[0] - centre[0], to[1] - centre[1]);
+    let r = (dx * dx + dy * dy).sqrt();
+    let angle = if shift { std::f64::consts::FRAC_PI_2 } else { dy.atan2(dx) };
+    let inner = if app.poly_star { Some(app.poly_inner / 100.0) } else { None };
+    shapes::new_polygon(centre, r, angle, app.poly_sides.round() as usize, inner, op)
+}
+
 /// Second corner of a rectangle/ellipse drag; Shift forces a square (circle).
 fn draw_end(app: &App, a: [f64; 2], b: [f64; 2], shift: bool) -> [f64; 2] {
     if (app.mode == Mode::Ellipse || app.mode == Mode::Rect) && shift {
@@ -492,7 +524,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
             for (m, icon, tip) in [
                 (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
-                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Text, Icon::Text, "Text (T)"),
+                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Text, Icon::Text, "Text (T)"),
             ] {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
@@ -511,6 +543,19 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Edit menu: redo anything)").clicked() { app.do_redo_drawing(); }
             divider(ui);
             if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
+            if app.mode == Mode::Polygon {
+                divider(ui);
+                if ui.selectable_label(!app.poly_star, "Polygon").clicked() { app.poly_star = false; if app.poly_sides == 5.0 { app.poly_sides = 6.0; } }
+                if ui.selectable_label(app.poly_star, "Star").clicked() { app.poly_star = true; if app.poly_sides == 6.0 { app.poly_sides = 5.0; } }
+                ui.add_space(6.0);
+                ui.label(if app.poly_star { "Points" } else { "Sides" });
+                crate::widgets::num(ui, [44.0, 24.0], &mut app.poly_sides, 3.0, 64.0, 0.2, 0, "");
+                if app.poly_star {
+                    ui.add_space(6.0);
+                    ui.label("Inner");
+                    crate::widgets::num(ui, [56.0, 24.0], &mut app.poly_inner, 5.0, 95.0, 0.5, 0, "%");
+                }
+            }
             if app.mode == Mode::Rect {
                 divider(ui);
                 ui.label("Radius");
@@ -527,6 +572,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
         Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
+        Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
     } };
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -10.0)).interactable(false).show(ctx, |ui| {
@@ -891,7 +937,7 @@ fn set_mode(app: &mut App, m: Mode) {
     app.node_edit = None;
     app.node_drag = NodeDrag::None;
     // the drawing tools start from a clean slate: nothing stays selected behind the new shape
-    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Text) { app.sel.clear(); }
+    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Text) { app.sel.clear(); }
     if m == Mode::Node && app.sel.len() == 1 { let i = *app.sel.iter().next().unwrap(); enter_node_edit(app, i); }
 }
 
@@ -932,7 +978,7 @@ fn node_keys(ctx: &egui::Context, app: &mut App) {
     // other tool shortcuts leave point editing
     let tool = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
-        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::T, Mode::Text)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
+        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::P, Mode::Polygon), (Key::T, Mode::Text)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
     });
     if let Some(m) = tool { set_mode(app, m); return; }
     if del && !app.node_sel.is_empty() {
