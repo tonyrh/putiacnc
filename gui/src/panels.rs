@@ -367,7 +367,7 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
 enum GroupAct { Select, Delete }
 
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
-fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool) -> Option<[f64; 4]> {
+fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool, fit: &mut bool) -> Option<[f64; 4]> {
     let (mut x, mut y, mut w, mut h) = (b[0], b[1], b[2] - b[0], b[3] - b[1]);
     let keep_id = key.with("keep");
     let mut keep = aspect_fixed || ui.data(|d| d.get_temp::<bool>(keep_id)).unwrap_or(true);
@@ -383,9 +383,14 @@ fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool)
         if dv_w(ui, 62.0, &mut h, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = h * (b[2] - b[0]) / (b[3] - b[1]); } }
         ui.weak("mm"); ui.end_row();
     });
-    if !aspect_fixed {
-        if ui.checkbox(&mut keep, "Keep proportions").changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
-    }
+    ui.add_space(2.0);
+    ui.horizontal(|ui| {
+        if !aspect_fixed && ui.checkbox(&mut keep, "Keep proportions").changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
+            if ui.button("Fit to stock").on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
+        });
+    });
     if moved || sized { Some([x, y, w, h]) } else { None }
 }
 
@@ -410,13 +415,14 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
                 });
             });
             let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
-            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, false) {
+            let mut fit = false;
+            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, false, &mut fit) {
                 let new = [nb[0], nb[1], nb[0] + nb[2], nb[1] + nb[3]];
                 let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().filter(|l| l.grp == Some(g.id)).collect();
                 shapes::fit_to_bbox(&mut refs, b, new);
                 *changed = true;
             }
-            if ui.small_button("Fit to stock").on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() {
+            if fit {
                 let (w, h) = (b[2] - b[0], b[3] - b[1]);
                 let k = (sw / w).min(sh / h).min(1.0);
                 let (nw, nh) = (w * k, h * k);
@@ -438,13 +444,14 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             });
             let (w, h) = rel.size();
             let b = [rel.x, rel.y, rel.x + w, rel.y + h];
-            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, true) {
+            let mut fit = false;
+            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, true, &mut fit) {
                 rel.x = nb[0]; rel.y = nb[1];
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
             }
             ui.weak(format!("The model is {:.1} mm tall at this size; the carve depth is set in its 3D relief operation.", rel.zmax * rel.scale));
-            if ui.small_button("Fit to stock").on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() {
+            if fit {
                 let k = (sw / (rel.nx as f64 * rel.res)).min(sh / (rel.ny as f64 * rel.res));
                 if rel.scale > k { rel.scale = k; }
                 let (w, h) = rel.size();
