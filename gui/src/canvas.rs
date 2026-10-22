@@ -1320,6 +1320,7 @@ fn set_mode(app: &mut App, m: Mode) {
 
 fn enter_node_edit(app: &mut App, li: usize) {
     if li >= app.project.data.loops.len() || shapes::is_point(&app.project.data.loops[li]) { return; }
+    if app.loop_locked(li) { app.mode = Mode::Select; app.node_edit = None; return; } // locked drawings can't be reshaped
     app.mode = Mode::Node;
     app.poly.clear();
     app.node_edit = Some(li);

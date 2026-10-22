@@ -777,6 +777,12 @@ impl App {
         self.sel.iter().filter_map(|&i| d.loops.get(i)).filter_map(|l| l.grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked))
     }
 
+    /// True when this shape belongs to a locked imported drawing.
+    pub fn loop_locked(&self, i: usize) -> bool {
+        let d = &self.project.data;
+        d.loops.get(i).and_then(|l| l.grp).map_or(false, |g| d.groups.iter().any(|x| x.id == g && x.locked))
+    }
+
     pub fn nudge(&mut self, dx: f64, dy: f64) {
         if self.sel.is_empty() || self.sel_locked() { return; }
         self.rotate_mode = false;
