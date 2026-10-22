@@ -69,7 +69,7 @@ pub struct Entry {
 
 fn rest_eq(a: &ProjectData, b: &ProjectData) -> bool {
     a.stock == b.stock && a.job == b.job && a.machine == b.machine && a.ops == b.ops && a.tools == b.tools
-        && a.notes == b.notes && a.act == b.act && a.oid == b.oid
+        && a.relief == b.relief && a.notes == b.notes && a.act == b.act && a.oid == b.oid
 }
 
 /// Undo/redo as whole-project snapshots (projects are small, this is simple and robust). Each edit is
@@ -105,7 +105,7 @@ impl History {
             if self.undo[i].kind.is_some() { continue; }
             let after = if i + 1 < n { &self.undo[i + 1].snap } else { cur };
             let before = &self.undo[i].snap;
-            let (d, p) = (before.loops != after.loops, !rest_eq(before, after));
+            let (d, p) = (before.loops != after.loops || before.groups != after.groups, !rest_eq(before, after));
             match (d, p) {
                 (false, false) => drop.push(i),
                 (true, false) => self.undo[i].kind = Some(Kind::Drawing),
@@ -128,8 +128,8 @@ impl History {
 fn restore(cur: &mut ProjectData, mut snap: ProjectData, kind: Kind) {
     match kind {
         Kind::Both => *cur = snap,
-        Kind::Drawing => cur.loops = snap.loops,
-        Kind::Project => { snap.loops = std::mem::take(&mut cur.loops); *cur = snap; }
+        Kind::Drawing => { cur.loops = snap.loops; cur.groups = snap.groups; }
+        Kind::Project => { snap.loops = std::mem::take(&mut cur.loops); snap.groups = std::mem::take(&mut cur.groups); *cur = snap; }
     }
 }
 
