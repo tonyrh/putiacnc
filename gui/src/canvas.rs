@@ -89,7 +89,9 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     let ctx = ui.ctx().clone();
     let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
     let rect = resp.rect;
-    let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
+let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
+    let zr = app.project.data.stock.zr.clone();
+    let zero = (match zr.as_str() { "lr" | "ur" => sw, "c" => sw / 2.0, _ => 0.0 }, match zr.as_str() { "ul" | "ur" => sh, "c" => sh / 2.0, _ => 0.0 });
 
     if app.fit_pending || (!ctx.wants_keyboard_input() && ctx.input(|i| i.key_pressed(Key::F))) {
         // frame the stock, plus the machine work area when it is shown
@@ -578,13 +580,13 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
             painter.text(to_s(c) + Vec2::new(12.0, -12.0), egui::Align2::LEFT_BOTTOM, t, egui::FontId::monospace(12.0), th.hud());
         }
         painter.text(rect.right_bottom() + Vec2::new(-10.0, -6.0), egui::Align2::RIGHT_BOTTOM,
-            format!("X {:.2}  Y {:.2} mm", c[0], c[1]), egui::FontId::monospace(12.0), th.hud().gamma_multiply(0.6));
+            format!("X {:.2}  Y {:.2} mm", c[0] - zero.0, c[1] - zero.1), egui::FontId::monospace(12.0), th.hud().gamma_multiply(0.6));
     }
-    if app.show_axes { draw_axes(&painter, &view, app.scale, (sw, sh), th.dark, ui); }
+    if app.show_axes { draw_axes(&painter, &view, app.scale, (sw, sh), zero, th.dark, ui); }
     let mut orect = rect;
     if app.show_rulers {
         let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i)));
-        draw_rulers(&painter, rect, &view, app.scale, hover_w, sel_bb, th.accent, ui);
+        draw_rulers(&painter, rect, &view, app.scale, zero, hover_w, sel_bb, th.accent, ui);
         orect = Rect::from_min_max(rect.min + Vec2::splat(RULER), rect.max);
     }
     if !app.tools_open && !app.machines_open { overlays(&ctx, app, orect); }
@@ -608,7 +610,7 @@ fn tick_label(v: f64, step: f64) -> String {
 
 /// Rulers along the top and left edges of the drawing area: millimetres in the same coordinates as the X / Y
 /// fields, the pointer position marked on both, and the selection's extent shaded.
-fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scale: f32, hover: Option<[f64; 2]>, sel: Option<[f64; 4]>, accent: Color32, ui: &Ui) {
+fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scale: f32, (zx, zy): (f64, f64), hover: Option<[f64; 2]>, sel: Option<[f64; 4]>, accent: Color32, ui: &Ui) {
     let vis = ui.visuals();
     let (bg, ink, line) = (vis.panel_fill, vis.text_color().gamma_multiply(0.75), vis.widgets.noninteractive.bg_stroke.color);
     let font = egui::FontId::monospace(9.5);
@@ -631,10 +633,10 @@ fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scale: f32, hov
     }
     // horizontal ruler
     let top_p = painter.with_clip_rect(top);
-    let mut i = (wtl[0] / sub).floor() as i64 - 1;
-    while (i as f64) * sub <= wbr[0] + sub {
+    let mut i = ((wtl[0] - zx) / sub).floor() as i64 - 1;
+    while (i as f64) * sub <= wbr[0] - zx + sub {
         let v = i as f64 * sub;
-        let x = view.w2s([v, 0.0]).x;
+        let x = view.w2s([v + zx, 0.0]).x;
         let major = i.rem_euclid(minor as i64) == 0;
         let h = if major { RULER * 0.7 } else if i.rem_euclid(2) == 0 { RULER * 0.38 } else { RULER * 0.28 };
         top_p.line_segment([Pos2::new(x, top.max.y - h), Pos2::new(x, top.max.y)], st);
@@ -643,10 +645,10 @@ fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scale: f32, hov
     }
     // vertical ruler
     let left_p = painter.with_clip_rect(left);
-    let mut j = (wbr[1] / sub).floor() as i64 - 1;
-    while (j as f64) * sub <= wtl[1] + sub {
+    let mut j = ((wbr[1] - zy) / sub).floor() as i64 - 1;
+    while (j as f64) * sub <= wtl[1] - zy + sub {
         let v = j as f64 * sub;
-        let y = view.w2s([0.0, v]).y;
+        let y = view.w2s([0.0, v + zy]).y;
         let major = j.rem_euclid(minor as i64) == 0;
         let h = if major { RULER * 0.7 } else if j.rem_euclid(2) == 0 { RULER * 0.38 } else { RULER * 0.28 };
         left_p.line_segment([Pos2::new(left.max.x - h, y), Pos2::new(left.max.x, y)], st);
@@ -672,24 +674,22 @@ fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scale: f32, hov
 }
 
 /// Graduated X and Y axes along the stock's lower and left edges, with the numbers outside the stock.
-fn draw_axes(painter: &egui::Painter, view: &View, scale: f32, (sw, sh): (f64, f64), dark: bool, ui: &Ui) {
+fn draw_axes(painter: &egui::Painter, view: &View, scale: f32, (sw, sh): (f64, f64), (zx, zy): (f64, f64), dark: bool, ui: &Ui) {
     let col = if dark { Color32::from_rgb(150, 200, 255) } else { Color32::from_rgb(30, 90, 170) };
     let font = egui::FontId::monospace(10.0);
     let (step, minor) = tick_step(scale);
     let sub = step / minor as f64;
     let st = Stroke::new(1.0_f32, col);
-    let n = (sw / sub).floor() as i64;
-    for i in 0..=n {
+    for i in ((-zx) / sub).ceil() as i64..=((sw - zx) / sub).floor() as i64 {
         let v = i as f64 * sub;
-        let p = view.w2s([v, 0.0]);
+        let p = view.w2s([v + zx, 0.0]);
         let major = i % minor as i64 == 0;
         painter.line_segment([p, p + Vec2::new(0.0, if major { 8.0 } else { 4.0 })], st);
         if major { painter.text(p + Vec2::new(0.0, 9.0), egui::Align2::CENTER_TOP, tick_label(v, step), font.clone(), col); }
     }
-    let n = (sh / sub).floor() as i64;
-    for j in 0..=n {
+    for j in ((-zy) / sub).ceil() as i64..=((sh - zy) / sub).floor() as i64 {
         let v = j as f64 * sub;
-        let p = view.w2s([0.0, v]);
+        let p = view.w2s([0.0, v + zy]);
         let major = j % minor as i64 == 0;
         painter.line_segment([p, p - Vec2::new(if major { 8.0 } else { 4.0 }, 0.0)], st);
         if major { painter.text(p - Vec2::new(9.0, 0.0), egui::Align2::RIGHT_CENTER, tick_label(v, step), font.clone(), col); }
