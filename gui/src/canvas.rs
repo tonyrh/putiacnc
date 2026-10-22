@@ -681,6 +681,7 @@ fn rotate_popup(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
                 ui.label("Rotate");
+                ui.add_space(4.0); // as far from its field as the labels in the selection bar
                 let r = crate::widgets::num(ui, [62.0, 24.0], &mut v, -360.0, 360.0, 0.5, 1, "")
                     .on_hover_text("Turn the selection by this many degrees about the centre mark (counter-clockwise is positive). Drag a corner handle to turn it with the mouse; Shift snaps to 15°.");
                 if r.changed() && live.is_none() && v != 0.0 { delta = Some(v); }
