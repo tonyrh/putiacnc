@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/0fcbaebb-aa6b-4d2a-b85b-e031ee82d803
 
 The workspace has two crates:
 
-- **`putiacnc-core`** (this folder): project model, geometry, SVG import, the material-removal
+- **`putiacnc-core`** (this folder): project model, geometry, SVG and DXF import, the material-removal
   simulation and G-code generation. It has no GUI dependency and also builds a command-line tool.
 - **`putiacnc-gui`** (`gui/`): the desktop app, built with egui/eframe (OpenGL).
 
@@ -26,7 +26,7 @@ The workspace has two crates:
 
 Features:
 
-- 2D design canvas: rectangles, ellipses, lines and polygons, SVG import, select / move / resize,
+- 2D design canvas: rectangles, ellipses, lines and polygons, SVG and DXF import, select / move / resize,
   snapping, undo and redo, align to the stock and to each other, distribute. The node tool (N, or double-click a
   shape) edits its points: drag, add, delete and simplify. Edit → Offset grows or shrinks
   the selected shapes by a distance (inlays, clearances); Edit → Combine shapes does union, subtract, intersect
@@ -99,12 +99,13 @@ It turns a project into GRBL G-code; the output is checked against reference G-c
 | `src/clip.rs` | Safe wrapper around Clipper 6.4 (Clipper 6.4): even-odd union, round-join offset, cleaning, area. |
 | `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
 | `src/svg.rs` | SVG import into closed and open shapes. |
+| `src/dxf.rs` | ASCII DXF import (lines, arcs, circles, polylines, splines, blocks). |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |
 | `tests/golden.rs` | Golden tests against reference G-code. |
 | `tests/data/` | Eight projects with their reference G-code and time estimate. |
 
-Also in the core: SVG import (`src/svg.rs`), shape helpers (`src/shapes.rs`), tool and machine libraries (`src/toollib.rs`, `src/machines.rs`) and the height-field simulation behind the 3D preview (`src/sim.rs`).
+Also in the core: SVG and DXF import (`src/svg.rs`, `src/dxf.rs`), shape helpers (`src/shapes.rs`), tool and machine libraries (`src/toollib.rs`, `src/machines.rs`) and the height-field simulation behind the 3D preview (`src/sim.rs`).
 
 ## Build and test
 

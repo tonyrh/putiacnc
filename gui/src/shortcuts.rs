@@ -19,7 +19,7 @@ const LEFT: &[Section] = &[
         ("Ctrl+O", "Open"),
         ("Ctrl+S", "Save"),
         ("Ctrl+Shift+S", "Save as"),
-        ("Ctrl+I", "Import SVG"),
+        ("Ctrl+I", "Import SVG or DXF"),
         ("Ctrl+E", "Export G-code"),
         ("Ctrl+Q", "Quit"),
     ]),

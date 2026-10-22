@@ -70,7 +70,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let dropped: Option<String> = ctx.input(|i| i.raw.dropped_files.first().and_then(|f| f.path.as_ref().map(|p| p.display().to_string())));
         if let Some(p) = dropped {
-            if p.to_lowercase().ends_with(".svg") || p.to_lowercase().ends_with(".svgz") { self.import_svg(&p); }
+            if App::is_drawing(&p) { self.import_file(&p); }
             else { self.request(app::Action::Open(p)); }
         }
 

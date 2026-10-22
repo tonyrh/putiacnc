@@ -31,7 +31,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     if save_as { app.save_as_dialog(); }
     if new { app.request(Action::New); }
     if open { app.open_dialog(); }
-    if import { app.import_svg_dialog(); }
+    if import { app.import_dialog(); }
     if export { app.export_gcode_dialog(); }
     if quit { app.request(Action::Quit); }
     if save { app.save(); }

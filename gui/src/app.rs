@@ -70,7 +70,7 @@ impl History {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DlgKind { Open, SaveAs, ImportSvg, ExportGcode, LibExport, LibImport }
+pub enum DlgKind { Open, SaveAs, Import, ExportGcode, LibExport, LibImport }
 
 pub struct Dlg { pub kind: DlgKind, rx: std::sync::mpsc::Receiver<Option<std::path::PathBuf>> }
 
@@ -196,7 +196,7 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_UPDATE").is_some() { a.updater.open = true; a.updater.check(false); }
         else if a.updater.auto { a.updater.check(true); }
         if let Some(p) = arg {
-            if p.to_lowercase().ends_with(".svg") { a.import_svg(&p); }
+            if App::is_drawing(&p) { a.import_file(&p); }
             else { a.path = p.clone(); a.open(&p); }
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
@@ -307,7 +307,7 @@ impl App {
         if d.is_none() { return; }
         match kind {
             DlgKind::Open | DlgKind::SaveAs => self.prefs.dir_project = d,
-            DlgKind::ImportSvg => self.prefs.dir_svg = d,
+            DlgKind::Import => self.prefs.dir_svg = d,
             DlgKind::ExportGcode => self.prefs.dir_gcode = d,
             _ => {}
         }
@@ -374,7 +374,7 @@ impl App {
                 if !self.modified { if let Some(a) = self.after_save.take() { self.perform(a); } }
                 self.after_save = None;
             }
-            DlgKind::ImportSvg => self.import_svg(&p.display().to_string()),
+            DlgKind::Import => self.import_file(&p.display().to_string()),
             DlgKind::ExportGcode => {
                 if p.extension().is_none() { p.set_extension("nc"); }
                 if let Some(o) = &self.output {
@@ -410,20 +410,27 @@ impl App {
         if self.path.trim().is_empty() { self.save_as_dialog(); } else { self.write_project(); }
     }
 
-    pub fn import_svg_dialog(&mut self) {
+    pub fn import_dialog(&mut self) {
         let dir = crate::prefs::existing_dir(&self.prefs.dir_svg).or_else(|| crate::prefs::existing_dir(&self.prefs.dir_project));
-        self.spawn_dialog(DlgKind::ImportSvg, move || {
-            let mut dlg = rfd::FileDialog::new().add_filter("SVG drawing", &["svg", "svgz"]).add_filter("All files", &["*"]);
+        self.spawn_dialog(DlgKind::Import, move || {
+            let mut dlg = rfd::FileDialog::new().add_filter("Drawings (SVG, DXF)", &["svg", "svgz", "dxf"]).add_filter("SVG drawing", &["svg", "svgz"]).add_filter("DXF drawing", &["dxf"]).add_filter("All files", &["*"]);
             if let Some(d) = dir { dlg = dlg.set_directory(d); }
             dlg.pick_file()
         });
     }
 
-    /// Import an SVG file into the current project. The drawing is centred on the stock when it
+    /// True for the drawing formats `import_file` understands.
+    pub fn is_drawing(path: &str) -> bool {
+        let p = path.to_lowercase();
+        p.ends_with(".svg") || p.ends_with(".svgz") || p.ends_with(".dxf")
+    }
+
+    /// Import an SVG or DXF file into the current project. The drawing is centred on the stock when it
     /// fits, otherwise its lower-left corner is put at the stock origin. New shapes join the
     /// active operation and become the selection.
-    pub fn import_svg(&mut self, path: &str) {
-        let imp = match std::fs::read(path).map_err(|e| e.to_string()).and_then(|b| putiacnc_core::svg::import(&b)) {
+    pub fn import_file(&mut self, path: &str) {
+        let dxf = path.to_lowercase().ends_with(".dxf");
+        let imp = match std::fs::read(path).map_err(|e| e.to_string()).and_then(|b| if dxf { putiacnc_core::dxf::import(&b) } else { putiacnc_core::svg::import(&b) }) {
             Ok(i) => i,
             Err(e) => { self.error = Some(format!("Could not import {path}: {e}")); return; }
         };
