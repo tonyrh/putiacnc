@@ -578,6 +578,57 @@ fn draw_end(app: &App, a: [f64; 2], b: [f64; 2], shift: bool) -> [f64; 2] {
     } else { b }
 }
 
+/// Options of the active drawing tool, in a second bar under the palette so the palette itself stays compact.
+fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
+    if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
+    egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 62.0)).show(ctx, |ui| {
+        egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
+          ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
+            if app.mode == Mode::Point {
+                if ui.selectable_label(!app.point_ring, "Point").clicked() { app.point_ring = false; }
+                if ui.selectable_label(app.point_ring, "Bolt circle").clicked() { app.point_ring = true; }
+                if app.point_ring {
+                    ui.add_space(6.0);
+                    ui.label("Holes");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [44.0, 24.0], &mut app.point_count, 1.0, 200.0, 0.2, 0, "");
+                    ui.add_space(8.0);
+                    ui.label("Sweep");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [56.0, 24.0], &mut app.point_sweep, -360.0, 360.0, 1.0, 0, "");
+                    ui.add_space(2.0);
+                    ui.weak("°");
+                }
+            }
+            if app.mode == Mode::Polygon {
+                if ui.selectable_label(!app.poly_star, "Polygon").clicked() { app.poly_star = false; if app.poly_sides == 5.0 { app.poly_sides = 6.0; } }
+                if ui.selectable_label(app.poly_star, "Star").clicked() { app.poly_star = true; if app.poly_sides == 6.0 { app.poly_sides = 5.0; } }
+                ui.add_space(6.0);
+                ui.label(if app.poly_star { "Points" } else { "Sides" });
+                ui.add_space(6.0);
+                crate::widgets::num(ui, [44.0, 24.0], &mut app.poly_sides, 3.0, 64.0, 0.2, 0, "");
+                if app.poly_star {
+                    ui.add_space(6.0);
+                    ui.label("Inner");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [48.0, 24.0], &mut app.poly_inner, 5.0, 95.0, 0.5, 0, "");
+                    ui.add_space(2.0);
+                    ui.weak("%");
+                }
+            }
+            if app.mode == Mode::Rect {
+                ui.label("Radius");
+                ui.add_space(6.0);
+                crate::widgets::num(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 3, "");
+                ui.add_space(2.0);
+                ui.weak("mm");
+            }
+          });
+        });
+    });
+}
+
 // ------------------------------------------------------------------- overlays
 
 fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
@@ -607,51 +658,10 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Edit menu: redo anything)").clicked() { app.do_redo_drawing(); }
             divider(ui);
             if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
-            if app.mode == Mode::Point {
-                divider(ui);
-                if ui.selectable_label(!app.point_ring, "Point").clicked() { app.point_ring = false; }
-                if ui.selectable_label(app.point_ring, "Bolt circle").clicked() { app.point_ring = true; }
-                if app.point_ring {
-                    ui.add_space(6.0);
-                    ui.label("Holes");
-                    ui.add_space(6.0);
-                    crate::widgets::num(ui, [44.0, 24.0], &mut app.point_count, 1.0, 200.0, 0.2, 0, "");
-                    ui.add_space(8.0);
-                    ui.label("Sweep");
-                    ui.add_space(6.0);
-                    crate::widgets::num(ui, [56.0, 24.0], &mut app.point_sweep, -360.0, 360.0, 1.0, 0, "");
-                    ui.add_space(2.0);
-                    ui.weak("°");
-                }
-            }
-            if app.mode == Mode::Polygon {
-                divider(ui);
-                if ui.selectable_label(!app.poly_star, "Polygon").clicked() { app.poly_star = false; if app.poly_sides == 5.0 { app.poly_sides = 6.0; } }
-                if ui.selectable_label(app.poly_star, "Star").clicked() { app.poly_star = true; if app.poly_sides == 6.0 { app.poly_sides = 5.0; } }
-                ui.add_space(6.0);
-                ui.label(if app.poly_star { "Points" } else { "Sides" });
-                ui.add_space(6.0);
-                crate::widgets::num(ui, [44.0, 24.0], &mut app.poly_sides, 3.0, 64.0, 0.2, 0, "");
-                if app.poly_star {
-                    ui.add_space(6.0);
-                    ui.label("Inner");
-                    ui.add_space(6.0);
-                    crate::widgets::num(ui, [48.0, 24.0], &mut app.poly_inner, 5.0, 95.0, 0.5, 0, "");
-                    ui.add_space(2.0);
-                    ui.weak("%");
-                }
-            }
-            if app.mode == Mode::Rect {
-                divider(ui);
-                ui.label("Radius");
-                ui.add_space(6.0);
-                crate::widgets::num(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 3, "");
-                ui.add_space(2.0);
-                ui.weak("mm");
-            }
           });
         });
     });
+    tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point to move it, click an edge to add one, drag a box to select several. Del removes the selected points, arrows nudge them. Esc or Done finishes." } else if app.tab_edit.is_some() { "Click on an outline to add a tab. Drag a tab to move it, right-click it to remove. Esc or Done finishes." } else { match app.mode {
