@@ -71,6 +71,7 @@ impl eframe::App for App {
         let dropped: Option<String> = ctx.input(|i| i.raw.dropped_files.first().and_then(|f| f.path.as_ref().map(|p| p.display().to_string())));
         if let Some(p) = dropped {
             if App::is_drawing(&p) { self.import_file(&p); }
+            else if App::is_model(&p) { self.import_model(&p); }
             else { self.request(app::Action::Open(p)); }
         }
 

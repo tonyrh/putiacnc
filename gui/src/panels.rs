@@ -9,7 +9,7 @@ use putiacnc_core::shapes;
 /// The default font has no ″ glyph; show a plain quote instead.
 fn clean(s: &str) -> String { s.replace('″', "\"") }
 
-pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve"), ("drill", "Drill"), ("inlay", "Inlay pocket"), ("plug", "Inlay plug")];
+pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve"), ("drill", "Drill"), ("inlay", "Inlay pocket"), ("plug", "Inlay plug"), ("relief", "3D relief")];
 const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside", "Inside"), ("online", "On")];
 const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
 const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
@@ -98,6 +98,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 });
             });
             if item(ui, "Import Vectors...", "Ctrl+I", true) { app.import_dialog(); }
+            if item(ui, "Import 3D Model (STL)...", "", true) { app.import_model_dialog(); }
             ui.separator();
             if item(ui, "Save", "Ctrl+S", true) { app.save(); }
             if item(ui, "Save as...", "Ctrl+Shift+S", true) { app.save_as_dialog(); }
@@ -492,6 +493,40 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let lw = ui.available_width();
         // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
         let mut add_kind: Option<&str> = None;
+        // the imported 3D model: where it sits on the stock and how big it is
+        let mut drop_model = false;
+        if let Some(rel) = d.relief.as_mut() {
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                ui.set_width(lw - 14.0);
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(format!("3D model: {}", rel.name)).strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if small_icon_button(ui, Icon::Trash, true, "Remove the 3D model (its relief operations stop working)").clicked() { drop_model = true; }
+                    });
+                });
+                let (mut w, h) = rel.size();
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    ui.label("X");
+                    changed |= dv_w(ui, 56.0, &mut rel.x, -10000.0, 10000.0, "");
+                    ui.add_space(6.0);
+                    ui.label("Y");
+                    changed |= dv_w(ui, 56.0, &mut rel.y, -10000.0, 10000.0, "");
+                    ui.weak("mm");
+                });
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    ui.label("Width");
+                    if dv_w(ui, 56.0, &mut w, 1.0, 10000.0, "") { rel.scale = (w / (rel.nx as f64 * rel.res)).max(0.001); changed = true; }
+                    ui.add_space(6.0);
+                    ui.label("Height");
+                    ui.weak(format!("{:.1} mm", h));
+                    ui.add_space(6.0);
+                    ui.weak(format!("model is {:.1} mm tall", rel.zmax));
+                });
+            });
+        }
+        if drop_model { d.relief = None; changed = true; }
         ui.horizontal(|ui| {
             for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
                 if icon_text_button(ui, icon, label, &format!("Add a {label} operation"), None).clicked() { add_kind = Some(kind); }
@@ -506,7 +541,10 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 });
             }
         });
-        if icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None).clicked() { add_kind = Some("inlay"); }
+        ui.horizontal(|ui| {
+            if icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None).clicked() { add_kind = Some("inlay"); }
+            if icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model (File > Import 3D Model): roughing, then a finishing pass that follows the surface", None).clicked() { add_kind = Some("relief"); }
+        });
         if let Some(kind) = add_kind {
             if kind == "inlay" {
                 add_inlay(d, sel);
@@ -515,11 +553,20 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let base = d.ops.iter().find(|o| o.id == d.act).map(|o| o.p.clone());
                 let mut p = base.unwrap_or_else(|| shapes::default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
                 p.kind = match kind {
+                    "relief" => "relief".into(),
                     "pocket" => "pocket".into(),
                     "vcarve" => "vcarve".into(),
                     "drill" => "drill".into(),
                     _ => if ["outside", "inside", "online"].contains(&p.kind.as_str()) { p.kind.clone() } else { "outside".into() },
                 };
+                if kind == "relief" {
+                    // a ball nose to finish, a flat end mill to rough, and the model's height as the depth
+                    if let Some(t) = d.tools.iter().find(|t| t.shape == "ball") { p.tool = t.id.clone(); }
+                    p.tool2 = d.tools.iter().filter(|t| t.shape == "flat").min_by(|a, b| (a.dia - 6.0).abs().partial_cmp(&(b.dia - 6.0).abs()).unwrap_or(std::cmp::Ordering::Equal)).map(|t| t.id.clone());
+                    p.depth = d.relief.as_ref().map_or(p.depth, |r| (r.zmax.min(d.stock.t) * 10.0).round() / 10.0);
+                    p.pass_depth = Some(2.0);
+                    p.tabs = false; p.lead = None;
+                }
                 if kind == "vcarve" {
                     if let Some(t) = d.tools.iter().find(|t| ["vbit", "engrave", "taper"].contains(&t.shape.as_str())) { p.tool = t.id.clone(); }
                 }
@@ -539,7 +586,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let n = d.loops.iter().filter(|l| l.op == o.id).count();
             let tool = d.tools.iter().find(|t| t.id == o.p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "no tool".into());
             let text = format!("{}. {}", i + 1, label_of(KINDS, &o.p.kind));
-            let sub = format!("{} · {} shape{}", tool, n, if n == 1 { "" } else { "s" });
+            let sub = if o.p.kind == "relief" { tool.clone() } else { format!("{} · {} shape{}", tool, n, if n == 1 { "" } else { "s" }) };
             let id = o.id;
             let o_kind = o.p.kind.clone();
             let n_ops = d.ops.len();
@@ -596,7 +643,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let bf = egui::TextStyle::Body.resolve(ui.style());
                 let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
                 // 2 x 2 grid: Type | Cut  /  Tool | Depth
-                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth"));
+                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish"));
                 let l3 = tw_of(ui, "Cut").max(tw_of(ui, "Pass"));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
                 let cw = tw_of(ui, "Conventional") + 44.0;
@@ -604,10 +651,10 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp, 10.0]).show(ui, |ui| {
                     rlabel(ui, l1, "Type");
                     let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
-                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", "V-carve"), "drill" => ("drill", "Drill"), "inlay" => ("inlay", "Inlay pocket"), "plug" => ("plug", "Inlay plug"), _ => ("pocket", "Pocket") }];
+                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", "V-carve"), "drill" => ("drill", "Drill"), "inlay" => ("inlay", "Inlay pocket"), "plug" => ("plug", "Inlay plug"), "relief" => ("relief", "3D relief"), _ => ("pocket", "Pocket") }];
                     changed |= combo_w(ui, lc + 10.0, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { "Profile: cut outside, inside or on the line" } else { "Operation type" });
                     rlabel(ui, l3, "Cut");
-                    ui.add_enabled_ui(p.kind != "drill", |ui| {
+                    ui.add_enabled_ui(p.kind != "drill" && p.kind != "relief", |ui| {
                         let (c, _) = combo_w2(ui, cw + 10.0, &format!("dir{id}"), &mut p.dir, DIRS, "", "Cut direction: climb or conventional");
                         changed |= c;
                     });
@@ -618,11 +665,11 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 // Tool row: the selector takes all the room left of the right-aligned "Ramp in"
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = sp;
-                    let has_ramp = p.kind != "vcarve" && p.kind != "drill";
+                    let has_ramp = p.kind != "vcarve" && p.kind != "drill" && p.kind != "relief";
                     // the room for "Ramp in" is kept even when it is not shown, so the selector is the same width in every operation
                     let ramp_w = tw_of(ui, "Ramp in") + 30.0;
                     let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
-                    rlabel(ui, l1, "Tool");
+                    rlabel(ui, l1, if p.kind == "relief" { "Finish" } else { "Tool" });
                     let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                     let cur = elide(ui, &cur, tool_w - 30.0);
                     egui::ComboBox::from_id_source(("optool", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
@@ -643,12 +690,12 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         changed |= ui.add_enabled(p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), egui::Checkbox::new(&mut p.ramp, "Ramp in")).on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
                     }
                 });
-                if p.kind == "inlay" || p.kind == "plug" {
+                if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
                     ui.add_space(2.0);
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         let tool_w = (ui.available_width() - l1 - sp - 8.0).max(100.0);
-                        rlabel(ui, l1, "Flat");
+                        rlabel(ui, l1, if p.kind == "relief" { "Rough" } else { "Flat" });
                         let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                         let cur = elide(ui, &cur, tool_w - 30.0);
                         egui::ComboBox::from_id_source(("optool2", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
@@ -656,7 +703,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
                                 if ui.selectable_label(p.tool2.as_deref() == Some(t.id.as_str()), format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool2 = Some(t.id.clone()); changed = true; }
                             }
-                        }).response.on_hover_text(if p.kind == "inlay" { "Flat end mill that clears the pocket floor" } else { "Flat end mill that cuts the plug out of the stock" });
+                        }).response.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
                     });
                     if p.kind == "plug" {
                         ui.add_space(2.0);
@@ -671,7 +718,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     }
                 }
                 // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
-                let inlay = p.kind == "inlay" || p.kind == "plug";
+                let inlay = p.kind == "inlay" || p.kind == "plug" || p.kind == "relief";
                 // an inlay clears and cuts out with its second tool, so the pass depth is that tool's
                 let tool_pd = if inlay { p.tool2.as_deref().and_then(|id| tool_pd_of(&tools, id)).or_else(|| tool_pd_of(&tools, &p.tool)) } else { tool_pd_of(&tools, &p.tool) };
                 ui.add_space(2.0);

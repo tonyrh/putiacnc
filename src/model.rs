@@ -30,12 +30,33 @@ pub struct ProjectData {
     #[serde(default)] pub ops: Vec<Operation>,
     #[serde(default)] pub tools: Vec<Tool>,
     #[serde(default)] pub loops: Vec<LoopData>,
+    /// A 3D model (height map) for relief operations.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub relief: Option<Relief>,
     #[serde(default)] pub gcode: String,
     /// Free-form notes about the job.
     #[serde(default, skip_serializing_if = "String::is_empty")] pub notes: String,
     /// Active operation id and last-used operation id (browser app bookkeeping).
     #[serde(default)] pub act: i64,
     #[serde(default)] pub oid: i64,
+}
+
+/// A 3D model reduced to a height map (seen from above), carved by relief operations.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Relief {
+    pub name: String,
+    pub nx: usize,
+    pub ny: usize,
+    /// Size of one height-map cell in mm at scale 1.
+    pub res: f64,
+    /// Height of the model in mm at scale 1; the highest cell holds 65535.
+    pub zmax: f64,
+    /// Heights, row by row from the bottom (y up), as little-endian u16 in base64.
+    pub hm: String,
+    /// Lower-left corner on the stock, mm.
+    pub x: f64,
+    pub y: f64,
+    /// Scale applied to the model's X and Y size.
+    pub scale: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

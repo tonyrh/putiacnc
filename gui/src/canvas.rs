@@ -354,6 +354,31 @@ pub fn canvas(ui: &mut Ui, app: &mut App) {
     let mat = th.material(&d.stock.mat);
     painter.rect_filled(sr, 0.0, mat.fill);
     painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, mat.stroke));
+    // the imported 3D model, as a shaded height map on the stock
+    if let Some(rel) = &d.relief {
+        let key = format!("{}|{}|{}|{}|{}", rel.name, rel.nx, rel.ny, rel.hm.len(), rel.hm.get(..48).unwrap_or("") );
+        if app.relief_tex.as_ref().map_or(true, |(k, _)| *k != key) {
+            let h = rel.heights();
+            let step = (rel.nx.max(rel.ny) as f32 / 256.0).ceil().max(1.0) as usize;
+            let (w, hh) = (rel.nx / step, rel.ny / step);
+            let mut px = vec![Color32::TRANSPARENT; w * hh];
+            for y in 0..hh { for x in 0..w {
+                let mut m = 0f32;
+                for dy in 0..step { for dx in 0..step { m = m.max(h[(y * step + dy) * rel.nx + x * step + dx]); } }
+                let v = (55.0 + 185.0 * m) as u8;
+                // image rows run top to bottom, the height map bottom to top
+                px[(hh - 1 - y) * w + x] = Color32::from_rgba_unmultiplied(v, v, v, 215);
+            } }
+            let img = egui::ColorImage { size: [w, hh], pixels: px };
+            app.relief_tex = Some((key, ctx.load_texture("relief", img, egui::TextureOptions::LINEAR)));
+        }
+        let (mw, mh) = rel.size();
+        let r = Rect::from_two_pos(to_s([rel.x, rel.y]), to_s([rel.x + mw, rel.y + mh]));
+        if let Some((_, tex)) = &app.relief_tex {
+            painter.image(tex.id(), r, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
+        }
+        painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, mat.stroke));
+    }
     let (zx, zy) = match d.stock.zr.as_str() { "lr" => (sw, 0.0), "ul" => (0.0, sh), "ur" => (sw, sh), "c" => (sw / 2.0, sh / 2.0), _ => (0.0, 0.0) };
     let z = to_s([zx, zy]);
     painter.line_segment([z - Vec2::new(8.0, 0.0), z + Vec2::new(8.0, 0.0)], Stroke::new(2.0_f32, Color32::RED));

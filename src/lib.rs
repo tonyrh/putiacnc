@@ -1,6 +1,7 @@
 pub mod clip;
 pub mod machines;
 pub mod model;
+pub mod relief;
 pub mod shapes;
 pub mod sim;
 pub mod dxf;

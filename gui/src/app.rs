@@ -134,7 +134,7 @@ fn restore(cur: &mut ProjectData, mut snap: ProjectData, kind: Kind) {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DlgKind { Open, SaveAs, Import, ExportGcode, LibExport, LibImport }
+pub enum DlgKind { Open, SaveAs, Import, Model, ExportGcode, LibExport, LibImport }
 
 pub struct Dlg { pub kind: DlgKind, rx: std::sync::mpsc::Receiver<Option<std::path::PathBuf>> }
 
@@ -190,6 +190,8 @@ pub struct App {
     pub snap_on: bool,
     pub snap_mm: f64,
     pub rect_radius: f64,
+    /// Picture of the 3D model for the 2D view, and which model it is for.
+    pub relief_tex: Option<(String, eframe::egui::TextureHandle)>,
     /// Polygon tool: number of sides (points for a star), star or plain polygon, and the star's inner radius in percent.
     pub poly_sides: f64,
     pub poly_star: bool,
@@ -249,7 +251,7 @@ impl App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
-            grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
+            grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
@@ -273,7 +275,20 @@ impl App {
         else if a.updater.auto { a.updater.check(true); }
         if let Some(p) = arg {
             if App::is_drawing(&p) { a.import_file(&p); }
+            else if App::is_model(&p) { a.import_model(&p); }
             else { a.path = p.clone(); a.open(&p); }
+        }
+        if std::env::var_os("PUTIACNC_RELIEF").is_some() && a.project.data.relief.is_some() {
+            let d = &mut a.project.data;
+            let mut p = shapes::default_op_params(&d.tools[0].id);
+            p.kind = "relief".into();
+            if let Some(t) = d.tools.iter().find(|t| t.shape == "ball") { p.tool = t.id.clone(); }
+            p.tool2 = d.tools.iter().filter(|t| t.shape == "flat").min_by(|x, y| (x.dia - 6.0).abs().partial_cmp(&(y.dia - 6.0).abs()).unwrap()).map(|t| t.id.clone());
+            p.depth = d.relief.as_ref().map_or(5.0, |r| r.zmax.round());
+            p.pass_depth = Some(2.0);
+            d.oid += 1; let id = d.oid;
+            d.ops.push(putiacnc_core::model::Operation { id, p });
+            d.act = id;
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_SHORTCUTS").is_some() { a.shortcuts_open = true; }
@@ -395,7 +410,7 @@ impl App {
         if d.is_none() { return; }
         match kind {
             DlgKind::Open | DlgKind::SaveAs => self.prefs.dir_project = d,
-            DlgKind::Import => self.prefs.dir_svg = d,
+            DlgKind::Import | DlgKind::Model => self.prefs.dir_svg = d,
             DlgKind::ExportGcode => self.prefs.dir_gcode = d,
             _ => {}
         }
@@ -463,6 +478,7 @@ impl App {
                 self.after_save = None;
             }
             DlgKind::Import => self.import_file(&p.display().to_string()),
+            DlgKind::Model => self.import_model(&p.display().to_string()),
             DlgKind::ExportGcode => {
                 if p.extension().is_none() { p.set_extension("nc"); }
                 if let Some(o) = &self.output {
@@ -505,6 +521,41 @@ impl App {
             if let Some(d) = dir { dlg = dlg.set_directory(d); }
             dlg.pick_file()
         });
+    }
+
+    pub fn import_model_dialog(&mut self) {
+        let dir = crate::prefs::existing_dir(&self.prefs.dir_svg).or_else(|| crate::prefs::existing_dir(&self.prefs.dir_project));
+        self.spawn_dialog(DlgKind::Model, move || {
+            let mut dlg = rfd::FileDialog::new().add_filter("3D models (STL)", &["stl"]).add_filter("All files", &["*"]);
+            if let Some(d) = dir { dlg = dlg.set_directory(d); }
+            dlg.pick_file()
+        });
+    }
+
+    pub fn is_model(path: &str) -> bool { path.to_lowercase().ends_with(".stl") }
+
+    /// Import an STL model as a height map for relief operations. It is centred on the stock; when it does
+    /// not fit, the stock is enlarged to hold it (the model and a 10 mm border, and its height plus 3 mm).
+    pub fn import_model(&mut self, path: &str) {
+        let bytes = match std::fs::read(path) { Ok(b) => b, Err(e) => { self.error = Some(format!("Could not read {path}: {e}")); return; } };
+        let name = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "model".into());
+        // about 600 000 height-map cells is plenty of detail for a router
+        let rel = match putiacnc_core::model::Relief::from_stl_auto(&bytes, &name, 600_000) {
+            Ok(r) => r,
+            Err(e) => { self.error = Some(format!("Could not import {path}: {e}")); return; }
+        };
+        let mut rel = rel;
+        self.hist.record(&self.project.data);
+        let (mw, mh) = rel.size();
+        let mut note = vec![format!("Imported {}: {:.1} x {:.1} x {:.1} mm.", rel.name, mw, mh, rel.zmax)];
+        let st = &mut self.project.data.stock;
+        if mw > st.w || mh > st.h { st.w = st.w.max(mw + 20.0).ceil(); st.h = st.h.max(mh + 20.0).ceil(); note.push("The stock was enlarged to hold the model.".into()); }
+        if rel.zmax + 3.0 > st.t { st.t = (rel.zmax + 3.0).ceil(); note.push("The stock thickness was increased to fit the model's height.".into()); }
+        rel.x = (st.w - mw) / 2.0;
+        rel.y = (st.h - mh) / 2.0;
+        self.project.data.relief = Some(rel);
+        self.error = Some(note.join(" "));
+        self.touch();
     }
 
     /// True for the drawing formats `import_file` understands.
