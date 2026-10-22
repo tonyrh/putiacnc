@@ -337,7 +337,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
             let aw = ui.available_width() - 10.0;
-            let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")) + 2.0;
+            let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")) + 2.0;
             let fw = 120.0_f32;
             let sp = 8.0_f32; // label-to-field gap
             let gap = (aw - 2.0 * (lw + fw) - 4.0 * sp).max(8.0); // space between the two column pairs
@@ -353,7 +353,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     ui.allocate_exact_size(egui::vec2(gap, 1.0), Sense::hover());
                     if $first {
                         let (cell, _) = ui.allocate_exact_size(egui::vec2(10.0, 22.0), Sense::hover());
-                        let rect = egui::Rect::from_min_size(egui::pos2(cell.min.x + (lw + sp + fw) / 2.0 - 30.0, cell.min.y - 2.0), egui::vec2(60.0, if has_angle(&t.shape) { 98.0 } else { 62.0 }));
+                        let rect = egui::Rect::from_min_size(egui::pos2(cell.min.x + (lw + sp + fw) / 2.0 - 30.0, cell.min.y - 2.0), egui::vec2(60.0, if has_angle(&t.shape) { 128.0 } else { 62.0 }));
                         paint_cutter(ui.painter(), rect, &t.shape, t.angle, ui.visuals().text_color());
                     } else { ui.label(""); }
                     ui.label("");
@@ -361,12 +361,21 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 }}; }
                 rlabel(ui, lw, "Shape");
                 egui::ComboBox::from_id_source("tshape").width(fw - 4.0).selected_text(shape_label(&t.shape)).show_ui(ui, |ui| {
-                    for (key, lab) in SHAPES { if ui.selectable_label(t.shape == key, lab).clicked() { t.shape = key.into(); changed = true; } }
+                    for (key, lab) in SHAPES { if ui.selectable_label(t.shape == key, lab).clicked() {
+                        t.shape = key.into();
+                        // a tapered ball nose has a rounded tip by definition
+                        if key == "taper" && t.tip <= 0.0 { t.tip = 0.5; }
+                        changed = true;
+                    } }
                 });
                 side!(true);
                 if has_angle(&t.shape) {
                     rlabel(ui, lw, "Angle");
                     changed |= crate::widgets::num(ui, [60.0, 22.0], &mut t.angle, 10.0, 150.0, 0.5, 3, "°").changed();
+                    side!(false);
+                    rlabel(ui, lw, "Tip radius");
+                    let mut r = t.tip / k;
+                    if crate::widgets::num(ui, [72.0, 22.0], &mut r, 0.0, 50.0 / k, 0.05 / k, 3, uname).changed() { t.tip = (r * k).max(0.0); changed = true; }
                     side!(false);
                 }
                 rlabel(ui, lw, "Flutes");

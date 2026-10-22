@@ -51,11 +51,12 @@ pub fn normalize_tool(t: &mut Tool) {
     t.plunge = if t.plunge.is_finite() { t.plunge.max(1.0) } else { 250.0 };
     t.so = if t.so.is_finite() { t.so.clamp(1.0, 100.0) } else { 40.0 };
     t.pd = if t.pd.is_finite() { t.pd.max(0.01) } else { 1.0 };
+    t.tip = if t.tip.is_finite() { t.tip.max(0.0) } else { 0.0 };
 }
 
 #[allow(clippy::too_many_arguments)]
 fn tool(name: &str, sys: &str, shape: &str, angle: f64, dia: f64, flutes: u32, rpm: f64, feed: f64, plunge: f64, so: f64, pd: f64, notes: &str) -> Tool {
-    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes, dia, rpm, feed, plunge, so, pd, notes: notes.into() }
+    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes, dia, rpm, feed, plunge, so, pd, notes: notes.into(), tip: 0.0 }
 }
 
 /// The tools most hobby routers use (fresh ids on every call). The speeds are cautious starting points for

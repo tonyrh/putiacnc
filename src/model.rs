@@ -94,6 +94,8 @@ pub struct Tool {
     /// Maximum depth per pass.
     pub pd: f64,
     #[serde(default)] pub notes: String,
+    /// Tip radius in mm of a V-bit, engraving bit or tapered ball nose (0 = sharp tip).
+    #[serde(default, skip_serializing_if = "is_zero")] pub tip: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -163,3 +165,4 @@ pub const _UNUSED: f64 = 1.0;
 #[allow(dead_code)] fn _silence() -> f64 { d_one() }
 
 fn is_false(b: &bool) -> bool { !*b }
+fn is_zero(v: &f64) -> bool { *v == 0.0 }

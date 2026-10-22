@@ -62,7 +62,13 @@ pub fn num(v: f64) -> String { if v == 0.0 { "0".into() } else { format!("{}", v
 
 // ---------- tool geometry ----------
 #[derive(Debug, Clone, Copy)]
-pub struct ToolGeo { pub r: f64, pub shape: ShapeKind, pub cone: bool, pub tn: f64, pub z_full: f64 }
+pub struct ToolGeo {
+    pub r: f64, pub shape: ShapeKind, pub cone: bool, pub tn: f64,
+    /// Depth at which the cutting edge reaches the full diameter (V-bits, tapers, ball noses).
+    pub z_full: f64,
+    /// Tip radius of a cone-shaped tool (0 = sharp).
+    pub rt: f64,
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShapeKind { Flat, Ball, Bull, VBit, Engrave, Taper }
 
@@ -81,12 +87,39 @@ impl ToolGeo {
         let shape = ShapeKind::parse(&t.shape);
         let cone = matches!(shape, ShapeKind::VBit | ShapeKind::Engrave | ShapeKind::Taper);
         let ang = if t.angle != 0.0 { t.angle } else { 60.0 };
-        let tn = (ang.clamp(10.0, 150.0) * std::f64::consts::PI / 360.0).tan();
-        ToolGeo { r, shape, cone, tn, z_full: if cone { r / tn } else { 0.0 } }
+        let half = ang.clamp(10.0, 150.0) * std::f64::consts::PI / 360.0;
+        let tn = half.tan();
+        // the tip sphere has to fit inside the diameter
+        let rt = if cone && t.tip.is_finite() { t.tip.clamp(0.0, r / half.cos()) } else { 0.0 };
+        let mut g = ToolGeo { r, shape, cone, tn, z_full: 0.0, rt };
+        g.z_full = if cone || shape == ShapeKind::Ball { g.rise(r) } else { 0.0 };
+        g
+    }
+    /// Height of the cutting edge above the tip at distance `rho` from the axis (infinity beyond the tool).
+    /// A cone with a tip radius is a cone ending in a sphere that touches it.
+    pub fn rise(&self, rho: f64) -> f64 {
+        if rho > self.r + 1e-12 { return f64::INFINITY; }
+        let rho = rho.max(0.0);
+        if self.cone {
+            if self.rt <= 0.0 { return rho / self.tn; }
+            let (sin_a, cos_a) = { let a = self.tn.atan(); (a.sin(), a.cos()) };
+            let (rho_t, z_t) = (self.rt * cos_a, self.rt * (1.0 - sin_a));
+            if rho <= rho_t { return self.rt - (self.rt * self.rt - rho * rho).max(0.0).sqrt(); }
+            return z_t + (rho - rho_t) / self.tn;
+        }
+        if self.shape == ShapeKind::Ball { return self.r - (self.r * self.r - rho * rho).max(0.0).sqrt(); }
+        0.0
     }
     /// Radius of the cutting edge at the surface when the tip is `d` below it.
     pub fn r_at(&self, d: f64) -> f64 {
-        if self.cone { return self.r.min(d.max(0.0) * self.tn); }
+        let d = d.max(0.0);
+        if self.cone {
+            if self.rt <= 0.0 { return self.r.min(d * self.tn); }
+            let (sin_a, cos_a) = { let a = self.tn.atan(); (a.sin(), a.cos()) };
+            let (rho_t, z_t) = (self.rt * cos_a, self.rt * (1.0 - sin_a));
+            let r = if d <= z_t { (2.0 * self.rt * d - d * d).max(0.0).sqrt() } else { rho_t + (d - z_t) * self.tn };
+            return r.min(self.r);
+        }
         if self.shape == ShapeKind::Ball { return if d >= self.r { self.r } else { (2.0 * self.r * d - d * d).max(0.0).sqrt() }; }
         self.r
     }
@@ -536,6 +569,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 return Err(format!("Operation {}: check the clearing tool's values", k + 1));
             }
             if region.is_empty() { notes.push(format!("{}no closed shapes to cut.", pre)); continue; }
+            if geo.rt > 1e-9 { notes.push(format!("{}the inlay assumes a sharp V-bit tip; with a tip radius the plug will not fit exactly.", pre)); }
             let tn = geo.tn;
             let pdepth = depth.min(geo.z_full);
             if depth > geo.z_full + 1e-6 { notes.push(format!("{}depth limited to {} {} (the V-bit diameter is reached).", pre, num(fl(pdepth)), un)); }
@@ -665,18 +699,35 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 holes.push(from);
             }
         } else if kind == "vcarve" {
-            if !geo.cone { return Err(format!("Operation {}: V-carve needs a V-bit, engraving or tapered tool (choose one in Manage…)", k + 1)); }
+            if !(geo.cone || geo.shape == ShapeKind::Ball) { return Err(format!("Operation {}: V-carve needs a V-bit, engraving, tapered or ball nose tool (choose one in Manage…)", k + 1)); }
             let zmax = depth.min(geo.z_full);
             if depth > geo.z_full + 1e-6 { notes.push(format!("{}V-carve depth limited to {} {} (the tool diameter is reached).", pre, num(fl(zmax)), un)); }
             let sv = (dia * so / 100.0 * 0.25).min(0.3).max(0.05);
             let mut cur = region.clone();
-            for j in 1..3000 {
-                cur = off_raw(&cur, -sv * S);
-                let d = j as f64 * sv;
-                let q = clean_paths(&cur);
+            let mut d = 0.0;
+            for _ in 1..3000 {
+                let next = off_raw(&cur, -sv * S);
+                let q = clean_paths(&next);
                 if q.is_empty() { break; }
-                let z = -(d / geo.tn).min(zmax);
+                cur = next;
+                d += sv;
+                let z = -geo.rise(d).min(zmax);
                 for p in q { vr.push((p, z)); }
+            }
+            // the last full step overshoots the centre line: finish with smaller steps so that narrow parts
+            // are carved right to their middle, not left with a ridge
+            let mut step = sv;
+            for _ in 0..40 {
+                step /= 2.0;
+                if step < 0.01 { break; }
+                let next = off_raw(&cur, -step * S);
+                let q = clean_paths(&next);
+                if q.is_empty() { continue; }
+                cur = next;
+                d += step;
+                let z = -geo.rise(d).min(zmax);
+                for p in q { vr.push((p, z)); }
+                step *= 2.0; // it fitted: try the same step again
             }
         } else if geo.cone && kind != "online" {
             by_pass = true;
@@ -874,7 +925,7 @@ mod tests {
 
     #[test]
     fn cone_radius_grows_with_depth() {
-        let t = Tool { id: "t".into(), name: "v".into(), sys: "mm".into(), shape: "vbit".into(), angle: 90.0, flutes: 2, dia: 6.0, rpm: 1.0, feed: 1.0, plunge: 1.0, so: 40.0, pd: 1.0, notes: String::new() };
+        let t = Tool { id: "t".into(), name: "v".into(), sys: "mm".into(), shape: "vbit".into(), angle: 90.0, flutes: 2, dia: 6.0, rpm: 1.0, feed: 1.0, plunge: 1.0, so: 40.0, pd: 1.0, notes: String::new(), tip: 0.0 };
         let g = ToolGeo::new(&t);
         assert!((g.r_at(1.5) - 1.5).abs() < 1e-9);
         assert!((g.r_at(10.0) - 3.0).abs() < 1e-9);

@@ -2,17 +2,10 @@
 //! Each cutting move is stamped into the grid with the tool's radial profile, so the result shows
 //! what the finished part looks like (flat pockets, ball and V-bit grooves, through cuts).
 use crate::model::{ProjectData, Tool};
-use crate::toolpath::{Move, ShapeKind, ToolGeo};
+use crate::toolpath::{Move, ToolGeo};
 
 /// Height of the cutter surface above its tip at radial distance `rho` (infinity outside the tool).
-fn rise(g: &ToolGeo, rho: f64) -> f64 {
-    if rho > g.r { return f64::INFINITY; }
-    match g.shape {
-        ShapeKind::VBit | ShapeKind::Engrave | ShapeKind::Taper if g.cone => rho / g.tn,
-        ShapeKind::Ball => g.r - (g.r * g.r - rho * rho).max(0.0).sqrt(),
-        _ => 0.0,
-    }
-}
+fn rise(g: &ToolGeo, rho: f64) -> f64 { g.rise(rho) }
 
 pub struct Sim {
     pub nx: usize,
@@ -152,6 +145,7 @@ impl Sim {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::toolpath::ShapeKind;
     use crate::{generate, shapes, Units};
 
     fn proj() -> ProjectData {
@@ -191,7 +185,7 @@ mod tests {
 
     #[test]
     fn vbit_profile_rises_with_radius() {
-        let g = ToolGeo { r: 3.0, shape: ShapeKind::VBit, cone: true, tn: 1.0, z_full: 3.0 };
+        let g = ToolGeo { r: 3.0, shape: ShapeKind::VBit, cone: true, tn: 1.0, z_full: 3.0, rt: 0.0 };
         assert_eq!(rise(&g, 0.0), 0.0);
         assert!((rise(&g, 2.0) - 2.0).abs() < 1e-9);
         assert!(rise(&g, 3.5).is_infinite());
@@ -258,5 +252,56 @@ mod tests {
         // the plug is cut free of the stock around its base
         assert!(s.through((49.0 / s.cell).round() as usize, (20.0 / s.cell).round() as usize));
         assert!(h(40.0, 20.0).abs() < 1e-6, "between the two is untouched");
+    }
+
+    /// A V-carve of a slot `w` mm wide with the given tool; returns the depth reached on its centre line.
+    fn carve_depth(tool: crate::model::Tool, w: f64) -> f64 {
+        let mut f = shapes::blank_project();
+        let d = &mut f.data;
+        d.stock.w = 40.0; d.stock.h = 30.0; d.stock.t = 10.0;
+        let id = tool.id.clone();
+        d.tools.push(tool);
+        let mut p = shapes::default_op_params(&id);
+        p.kind = "vcarve".into();
+        p.depth = 5.0;
+        d.ops.push(crate::model::Operation { id: 1, p });
+        d.oid = 1; d.act = 1;
+        d.loops.push(shapes::new_rect([5.0, 15.0 - w / 2.0], [35.0, 15.0 + w / 2.0], 0.0, 1));
+        let out = generate(&f.data, Units::Metric).unwrap();
+        let mut s = Sim::new(&f.data, 400_000);
+        s.advance(&out.moves, out.moves.len());
+        -(s.at((20.0 / s.cell).round() as usize, (15.0 / s.cell).round() as usize) as f64)
+    }
+
+    fn tool(shape: &str, angle: f64, dia: f64, tip: f64) -> crate::model::Tool {
+        let mut t = shapes::seed_tools().remove(0);
+        t.id = "curved".into(); t.shape = shape.into(); t.angle = angle; t.dia = dia; t.tip = tip;
+        t
+    }
+
+    #[test]
+    fn a_tip_radius_makes_vcarve_troughs_rounder_and_shallower() {
+        // slot 1 mm wide, 60 degree V-bit: sharp tip reaches 0.5 / tan(30) = 0.866 mm
+        let sharp = carve_depth(tool("vbit", 60.0, 6.0, 0.0), 1.0);
+        assert!((sharp - 0.866).abs() < 0.06, "sharp {sharp}");
+        // with a 0.5 mm tip radius the same width is only 0.366 mm deep
+        let round = carve_depth(tool("vbit", 60.0, 6.0, 0.5), 1.0);
+        assert!((round - 0.366).abs() < 0.06, "rounded {round}");
+        // a ball nose carves a round trough: 4 mm slot with a 6 mm ball: 3 - sqrt(9 - 4) = 0.764
+        let ball = carve_depth(tool("ball", 60.0, 6.0, 0.0), 4.0);
+        assert!((ball - 0.764).abs() < 0.06, "ball {ball}");
+    }
+
+    #[test]
+    fn tool_profile_and_its_inverse_agree() {
+        for t in [tool("vbit", 60.0, 6.0, 0.0), tool("vbit", 60.0, 6.0, 0.8), tool("taper", 12.0, 3.0, 0.4), tool("ball", 60.0, 6.0, 0.0)] {
+            let g = ToolGeo::new(&t);
+            for k in 1..20 {
+                let rho = g.r * k as f64 / 20.0;
+                let z = g.rise(rho);
+                assert!((g.r_at(z) - rho).abs() < 1e-6, "{} {rho}: {z} -> {}", t.shape, g.r_at(z));
+            }
+            assert!(g.z_full > 0.0 && (g.r_at(g.z_full) - g.r).abs() < 1e-6);
+        }
     }
 }
