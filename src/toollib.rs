@@ -77,6 +77,12 @@ fn tool(name: &str, sys: &str, shape: &str, angle: f64, dia: f64, flutes: u32, r
 /// The first five are the original starter tools and keep their order.
 pub fn seed_tools() -> Vec<Tool> {
     let up = "2-flute upcut: general purpose for wood, MDF and plastics.";
+    // CMT 7/8/965 decorative beading bits: a quarter-round corner, with a flat bottom where the arc is tighter than the bit
+    let bead = |name: &str, sys: &str, dia: f64, arc: f64, rpm: f64, feed: f64, notes: &str| {
+        let mut b = tool(name, sys, "arc", 60.0, dia, 2, rpm, feed, 300.0, 40.0, 3.0, notes);
+        b.arc = arc;
+        b
+    };
     vec![
         tool("1/8″ flat end mill", "in", "flat", 60.0, 3.175, 2, 12000.0, 800.0, 250.0, 40.0, 1.0, up),
         tool("6 mm flat end mill", "mm", "flat", 60.0, 6.0, 2, 10000.0, 1000.0, 300.0, 40.0, 2.0, up),
@@ -96,6 +102,8 @@ pub fn seed_tools() -> Vec<Tool> {
         tool("90° V-bit (1/4″)", "in", "vbit", 90.0, 6.35, 2, 12000.0, 800.0, 250.0, 40.0, 2.0, "V-carving, chamfers and lettering."),
         tool("30° engraving bit (1/8″)", "in", "engrave", 30.0, 3.175, 2, 12000.0, 500.0, 150.0, 40.0, 0.5, "Fine lettering and detailed engraving; shallow cuts."),
         tool("1″ surfacing bit", "in", "flat", 60.0, 25.4, 2, 12000.0, 1500.0, 300.0, 80.0, 0.5, "Flattening the spoilboard or a slab: light passes with a wide stepover."),
+        bead("Ø10 beading bit, R5 (CMT 965.402.11)", "mm", 10.0, 5.0, 12000.0, 1200.0, "CMT decorative beading bit, round-over with a 5 mm radius. Dimensions from CMT; speeds are conservative starting values, not CMT's."),
+        bead("3/4″ beading bit, R6.4 (CMT 865.001.11)", "in", 19.05, 6.4, 10000.0, 1500.0, "CMT decorative beading bit, 6.4 mm quarter-round with a flat bottom. Dimensions from CMT; speeds are conservative starting values, not CMT's."),
     ]
 }
 
