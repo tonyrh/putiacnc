@@ -49,7 +49,7 @@ Features:
 - 3D preview: GPU ray-marched height field of the stock with the toolpath, rapids and cutter
   marker, and a play bar to replay the job.
 - Help → Check for updates asks GitHub for the latest release and offers to download it (an AppImage can replace itself). It only contacts GitHub when you ask, or at startup if you tick that option.
-- G-code tab with a time estimate and warnings, optional output in inches.
+- G-code tab with a time estimate and warnings, optional output in inches and optional line numbers (N10, N20, ...).
 - Unsaved-changes prompts, native file dialogs, light and dark themes.
 
 ### Build and run

@@ -287,6 +287,12 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     if app.tab == RightTab::Info { notes_panel(ui, app); return; }
     if app.tab == RightTab::Gcode {
         if ui.checkbox(&mut app.imperial, "Output in inches (G20)").on_hover_text("Write the G-code in inches instead of millimetres").changed() { app.gen_pending = true; }
+        let mut numbered = app.project.data.job.numbered;
+        if ui.checkbox(&mut numbered, "Line numbers (N10, N20, ...)").on_hover_text("Number the G-code lines, for controllers that want them; saved with the project").changed() {
+            app.hist.record(&app.project.data);
+            app.project.data.job.numbered = numbered;
+            app.touch();
+        }
         ui.add_space(4.0);
     }
     let mut export = false;

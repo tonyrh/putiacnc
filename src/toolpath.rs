@@ -402,6 +402,11 @@ fn zero_label(zr: &str) -> &'static str {
     match zr { "lr" => "lower-right corner", "ul" => "upper-left corner", "ur" => "upper-right corner", "c" => "center", _ => "lower-left corner" }
 }
 
+/// Prefix every line with a line number: N10, N20, ...
+pub fn number_lines(lines: Vec<String>) -> Vec<String> {
+    lines.into_iter().enumerate().map(|(i, l)| format!("N{} {}", (i + 1) * 10, l)).collect()
+}
+
 pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let ku = units.factor();
     let un = units.name();
@@ -595,6 +600,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     if !any { return Err(format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" "))); }
     e.g.push("M5".into()); e.g.push("G0 X0 Y0".into()); e.g.push("M2".into());
     let cut_len: f64 = e.moves.iter().filter(|m| m.cut).map(|m| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt()).sum();
+    if data.job.numbered { e.g = number_lines(e.g); }
     Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
 }
 
@@ -658,6 +664,23 @@ mod tests {
         d.loops.push(crate::shapes::new_circle([50.0, 50.0], 10.0, 1));
         let o = generate(&d, Units::Metric).unwrap();
         assert!(o.notes.iter().any(|n| n.contains("wider than the tool")));
+    }
+
+    #[test]
+    fn line_numbers_are_optional() {
+        let mut d = drill_project(3.0, None);
+        let plain = generate(&d, Units::Metric).unwrap();
+        assert!(!plain.lines[0].starts_with('N'));
+        d.job.numbered = true;
+        let n = generate(&d, Units::Metric).unwrap();
+        assert_eq!(n.lines.len(), plain.lines.len());
+        assert_eq!(n.lines[0], format!("N10 {}", plain.lines[0]));
+        assert!(n.lines[n.lines.len() - 1].starts_with(&format!("N{} M2", n.lines.len() * 10)));
+        // same moves and time either way
+        assert_eq!(n.moves.len(), plain.moves.len());
+        // the setting survives a save and load
+        let j = serde_json::to_string(&d).unwrap();
+        assert!(serde_json::from_str::<ProjectData>(&j).unwrap().job.numbered);
     }
 
     #[test]

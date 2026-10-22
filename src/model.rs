@@ -53,6 +53,8 @@ pub struct Stock {
 pub struct Job {
     #[serde(default)] pub safe: f64,
     #[serde(default)] pub air: bool,
+    /// Number the G-code lines (N10, N20, ...).
+    #[serde(default, skip_serializing_if = "is_false")] pub numbered: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
