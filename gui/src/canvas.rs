@@ -1079,7 +1079,9 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let sel = app.sel.clone();
     let d = &mut app.project.data;
     let Some(b) = shapes::bbox_many(sel.iter().map(|&i| &d.loops[i])) else { return };
-    let (mut x, mut y, mut w, mut h) = (b[0], b[1], b[2] - b[0], b[3] - b[1]);
+    // X and Y are relative to the XY zero, like the rulers and the pointer readout
+    let (zx, zy) = (match d.stock.zr.as_str() { "lr" | "ur" => d.stock.w, "c" => d.stock.w / 2.0, _ => 0.0 }, match d.stock.zr.as_str() { "ul" | "ur" => d.stock.h, "c" => d.stock.h / 2.0, _ => 0.0 });
+    let (mut x, mut y, mut w, mut h) = (b[0] - zx, b[1] - zy, b[2] - b[0], b[3] - b[1]);
     let mut changed = false;
     let mut geom = false;
     let single_rect = if sel.len() == 1 { d.loops[*sel.iter().next().unwrap()].rc } else { None };
@@ -1166,7 +1168,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     }
     if geom {
         let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().enumerate().filter(|(i, _)| sel.contains(i)).map(|(_, l)| l).collect();
-        shapes::fit_to_bbox(&mut refs, b, [x, y, x + w.max(0.01), y + h.max(0.01)]);
+        shapes::fit_to_bbox(&mut refs, b, [x + zx, y + zy, x + zx + w.max(0.01), y + zy + h.max(0.01)]);
         changed = true;
     }
     if radius_changed {

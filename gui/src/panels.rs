@@ -369,9 +369,10 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
 enum GroupAct { Delete }
 
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
-fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool, fit: &mut bool, mut lock: Option<&mut bool>) -> Option<[f64; 4]> {
+/// `zero` is the XY zero of the stock: X and Y are shown (and typed) relative to it, like the rulers.
+fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f64, f64), aspect_fixed: bool, fit: &mut bool, mut lock: Option<&mut bool>) -> Option<[f64; 4]> {
     let locked = lock.as_ref().map_or(false, |l| **l);
-    let (mut x, mut y, mut w, mut h) = (b[0], b[1], b[2] - b[0], b[3] - b[1]);
+    let (mut x, mut y, mut w, mut h) = (b[0] - zero.0, b[1] - zero.1, b[2] - b[0], b[3] - b[1]);
     let keep_id = key.with("keep");
     let mut keep = aspect_fixed || ui.data(|d| d.get_temp::<bool>(keep_id)).unwrap_or(true);
     let (mut moved, mut sized) = (false, false);
@@ -395,7 +396,7 @@ fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], aspect_fixed: bool,
             if ui.add_enabled(!locked, egui::Button::new("Fit to stock")).on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
         });
     });
-    if moved || sized { Some([x, y, w, h]) } else { None }
+    if moved || sized { Some([x + zero.0, y + zero.1, w, h]) } else { None }
 }
 
 /// The imported files (drawings and the 3D model) with their position and size, and what can be done with them.
@@ -407,6 +408,7 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
     ui.separator();
     ui.heading("Imported");
     let (sw, sh) = (d.stock.w, d.stock.h);
+    let zero = (match d.stock.zr.as_str() { "lr" | "ur" => sw, "c" => sw / 2.0, _ => 0.0 }, match d.stock.zr.as_str() { "ul" | "ur" => sh, "c" => sh / 2.0, _ => 0.0 });
     let groups = d.groups.clone();
     for g in groups {
         egui::Frame::group(ui.style()).show(ui, |ui| {
@@ -420,7 +422,7 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
             let mut fit = false;
             let mut lock_now = g.locked;
-            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, false, &mut fit, Some(&mut lock_now)) {
+            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, zero, false, &mut fit, Some(&mut lock_now)) {
                 let new = [nb[0], nb[1], nb[0] + nb[2], nb[1] + nb[3]];
                 let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().filter(|l| l.grp == Some(g.id)).collect();
                 shapes::fit_to_bbox(&mut refs, b, new);
@@ -474,7 +476,7 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             let (w, h) = rel.size();
             let b = [rel.x, rel.y, rel.x + w, rel.y + h];
             let mut fit = false;
-            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, true, &mut fit, None) {
+            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, zero, true, &mut fit, None) {
                 rel.x = nb[0]; rel.y = nb[1];
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
