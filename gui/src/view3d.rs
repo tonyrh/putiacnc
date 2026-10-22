@@ -331,7 +331,9 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         painter.text(c + Vec2::new(24.0, 0.0), egui::Align2::LEFT_CENTER, format!("Preparing 3D preview... {pct}%"), FontId::proportional(13.0), Color32::WHITE);
     }
     if let Some(e) = &app.gen_error {
-        painter.text(rect.left_top() + Vec2::new(12.0, 10.0), egui::Align2::LEFT_TOP, e, FontId::proportional(13.0), Color32::from_rgb(0xe0, 0x1b, 0x24));
+        let col = Color32::from_rgb(0xe0, 0x1b, 0x24);
+        let g = painter.layout(e.clone(), FontId::proportional(13.0), col, (rect.width() - 24.0).max(100.0));
+        painter.galley(rect.left_top() + Vec2::new(12.0, 10.0), g, col);
     } else if app.output.as_ref().map_or(true, |o| o.moves.is_empty()) {
         painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, "No toolpaths yet: add an operation to preview the cut", FontId::proportional(13.0), ui.visuals().weak_text_color());
     }
