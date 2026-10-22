@@ -151,13 +151,17 @@ fn body(ui: &mut Ui, app: &mut App) {
         app.tool_sel = app.tool_libs.current().tools[0].id.clone();
     }
 
-    let h = 370.0;
+    // the list column is as tall as the form next to it (measured last frame), so its buttons stay at the bottom
+    let fid = egui::Id::new("tool_form_h");
+    let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(370.0).max(370.0);
     ui.horizontal_top(|ui| {
         ui.allocate_ui_with_layout(egui::vec2(270.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
         // fixed-height divider (ui.separator() would stretch to the whole available height and make the window grow)
         let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
         ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
-        ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), h), Layout::top_down(Align::LEFT), |ui| tool_form(ui, app));
+        let r = ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), 370.0), Layout::top_down(Align::LEFT), |ui| tool_form(ui, app));
+        let fh = r.response.rect.height().max(370.0);
+        if (fh - h).abs() > 0.5 { ui.ctx().data_mut(|d| d.insert_temp(fid, fh)); ui.ctx().request_repaint(); }
     });
     ui.add_space(6.0);
     let (ln, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), Sense::hover());
