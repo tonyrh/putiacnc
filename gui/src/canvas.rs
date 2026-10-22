@@ -549,17 +549,24 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 if ui.selectable_label(app.poly_star, "Star").clicked() { app.poly_star = true; if app.poly_sides == 6.0 { app.poly_sides = 5.0; } }
                 ui.add_space(6.0);
                 ui.label(if app.poly_star { "Points" } else { "Sides" });
+                ui.add_space(6.0);
                 crate::widgets::num(ui, [44.0, 24.0], &mut app.poly_sides, 3.0, 64.0, 0.2, 0, "");
                 if app.poly_star {
                     ui.add_space(6.0);
                     ui.label("Inner");
-                    crate::widgets::num(ui, [56.0, 24.0], &mut app.poly_inner, 5.0, 95.0, 0.5, 0, "%");
+                    ui.add_space(6.0);
+                    crate::widgets::num(ui, [48.0, 24.0], &mut app.poly_inner, 5.0, 95.0, 0.5, 0, "");
+                    ui.add_space(2.0);
+                    ui.weak("%");
                 }
             }
             if app.mode == Mode::Rect {
                 divider(ui);
                 ui.label("Radius");
-                crate::widgets::num(ui, [48.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 3, "");
+                ui.add_space(6.0);
+                crate::widgets::num(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 3, "");
+                ui.add_space(2.0);
+                ui.weak("mm");
             }
           });
         });
