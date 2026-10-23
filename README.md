@@ -148,6 +148,8 @@ its G-code and a meta file in the same format.
 - Offsets that collapse a shape are very slow in Clipper. Repeated offsets (pocket rings, V-carve rings)
   therefore offset the previous ring by one step instead of offsetting the original shape by a growing distance.
 
+Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report.
+
 ## Trademarks and bit data
 
 Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by

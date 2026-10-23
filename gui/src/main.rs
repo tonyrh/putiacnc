@@ -1,6 +1,7 @@
 // no console window behind the app on Windows release builds
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 //! PutiaCNC desktop GUI: 2D editor, operations, G-code and time estimate.
+mod about;
 mod app;
 mod array;
 mod canvas;
@@ -132,6 +133,7 @@ impl eframe::App for App {
         update::window(ctx, self);
         offset::dialog(ctx, self);
         shortcuts::window(ctx, self);
+        about::window(ctx, self);
         combine::dialog(ctx, self);
         array::dialog(ctx, self);
         corners::dialog(ctx, self);

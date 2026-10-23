@@ -149,10 +149,9 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
         ui.menu_button("Help", |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
-            if ui.button("Check for updates...").clicked() { app.updater.open = true; app.updater.check(false); ui.close_menu(); }
             if ui.add(egui::Button::new("Keyboard shortcuts").shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }
             ui.separator();
-            ui.weak(format!("PutiaCNC {}", crate::update::CURRENT));
+            if ui.button("About PutiaCNC...").clicked() { app.about_open = true; ui.close_menu(); }
         });
     });
 }
@@ -355,6 +354,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
             });
         }
         (_, RightTab::Ops | RightTab::Info) => {}
+        (None, _) if app.project.data.ops.is_empty() => { ui.weak("Add an operation to generate G-code."); }
         (None, _) => { ui.label(app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into())); }
     }
     if let Some(t) = copy { ui.ctx().copy_text(t); }
