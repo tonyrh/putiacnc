@@ -216,7 +216,7 @@ fn guides_menu(ui: &mut Ui, app: &mut App) {
             .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.style_mut().wrap = Some(false);
-                    ui.set_min_width(120.0);
+                    ui.set_width(190.0); // a fixed width: the separator would otherwise stretch the menu across the screen
                     ui.checkbox(&mut app.osnap_on, "Snap to shapes").on_hover_text("Snap to the corners, midpoints, centres and crossings of shapes, and to the stock");
                     ui.separator();
                     ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
