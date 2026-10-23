@@ -2,6 +2,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 //! PutiaCNC desktop GUI: 2D editor, operations, G-code and time estimate.
 mod about;
+mod align;
 mod app;
 mod array;
 mod canvas;
@@ -135,6 +136,7 @@ impl eframe::App for App {
         self.sync_prefs(ctx);
         update::window(ctx, self);
         offset::dialog(ctx, self);
+        align::popover(ctx, self);
         cleanup::dialog(ctx, self);
         shortcuts::window(ctx, self);
         about::window(ctx, self);

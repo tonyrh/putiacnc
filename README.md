@@ -27,7 +27,7 @@ The workspace has two crates:
 Features:
 
 - 2D design canvas: rectangles, ellipses, lines and polygons, SVG and DXF import (File → Import Vectors), select / move / resize,
-  snapping, undo and redo (Edit → Undo steps back through any change; the toolbar buttons only undo drawing changes), align to the stock and to each other, distribute. The node tool (N, or double-click a
+  snapping, undo and redo (Edit → Undo steps back through any change; the toolbar buttons only undo drawing changes), align to the stock and to each other, distribute (the Align button in the tool palette; it is greyed out until something is selected). The node tool (N, or double-click a
   shape) edits its points: drag, add, delete and simplify. Edit → Offset grows or shrinks
   the selected shapes by a distance (inlays, clearances); Edit → Combine shapes does union, subtract, intersect
   and exclude. The text tool (T) turns typed text, in any font

@@ -403,7 +403,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     // typed values: a click on the drawing drops them, a number typed over it opens the panel
     if resp.clicked() || resp.drag_started() { app.dyn_in = None; }
     let typed_at = pointer_w.map(|p| app.snap(p));
-    crate::dynin::drive(&ctx, app, resp.hovered(), typed_at, zero, rect.min);
+    let anchor = rect.min + Vec2::new(0.0, app.palette_extra);
+    crate::dynin::drive(&ctx, app, resp.hovered(), typed_at, zero, anchor);
 
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
@@ -1010,7 +1011,7 @@ fn trim_click(app: &mut App, w: [f64; 2], tol: f64) {
 
 fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect | Mode::Ellipse | Mode::Trim) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
-    egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 62.0)).show(ctx, |ui| {
+    egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 62.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
           ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
@@ -1085,11 +1086,14 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
 // ------------------------------------------------------------------- overlays
 
 fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
+    app.canvas_right = rect.right();
     // tool palette
-    egui::Area::new(egui::Id::new("palette")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 10.0)).show(ctx, |ui| {
+    let pal = egui::Area::new(egui::Id::new("palette")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 10.0)).show(ctx, |ui| {
+        // a narrow canvas wraps the palette onto a second row instead of running under the side panel
+        ui.set_max_width((rect.width() - 28.0).max(240.0));
         egui::Frame::popup(ui.style()).inner_margin(4.0).show(ui, |ui| {
-          ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
+          ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(2.0, 2.0);
             for (m, icon, tip) in [
                 (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
                 (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Point, Icon::Point, "Drill point (D): click to place, use with a Drill operation"), (Mode::Text, Icon::Text, "Text (T)"), (Mode::Trim, Icon::Trim, "Trim and extend (X): click the part of a line to remove, or switch to Extend to run a line out to the next shape"),
@@ -1097,6 +1101,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
             if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
+            crate::align::button(ui, app);
             // only offered when the selection has a corner to round (not for circles and ellipses)
             if app.selection_has_corners() {
                 if icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.corners.open = !app.corners.open; }
@@ -1114,6 +1119,8 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
           });
         });
     });
+    // the bars under the palette move down when it wraps (46 px is one row)
+    app.palette_extra = (pal.response.rect.height() - 46.0).max(0.0);
     tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
@@ -1299,12 +1306,10 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let same = sel.iter().all(|&i| d.loops[i].op == first_op);
     let cur = if !same { "Mixed".to_string() } else { ops.iter().find(|(id, _)| *id == first_op).map(|(_, s)| s.clone()).unwrap_or_else(|| "No operation".into()) };
     let mut pick: Option<i64> = None;
-    let mut align: Option<u8> = None;
-    let mut align_each: Option<u8> = None;
     let _ = n;
     // shapes of a locked drawing can be assigned to operations but not moved, resized or aligned
     let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
-    egui::Area::new(egui::Id::new("selbar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0)).show(ctx, |ui| {
+    egui::Area::new(egui::Id::new("selbar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 5.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 4.0;
             ui.horizontal(|ui| {
@@ -1332,47 +1337,9 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     if ui.selectable_label(same && first_op == 0, "No operation").clicked() { pick = Some(0); }
                 }).response.on_hover_text("Operation applied to the selected shapes");
             });
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 2.0;
-                ui.label("Align to stock");
-                ui.add_space(4.0);
-                for (k, icon, tip) in [
-                    (0, Icon::AlignL, "Align to the left edge of the stock"), (1, Icon::AlignHC, "Centre horizontally on the stock"), (2, Icon::AlignR, "Align to the right edge of the stock"),
-                    (3, Icon::AlignT, "Align to the top edge of the stock"), (4, Icon::AlignVC, "Centre vertically on the stock"), (5, Icon::AlignB, "Align to the bottom edge of the stock"),
-                    (6, Icon::CenterBoth, "Centre on the stock"),
-                ] {
-                    if k == 3 || k == 6 { ui.add_space(6.0); }
-                    if icon_button(ui, icon, false, true, tip).clicked() { align = Some(k); }
-                }
-            });
-            if sel.len() >= 2 {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 2.0;
-                    let lw = crate::panels::tw(ui, "Align to stock");
-                    ui.add_sized([lw, 24.0], egui::Label::new("Align shapes"));
-                    ui.add_space(4.0);
-                    for (k, icon, tip) in [
-                        (0, Icon::AlignL, "Align the shapes' left edges"), (1, Icon::AlignHC, "Centre the shapes horizontally on each other"), (2, Icon::AlignR, "Align the shapes' right edges"),
-                        (3, Icon::AlignT, "Align the shapes' top edges"), (4, Icon::AlignVC, "Centre the shapes vertically on each other"), (5, Icon::AlignB, "Align the shapes' bottom edges"),
-                        (6, Icon::DistH, "Distribute horizontally (equal gaps, needs 3 or more)"), (7, Icon::DistV, "Distribute vertically (equal gaps, needs 3 or more)"),
-                    ] {
-                        if k == 3 || k == 6 { ui.add_space(6.0); }
-                        let on = k < 6 || sel.len() >= 3;
-                        if icon_button(ui, icon, false, on, tip).clicked() { align_each = Some(k); }
-                    }
-                });
-            }
         });
     });
-    if locked { geom = false; radius_changed = false; align = None; align_each = None; }
-    if let Some(k) = align {
-        let (sw, sh) = (d.stock.w, d.stock.h);
-        let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
-        let dx = match k { 0 => -b[0], 1 | 6 => sw / 2.0 - cx, 2 => sw - b[2], _ => 0.0 };
-        let dy = match k { 3 => sh - b[3], 4 | 6 => sh / 2.0 - cy, 5 => -b[1], _ => 0.0 };
-        for &i in sel.iter() { shapes::translate(&mut d.loops[i], dx, dy); }
-        changed = true;
-    }
+    if locked { geom = false; radius_changed = false; }
     if geom {
         let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().enumerate().filter(|(i, _)| sel.contains(i)).map(|(_, l)| l).collect();
         shapes::fit_to_bbox(&mut refs, b, [x + zx, y + zy, x + zx + w.max(0.01), y + zy + h.max(0.01)]);
@@ -1380,35 +1347,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     }
     if radius_changed {
         if let Some(&i) = sel.iter().next() { shapes::set_corner_radius(&mut d.loops[i], radius); changed = true; }
-    }
-    if let Some(k) = align_each {
-        let ids: Vec<usize> = sel.iter().copied().collect();
-        if k < 6 {
-            for &i in &ids {
-                let Some(lb) = shapes::bbox(&d.loops[i]) else { continue };
-                let dx = match k { 0 => b[0] - lb[0], 1 => (b[0] + b[2]) / 2.0 - (lb[0] + lb[2]) / 2.0, 2 => b[2] - lb[2], _ => 0.0 };
-                let dy = match k { 3 => b[3] - lb[3], 4 => (b[1] + b[3]) / 2.0 - (lb[1] + lb[3]) / 2.0, 5 => b[1] - lb[1], _ => 0.0 };
-                shapes::translate(&mut d.loops[i], dx, dy);
-            }
-        } else {
-            // equal gaps between the shapes, keeping the outermost two where they are
-            let horiz = k == 6;
-            let ax = |bb: [f64; 4]| if horiz { (bb[0], bb[2]) } else { (bb[1], bb[3]) };
-            let mut items: Vec<(usize, f64, f64)> = ids.iter().filter_map(|&i| shapes::bbox(&d.loops[i]).map(|bb| { let (lo, hi) = ax(bb); (i, lo, hi) })).collect();
-            items.sort_by(|p, q| (p.1 + p.2).partial_cmp(&(q.1 + q.2)).unwrap());
-            if items.len() >= 3 {
-                let (lo, hi) = (b_axis(b, horiz).0, b_axis(b, horiz).1);
-                let total: f64 = items.iter().map(|t| t.2 - t.1).sum();
-                let gap = (hi - lo - total) / (items.len() - 1) as f64;
-                let mut pos = lo;
-                for (i, l0, l1) in items {
-                    let delta = pos - l0;
-                    if horiz { shapes::translate(&mut d.loops[i], delta, 0.0); } else { shapes::translate(&mut d.loops[i], 0.0, delta); }
-                    pos += (l1 - l0) + gap;
-                }
-            }
-        }
-        changed = true;
     }
     if let Some(id) = pick { for &i in sel.iter() { d.loops[i].op = id; } changed = true; }
     if changed {
@@ -1420,7 +1358,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     }
 }
 
-fn b_axis(b: [f64; 4], horiz: bool) -> (f64, f64) { if horiz { (b[0], b[2]) } else { (b[1], b[3]) } }
 
 // ------------------------------------------------------------------- manual holding tabs
 
@@ -1501,7 +1438,7 @@ fn tab_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let n = app.project.data.ops.iter().find(|o| o.id == id).and_then(|o| o.p.tab_pts.as_ref()).map_or(0, |v| v.len());
     let k = app.project.data.ops.iter().position(|o| o.id == id).map_or(0, |k| k + 1);
     let mut done = false;
-    egui::Area::new(egui::Id::new("tabbar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0)).show(ctx, |ui| {
+    egui::Area::new(egui::Id::new("tabbar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 6.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("Placing tabs for operation {k} · {n} tab{}", if n == 1 { "" } else { "s" }));
@@ -1663,7 +1600,7 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let (mut done, mut simplify, mut corner) = (false, false, false);
     let mut tol = app.node_tol;
     let (mut cham, mut csize, nsel) = (app.corners.chamfer, app.corners.size, app.node_sel.len());
-    egui::Area::new(egui::Id::new("nodebar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0)).show(ctx, |ui| {
+    egui::Area::new(egui::Id::new("nodebar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 6.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("Editing points · {n} point{}", if n == 1 { "" } else { "s" }));
