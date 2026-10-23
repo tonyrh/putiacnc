@@ -1,7 +1,7 @@
 {
  "app": "putia-cnc-tools",
  "v": 1,
- "name": "Bosch PRO router bits",
+ "name": "Bosch PRO router bits (mm)",
  "tools": [
   {
    "name": "Ø3.2 straight Z1, 7.7 mm cut (Bosch 2608628438)",
@@ -16,7 +16,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Bosch PRO straight router bit, 1 flute, carbide-tipped. Cutting length 7.7 mm, overall 51 mm. Articles: 2608628438 (shank 6 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos001",
+   "id": "bosm001",
    "tip": 0.0
   },
   {
@@ -32,7 +32,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Bosch PRO straight router bit, 1 flute, carbide-tipped. Cutting length 12.4 mm, overall 51 mm. Articles: 2608628439 (shank 6 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos002",
+   "id": "bosm002",
    "tip": 0.0
   },
   {
@@ -48,7 +48,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 25 mm, overall 56 mm. Articles: 2608628372 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos003",
+   "id": "bosm003",
    "tip": 0.0
   },
   {
@@ -64,7 +64,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 25 mm, overall 56 mm. Articles: 2608628373 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos004",
+   "id": "bosm004",
    "tip": 0.0
   },
   {
@@ -80,7 +80,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 31.5 mm, overall 62 mm. Articles: 2608628374 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos005",
+   "id": "bosm005",
    "tip": 0.0
   },
   {
@@ -96,7 +96,7 @@
    "so": 40.0,
    "pd": 4.9,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628375 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos006",
+   "id": "bosm006",
    "tip": 0.0
   },
   {
@@ -112,7 +112,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 15.7 mm, overall 48 mm. Articles: 2608628379 (shank 8 mm), 2608628440 (shank 6 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos007",
+   "id": "bosm007",
    "tip": 0.0
   },
   {
@@ -128,7 +128,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628381 (shank 8 mm), 2608628441 (shank 6 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos008",
+   "id": "bosm008",
    "tip": 0.0
   },
   {
@@ -144,7 +144,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628383 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos009",
+   "id": "bosm009",
    "tip": 0.0
   },
   {
@@ -160,7 +160,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628385 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos010",
+   "id": "bosm010",
    "tip": 0.0
   },
   {
@@ -176,7 +176,7 @@
    "so": 40.0,
    "pd": 5.2,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628387 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos011",
+   "id": "bosm011",
    "tip": 0.0
   },
   {
@@ -192,7 +192,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628388 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos012",
+   "id": "bosm012",
    "tip": 0.0
   },
   {
@@ -208,7 +208,7 @@
    "so": 40.0,
    "pd": 6.3,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 24.6 mm, overall 56 mm. Articles: 2608628389 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos013",
+   "id": "bosm013",
    "tip": 0.0
   },
   {
@@ -224,7 +224,7 @@
    "so": 40.0,
    "pd": 7.0,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 24.6 mm, overall 56 mm. Articles: 2608628390 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos014",
+   "id": "bosm014",
    "tip": 0.0
   },
   {
@@ -240,7 +240,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628392 (shank 8 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos015",
+   "id": "bosm015",
    "tip": 0.0
   },
   {
@@ -256,7 +256,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628442 (shank 6 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos016",
+   "id": "bosm016",
    "tip": 0.0
   },
   {
@@ -272,7 +272,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628443 (shank 6 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos017",
+   "id": "bosm017",
    "tip": 0.0
   },
   {
@@ -288,7 +288,7 @@
    "so": 40.0,
    "pd": 6.6,
    "notes": "Bosch PRO straight router bit, 2 flutes, carbide-tipped. Cutting length 19.6 mm, overall 51 mm. Articles: 2608628444 (shank 6 mm). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos018",
+   "id": "bosm018",
    "tip": 0.0
   },
   {
@@ -304,7 +304,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Bosch PRO V-groove bit, 60°, 2 flutes. Cutting length 13.7 mm, overall 45 mm, shank 8 mm. Article 2608628406. Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos019",
+   "id": "bosm019",
    "tip": 0.0
   },
   {
@@ -320,7 +320,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Bosch PRO V-groove bit, 90°, 2 flutes. Cutting length 15.7 mm, overall 45 mm, shank 8 mm. Article 2608628407. Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos020",
+   "id": "bosm020",
    "tip": 0.0
   },
   {
@@ -336,7 +336,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Bosch PRO V-groove bit, 90°, 1 flute. Cutting length 9.2 mm, overall 45 mm, shank 6 mm. Article 2608628445. Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos021",
+   "id": "bosm021",
    "tip": 0.0
   },
   {
@@ -352,7 +352,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Bosch PRO V-groove bit, 90°, 2 flutes. Cutting length 12.4 mm, overall 45 mm, shank 6 mm. Article 2608628446. Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos022",
+   "id": "bosm022",
    "tip": 0.0
   },
   {
@@ -368,7 +368,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Bosch PRO V-groove bit, 90°, 2 flutes. Cutting length 12.4 mm, overall 45 mm, shank 6 mm. Article 2608628447. Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos023",
+   "id": "bosm023",
    "tip": 0.0
   },
   {
@@ -384,7 +384,7 @@
    "so": 15.0,
    "pd": 4.2,
    "notes": "Bosch PRO core box (round nose) router bit, radius 6 mm. Cutting length 9.2 mm, overall 40 mm. Articles: 2608628368 (shank 8 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos024",
+   "id": "bosm024",
    "tip": 0.0
   },
   {
@@ -400,7 +400,7 @@
    "so": 15.0,
    "pd": 7.0,
    "notes": "Bosch PRO core box (round nose) router bit, radius 10 mm. Cutting length 12.4 mm, overall 46 mm. Articles: 2608628370 (shank 8 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos025",
+   "id": "bosm025",
    "tip": 0.0
   },
   {
@@ -416,7 +416,7 @@
    "so": 15.0,
    "pd": 4.4,
    "notes": "Bosch PRO core box (round nose) router bit, radius 6.3 mm. Cutting length 9.2 mm, overall 40 mm. Articles: 2608628450 (shank 6 mm), 2608628418 (shank 6.35 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos026",
+   "id": "bosm026",
    "tip": 0.0
   },
   {
@@ -432,7 +432,7 @@
    "so": 15.0,
    "pd": 3.3,
    "notes": "Bosch PRO core box (round nose) router bit, radius 4.7 mm. Cutting length 9.2 mm, overall 40 mm. Articles: 2608628451 (shank 6 mm), 2608628632 (shank 6.35 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos027",
+   "id": "bosm027",
    "tip": 0.0
   },
   {
@@ -448,7 +448,7 @@
    "so": 15.0,
    "pd": 5.6,
    "notes": "Bosch PRO core box (round nose) router bit, radius 8 mm. Cutting length 12.4 mm, overall 45 mm. Articles: 2608628452 (shank 6 mm), 2608628633 (shank 6.35 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos028",
+   "id": "bosm028",
    "tip": 0.0
   },
   {
@@ -464,7 +464,7 @@
    "so": 15.0,
    "pd": 8.0,
    "notes": "Bosch PRO core box (round nose) router bit, radius 12.7 mm. Cutting length 15.6 mm, overall 48 mm. Articles: 2608628453 (shank 6 mm), 2608628634 (shank 6.35 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos029",
+   "id": "bosm029",
    "tip": 0.0
   },
   {
@@ -480,7 +480,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Bosch PRO core box (round nose) router bit, radius 3.2 mm. Cutting length 9.2 mm, overall 40 mm. Articles: 2608628460 (shank 6 mm), 2608628425 (shank 6.35 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos030",
+   "id": "bosm030",
    "tip": 0.0
   },
   {
@@ -496,7 +496,7 @@
    "so": 15.0,
    "pd": 8.0,
    "notes": "Bosch PRO core box (round nose) router bit, radius 12 mm. Cutting length 15.9 mm, overall 57 mm. Articles: 2608628473 (shank 12 mm). The page does not give the flute count (2 assumed). Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work.",
-   "id": "bos031",
+   "id": "bosm031",
    "tip": 0.0
   }
  ]

@@ -596,10 +596,13 @@ LIBS = [("cmt", "cmt", "CMT router bits", "CMT Orange Tools: CNC solid-carbide s
         ("freud", "freud", "Freud router bits", "Freud: straight, spiral, compression, O-flute, round nose, V-groove and carving bits from the General Purpose catalog."),
         ("diablo", "diablo", "Diablo router bits", "Diablo: a few straight, round nose and V-groove bits.")]
 here = os.path.dirname(os.path.abspath(__file__))
+UNITS = [("mm", "mm", "metric"), ("in", "inch", "inch")]
 for brand, fname, title, _ in LIBS:
-    own = [dict(t) for t in tools if t["brand"] == brand]
-    for i, t in enumerate(own, 1):
-        t["id"] = "%s%03d" % (brand[:3], i); t.pop("brand", None)
-    with open(os.path.join(here, "%s.json" % fname), "w", encoding="utf-8") as f:
-        json.dump({"app": "putia-cnc-tools", "v": 1, "name": title, "tools": own}, f, ensure_ascii=False, indent=1); f.write("\n")
-    print("%-8s %d tools" % (brand, len(own)), file=_sys.stderr)
+    for sys_, suffix, word in UNITS:
+        own = [dict(t) for t in tools if t["brand"] == brand and t["sys"] == sys_]
+        if not own: continue
+        for i, t in enumerate(own, 1):
+            t["id"] = "%s%s%03d" % (brand[:3], "m" if sys_ == "mm" else "i", i); t.pop("brand", None)
+        with open(os.path.join(here, "%s-%s.json" % (fname, suffix)), "w", encoding="utf-8") as f:
+            json.dump({"app": "putia-cnc-tools", "v": 1, "name": "%s (%s)" % (title, suffix), "tools": own}, f, ensure_ascii=False, indent=1); f.write("\n")
+        print("%-8s %-5s %d tools" % (brand, suffix, len(own)), file=_sys.stderr)

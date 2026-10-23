@@ -1,7 +1,7 @@
 {
  "app": "putia-cnc-tools",
  "v": 1,
- "name": "Diablo router bits",
+ "name": "Diablo router bits (inch)",
  "tools": [
   {
    "name": "90° V-bit 1/2″, 7/16″ cut (Diablo DR20104)",
@@ -16,7 +16,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Diablo DR20104 1/2″ carbide V-groove bit, 90° (45° per side), 2 cutters, TiCo carbide with non-stick coating. Carbide height 7/16″ (11.11 mm), overall length 1-3/4″ (44.45 mm), shank 1/4″. Diablo lists a maximum of 24000 rpm and CNC machines among its uses; for engraving, signmaking and veining. Very close to CMT 815.127.11 but with a slightly shorter cutting edge. Dimensions from Diablo's product page; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia001",
+   "id": "diai001",
    "tip": 0.0
   },
   {
@@ -32,7 +32,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Diablo DR04100 double-flute straight router bit, TiCo Hi-Density carbide, 2 cutters. Carbide height 3/8″ (9.52 mm), overall length 1-3/4″ (44.45 mm), shank 1/4″ (6.35 mm). Hand-router bit: fine for light CNC work in wood and composites, with shallow passes. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia002",
+   "id": "diai002",
    "tip": 0.0
   },
   {
@@ -48,7 +48,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Diablo DR04108 double-flute straight router bit, TiCo Hi-Density carbide, 2 cutters. Carbide height 1″ (25.4 mm), overall length 2-1/2″ (63.5 mm), shank 1/4″ (6.35 mm). Hand-router bit: fine for light CNC work in wood and composites, with shallow passes. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia003",
+   "id": "diai003",
    "tip": 0.0
   },
   {
@@ -64,7 +64,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Diablo DR04124 double-flute straight router bit, TiCo Hi-Density carbide, 2 cutters. Carbide height 1″ (25.4 mm), overall length 2-1/2″ (63.5 mm), shank 1/4″ (6.35 mm). Hand-router bit: fine for light CNC work in wood and composites, with shallow passes. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia004",
+   "id": "diai004",
    "tip": 0.0
   },
   {
@@ -80,7 +80,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Diablo DR04132 double-flute straight router bit, TiCo Hi-Density carbide, 2 cutters. Carbide height 1″ (25.4 mm), overall length 2-1/8″ (53.97 mm), shank 1/4″ (6.35 mm). Hand-router bit: fine for light CNC work in wood and composites, with shallow passes. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia005",
+   "id": "diai005",
    "tip": 0.0
   },
   {
@@ -96,7 +96,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Diablo DR12156 double-flute straight router bit, TiCo Hi-Density carbide, 2 cutters. Carbide height 1-1/2″ (38.1 mm), overall length 3″ (76.2 mm), shank 1/2″ (12.7 mm). Hand-router bit: fine for light CNC work in wood and composites, with shallow passes. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia006",
+   "id": "diai006",
    "tip": 0.0
   },
   {
@@ -112,7 +112,7 @@
    "so": 15.0,
    "pd": 3.3,
    "notes": "Diablo DR18106 round nose router bit, TiCo Hi-Density carbide, 2 flutes, radius 3/16″ (4.76 mm). Carbide height 3/8″ (9.52 mm), overall length 1-13/16″ (46.04 mm), shank 1/4″. Hand-router bit. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia007",
+   "id": "diai007",
    "tip": 0.0
   },
   {
@@ -128,7 +128,7 @@
    "so": 15.0,
    "pd": 4.4,
    "notes": "Diablo DR18108 round nose router bit, TiCo Hi-Density carbide, 2 flutes, radius 1/4″ (6.35 mm). Carbide height 3/8″ (9.52 mm), overall length 1-13/16″ (46.04 mm), shank 1/4″. Hand-router bit. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia008",
+   "id": "diai008",
    "tip": 0.0
   },
   {
@@ -144,7 +144,7 @@
    "so": 15.0,
    "pd": 6.7,
    "notes": "Diablo DR18112 round nose router bit, TiCo Hi-Density carbide, 2 flutes, radius 3/8″ (9.52 mm). Carbide height 7/16″ (11.11 mm), overall length 2″ (50.8 mm), shank 1/4″. Hand-router bit. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.",
-   "id": "dia009",
+   "id": "diai009",
    "tip": 0.0
   }
  ]

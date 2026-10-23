@@ -319,12 +319,16 @@ mod tests {
     #[test]
     fn the_brand_library_files_import() {
         let files = [
-            (include_str!("../libraries/cmt.json"), "CMT router bits", 140),
-            (include_str!("../libraries/amana.json"), "Amana Tool CNC bits", 150),
-            (include_str!("../libraries/bosch.json"), "Bosch PRO router bits", 25),
-            (include_str!("../libraries/diablo.json"), "Diablo router bits", 8),
-            (include_str!("../libraries/freud.json"), "Freud router bits", 150),
-            (include_str!("../libraries/generic.json"), "Generic CNC bits", 70),
+            (include_str!("../libraries/amana-inch.json"), "Amana Tool CNC bits (inch)", 147),
+            (include_str!("../libraries/amana-mm.json"), "Amana Tool CNC bits (mm)", 41),
+            (include_str!("../libraries/bosch-mm.json"), "Bosch PRO router bits (mm)", 29),
+            (include_str!("../libraries/cmt-inch.json"), "CMT router bits (inch)", 65),
+            (include_str!("../libraries/cmt-mm.json"), "CMT router bits (mm)", 90),
+            (include_str!("../libraries/diablo-inch.json"), "Diablo router bits (inch)", 7),
+            (include_str!("../libraries/freud-inch.json"), "Freud router bits (inch)", 154),
+            (include_str!("../libraries/freud-mm.json"), "Freud router bits (mm)", 6),
+            (include_str!("../libraries/generic-inch.json"), "Generic CNC bits (inch)", 35),
+            (include_str!("../libraries/generic-mm.json"), "Generic CNC bits (mm)", 38),
         ];
         let mut l = ToolLibs::default();
         for (json, expect_name, min) in files {
