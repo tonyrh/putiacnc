@@ -195,31 +195,37 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
         for (sys, label) in groups {
             let g: Vec<_> = lib.tools.iter().filter(|t| t.sys == sys).collect();
             if g.is_empty() { continue; }
-            ui.label(egui::RichText::new(label).strong().weak());
+            let unit_open = g.iter().any(|t| t.id == app.tool_sel);
+            egui::CollapsingHeader::new(egui::RichText::new(format!("{label}  ({})", g.len())).strong())
+                .id_source(("tgrp", lib.id.clone(), sys)).default_open(unit_open).show(ui, |ui| {
             let mut kinds: Vec<(usize, &str)> = g.iter().map(|t| toollib::category(&t.shape)).collect();
             kinds.sort(); kinds.dedup();
             for (ko, kname) in kinds {
-              ui.add_space(2.0);
-              ui.label(egui::RichText::new(kname).small().weak());
-              for t in g.iter().filter(|t| toollib::category(&t.shape).0 == ko).copied() {
-                let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 30.0), Sense::click());
-                let sel = t.id == app.tool_sel;
-                let vis = ui.visuals().clone();
-                if sel { ui.painter().rect_filled(rect, 6.0, vis.selection.bg_fill); }
-                else if resp.hovered() { ui.painter().rect_filled(rect, 6.0, vis.widgets.hovered.bg_fill); }
-                let col = if sel { Color32::WHITE } else { vis.text_color() };
-                let ic = egui::Rect::from_center_size(egui::pos2(rect.min.x + 18.0, rect.center().y), egui::vec2(16.0, 24.0));
-                paint_cutter(ui.painter(), ic, &t.shape, t.angle, t.tip / (t.dia / 2.0).max(1e-6), (t.arc / (t.dia / 2.0).max(1e-6), t.concave), if sel { Color32::WHITE } else { vis.text_color() });
-                let font = egui::TextStyle::Body.resolve(ui.style());
-                let dia = format!("Ø{}", toollib::fmt_dia(t.dia, &t.sys, false));
-                let gd = ui.painter().layout_no_wrap(dia, font.clone(), col.gamma_multiply(0.7));
-                let gn = ui.painter().layout_no_wrap(t.name.replace('″', "\""), font, col);
-                let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - gd.size().x - 14.0, rect.max.y)));
-                clip.galley(egui::pos2(rect.min.x + 36.0, rect.center().y - gn.size().y / 2.0), gn, col);
-                ui.painter().galley(egui::pos2(rect.max.x - gd.size().x - 8.0, rect.center().y - gd.size().y / 2.0), gd, col);
-                if resp.clicked() { pick = Some(t.id.clone()); }
-              }
+              let n = g.iter().filter(|t| toollib::category(&t.shape).0 == ko).count();
+              let has_sel = g.iter().any(|t| t.id == app.tool_sel && toollib::category(&t.shape).0 == ko);
+              egui::CollapsingHeader::new(egui::RichText::new(format!("{kname}  ({n})")).small().weak())
+                .id_source(("tgrp", lib.id.clone(), sys, ko)).default_open(has_sel).show(ui, |ui| {
+                for t in g.iter().filter(|t| toollib::category(&t.shape).0 == ko).copied() {
+                  let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 30.0), Sense::click());
+                  let sel = t.id == app.tool_sel;
+                  let vis = ui.visuals().clone();
+                  if sel { ui.painter().rect_filled(rect, 6.0, vis.selection.bg_fill); }
+                  else if resp.hovered() { ui.painter().rect_filled(rect, 6.0, vis.widgets.hovered.bg_fill); }
+                  let col = if sel { Color32::WHITE } else { vis.text_color() };
+                  let ic = egui::Rect::from_center_size(egui::pos2(rect.min.x + 18.0, rect.center().y), egui::vec2(16.0, 24.0));
+                  paint_cutter(ui.painter(), ic, &t.shape, t.angle, t.tip / (t.dia / 2.0).max(1e-6), (t.arc / (t.dia / 2.0).max(1e-6), t.concave), if sel { Color32::WHITE } else { vis.text_color() });
+                  let font = egui::TextStyle::Body.resolve(ui.style());
+                  let dia = format!("Ø{}", toollib::fmt_dia(t.dia, &t.sys, false));
+                  let gd = ui.painter().layout_no_wrap(dia, font.clone(), col.gamma_multiply(0.7));
+                  let gn = ui.painter().layout_no_wrap(t.name.replace('″', "\""), font, col);
+                  let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - gd.size().x - 14.0, rect.max.y)));
+                  clip.galley(egui::pos2(rect.min.x + 36.0, rect.center().y - gn.size().y / 2.0), gn, col);
+                  ui.painter().galley(egui::pos2(rect.max.x - gd.size().x - 8.0, rect.center().y - gd.size().y / 2.0), gd, col);
+                  if resp.clicked() { pick = Some(t.id.clone()); }
+                }
+              });
             }
+            });
             ui.add_space(6.0);
         }
     });
