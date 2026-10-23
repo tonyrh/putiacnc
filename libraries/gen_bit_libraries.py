@@ -128,10 +128,12 @@ def speeds(d, zeff, shape, slow=False):
     return rpm, feed, plunge, so, pd
 
 tools, seq = [], [0]
+BRAND = "cmt"
 def add(**t):
     seq[0] += 1
     t["id"] = "cmt%03d" % seq[0]
     t.setdefault("tip", 0.0)
+    t["brand"] = BRAND
     tools.append(t)
 
 for f in FAMILIES:
@@ -241,6 +243,7 @@ for code, d, cl, ol, ang in [("K958-110",11,14,45,60),("K915-127",12.7,12.7,45,9
     add(name="%d\u00b0 V-bit %s (CMT %s)" % (ang, label(d, sys_), code), sys=sys_, shape="vbit", angle=float(ang), flutes=2, dia=d, rpm=min(rpm_, 12000),
         feed=min(feed, 1200.0), plunge=min(plunge, 250.0), so=40.0, pd=2.0, notes=note)
 
+BRAND = "diablo"
 # Diablo (from a saved product page): DR20104, 1/2" 90 degree carbide V-groove bit, 2 cutters, max 24000 rpm, carbide height 7/16",
 # overall length 1-3/4", shank 1/4". Lists "CNC Machine" among its tools.
 d_mm = inch("1/2") * MM
@@ -274,6 +277,7 @@ for code, D, R, H, L, S in [("DR18106","3/8","3/16","3/8","1-13/16","1/4"),("DR1
                "Hand-router bit. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.")
         % (code, R, fmt(inch(R) * MM), H, fmt(inch(H) * MM), L, fmt(inch(L) * MM), S))
 
+BRAND = "amana"
 # Amana Tool metric bits. The category pages show no tables to a fetch tool, but each product page title carries all the dimensions
 # ("57322 ... 5mm Dia x 30mm x 5mm Shank x 64mm Long ..."), so these come from titles returned by search. This is a PARTIAL sample, not the whole range.
 # (code, kind, shape, D, cut, overall or None, shank, flutes, extra text)
@@ -322,6 +326,7 @@ for code, mat, R, D, H, unit, S in PCR:
             % (code, mat.lower(), fmt(r_mm), fmt(d_mm), fmt(h_mm), fmt(s_mm), extra))
     tools[-1]["arc"] = round(r_mm, 3)
 
+BRAND = "bosch"
 # ---- Bosch Professional PRO router bits (product pages on bosch-professional.com, variant tables; all mm) ----------------------------------
 # (article, D1, cutting length L, total length G, shank, flutes)
 BOSCH_STRAIGHT = [("2608628438",3.2,7.7,51,6,1),("2608628439",4.8,12.4,51,6,1),
@@ -358,6 +363,7 @@ for (dk, cl, ol), v in _bc.items():
         feed=min(feed, 1500.0), plunge=plunge, so=so, pd=pd,
         notes="Bosch PRO core box (round nose) router bit, radius %s mm. Cutting length %s mm, overall %s mm. Articles: %s. The page does not give the flute count (2 assumed). %s" % (fmt(r_), fmt(cl), fmt(ol), codes, NOTE_B))
 
+BRAND = "amana"
 # ---- Amana Tool CNC booklet (rows read from the PDF by amana_extract.py) ---------------------------------------------------------------
 import os
 _rows = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "amana_booklet.json")))
@@ -401,11 +407,11 @@ for key, g in groups.items():
     # already in the library by code (the title-derived Amana entries), or the same geometry from CMT: note the code there
     def known():
         for t in tools:
-            if any(_stripcode(c) in t["notes"] for c in allcodes): return t
+            if t["brand"] == "amana" and any(_stripcode(c) in t["notes"] for c in allcodes): return t
         return None
     def match(direction):
         for t in tools:
-            if _same_geo(t, cls, D, B, d, Z) and (cls in ("comp", "ball") or _direction(t) in (direction, "")): return t
+            if t["brand"] == "amana" and _same_geo(t, cls, D, B, d, Z) and (cls in ("comp", "ball") or _direction(t) in (direction, "")): return t
         return None
     kt = known()
     if kt is not None:
@@ -470,7 +476,7 @@ def kind(t):
     return re.sub(r"\d+", "", base)
 unique = []
 for t in tools:
-    k = (t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t))
+    k = (t["brand"], t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t))
     cl = float(cutlen(t) or 0)
     dup = next((u for u, uk, ucl in unique if uk == k and abs(ucl - cl) < 0.5), None)
     if dup is not None:
@@ -483,8 +489,50 @@ for t in tools:
     unique.append((t, k, cl))
 unique = [u[0] for u in unique]
 tools[:] = unique
-for i, t in enumerate(tools, 1): t["id"] = "cmt%03d" % i
+BRAND = "generic"
+# ---- Generic library: standard, brand-neutral sizes (no maker's data; every value is a conservative starting point) ----------------------
+G_MM = [1, 2, 3, 4, 6, 8, 10, 12]
+G_IN = [("1/8", 3.175), ("3/16", 4.7625), ("1/4", 6.35), ("3/8", 9.525), ("1/2", 12.7)]
+def _gsize(d, sys_): return (d, sys_, ("%s\u2033" % [k for k, v in G_IN if abs(v - d) < 1e-3][0]) if sys_ == "in" else "%s mm" % fmt(d))
+sizes = [(d, "mm", "%s mm" % fmt(d)) for d in G_MM] + [(v, "in", "%s\u2033" % k) for k, v in G_IN]
+def gadd(name, sys_, shape, d, z, notes, angle=60.0, slow=False, tip=0.0, feed_cap=2000.0, pd_cap=None):
+    rpm, feed, plunge, so, pd = speeds(d, z, shape, slow)
+    if pd_cap: pd = min(pd, pd_cap)
+    add(name=name, sys=sys_, shape=shape, angle=angle, flutes=z, dia=round(d, 3), rpm=min(rpm, 12000), feed=min(feed, feed_cap), plunge=plunge, so=so, pd=pd, notes=notes)
+    if tip: tools[-1]["tip"] = tip
+for d, sys_, lab in sizes:
+    if d >= 2: gadd("%s upcut end mill" % lab, sys_, "flat", d, 2, "2-flute upcut spiral: general purpose for wood, MDF and plastics; clears chips upward.")
+    if d >= 3: gadd("%s downcut end mill" % lab, sys_, "flat", d, 2, "2-flute downcut spiral: a clean top edge on plywood and laminates; it packs chips into the cut.")
+    if d >= 6 and d <= 12.7: gadd("%s compression bit" % lab, sys_, "flat", d, 2, "Compression spiral: upcut at the bottom, downcut at the top, for clean faces on both sides of plywood and laminates. Cut deeper than its downcut section.")
+    if d >= 1: gadd("%s flat end mill, single flute" % lab if d < 3 else "%s single-flute end mill" % lab, sys_, "flat", d, 1, "Single flute: big chip clearance for plastics, acrylic and aluminium (use a lubricant or air blast on metal).", slow=True)
+    if d >= 2: gadd("%s ball nose" % lab, sys_, "ball", d, 2, "Relief carving, 3D finishing and rounded grooves; a small stepover leaves a smoother surface.")
+for ang, d, sys_, lab in [(30, 6.35, "in", "1/4\u2033"), (60, 6.35, "in", "1/4\u2033"), (90, 6.35, "in", "1/4\u2033"), (90, 12.7, "in", "1/2\u2033"), (120, 12.7, "in", "1/2\u2033"),
+                          (60, 6.0, "mm", "6 mm"), (90, 6.0, "mm", "6 mm"), (90, 12.0, "mm", "12 mm"), (120, 12.0, "mm", "12 mm")]:
+    gadd("%d\u00b0 V-bit (%s)" % (ang, lab), sys_, "vbit", d, 2, "V-carving, chamfers and lettering; the depth of cut sets the line width.", angle=float(ang), feed_cap=1200.0, pd_cap=2.0)
+for ang, d, sys_, lab, tip in [(20, 3.175, "in", "1/8\u2033", 0.1), (30, 3.175, "in", "1/8\u2033", 0.1), (60, 6.35, "in", "1/4\u2033", 0.2), (15, 3.0, "mm", "3 mm", 0.1), (30, 3.0, "mm", "3 mm", 0.1)]:
+    gadd("%d\u00b0 engraving bit, %s shank" % (ang, lab), sys_, "engrave", d, 1, "Fine engraving and small lettering; the cutting tip is very small. Shallow passes only.", angle=float(ang), tip=tip, feed_cap=800.0, pd_cap=0.5)
+for d, sys_, lab, taper in [(6.35, "in", "1/4\u2033", 10.0), (6.0, "mm", "6 mm", 10.0)]:
+    gadd("%s tapered ball nose, 10\u00b0" % lab, sys_, "taper", d, 2, "Tapered ball nose for fine 3D carving. The tip radius is a typical value; set it to your bit's real tip.", angle=taper, tip=0.5, feed_cap=900.0, pd_cap=1.0)
+for d, sys_, lab in [(25.4, "in", "1\u2033"), (38.1, "in", "1-1/2\u2033"), (50.0, "mm", "50 mm"), (76.2, "in", "3\u2033")]:
+    rpm = 12000 if d <= 40 else (10000 if d <= 55 else 8000)
+    add(name="%s surfacing bit (spoilboard)" % lab, sys=sys_, shape="flat", angle=60.0, flutes=3, dia=d, rpm=rpm, feed=1800.0, plunge=300.0, so=70.0, pd=1.0,
+        notes="Large-diameter surfacing / fly-cutter bit for flattening the spoilboard or slabs: shallow passes with about 70% stepover, lowest sensible speed for the size.")
+for d, sys_, lab, r in [(6.35, "in", "1/4\u2033", 1.5875), (9.525, "in", "3/8\u2033", 3.175)]:
+    rpm_, feed, plunge, so, pd = speeds(d, 2, "arc")
+    add(name="%s round-over bit, R%s" % (lab, fmt(r)), sys=sys_, shape="arc", angle=60.0, flutes=2, dia=d, rpm=min(rpm_, 12000), feed=min(feed, 1200.0), plunge=min(plunge, 250.0), so=40.0, pd=min(pd, r),
+        notes="Convex round-over / bull-nose profile bit: rounds edges and carves relief with an arc of the given radius.")
+    tools[-1]["arc"] = r
 
-out = {"app": "putia-cnc-tools", "v": 1, "name": "CNC router bits (CMT, Diablo, Amana, Bosch)", "tools": tools}
-json.dump(out, _sys.stdout, ensure_ascii=False, indent=1)
-_sys.stdout.write("\n")
+LIBS = [("cmt", "cmt", "CMT router bits", "CMT Orange Tools: CNC solid-carbide spirals, round nose, V-groove, surfacing and contractor bits."),
+        ("amana", "amana", "Amana Tool CNC bits", "Amana Tool: solid-carbide spirals, compression, ball nose, plastic cutters and round-over bits."),
+        ("bosch", "bosch", "Bosch PRO router bits", "Bosch Professional: straight, V-groove and core box (round nose) bits."),
+        ("generic", "generic", "Generic CNC bits", "Brand-neutral set: standard sizes of end mills, compression, ball nose, V-bits, engraving, taper and surfacing bits."),
+        ("diablo", "diablo", "Diablo router bits", "Diablo: a few straight, round nose and V-groove bits.")]
+here = os.path.dirname(os.path.abspath(__file__))
+for brand, fname, title, _ in LIBS:
+    own = [dict(t) for t in tools if t["brand"] == brand]
+    for i, t in enumerate(own, 1):
+        t["id"] = "%s%03d" % (brand[:3], i); t.pop("brand", None)
+    with open(os.path.join(here, "%s.json" % fname), "w", encoding="utf-8") as f:
+        json.dump({"app": "putia-cnc-tools", "v": 1, "name": title, "tools": own}, f, ensure_ascii=False, indent=1); f.write("\n")
+    print("%-8s %d tools" % (brand, len(own)), file=_sys.stderr)

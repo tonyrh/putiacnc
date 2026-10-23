@@ -317,18 +317,27 @@ mod tests {
         assert_eq!(fmt_dia(3.2, "mm", true), "3.2 mm");
     }
     #[test]
-    fn the_cmt_library_file_imports() {
+    fn the_brand_library_files_import() {
+        let files = [
+            (include_str!("../libraries/cmt.json"), "CMT router bits", 140),
+            (include_str!("../libraries/amana.json"), "Amana Tool CNC bits", 150),
+            (include_str!("../libraries/bosch.json"), "Bosch PRO router bits", 25),
+            (include_str!("../libraries/diablo.json"), "Diablo router bits", 8),
+            (include_str!("../libraries/generic.json"), "Generic CNC bits", 70),
+        ];
         let mut l = ToolLibs::default();
-        let before = l.libs.len();
-        let (name, n) = l.import(include_str!("../libraries/cmt-cnc-bits.json")).unwrap();
-        assert_eq!(name, "CNC router bits (CMT, Diablo, Amana, Bosch)");
-        assert!(n > 340);
-        let names: std::collections::HashSet<_> = l.libs.last().unwrap().tools.iter().map(|t| t.name.clone()).collect();
-        assert_eq!(names.len(), n, "tool names must be unique");
-        assert_eq!(l.libs.len(), before + 1);
-        let lib = l.libs.last().unwrap();
-        assert!(lib.tools.iter().all(|t| t.dia > 1.0 && t.dia < 101.0 && t.feed > 0.0 && t.rpm <= 12000.0));
-        assert!(lib.tools.iter().any(|t| t.shape == "vbit" && (t.angle - 135.0).abs() < 0.01));
+        for (json, expect_name, min) in files {
+            let before = l.libs.len();
+            let (name, n) = l.import(json).unwrap();
+            assert_eq!(name, expect_name);
+            assert!(n >= min, "{} has only {} tools", name, n);
+            assert_eq!(l.libs.len(), before + 1);
+            let lib = l.libs.last().unwrap();
+            let names: std::collections::HashSet<_> = lib.tools.iter().map(|t| t.name.clone()).collect();
+            assert_eq!(names.len(), n, "tool names in {} must be unique", name);
+            assert!(lib.tools.iter().all(|t| t.dia >= 1.0 && t.dia < 101.0 && t.feed > 0.0 && t.rpm <= 12000.0));
+        }
+        assert!(l.libs.iter().any(|lib| lib.tools.iter().any(|t| t.shape == "vbit" && (t.angle - 135.0).abs() < 0.01)));
     }
     use crate::model::OpParams;
 
