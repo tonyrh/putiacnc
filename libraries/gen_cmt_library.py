@@ -241,6 +241,16 @@ for code, d, cl, ol, ang in [("K958-110",11,14,45,60),("K915-127",12.7,12.7,45,9
     add(name="%d\u00b0 V-bit %s (CMT %s)" % (ang, label(d, sys_), code), sys=sys_, shape="vbit", angle=float(ang), flutes=2, dia=d, rpm=min(rpm_, 12000),
         feed=min(feed, 1200.0), plunge=min(plunge, 250.0), so=40.0, pd=2.0, notes=note)
 
+# Diablo (from a saved product page): DR20104, 1/2" 90 degree carbide V-groove bit, 2 cutters, max 24000 rpm, carbide height 7/16",
+# overall length 1-3/4", shank 1/4". Lists "CNC Machine" among its tools.
+d_mm = inch("1/2") * MM
+rpm_, feed, plunge, so, pd = speeds(d_mm, 2, "vbit")
+add(name="90\u00b0 V-bit 1/2\u2033, 7/16\u2033 cut (Diablo DR20104)", sys="in", shape="vbit", angle=90.0, flutes=2, dia=round(d_mm, 3), rpm=12000, feed=min(feed, 1200.0),
+    plunge=min(plunge, 250.0), so=40.0, pd=2.0,
+    notes=("Diablo DR20104 1/2\u2033 carbide V-groove bit, 90\u00b0 (45\u00b0 per side), 2 cutters, TiCo carbide with non-stick coating. Carbide height 7/16\u2033 (%s mm), overall length 1-3/4\u2033 (%s mm), "
+           "shank 1/4\u2033. Diablo lists a maximum of 24000 rpm and CNC machines among its uses; for engraving, signmaking and veining. Very close to CMT 815.127.11 but with a slightly shorter cutting edge. "
+           "Dimensions from Diablo's product page; feeds and speeds are conservative starting values, not Diablo's.") % (fmt(inch("7/16") * MM), fmt(inch("1-3/4") * MM)))
+
 # remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
 def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]); return m.group(1) if m else ""
@@ -261,6 +271,6 @@ for t in tools:
 tools[:] = unique
 for i, t in enumerate(tools, 1): t["id"] = "cmt%03d" % i
 
-out = {"app": "putia-cnc-tools", "v": 1, "name": "CMT CNC bits", "tools": tools}
+out = {"app": "putia-cnc-tools", "v": 1, "name": "CNC router bits (CMT, Diablo)", "tools": tools}
 json.dump(out, _sys.stdout, ensure_ascii=False, indent=1)
 _sys.stdout.write("\n")
