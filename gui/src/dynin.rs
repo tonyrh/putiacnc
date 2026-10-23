@@ -12,6 +12,8 @@ pub enum Kind {
     Segment,
     /// A rectangle or ellipse: X, Y, width and height (the lower-left corner is X, Y).
     Box,
+    /// A circle: centre X, Y and radius (or diameter).
+    Circle,
 }
 
 #[derive(Clone, Debug)]
@@ -20,11 +22,13 @@ pub struct DynIn {
     pub vals: Vec<String>,
     pub active: usize,
     pub focus: bool,
+    /// The size field is a diameter, not a radius.
+    pub diam: bool,
 }
 
 impl DynIn {
     fn labels(&self) -> &'static [&'static str] {
-        match self.kind { Kind::Start => &["X", "Y"], Kind::Segment => &["Length", "Angle"], Kind::Box => &["X", "Y", "Width", "Height"] }
+        match self.kind { Kind::Start => &["X", "Y"], Kind::Segment => &["Length", "Angle"], Kind::Box => &["X", "Y", "Width", "Height"], Kind::Circle => if self.diam { &["X", "Y", "Diameter"] } else { &["X", "Y", "Radius"] } }
     }
 }
 
@@ -37,6 +41,7 @@ fn num(s: &str) -> Option<f64> {
 pub enum Out {
     Point([f64; 2]),
     Box([f64; 2], [f64; 2]),
+    Circle([f64; 2], f64),
 }
 
 /// `last` is the previous point of the line being drawn, `hover` the pointer (already snapped), `zero` the XY zero.
@@ -50,6 +55,11 @@ pub fn evaluate(d: &DynIn, last: Option<[f64; 2]>, hover: [f64; 2], zero: (f64, 
             let ang = v[1].map_or_else(|| (hover[1] - last[1]).atan2(hover[0] - last[0]), |a| a.to_radians());
             let len = v[0].unwrap_or_else(|| (hover[0] - last[0]).hypot(hover[1] - last[1]));
             Some(Out::Point([last[0] + len * ang.cos(), last[1] + len * ang.sin()]))
+        }
+        Kind::Circle => {
+            let r = v[2]? / if d.diam { 2.0 } else { 1.0 };
+            if r <= 0.005 { return None; }
+            Some(Out::Circle([v[0].map_or(hover[0], |x| x + zero.0), v[1].map_or(hover[1], |y| y + zero.1)], r))
         }
         Kind::Box => {
             let (w, h) = (v[2]?, v[3]?);
@@ -69,6 +79,12 @@ pub fn preview(app: &App, hover: [f64; 2], zero: (f64, f64)) -> Option<Vec<[f64;
             v.push(p);
             Some(v)
         }
+        Out::Circle(c, r) => {
+            let l = shapes::new_circle(c, r, 0);
+            let mut v: Vec<[f64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0] as f64 / shapes::S, c[1] as f64 / shapes::S]).collect();
+            if let Some(f) = v.first().copied() { v.push(f); }
+            Some(v)
+        }
         Out::Box(a, b) => {
             let l = if app.mode == Mode::Ellipse { shapes::new_ellipse(a, b, 0) } else { shapes::new_rect(a, b, app.rect_radius, 0) };
             let mut v: Vec<[f64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0] as f64 / shapes::S, c[1] as f64 / shapes::S]).collect();
@@ -84,7 +100,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
     let usable = matches!(app.mode, Mode::Line | Mode::Rect | Mode::Ellipse) && app.tab_edit.is_none() && app.node_edit.is_none() && matches!(app.drag, crate::app::Drag::None);
     if !usable { app.dyn_in = None; return; }
     // the kind follows the tool, and for lines whether a point has been placed
-    let want = match app.mode { Mode::Line if app.poly.is_empty() => Kind::Start, Mode::Line => Kind::Segment, _ => Kind::Box };
+    let want = match app.mode { Mode::Line if app.poly.is_empty() => Kind::Start, Mode::Line => Kind::Segment, Mode::Ellipse if app.circle_mode => Kind::Circle, _ => Kind::Box };
     if let Some(d) = &app.dyn_in { if d.kind != want { app.dyn_in = None; } }
 
     if app.dyn_in.is_none() {
@@ -92,12 +108,12 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
         let typed = ctx.input(|i| i.events.iter().find_map(|e| match e { egui::Event::Text(t) if t.chars().all(|c| c.is_ascii_digit() || c == '-' || c == '.' || c == ',') && !t.is_empty() => Some(t.clone()), _ => None }));
         let Some(t) = typed else { return };
         ctx.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Text(_))));
-        let n = match want { Kind::Start | Kind::Segment => 2, Kind::Box => 4 };
+        let n = match want { Kind::Start | Kind::Segment => 2, Kind::Circle => 3, Kind::Box => 4 };
         let mut vals = vec![String::new(); n];
         // a rectangle starts at the pointer, so the first thing to type is its width
-        let active = if want == Kind::Box { 2 } else { 0 };
+        let active = if matches!(want, Kind::Box | Kind::Circle) { 2 } else { 0 };
         vals[active] = t;
-        app.dyn_in = Some(DynIn { kind: want, vals, active, focus: true });
+        app.dyn_in = Some(DynIn { kind: want, vals, active, focus: true, diam: app.circle_diam });
     }
 
     // keys first, so Tab does not move the focus out of the panel
@@ -105,7 +121,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
     if esc { app.dyn_in = None; return; }
     let mut d = app.dyn_in.clone().unwrap();
     if tab { d.active = (d.active + 1) % d.vals.len(); d.focus = true; }
-    let title = match d.kind { Kind::Start => "Start point", Kind::Segment => "Next point", Kind::Box => if app.mode == Mode::Ellipse { "Ellipse" } else { "Rectangle" } };
+    let title = match d.kind { Kind::Start => "Start point", Kind::Segment => "Next point", Kind::Circle => "Circle", Kind::Box => if app.mode == Mode::Ellipse { "Ellipse" } else { "Rectangle" } };
     let labels = d.labels();
     egui::Area::new(egui::Id::new("dynin")).order(egui::Order::Foreground).fixed_pos(anchor + Vec2::new(10.0, 108.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 6.0)).show(ui, |ui| {
@@ -120,7 +136,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
                     if r.has_focus() { d.active = k; }
                     let unit = match (d.kind, k) { (Kind::Segment, 1) => "°", _ => "mm" };
                     ui.weak(unit);
-                    if (labels.len() == 4 && k % 2 == 1) || labels.len() == 2 { ui.end_row(); }
+                    if (labels.len() == 4 && k % 2 == 1) || labels.len() == 2 || (labels.len() == 3 && k != 0) { ui.end_row(); }
                 }
             });
             ui.weak("Enter adds · Tab next · Esc cancels");
@@ -133,6 +149,11 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
         match res {
             Some(Out::Point(p)) => {
                 app.poly.push(p);
+                app.dyn_in = None;
+            }
+            Some(Out::Circle(c, r)) => {
+                let op = app.project.data.act;
+                app.add_loop(shapes::new_circle(c, r, op));
                 app.dyn_in = None;
             }
             Some(Out::Box(a, b)) => {
@@ -152,7 +173,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
 mod tests {
     use super::*;
 
-    fn d(kind: Kind, v: &[&str]) -> DynIn { DynIn { kind, vals: v.iter().map(|s| s.to_string()).collect(), active: 0, focus: false } }
+    fn d(kind: Kind, v: &[&str]) -> DynIn { DynIn { kind, vals: v.iter().map(|s| s.to_string()).collect(), active: 0, focus: false, diam: false } }
 
     #[test]
     fn typed_length_and_angle_make_the_next_point() {
@@ -175,6 +196,17 @@ mod tests {
         // one value typed: the other follows the pointer
         let Some(Out::Point(p)) = evaluate(&d(Kind::Start, &["5", ""]), None, [1.0, 2.0], (0.0, 0.0)) else { panic!() };
         assert_eq!(p, [5.0, 2.0]);
+    }
+
+    #[test]
+    fn a_circle_takes_radius_or_diameter() {
+        let Some(Out::Circle(c, r)) = evaluate(&d(Kind::Circle, &["10", "20", "6"]), None, [0.0, 0.0], (0.0, 0.0)) else { panic!() };
+        assert_eq!((c, r), ([10.0, 20.0], 6.0));
+        let mut dd = d(Kind::Circle, &["", "", "6"]);
+        dd.diam = true;
+        let Some(Out::Circle(c, r)) = evaluate(&dd, None, [7.0, 8.0], (0.0, 0.0)) else { panic!() };
+        assert_eq!((c, r), ([7.0, 8.0], 3.0)); // empty centre: the pointer
+        assert!(evaluate(&d(Kind::Circle, &["10", "20", ""]), None, [0.0, 0.0], (0.0, 0.0)).is_none());
     }
 
     #[test]

@@ -362,7 +362,12 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             if resp.drag_stopped_by(prim) {
                 if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
                     let (a, b) = (*start, draw_end(app, *start, app.snap(cur), shift));
-                    if (b[0] - a[0]).abs() > 0.01 && (b[1] - a[1]).abs() > 0.01 {
+                    if app.mode == Mode::Ellipse && app.circle_mode {
+                        // a circle: the drag starts at its centre
+                        let c = app.snap(cur);
+                        let r = (c[0] - a[0]).hypot(c[1] - a[1]);
+                        if r > 0.01 { let op = app.project.data.act; app.add_loop(shapes::new_circle(a, r, op)); }
+                    } else if (b[0] - a[0]).abs() > 0.01 && (b[1] - a[1]).abs() > 0.01 {
                         let op = app.project.data.act;
                         let l = if app.mode == Mode::Rect { shapes::new_rect(a, b, app.rect_radius, op) } else { shapes::new_ellipse(a, b, op) };
                         app.add_loop(l);
@@ -644,11 +649,16 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 hud = Some(format!("radius {:.2} mm", ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
             }
         } else {
-        let l = if app.mode == Mode::Rect { shapes::new_rect(a, b, app.rect_radius, 0) } else { shapes::new_ellipse(a, b, 0) };
+        let circle = app.mode == Mode::Ellipse && app.circle_mode;
+        let cr = { let e = app.snap(cur); (e[0] - a[0]).hypot(e[1] - a[1]) };
+        let l = if circle { shapes::new_circle(a, cr.max(1e-6), 0) } else if app.mode == Mode::Rect { shapes::new_rect(a, b, app.rect_radius, 0) } else { shapes::new_ellipse(a, b, 0) };
         let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
         if let Some(f) = pts.first().copied() { pts.push(f); }
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
-        hud = Some(format!("{:.2} x {:.2} mm", (b[0] - a[0]).abs(), (b[1] - a[1]).abs()));
+        hud = Some(if circle {
+            if app.circle_diam { format!("diameter {:.2} mm", cr * 2.0) } else { format!("radius {:.2} mm", cr) }
+        } else { format!("{:.2} x {:.2} mm", (b[0] - a[0]).abs(), (b[1] - a[1]).abs()) });
+        if circle { let s = to_s(a); let st = Stroke::new(1.0_f32, prev_col); painter.line_segment([s - Vec2::new(6.0, 0.0), s + Vec2::new(6.0, 0.0)], st); painter.line_segment([s - Vec2::new(0.0, 6.0), s + Vec2::new(0.0, 6.0)], st); }
         }
     }
     if app.text.open {
@@ -996,7 +1006,7 @@ fn trim_click(app: &mut App, w: [f64; 2], tol: f64) {
 }
 
 fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
-    if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect | Mode::Trim) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
+    if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect | Mode::Ellipse | Mode::Trim) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
     egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 62.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
           ui.horizontal(|ui| {
@@ -1042,6 +1052,15 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     crate::widgets::num(ui, [48.0, 24.0], &mut app.poly_inner, 5.0, 95.0, 0.5, 0, "");
                     ui.add_space(2.0);
                     ui.weak("%");
+                }
+            }
+            if app.mode == Mode::Ellipse {
+                if ui.selectable_label(!app.circle_mode, "Ellipse").on_hover_text("Drag a bounding box").clicked() { app.circle_mode = false; app.dyn_in = None; }
+                if ui.selectable_label(app.circle_mode, "Circle").on_hover_text("Drag from the centre, or type the centre and size").clicked() { app.circle_mode = true; app.dyn_in = None; }
+                if app.circle_mode {
+                    ui.add_space(8.0);
+                    if ui.selectable_label(!app.circle_diam, "Radius").clicked() { app.circle_diam = false; app.dyn_in = None; }
+                    if ui.selectable_label(app.circle_diam, "Diameter").clicked() { app.circle_diam = true; app.dyn_in = None; }
                 }
             }
             if app.mode == Mode::Trim {
@@ -1100,7 +1119,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Node => "Click a shape to edit its points.",
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
-        Mode::Ellipse => "Drag a bounding box. Hold Shift for a circle.",
+        Mode::Ellipse => if app.circle_mode { "Drag from the centre: the distance is the radius. Or just type: centre X, Y and the size." } else { "Drag a bounding box. Hold Shift for a circle." },
         Mode::Point => "Click to place a drill point, or choose Grid and drag a box for columns x rows of holes, or Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Assign the points to a Drill operation. Esc finishes.",
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
