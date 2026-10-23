@@ -895,7 +895,7 @@
    "plunge": 580,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "CMT 190.517.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 34.9 mm, overall 88.9 mm, shank 12.7 mm. I1 (as listed by CMT) 5.2 mm. Also sold with DLCS chrome coating for longer life: CMT 190.517.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's. Same bit also listed as 190.507.11, 190.507.41.",
+   "notes": "CMT 190.517.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 34.9 mm, overall 88.9 mm, shank 12.7 mm. I1 (as listed by CMT) 5.2 mm. Also sold with DLCS chrome coating for longer life: CMT 190.517.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's. Same bit also listed as .",
    "id": "cmt056",
    "tip": 0.0
   },
@@ -1631,7 +1631,7 @@
    "plunge": 460,
    "so": 15.0,
    "pd": 4.4,
-   "notes": "CMT round nose router bit, radius 6.4 mm, 2 flutes. Cutting length 9.5 mm, overall 50.8 mm. Codes: 914.127.11 (shank 8 mm), 714.127.11 (shank 6 mm), 814.127.11 (shank 6.35 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "notes": "CMT round nose router bit, radius 6.4 mm, 2 flutes. Cutting length 9.5 mm, overall 50.8 mm. Codes: 914.127.11 (shank 8 mm), 714.127.11 (shank 6 mm), 814.127.11 (shank 6.35 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's. Same bit also listed as DR18108.",
    "id": "cmt102",
    "tip": 0.0
   },
@@ -1695,7 +1695,7 @@
    "plunge": 370,
    "so": 15.0,
    "pd": 6.7,
-   "notes": "CMT round nose router bit, radius 9.5 mm, 2 flutes. Cutting length 11.3 mm, overall 50.8 mm. Codes: 914.190.11 (shank 8 mm), 714.190.11 (shank 6 mm), 814.190.11 (shank 6.35 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "notes": "CMT round nose router bit, radius 9.5 mm, 2 flutes. Cutting length 11.3 mm, overall 50.8 mm. Codes: 914.190.11 (shank 8 mm), 714.190.11 (shank 6 mm), 814.190.11 (shank 6.35 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's. Same bit also listed as DR18112.",
    "id": "cmt106",
    "tip": 0.0
   },
@@ -2447,7 +2447,7 @@
    "plunge": 520,
    "so": 15.0,
    "pd": 3.3,
-   "notes": "CMT K914-095 round nose router bit, carbide-tipped, radius 4.75 mm, 2 flutes, 8 mm shank. Cutting length 9.5 mm, overall 40 mm. Contractor bit made for hand routers. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
+   "notes": "CMT K914-095 round nose router bit, carbide-tipped, radius 4.75 mm, 2 flutes, 8 mm shank. Cutting length 9.5 mm, overall 40 mm. Contractor bit made for hand routers. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's. Same bit also listed as DR18106.",
    "id": "cmt153",
    "tip": 0.0
   },

@@ -264,23 +264,37 @@ for code, D, H, L, S in [("DR04100","1/8","3/8","1-3/4","1/4"),("DR04108","1/4",
                "feeds and speeds are conservative starting values, not Diablo's.")
         % (code, H, fmt(inch(H) * MM), L, fmt(inch(L) * MM), S, fmt(inch(S) * MM)))
 
+# Diablo round nose bits (retailer listing of the item numbers): D, R, carbide height, overall length, shank (inches), 2 flutes
+for code, D, R, H, L, S in [("DR18106","3/8","3/16","3/8","1-13/16","1/4"),("DR18108","1/2","1/4","3/8","1-13/16","1/4"),("DR18112","3/4","3/8","7/16","2","1/4")]:
+    d_mm = inch(D) * MM
+    rpm_, feed, plunge, so, pd = speeds(d_mm, 2, "ball")
+    add(name="%s\u2033 round nose, %s\u2033 cut (Diablo %s)" % (D, H, code), sys="in", shape="ball", angle=60.0, flutes=2, dia=round(d_mm, 3),
+        rpm=12000 if d_mm <= 12.7 else 10000, feed=min(feed, 1500.0), plunge=plunge, so=so, pd=pd,
+        notes=("Diablo %s round nose router bit, TiCo Hi-Density carbide, 2 flutes, radius %s\u2033 (%s mm). Carbide height %s\u2033 (%s mm), overall length %s\u2033 (%s mm), shank %s\u2033. "
+               "Hand-router bit. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.")
+        % (code, R, fmt(inch(R) * MM), H, fmt(inch(H) * MM), L, fmt(inch(L) * MM), S))
+
 # remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
 def cutlen(t):
-    m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]); return m.group(1) if m else ""
+    m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
+    return m.group(1) if m else ""
 def kind(t):
     if t["shape"] == "vbit": return "vbit"
+    if t["shape"] == "ball": return "spiral round nose" if "spiral" in t["name"] else "router round nose"
     return kind_(t)
 def kind_(t): return re.sub(r"^.*?\s(?=[a-zA-Z])", "", re.sub(r"\s*\(CMT.*$", "", t["name"]), count=1)
-seen = {}
 unique = []
 for t in tools:
-    k = (t["shape"], round(t["dia"], 2), t["flutes"], round(t["angle"], 1), cutlen(t), kind(t))
-    if k in seen:
-        dup = seen[k]
-        codes = re.findall(r"CMT ([A-Z]?\d{3}[.-]\d{3}(?:\.\d{2})?)", t["notes"])
+    k = (t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t))
+    cl = float(cutlen(t) or 0)
+    dup = next((u for u, uk, ucl in unique if uk == k and abs(ucl - cl) < 0.35), None)
+    if dup is not None:
+        codes = re.findall(r"(?:CMT|Diablo) ([A-Z]{1,2}\d{2,3}[.-]?\d{3}(?:\.\d{2})?|DR\d{5})", t["notes"])
         dup["notes"] += " Same bit also listed as %s." % ", ".join(codes)
+        print("merged", t["name"], "->", dup["name"], file=_sys.stderr)
         continue
-    seen[k] = t; unique.append(t)
+    unique.append((t, k, cl))
+unique = [u[0] for u in unique]
 tools[:] = unique
 for i, t in enumerate(tools, 1): t["id"] = "cmt%03d" % i
 
