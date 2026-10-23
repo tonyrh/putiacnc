@@ -220,20 +220,25 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
     let dark = app.theme.dark;
     let lib = app.tool_libs.current().clone();
     let mut pick: Option<String> = None;
+    let mut toggles: Vec<(String, bool)> = Vec::new();   // groups the user clicked: (key, now open)
     egui::ScrollArea::vertical().id_source("toollist").max_height(h - 44.0).auto_shrink([false, false]).show(ui, |ui| {
         for (sys, label) in groups {
             let g: Vec<_> = lib.tools.iter().filter(|t| t.sys == sys).collect();
             if g.is_empty() { continue; }
-            let unit_open = g.iter().any(|t| t.id == app.tool_sel);
-            egui::CollapsingHeader::new(egui::RichText::new(format!("{label}  ({})", g.len())).strong())
-                .id_source(("tgrp", lib.id.clone(), sys)).default_open(unit_open).show(ui, |ui| {
+            // a group the user opened or closed stays that way (also after a restart); the others start open only around the selected tool
+            let ukey = format!("{}|{}", lib.id, sys);
+            let unit_open = app.prefs.tool_groups.get(&ukey).copied().unwrap_or_else(|| g.iter().any(|t| t.id == app.tool_sel));
+            let ur = egui::CollapsingHeader::new(egui::RichText::new(format!("{label}  ({})", g.len())).strong())
+                .id_source(("tgrp", lib.id.clone(), sys)).open(Some(unit_open)).show(ui, |ui| {
             let mut kinds: Vec<(usize, &str)> = g.iter().map(|t| toollib::category(&t.shape)).collect();
             kinds.sort(); kinds.dedup();
             for (ko, kname) in kinds {
               let n = g.iter().filter(|t| toollib::category(&t.shape).0 == ko).count();
               let has_sel = g.iter().any(|t| t.id == app.tool_sel && toollib::category(&t.shape).0 == ko);
-              egui::CollapsingHeader::new(egui::RichText::new(format!("{kname}  ({n})")).small().weak())
-                .id_source(("tgrp", lib.id.clone(), sys, ko)).default_open(has_sel).show(ui, |ui| {
+              let tkey = format!("{}|{}|{}", lib.id, sys, ko);
+              let type_open = app.prefs.tool_groups.get(&tkey).copied().unwrap_or(has_sel);
+              let tr = egui::CollapsingHeader::new(egui::RichText::new(format!("{kname}  ({n})")).small().weak())
+                .id_source(("tgrp", lib.id.clone(), sys, ko)).open(Some(type_open)).show(ui, |ui| {
                 for t in g.iter().filter(|t| toollib::category(&t.shape).0 == ko).copied() {
                   let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 30.0), Sense::click());
                   let sel = t.id == app.tool_sel;
@@ -263,12 +268,15 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                   if resp.clicked() { pick = Some(t.id.clone()); }
                 }
               });
+              if tr.header_response.clicked() { toggles.push((tkey, !type_open)); }
             }
             });
+            if ur.header_response.clicked() { toggles.push((ukey, !unit_open)); }
             ui.add_space(6.0);
         }
     });
     let _ = dark;
+    for (k, v) in toggles { app.prefs.tool_groups.insert(k, v); }
     ui.add_space(4.0);
     tool_buttons(ui, app);
     if let Some(id) = pick {

@@ -42,6 +42,8 @@ pub struct Settings {
     /// Which way is up when importing a 3D model, per file type.
     pub model_orient_obj: Option<putiacnc_core::relief::Orient>,
     pub model_orient_stl: Option<putiacnc_core::relief::Orient>,
+    /// Tool list groups the user opened or closed: "<library id>|<unit>" and "<library id>|<unit>|<type>" -> open.
+    pub tool_groups: std::collections::BTreeMap<String, bool>,
     pub recent: Vec<String>,
 }
 
