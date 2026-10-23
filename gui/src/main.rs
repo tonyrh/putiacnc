@@ -5,6 +5,7 @@ mod about;
 mod app;
 mod array;
 mod canvas;
+mod cleanup;
 mod combine;
 mod corners;
 mod csd;
@@ -134,6 +135,7 @@ impl eframe::App for App {
         self.sync_prefs(ctx);
         update::window(ctx, self);
         offset::dialog(ctx, self);
+        cleanup::dialog(ctx, self);
         shortcuts::window(ctx, self);
         about::window(ctx, self);
         combine::dialog(ctx, self);

@@ -123,6 +123,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Array and copy...", "", !app.sel.is_empty()) { app.array.open = true; }
             if item(ui, "Fillet and chamfer...", "", app.selection_has_corners()) { app.corners.open = true; }
             if item(ui, "Combine shapes...", "", app.sel.len() >= 2) { app.combine_open = true; }
+            if item(ui, "Clean up drawing...", "", !app.project.data.loops.is_empty()) { app.clean.open = true; app.clean.msg.clear(); }
         });
         ui.menu_button("View", |ui| {
             ui.style_mut().wrap = Some(false);
@@ -131,6 +132,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.separator();
             ui.checkbox(&mut app.grid_on, "Grid");
             ui.checkbox(&mut app.snap_on, "Snap to grid");
+            ui.checkbox(&mut app.show_open_ends, "Loose ends of open contours");
             ui.checkbox(&mut app.osnap_on, "Snap to shapes");
             ui.checkbox(&mut app.show_toolpath, "Toolpaths");
             ui.checkbox(&mut app.show_rapids, "Rapid moves");

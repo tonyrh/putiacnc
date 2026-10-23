@@ -168,6 +168,9 @@ pub struct App {
     pub node_msg: String,
     /// Offset dialog: open, distance (mm), direction and whether the original shapes stay.
     pub offset_open: bool,
+    pub clean: crate::cleanup::CleanTool,
+    /// Mark the loose ends of open contours on the drawing.
+    pub show_open_ends: bool,
     pub offset_mm: f64,
     pub offset_inward: bool,
     pub offset_keep: bool,
@@ -281,7 +284,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
@@ -329,6 +332,7 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_ARRAY").is_some() { a.array.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_CORNERS").is_some() { a.corners.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_COMBINE").is_some() { a.combine_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
+        if std::env::var_os("PUTIACNC_SHOW_CLEAN").is_some() { a.clean.open = true; }
         if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_POLYGON").is_some() {
             a.poly_star = true;
@@ -652,6 +656,11 @@ impl App {
         let st = &self.project.data.stock;
         let (ox, oy) = if bw <= st.w && bh <= st.h { ((st.w - bw) / 2.0 - b[0], (st.h - bh) / 2.0 - b[1]) } else { (-b[0], -b[1]) };
         let mut note = imp.warnings.clone();
+        let open = putiacnc_core::cleanup::open_count(&imp.loops);
+        if open > 0 {
+            note.push(format!("{open} open contour{} (loose ends are marked): Edit > Clean up drawing can join them.", if open == 1 { "" } else { "s" }));
+            self.show_open_ends = true;
+        }
         if bw > st.w || bh > st.h {
             note.push(format!("The drawing ({:.1} x {:.1} mm) is larger than the stock; resize it with Width/Height in the Selection panel.", bw, bh));
         }

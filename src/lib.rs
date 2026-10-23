@@ -1,5 +1,6 @@
 pub mod arcs;
 pub mod bitmap;
+pub mod cleanup;
 pub mod clip;
 pub mod machines;
 pub mod model;

@@ -686,6 +686,14 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
         for p in &app.poly { painter.circle_filled(to_s(*p), 3.0, prev_col); }
     }
+    // loose ends of open contours: red where nothing meets them, amber where another end is within the cleanup tolerance
+    if app.show_open_ends || app.clean.open {
+        let ends = putiacnc_core::cleanup::loose_ends(&app.project.data.loops, app.clean.tol);
+        for (_, _, p, joinable) in ends.into_iter().take(4000) {
+            let col = if joinable { Color32::from_rgb(235, 150, 20) } else { Color32::from_rgb(220, 50, 47) };
+            painter.circle_stroke(to_s(p), 7.0, Stroke::new(2.0_f32, col));
+        }
+    }
     // the snap marker: what the pointer (or the dragged shape) is locked onto
     let marker = match &app.drag {
         Drag::Move { .. } => app.snap_hit.get(),
@@ -1098,7 +1106,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Text => "Click where the text should start, then type it in the Text window.",
         Mode::Trim => if app.trim_extend { "Click near the end of an open line: it runs on in a straight line to the first shape it meets." } else { "Click the part of a shape you want to remove: it goes up to the nearest crossing on each side (shown in red). A closed shape needs two crossings." },
     } };
-    if app.trace.open { return; } // the bitmap dialog covers that part of the canvas
+    if app.trace.open || app.clean.open { return; } // a dialog covers that part of the canvas
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.label(egui::RichText::new(hint).weak());
