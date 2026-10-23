@@ -464,7 +464,7 @@ def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
     return m.group(1) if m else ""
 def kind(t):
-    n = re.sub(r"\s*\((?:CMT|Diablo|Amana|Bosch|Freud)[^)]*\)$", "", t["name"])
+    n = re.sub(r"\s*\((?:CMT|Diablo|Amana|Bosch|Freud|Whiteside)[^)]*\)$", "", t["name"])
     base = re.sub(r"^.*?\s(?=[a-zA-Z])", "", n, count=1)
     base = re.split(r",| Z\d| \u00d8", base)[0].strip()
     if t["shape"] == "vbit": return "vbit"
@@ -540,13 +540,54 @@ for r in _fr:
             notes=_fnote(r, "up-cut spiral ball nose bit (radius %s mm)" % fmt(R), "3D finishing and rounded pockets. 2 flutes assumed. "))
 # two Freud rows are listed without a diameter-matching table and are left out: the single 1/8 in radius-tip bit 72-210 and the 72-100 (no radius given)
 
+BRAND = "whiteside"
+# ---- Whiteside "CNC router bits" brochure (1-14-19), all inches, 1/4 in shank unless noted ----------------------------------------------------
+def _w(code, name, shape, D, cl, ol, shank="1/4", z=2, what="", extra="", angle=60.0, tip=0.0, arc=0.0, slow=False, feed_cap=1800.0, pd_cap=None, so=None):
+    d = inch(D) * MM; c = inch(cl) * MM
+    rpm_, feed, plunge, so_, pd = speeds(d, z, "ball" if shape in ("ball", "arc", "taper") else ("vbit" if shape in ("vbit", "engrave") else "flat"), slow)
+    if shape in ("vbit", "engrave"): feed_cap = min(feed_cap, 1000.0); pd = min(pd, 1.5)
+    if pd_cap: pd = min(pd, pd_cap)
+    add(name="%s (Whiteside %s)" % (name, code), sys="in", shape=shape, angle=float(angle), flutes=z, dia=round(d, 3), rpm=min(rpm_, 12000 if d <= 25.5 else 10000), feed=min(feed, feed_cap),
+        plunge=plunge, so=so if so else so_, pd=round(min(pd, max(c * 0.5, 0.3)), 2),
+        notes=("Whiteside %s %s. Cutting length %s mm (%s\u2033), overall length %s mm (%s\u2033), shank %s\u2033. %sFrom Whiteside's CNC router bit brochure; feeds and speeds are "
+               "conservative starting values, not Whiteside's.") % (code, what, fmt(c), cl, fmt(inch(ol) * MM), ol, shank, extra))
+    if tip: tools[-1]["tip"] = round(tip, 3)
+    if arc: tools[-1]["arc"] = round(arc, 3)
+FL = "Number of flutes not given in the brochure; 2 assumed. "
+for code, D, cl, ol in [("RU1600","1/8","1/2","2"),("RU1800","3/16","3/4","2-1/2"),("RU2075","1/4","3/4","2-1/2")]:
+    _w(code, "%s\u2033 upcut spiral Z2" % frac(inch(D) * MM), "flat", D, cl, ol, what="solid carbide up cut spiral", extra="Chips are ejected up and out of the cut; best at plunging. " + FL)
+for code, D, cl, ol in [("RD1600","1/8","1/2","2"),("RD1800","3/16","3/4","2-1/2"),("RD2075","1/4","3/4","2-1/2")]:
+    _w(code, "%s\u2033 downcut spiral Z2" % frac(inch(D) * MM), "flat", D, cl, ol, what="solid carbide down cut spiral", extra="Chips are pushed down; controls fraying on the top surface. " + FL)
+for code, R, D, cl in [("RU1800RN","3/32","3/16","3/4"),("RU2075RN","1/8","1/4","3/4")]:
+    _w(code, "%s\u2033 ball nose spiral Z2" % frac(inch(D) * MM), "ball", D, cl, "2-1/2", what="solid carbide ball nose up cut spiral (radius %s\u2033)" % R, extra=FL, feed_cap=1500.0)
+_w("RU2075CN", "1/4\u2033 cove nose spiral Z2, R1/16", "arc", "1/4", "3/4", "2-1/2", what="solid carbide cove nose spiral (corner radius 1/16\u2033)", extra="Flat bottom with rounded corners, for U-shaped grooves. " + FL, arc=inch("1/16") * MM, feed_cap=1500.0)
+for code, D, cl, ol in [("SC062","1/16","3/16","1-1/2"),("SC33","1/8","1/4","2")]:
+    _w(code, "%s\u2033 flat bottom veining" % frac(inch(D) * MM), "flat", D, cl, ol, what="flat bottom veining bit", extra="Fine flat-bottomed grooves for lettering and signs. " + FL, feed_cap=900.0)
+for code, R, D, cl, ol in [("1370","1/8","7/16","5/16","2-1/8"),("1372","1/4","3/4","5/8","2-3/8")]:
+    _w(code, "%s\u2033 bowl & tray bit, R%s" % (frac(inch(D) * MM), R), "arc", D, cl, ol, what="bowl and tray bit (bottom radius %s\u2033)" % R, extra="Flat bottom with a large corner radius, for bowls, trays and dished pockets. " + FL, arc=inch(R) * MM, feed_cap=1500.0)
+for code, R, D, cl, ol, sh in [("SC39","1/16","1/8","1/4","2","1/4"),("SC40","3/32","3/16","3/8","2","1/4"),("SC41","1/8","1/4","1/2","2","1/4"),("1403","3/16","3/8","1/2","2","1/4"),
+                               ("1404","1/4","1/2","5/8","2-1/4","1/4"),("1405","5/16","5/8","3/8","2","1/4"),("1406","3/8","3/4","7/16","2","1/4")]:
+    _w(code, "%s\u2033 round nose, R%s" % (frac(inch(D) * MM), R), "ball", D, cl, ol, what="round nose bit (radius %s\u2033)" % R, extra=FL, feed_cap=1500.0)
+for code, D, pl, ol, ang in [("1500","1/4","1/8","1-1/2",90),("1502","1/2","1/4","2",90),("1541","1/4","7/32","2",60),("1550","1/2","7/16","2",60)]:
+    _w(code, "%d\u00b0 V-groove %s\u2033" % (ang, frac(inch(D) * MM)), "vbit", D, pl, ol, what="%d\u00b0 vee groove bit" % ang, extra="Point length %s\u2033 (the cutting depth). V-grooves, chamfers and lettering. " % pl + FL, angle=ang)
+for code, ang, tipd, label_ in [("SC70", 30, 0, "pencil point"), ("SC71", 30, "1/32", "1/32\u2033 flat point"), ("SC75", 45, 0, "pencil point"), ("SC76", 45, "1/32", "1/32\u2033 flat point"), ("SC54", 15, "1/16", "1/16\u2033 flat point")]:
+    t = (inch(tipd) * MM / 2) if tipd else 0.0
+    _w(code, "%d\u00b0 engraving, %s" % (ang, label_), "engrave", "1/4", "1/4", "2" if ang != 15 else "2-1/2", what="%d\u00b0 included-angle engraving bit, %s" % (ang, label_),
+       extra="The brochure gives no cutting diameter or length; 1/4\u2033 (the shank size) is assumed for both. Flat points are treated as a tip radius. " + FL, angle=ang, tip=t, feed_cap=700.0, pd_cap=0.5)
+_w("SC50", "22\u00b0 carving liner", "vbit", "0.243", "5/8", "2-1/2", what="carving liner, 22\u00b0 included angle, pencil point",
+   extra="Point length 5/8\u2033; the diameter (0.243\u2033) is worked out from the angle and point length, as the brochure does not give it. " + FL, angle=22.0, feed_cap=700.0, pd_cap=0.5)
+_w("SC64", "11\u00b0 conical ball nose, 1/16\u2033 ball", "taper", "1/4", "1/4", "2-1/2", what="conical ball nose spiral, 11\u00b0 included angle, ball diameter 1/16\u2033 (tip radius 1/32\u2033)",
+   extra="The brochure gives no cutting diameter or length; 1/4\u2033 is assumed for both. " + FL, angle=11.0, tip=inch("1/32") * MM, feed_cap=700.0, pd_cap=0.5)
+for code, D, cl, sh, z in [("6210","1","1/4","1/4",3),("6220","2","1/4","1/2",4)]:
+    _w(code, "%s\u2033 spoilboard cutter, %d wings" % (frac(inch(D) * MM), z), "flat", D, cl, cl, shank=sh, z=z, what="carbide-tipped spoilboard cutter, %d wings" % z, extra="Overall length is not given; the cutting length is shown. For flattening the spoilboard. ", so=70.0, feed_cap=1800.0)
+
 unique = []
 for t in tools:
-    k = (t["brand"], t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t))
+    k = (t["brand"], t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t), round(t.get("tip", 0.0), 2))
     cl = float(cutlen(t) or 0)
     dup = next((u for u, uk, ucl in unique if uk == k and abs(ucl - cl) < 0.5), None)
     if dup is not None:
-        codes = re.findall(r"\((?:CMT|Diablo|Amana|Bosch|Freud) ([^)]+)\)", t["name"])
+        codes = re.findall(r"\((?:CMT|Diablo|Amana|Bosch|Freud|Whiteside) ([^)]+)\)", t["name"])
         sh = re.findall(r"shank ([0-9.]+) mm|([0-9.]+) mm shank", t["notes"])
         sh = [a or b for a, b in sh][:1]
         dup["notes"] += " Same bit also listed as %s%s." % (", ".join(codes), (" (shank %s mm)" % sh[0]) if sh else "")
@@ -594,6 +635,7 @@ LIBS = [("cmt", "cmt", "CMT router bits", "CMT Orange Tools: CNC solid-carbide s
         ("bosch", "bosch", "Bosch PRO router bits", "Bosch Professional: straight, V-groove and core box (round nose) bits."),
         ("generic", "generic", "Generic CNC bits", "Brand-neutral set: standard sizes of end mills, compression, ball nose, V-bits, engraving, taper and surfacing bits."),
         ("freud", "freud", "Freud router bits", "Freud: straight, spiral, compression, O-flute, round nose, V-groove and carving bits from the General Purpose catalog."),
+        ("whiteside", "whiteside", "Whiteside CNC bits", "Whiteside: solid-carbide spirals, ball and round nose, V-groove, engraving, bowl and spoilboard bits from its CNC brochure."),
         ("diablo", "diablo", "Diablo router bits", "Diablo: a few straight, round nose and V-groove bits.")]
 here = os.path.dirname(os.path.abspath(__file__))
 for brand, fname, title, _ in LIBS:
