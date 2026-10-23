@@ -322,10 +322,12 @@ mod tests {
         let before = l.libs.len();
         let (name, n) = l.import(include_str!("../libraries/cmt-cnc-bits.json")).unwrap();
         assert_eq!(name, "CMT CNC bits");
-        assert!(n > 100);
+        assert!(n > 125);
+        let names: std::collections::HashSet<_> = l.libs.last().unwrap().tools.iter().map(|t| t.name.clone()).collect();
+        assert_eq!(names.len(), n, "tool names must be unique");
         assert_eq!(l.libs.len(), before + 1);
         let lib = l.libs.last().unwrap();
-        assert!(lib.tools.iter().all(|t| t.dia > 1.0 && t.dia < 40.0 && t.feed > 0.0 && t.rpm <= 12000.0));
+        assert!(lib.tools.iter().all(|t| t.dia > 1.0 && t.dia < 101.0 && t.feed > 0.0 && t.rpm <= 12000.0));
         assert!(lib.tools.iter().any(|t| t.shape == "vbit" && (t.angle - 135.0).abs() < 0.01));
     }
     use crate::model::OpParams;

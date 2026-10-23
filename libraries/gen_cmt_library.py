@@ -67,6 +67,10 @@ fam(key="199", title="round nose upcut spiral", shape="ball", z=2, total=2, mat=
     rows=[("199.001.11",3.18,12.7,50.8,6.35,1.6),("199.060.11",6,27,70,6,3),("199.008.11",6.35,25.4,63.5,6.35,3.2),("199.081.11",8,32,80,8,4),
           ("199.504.11",9.53,28.6,76,9.52,4.8),("199.100.11",10,32,80,10,5),("199.120.11",12,35,83,12,6),("199.505.11",12.7,31.8,76.2,12.7,6.4),
           ("199.509.11",15.88,57.15,109.5,15.87,7.9),("199.160.11",16,55,110,16,8),("199.511.11",19.05,57.15,109.5,19.05,9.5)])
+fam(key="197", title="4-flute upcut spiral with chipbreaker", shape="flat", z=4, total=4, mat="solid carbide (HWM)", inch=False,
+    use="Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics.",
+    rows=[("197.121.11",12,42,90,12),("197.140.11",14,50,110,14),("197.160.11",16,55,110,16),("197.161.11",16,35,90,16),
+          ("197.180.11",18,55,110,18),("197.200.11",20,60,120,20),("197.201.11",20,70,120,20)])
 fam(key="188", title="single-flute spiral for aluminium", shape="flat", z=1, total=1, mat="5% cobalt HSS", inch=False, slow=True,
     use="One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast.",
     rows=[("188.030.51",3,12,60,8),("188.040.51",4,12,60,8),("188.041.51",4,40,100,8),("188.050.51",5,14,60,8),("188.051.51",5,40,100,8),
@@ -86,6 +90,13 @@ RN = [("714.032.11",3.18,1.6,9.5,50.8,6),("814.032.11",3.18,1.6,9.5,50.8,6.35),(
 VG = [("815.064.11","1/4","5/16","1-1/2","1/4",90,"HWM"),("815.095.11","3/8","1/2","1-3/4","1/4",90,"HW"),("815.127.11","1/2","1/2","1-3/4","1/4",90,"HW"),
       ("815.660.11","5/8","1/2","2-1/2","1/2",90,"HW"),("815.690.11","3/4","5/8","2-1/2","1/2",90,"HW"),("815.817.11","1-1/4","3/4","2-1/2","1/2",90,"HW"),
       ("815.880.11","1-1/2","1-1/8","2-3/4","1/2",90,"HW"),("815.001.11","47/64","19/64","2-3/8","1/4",90,"HW"),("815.002.11","47/64","1/8","2-3/8","1/4",135,"HW")]
+
+# The same bits sold with DLCS chrome coating (".41" instead of ".11"): identical geometry, so they are merged into
+# the uncoated tool instead of becoming duplicates.
+DLCS = {"192": ["192.007","192.008","192.503","192.505","192.506","192.507"],
+        "190": ["190.080","190.504","190.513","190.813","190.100","190.101","190.120","190.121","190.320","190.505","190.506",
+                "190.507","190.508","190.815","190.515","190.517"]}
+DLCS_CODES = {c + ".11": c + ".41" for v in DLCS.values() for c in v}
 
 MM = 25.4
 def is_inch(d_mm):
@@ -140,9 +151,15 @@ for f in FAMILIES:
         if f["key"] == "199": extra = " Radius %s mm." % fmt(r[5])
         sys = "in" if (f["inch"] or is_inch(d)) else "mm"
         rpm, feed, plunge, so, pd = speeds(d, zeff, f["shape"], f.get("slow", False))
+        if code in DLCS_CODES:
+            extra += " Also sold with DLCS chrome coating for longer life: CMT %s (same dimensions)." % DLCS_CODES[code]
         note = ("CMT %s, %s, %s. Cutting length %s mm, overall %s mm, shank %s mm.%s %s Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's."
                 % (code, f["title"], f["mat"], fmt(cl), fmt(ol), fmt(sh), extra, f["use"]))
-        add(name="%s %s %s (CMT %s)" % (label(d, sys), f["title"], name_z, code), sys=sys, shape=f["shape"], angle=60.0, flutes=int(total),
+        short = {"up & downcut compression spiral": "compression spiral", "3-flute upcut spiral with chipbreaker": "upcut chipbreaker",
+                 "3-flute downcut spiral with chipbreaker": "downcut chipbreaker", "4-flute upcut spiral with chipbreaker": "upcut chipbreaker",
+                 "single-flute spiral for aluminium": "aluminium spiral", "single-flute downcut spiral": "downcut spiral",
+                 "single-flute upcut spiral": "upcut spiral", "3-flute upcut spiral": "upcut spiral"}.get(f["title"], f["title"])
+        add(name="%s %s %s (CMT %s)" % (label(d, sys), short, name_z, code), sys=sys, shape=f["shape"], angle=60.0, flutes=int(total),
             dia=round(d, 3), rpm=rpm, feed=feed, plunge=plunge, so=so, pd=pd, notes=note)
 
 # round nose bits: one tool per geometry, listing every shank and code
@@ -165,6 +182,50 @@ for code, d, cl, ol, sh, ang, mat in VG:
             "Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's."
             % (code, ang, mat, fmt(inch(cl) * MM), fmt(inch(ol) * MM), fmt(inch(sh) * MM)))
     add(name="%d° V-bit %s (CMT %s)" % (ang, label(d_mm, "in"), code), sys="in", shape="vbit", angle=float(ang), flutes=2, dia=round(d_mm, 3), rpm=rpm, feed=feed, plunge=plunge, so=40.0, pd=2.0, notes=note)
+
+# 663 V-groove / folding / signmaking cutters with replaceable knives (mm; D, cutting length I, overall L, angle A, shank 20, Z)
+VG663 = [("663.103.11",34,40,115,45,1),("663.102.11",44,38,115,60,1),("663.101.11",52,25,100,91,1),("663.110.11",60,21,95,110,1),
+         ("663.120.11",87,24,95,120,2),("663.130.11",91,20,95,130,2),("663.150.11",96.5,12.7,95,150,2)]
+for code, d, cl, ol, ang, z in VG663:
+    rpm = 12000 if d <= 40 else (10000 if d <= 55 else (8000 if d <= 65 else 6000))
+    feed = 1000.0 if d <= 55 else 800.0
+    note = ("CMT %s V-groove / folding / signmaking cutter with replaceable knives, %d\u00b0, %d flute%s. Cutting length %s mm, overall %s mm, shank 20 mm. Large cutter: "
+            "check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; "
+            "feeds and speeds are conservative starting values, not CMT's." % (code, ang, z, "" if z == 1 else "s", fmt(cl), fmt(ol)))
+    add(name="%d\u00b0 V-groove \u00d8%s, %d fl (CMT %s)" % (ang, fmt(d), z, code), sys="mm", shape="vbit", angle=float(ang), flutes=z, dia=d, rpm=rpm, feed=feed,
+        plunge=200.0, so=40.0, pd=2.0, notes=note)
+
+# 663 spoilboard surfacing cutters with insert knives (mm; D, I, L, S). The page says Z3 or Z4 without saying which row is which.
+SB = [("663.007.11",34.9,10,60,8),("663.015.11",38.1,12,60,12.7),("663.005.11",38.1,12,60,12),("663.004.11",60,12,80,12),
+      ("663.014.11",60,12,80,12.7),("663.003.11",80,12,90,20),("663.006.11",100,12,90,20)]
+sb = {}
+for code, d, cl, ol, sh in SB: sb.setdefault((d, cl, ol), []).append((code, sh))
+for (d, cl, ol), v in sb.items():
+    rpm = 12000 if d <= 40 else (10000 if d <= 62 else 8000)
+    sys_ = "in" if is_inch(d) else "mm"
+    codes = ", ".join("%s (shank %s mm)" % (c, fmt(sh)) for c, sh in v)
+    note = ("CMT spoilboard surfacing cutter with replaceable insert knives, 3 or 4 cutting edges (CMT does not say which per item; 3 assumed). Cutting length %s mm, overall %s mm. Codes: %s. "
+            "Flattening spoilboards and slabs: take shallow passes with a stepover of about 70%% of the diameter. The page gives no units; read as millimetres. "
+            "Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's." % (fmt(cl), fmt(ol), codes))
+    add(name="%s surfacing cutter, %s mm (CMT %s)" % (label(d, sys_), fmt(cl), v[0][0]), sys=sys_, shape="flat", angle=60.0, flutes=3, dia=d, rpm=rpm,
+        feed=2000.0 if d < 50 else 1800.0, plunge=300.0, so=70.0, pd=1.0, notes=note)
+
+# remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
+def cutlen(t):
+    m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]); return m.group(1) if m else ""
+def kind(t): return re.sub(r"^.*?\s(?=[a-zA-Z])", "", re.sub(r"\s*\(CMT.*$", "", t["name"]), count=1)
+seen = {}
+unique = []
+for t in tools:
+    k = (t["shape"], round(t["dia"], 2), t["flutes"], round(t["angle"], 1), cutlen(t), kind(t))
+    if k in seen:
+        dup = seen[k]
+        codes = re.findall(r"CMT (\d{3}\.\d{3}\.\d{2})", t["notes"])
+        dup["notes"] += " Same bit also listed as %s." % ", ".join(codes)
+        continue
+    seen[k] = t; unique.append(t)
+tools[:] = unique
+for i, t in enumerate(tools, 1): t["id"] = "cmt%03d" % i
 
 out = {"app": "putia-cnc-tools", "v": 1, "name": "CMT CNC bits", "tools": tools}
 json.dump(out, _sys.stdout, ensure_ascii=False, indent=1)

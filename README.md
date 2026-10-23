@@ -50,7 +50,7 @@ Features:
 - Array and copy (Edit menu): repeat the selected shapes in a grid or around a circle.
 - Fillet and chamfer: a toolbar tool (shown when the selection has corners) that rounds or bevels the corners of shapes.
 - A default tool library with 18 common hobby-router tools (flat, downcut, compression, ball nose, V-bits, engraving, surfacing); cautious starting speeds and feeds. The tool manager estimates the chip load and material removal rate from the speeds, feed and pass depth.
-- `libraries/cmt-cnc-bits.json`: 114 CMT solid-carbide/HSS router bits (upcut, downcut, compression, single-flute, 3-flute, round nose, aluminium, 90°/135° V-bits). Load it with Tool manager → Import. Dimensions come from CMT's website; speeds and feeds are conservative starting values, not CMT's. `gen_cmt_library.py` regenerates it.
+- `libraries/cmt-cnc-bits.json`: 132 CMT router bits with duplicates (such as the DLCS-coated twins) merged: spiral up/down/compression, chipbreaker, single-flute, round nose, aluminium, V-bits, large V-groove and spoilboard surfacing cutters. Load it with Tool manager → Import. Dimensions come from CMT's website; speeds and feeds are conservative starting values, not CMT's. `gen_cmt_library.py` regenerates it.
 - Remembers window size and position, panel layout, view toggles, last folders and recent files (File → Open recent) between sessions.
 - A Notes tab with free-form project notes (saved with the project), plus the generator's warnings.
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
