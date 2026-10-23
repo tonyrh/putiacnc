@@ -464,7 +464,7 @@ def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
     return m.group(1) if m else ""
 def kind(t):
-    n = re.sub(r"\s*\((?:CMT|Diablo|Amana|Bosch)[^)]*\)$", "", t["name"])
+    n = re.sub(r"\s*\((?:CMT|Diablo|Amana|Bosch|Freud)[^)]*\)$", "", t["name"])
     base = re.sub(r"^.*?\s(?=[a-zA-Z])", "", n, count=1)
     base = re.split(r",| Z\d| \u00d8", base)[0].strip()
     if t["shape"] == "vbit": return "vbit"
@@ -474,13 +474,79 @@ def kind(t):
     if "surfacing" in n: return "surfacing"
     if "compression" in n: return "compression"
     return re.sub(r"\d+", "", base)
+BRAND = "freud"
+# ---- Freud General Purpose catalog 2020 (rows read from the PDF by freud_extract.py; the CNC-suitable families only) ------------------------
+_fr = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "freud_catalog.json")))
+def _fin(mm): return frac(mm) + "\u2033"
+def _fnote(r, what, extra=""):
+    return ("Freud %s %s, carbide%s. Cutting length %s mm (%s), overall length %s mm, shank %s mm. %sFrom Freud's 2020 General Purpose catalog; feeds and speeds are "
+            "conservative starting values, not Freud's.") % (r["code"], what, " (solid carbide)" if r["stars"] else " tipped", fmt(r["H"]), _fin(r["H"]), fmt(r["L"]), fmt(r["S"]), extra)
+for r in _fr:
+    f, D, code = r["fam"], r["D"], r["code"]
+    if D < 1.5 or r["stars"] == "**": continue          # ** = made for the Porter-Cable dovetail jig
+    sfx = " (Freud %s)" % code
+    sys_ = "mm" if abs(D * 10 - round(D * 10)) < 1e-6 and not is_inch(D) else "in"
+    lab = label(D, sys_) if sys_ == "in" else "\u00d8%s mm" % fmt(D)
+    if f in ("straight2", "straight1"):
+        z = 2 if f == "straight2" else 1
+        if code == "04-144": continue                   # the table shows 1-13/16 in for this one, which is probably a misprint
+        shape, nm, what = "flat", "%s straight Z%d, %s cut" % (lab, z, _fin(r["H"])), "%s-flute straight router bit" % ("double" if z == 2 else "single")
+        extra = "Undersized for plywood. " if code in ("04-111", "04-127", "04-128", "12-114", "12-135", "12-150") or "undersized" in code else ""
+        if code in ("04-111", "04-127", "04-128", "12-114", "12-135", "12-150"): extra = "Undersized plywood bit (cuts a slot slightly narrower than the nominal diameter). "
+        rpm_, feed, plunge, so, pd = speeds(D, z, shape, slow=(z == 1))
+        add(name=nm + sfx, sys=sys_, shape=shape, angle=60.0, flutes=z, dia=round(D, 3), rpm=min(rpm_, 12000 if D <= 25 else 10000), feed=min(feed, 1800.0), plunge=plunge, so=so, pd=min(pd, r["H"] * 0.5),
+            notes=_fnote(r, what, extra + ("Single flute: more chip room for fast feeds. " if z == 1 else "") + "A hand-router bit; fine for light CNC work with shallow passes. "))
+    elif f == "spiral":
+        up = code.startswith("75"); sub = int(code[3:]); z = 3 if sub // 100 in (3, 6) else 2; cb = sub // 100 in (5, 6)
+        rpm_, feed, plunge, so, pd = speeds(D, z, "flat")
+        add(name="%s %s spiral Z%d%s%s" % (lab, "upcut" if up else "downcut", z, " chipbreaker" if cb else "", sfx), sys=sys_, shape="flat", angle=60.0, flutes=z, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 2500.0),
+            plunge=plunge, so=so, pd=min(pd, r["H"] * 0.5),
+            notes=_fnote(r, "premier solid carbide %s spiral" % ("up" if up else "down"), ("Chipbreaker flutes: leave a rougher but faster cut in thick stock. " if cb else "") +
+                         ("Up spiral clears chips out of the cut; use it for slots and pockets. " if up else "Down spiral presses chips into the cut for a clean top edge on veneer and laminate. ")))
+    elif f in ("oflute_spiral", "oflute_straight"):
+        z = int(r["N"]); up = code.startswith("73") or code == "75-025"; down = code.startswith("74")
+        rpm_, feed, plunge, so, pd = speeds(D, z, "flat", slow=True)
+        add(name="%s O-flute %s%s%s" % (lab, "downcut " if down else ("upcut " if f == "oflute_spiral" else ""), "plastic cutter Z%d" % z, sfx), sys=sys_, shape="flat", angle=60.0, flutes=z, dia=round(D, 3), rpm=min(rpm_, 12000),
+            feed=min(feed, 1500.0), plunge=plunge, so=so, pd=min(pd, r["H"] * 0.5),
+            notes=_fnote(r, "premier solid carbide O-flute %s" % ("straight bit" if f == "oflute_straight" else ("down spiral" if down else "up spiral")), "O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. "))
+    elif f in ("compression", "mortise_comp"):
+        z = int(r["N"]) if f == "mortise_comp" else {1: 1, 2: 2, 3: 3, 7: 4}[int(code[3])]
+        if f == "compression" and code == "77-610": continue
+        rpm_, feed, plunge, so, pd = speeds(D, max(z, 2), "flat")
+        add(name="%s compression Z%d%s" % (lab, z, sfx), sys=sys_, shape="flat", angle=60.0, flutes=z, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 2500.0), plunge=plunge, so=so, pd=min(pd, r["H"] * 0.5),
+            notes=_fnote(r, "premier solid carbide %scompression spiral" % ("mortise " if f == "mortise_comp" else ""), "Upcut section %s mm (%s) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. " % (fmt(r["U"]), _fin(r["U"]))))
+    elif f == "roundnose":
+        R = r["R"]; rpm_, feed, plunge, so, pd = speeds(D, 2, "ball")
+        shp = "ball" if abs(R * 2 - D) < 0.02 else "arc"
+        if shp == "arc": continue
+        add(name="%s round nose Z2, R%s%s" % (lab, fmt(R), sfx), sys=sys_, shape="ball", angle=60.0, flutes=2, dia=round(D, 3), rpm=min(rpm_, 12000 if D <= 25 else 10000), feed=min(feed, 1500.0), plunge=plunge, so=so, pd=min(pd, R),
+            notes=_fnote(r, "round nose router bit (radius %s mm)" % fmt(R), "Grooves, fluting and cove cuts. Hand-router bit. "))
+    elif f == "vgroove":
+        ang = r["A"]; rpm_, feed, plunge, so, pd = speeds(D, 2, "vbit")
+        add(name="%d\u00b0 V-groove %s%s" % (ang, lab, sfx), sys=sys_, shape="vbit", angle=float(ang), flutes=2, dia=round(D, 3), rpm=min(rpm_, 12000 if D <= 25 else 10000), feed=min(feed, 1200.0), plunge=min(plunge, 250.0), so=40.0, pd=2.0,
+            notes=_fnote(r, "%d\u00b0 V-grooving bit" % ang, "V-grooves, chamfers and sign lettering. 2 cutters assumed. "))
+    elif f == "radiusv":
+        R = r["R"]; rpm_, feed, plunge, so, pd = speeds(D, 2, "ball")
+        add(name="%s radius V-groove Z2, R%s%s" % (lab, fmt(R), sfx), sys=sys_, shape="ball", angle=60.0, flutes=2, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 1500.0), plunge=plunge, so=so, pd=min(pd, R),
+            notes=_fnote(r, "radius V-grooving (core box) bit, radius %s mm" % fmt(R), "Rounded grooves for lettering, fluting and signs. 2 cutters assumed. "))
+    elif f == "carving":
+        if code.startswith("72"): continue              # tapered ball tip: the table gives the tip diameter, which the tool form can't take as it stands
+        ang = r["A"]; rpm_, feed, plunge, so, pd = speeds(D, 2, "vbit")
+        add(name="%d\u00b0 detail carving %s%s" % (ang, lab, sfx), sys=sys_, shape="vbit", angle=float(ang), flutes=2, dia=round(D, 3), rpm=12000, feed=min(feed, 900.0), plunge=min(plunge, 200.0), so=30.0, pd=1.0,
+            notes=_fnote(r, "%d\u00b0 detail carving bit" % ang, "Fine V-carving and lettering details (the angle is the included angle, checked against the diameter and height). 2 cutters assumed. "))
+    elif f == "balltip":
+        R = r["R"]; rpm_, feed, plunge, so, pd = speeds(D, 2, "ball")
+        add(name="%s up-cut ball nose Z2%s" % (lab, sfx), sys=sys_, shape="ball", angle=60.0, flutes=2, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 1500.0), plunge=plunge, so=15.0, pd=min(pd, R),
+            notes=_fnote(r, "up-cut spiral ball nose bit (radius %s mm)" % fmt(R), "3D finishing and rounded pockets. 2 flutes assumed. "))
+# two Freud rows are listed without a diameter-matching table and are left out: the single 1/8 in radius-tip bit 72-210 and the 72-100 (no radius given)
+
 unique = []
 for t in tools:
     k = (t["brand"], t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t))
     cl = float(cutlen(t) or 0)
     dup = next((u for u, uk, ucl in unique if uk == k and abs(ucl - cl) < 0.5), None)
     if dup is not None:
-        codes = re.findall(r"\((?:CMT|Diablo|Amana|Bosch) ([^)]+)\)", t["name"])
+        codes = re.findall(r"\((?:CMT|Diablo|Amana|Bosch|Freud) ([^)]+)\)", t["name"])
         sh = re.findall(r"shank ([0-9.]+) mm|([0-9.]+) mm shank", t["notes"])
         sh = [a or b for a, b in sh][:1]
         dup["notes"] += " Same bit also listed as %s%s." % (", ".join(codes), (" (shank %s mm)" % sh[0]) if sh else "")
@@ -527,6 +593,7 @@ LIBS = [("cmt", "cmt", "CMT router bits", "CMT Orange Tools: CNC solid-carbide s
         ("amana", "amana", "Amana Tool CNC bits", "Amana Tool: solid-carbide spirals, compression, ball nose, plastic cutters and round-over bits."),
         ("bosch", "bosch", "Bosch PRO router bits", "Bosch Professional: straight, V-groove and core box (round nose) bits."),
         ("generic", "generic", "Generic CNC bits", "Brand-neutral set: standard sizes of end mills, compression, ball nose, V-bits, engraving, taper and surfacing bits."),
+        ("freud", "freud", "Freud router bits", "Freud: straight, spiral, compression, O-flute, round nose, V-groove and carving bits from the General Purpose catalog."),
         ("diablo", "diablo", "Diablo router bits", "Diablo: a few straight, round nose and V-groove bits.")]
 here = os.path.dirname(os.path.abspath(__file__))
 for brand, fname, title, _ in LIBS:

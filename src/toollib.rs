@@ -323,6 +323,7 @@ mod tests {
             (include_str!("../libraries/amana.json"), "Amana Tool CNC bits", 150),
             (include_str!("../libraries/bosch.json"), "Bosch PRO router bits", 25),
             (include_str!("../libraries/diablo.json"), "Diablo router bits", 8),
+            (include_str!("../libraries/freud.json"), "Freud router bits", 150),
             (include_str!("../libraries/generic.json"), "Generic CNC bits", 70),
         ];
         let mut l = ToolLibs::default();
