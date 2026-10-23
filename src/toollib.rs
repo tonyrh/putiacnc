@@ -9,6 +9,20 @@ pub const SHAPES: [(&str, &str); 7] = [
     ("vbit", "V-bit"), ("engrave", "Engraving bit"), ("taper", "Tapered ball nose"), ("arc", "Arc profile bit"),
 ];
 
+/// Ready-made libraries shipped inside the app: (library name, `putia-cnc-tools` file). The same files are in `libraries/`.
+pub const BUNDLED: &[(&str, &str)] = &[
+    ("Amana Tool CNC bits", include_str!("../libraries/amana.json")),
+    ("Bosch PRO router bits", include_str!("../libraries/bosch.json")),
+    ("CMT router bits", include_str!("../libraries/cmt.json")),
+    ("Diablo router bits", include_str!("../libraries/diablo.json")),
+    ("Freud router bits", include_str!("../libraries/freud.json")),
+    ("Generic CNC bits", include_str!("../libraries/generic.json")),
+    ("Whiteside CNC bits", include_str!("../libraries/whiteside.json")),
+];
+
+/// Number of tools in a bundled file, without parsing it.
+pub fn bundled_count(json: &str) -> usize { json.matches("\"shape\"").count() }
+
 pub fn shape_label(s: &str) -> &'static str {
     SHAPES.iter().find(|(k, _)| *k == s).map(|(_, l)| *l).unwrap_or("Flat end mill")
 }
@@ -318,15 +332,8 @@ mod tests {
     }
     #[test]
     fn the_brand_library_files_import() {
-        let files = [
-            (include_str!("../libraries/cmt.json"), "CMT router bits", 140),
-            (include_str!("../libraries/amana.json"), "Amana Tool CNC bits", 150),
-            (include_str!("../libraries/bosch.json"), "Bosch PRO router bits", 25),
-            (include_str!("../libraries/diablo.json"), "Diablo router bits", 8),
-            (include_str!("../libraries/freud.json"), "Freud router bits", 150),
-            (include_str!("../libraries/whiteside.json"), "Whiteside CNC bits", 30),
-            (include_str!("../libraries/generic.json"), "Generic CNC bits", 70),
-        ];
+        let files: Vec<(&str, &str, usize)> = BUNDLED.iter().map(|(n, j)| (*j, *n, 1usize)).collect();
+        assert!(BUNDLED.len() >= 7);
         let mut l = ToolLibs::default();
         for (json, expect_name, min) in files {
             let before = l.libs.len();

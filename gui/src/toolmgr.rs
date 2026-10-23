@@ -20,7 +20,7 @@ pub fn load_tool_libs() -> ToolLibs {
     libs_path().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| ToolLibs::from_json(&s).ok()).unwrap_or_default()
 }
 
-enum LibAct { Switch(String), New, Duplicate, Delete, Export, Import, Rename(String) }
+enum LibAct { Switch(String), New, Duplicate, Delete, Export, Import, Bundled(usize), Rename(String) }
 
 impl App {
     /// Write the libraries to disk (normalised copy; the live data keeps what the user is typing).
@@ -79,6 +79,19 @@ impl App {
                 let l = self.tool_libs.current();
                 let fname = format!("{}-tools.json", l.name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect::<String>());
                 self.spawn_dialog(crate::app::DlgKind::LibExport, move || rfd::FileDialog::new().add_filter("Tool library", &["json"]).set_file_name(fname).save_file());
+            }
+            LibAct::Bundled(i) => {
+                let (name, json) = toollib::BUNDLED[i];
+                if let Some(l) = self.tool_libs.libs.iter().find(|l| l.name == name) {
+                    let id = l.id.clone();
+                    self.tool_libs.switch(&id);
+                    self.after_lib_switch(Some(format!("\"{name}\" is already in your libraries.")));
+                } else {
+                    match self.tool_libs.import(json) {
+                        Ok((name, n)) => self.after_lib_switch(Some(format!("Added \"{name}\" ({n} tools)."))),
+                        Err(e) => self.tool_msg = e,
+                    }
+                }
             }
             LibAct::Import => {
                 self.spawn_dialog(crate::app::DlgKind::LibImport, || rfd::FileDialog::new().add_filter("Tool library", &["json"]).pick_file());
@@ -169,6 +182,7 @@ fn body(ui: &mut Ui, app: &mut App) {
     ui.add_space(8.0);
     lib_row(ui, app);
     ui.add_space(8.0);
+    ready_made_row(ui, app);
     ui.weak(if app.tool_msg.is_empty() { "Libraries are saved automatically." } else { app.tool_msg.as_str() });
 }
 
@@ -285,6 +299,19 @@ fn units_row(ui: &mut Ui, app: &mut App) {
             ui.label("Show lengths in");
         });
     });
+}
+
+fn ready_made_row(ui: &mut Ui, app: &mut App) {
+    let mut pick: Option<usize> = None;
+    ui.menu_button("Add a ready-made library \u{25be}", |ui| {
+        for (i, (name, json)) in toollib::BUNDLED.iter().enumerate() {
+            let have = app.tool_libs.libs.iter().any(|l| l.name == *name);
+            let txt = format!("{name}  ({} bits){}", toollib::bundled_count(json), if have { "  \u{2713}" } else { "" });
+            if ui.button(txt).clicked() { pick = Some(i); ui.close_menu(); }
+        }
+    });
+    ui.add_space(4.0);
+    if let Some(i) = pick { app.lib_action(LibAct::Bundled(i)); }
 }
 
 fn lib_row(ui: &mut Ui, app: &mut App) {
