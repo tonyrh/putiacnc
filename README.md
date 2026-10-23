@@ -31,7 +31,10 @@ Features:
   shape) edits its points: drag, add, delete and simplify. Edit → Offset grows or shrinks
   the selected shapes by a distance (inlays, clearances); Edit → Combine shapes does union, subtract, intersect
   and exclude. The text tool (T) turns typed text, in any font
-  installed on the computer, into outlines you can profile or pocket.
+  installed on the computer, into outlines you can profile or pocket, with an angle if you want it turned. The text stays editable:
+  click it to select all its letters, double-click it (or press Edit text) to change the words, font, size or place, even after it
+  has been moved, scaled, turned or flipped. "To outlines" turns it into ordinary shapes for node editing and trimming; editing the
+  letters point by point does that automatically, with a note. A copy made with Duplicate is plain outlines.
 - Operations: profile (outside, inside, on the line), pocket, V-carve and drill (pecked, nearest hole first), each with its own tool,
   depth, pass depth (defaults to the tool's value), cut direction, ramp-in, air cut and holding tabs
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks

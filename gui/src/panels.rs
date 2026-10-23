@@ -391,7 +391,7 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum GroupAct { Delete }
+enum GroupAct { Delete, EditText, ToOutlines }
 
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
 /// `zero` is the XY zero of the stock: X and Y are shown (and typed) relative to it, like the rulers.
@@ -431,7 +431,7 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
     if alive.len() != d.groups.len() { d.groups.retain(|g| alive.contains(&g.id)); }
     if d.groups.is_empty() && d.relief.is_none() { return; }
     ui.separator();
-    ui.heading("Imported");
+    ui.heading(if d.groups.iter().all(|g| g.text.is_some()) { "Text" } else if d.groups.iter().all(|g| g.text.is_none()) { "Imported" } else { "Imported and text" });
     let (sw, sh) = (d.stock.w, d.stock.h);
     let zero = (match d.stock.zr.as_str() { "lr" | "ur" => sw, "c" => sw / 2.0, _ => 0.0 }, match d.stock.zr.as_str() { "ul" | "ur" => sh, "c" => sh / 2.0, _ => 0.0 });
     let groups = d.groups.clone();
@@ -441,7 +441,7 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(&g.name).strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if small_icon_button(ui, Icon::Trash, true, "Delete this drawing (all its shapes)").clicked() { *act = Some((Some(g.id), GroupAct::Delete)); }
+                    if small_icon_button(ui, Icon::Trash, true, if g.text.is_some() { "Delete this text" } else { "Delete this drawing (all its shapes)" }).clicked() { *act = Some((Some(g.id), GroupAct::Delete)); }
                 });
             });
             let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
@@ -464,6 +464,14 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             }
             if lock_now != g.locked {
                 if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
+            }
+            if g.text.is_some() {
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
+                    if ui.add_enabled(!lock_now, egui::Button::new("Edit text")).on_hover_text("Change the words, font, size or place (double-click the text does the same)").clicked() { *act = Some((Some(g.id), GroupAct::EditText)); }
+                    if ui.add_enabled(!lock_now, egui::Button::new("To outlines")).on_hover_text("The letters become ordinary shapes you can edit point by point").clicked() { *act = Some((Some(g.id), GroupAct::ToOutlines)); }
+                });
             }
             // turn and flip about the drawing's centre
             let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
@@ -1131,7 +1139,10 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 app.delete_selection();
                 app.project.data.groups.retain(|x| x.id != id);
             }
+            (Some(id), GroupAct::EditText) => app.edit_text(id),
+            (Some(id), GroupAct::ToOutlines) => app.text_to_outlines(id),
             (None, GroupAct::Delete) => { app.hist.record(&app.project.data); app.project.data.relief = None; app.touch(); }
+            (None, _) => {}
         }
     }
     if open_tools { app.tools_open = true; }

@@ -360,6 +360,12 @@ impl App {
         if let Ok(s) = std::env::var("PUTIACNC_SHOW_TEXT") {
             a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");
         }
+        if let Ok(s) = std::env::var("PUTIACNC_PLACE_TEXT") {
+            // places a text, turned a little, and optionally opens it for editing (for screenshots)
+            a.text.content = s; a.text.sel = a.text.fonts.iter().position(|f| f.label == "Hack").unwrap_or(0); a.text.pos = Some([20.0, 30.0]); a.text.size = 15.0; a.text.angle = 20.0;
+            crate::text::place(&mut a);
+            if std::env::var_os("PUTIACNC_EDIT_TEXT").is_some() { if let Some(g) = a.project.data.groups.last().map(|g| g.id) { a.edit_text(g); } }
+        }
         if let Ok(s) = std::env::var("PUTIACNC_DYN") {
             // "x,y" screen position of the pointer when typing started (for screenshots)
             let v: Vec<f32> = s.split(',').filter_map(|t| t.parse().ok()).collect();
@@ -687,7 +693,7 @@ impl App {
         let op = self.project.data.act;
         let start = self.project.data.loops.len();
         let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
-        self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname, locked: false });
+        self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname, locked: false, text: None });
         for mut l in imp.loops {
             shapes::translate(&mut l, ox, oy);
             l.op = op;

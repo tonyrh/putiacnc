@@ -4,7 +4,7 @@ use crate::model::LoopData;
 use crate::shapes::S;
 use ttf_parser::{Face, OutlineBuilder};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Align { Left, Center, Right }
 
 #[derive(Clone, Copy, Debug)]
@@ -113,6 +113,97 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
     Ok(out)
 }
 
+/// A flat map of the plane: `x' = m[0] x + m[1] y + t[0]`, `y' = m[2] x + m[3] y + t[1]`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Affine { pub m: [f64; 4], pub t: [f64; 2] }
+
+impl Affine {
+    pub const ID: Affine = Affine { m: [1.0, 0.0, 0.0, 1.0], t: [0.0, 0.0] };
+    pub fn det(&self) -> f64 { self.m[0] * self.m[3] - self.m[1] * self.m[2] }
+    pub fn apply(&self, p: [f64; 2]) -> [f64; 2] { [self.m[0] * p[0] + self.m[1] * p[1] + self.t[0], self.m[2] * p[0] + self.m[3] * p[1] + self.t[1]] }
+
+    /// Splits the linear part into a size factor, a turn (radians, counter-clockwise) and what is left
+    /// (a stretch and maybe a flip), so that `m = s * Rot(turn) * rest`. A plain move, turn or uniform scale
+    /// leaves `rest` as the identity.
+    pub fn decompose(&self) -> (f64, f64, [f64; 4]) {
+        let flip = self.det() < 0.0;
+        let m = self.m;
+        // undo a flip first (mirror the columns), so what is left can be read as a turn and a stretch
+        let m1 = if flip { [m[0], -m[1], m[2], -m[3]] } else { m };
+        let s = (m1[0] * m1[3] - m1[1] * m1[2]).abs().sqrt().max(1e-12);
+        let turn = (m1[2] - m1[1]).atan2(m1[0] + m1[3]);
+        let (sn, cs) = turn.sin_cos();
+        // rest1 = Rot(-turn) * m1 / s
+        let r1 = [(cs * m1[0] + sn * m1[2]) / s, (cs * m1[1] + sn * m1[3]) / s, (-sn * m1[0] + cs * m1[2]) / s, (-sn * m1[1] + cs * m1[3]) / s];
+        // m = m1 * flip, so rest = rest1 * flip
+        let rest = if flip { [r1[0], -r1[1], r1[2], -r1[3]] } else { r1 };
+        (s, turn, rest)
+    }
+
+    /// The map `Rot(turn) * rest` followed by a move to `t`.
+    pub fn compose(turn: f64, rest: [f64; 4], t: [f64; 2]) -> Affine {
+        let (sn, cs) = turn.sin_cos();
+        Affine { m: [cs * rest[0] - sn * rest[2], cs * rest[1] - sn * rest[3], sn * rest[0] + cs * rest[2], sn * rest[1] + cs * rest[3]], t }
+    }
+}
+
+/// Moves shapes made at the origin to where the text sits. A map that flips the drawing makes closed shapes
+/// run the other way round, so they are turned back, as mirroring does.
+pub fn apply_affine(ls: &mut [LoopData], a: &Affine) {
+    let flip = a.det() < 0.0;
+    for l in ls.iter_mut() {
+        let mut v: Vec<[i64; 2]> = l.pts.chunks_exact(2).map(|c| {
+            let q = a.apply([c[0] as f64 / S, c[1] as f64 / S]);
+            [(q[0] * S).round() as i64, (q[1] * S).round() as i64]
+        }).collect();
+        if flip && l.closed() && v.len() > 2 { v.reverse(); }
+        l.pts = v.into_iter().flat_map(|p| p).collect();
+        l.rc = None; l.el = None; l.cr = None;
+    }
+}
+
+fn solve3(mut a: [[f64; 4]; 3]) -> Option<[f64; 3]> {
+    for c in 0..3 {
+        let p = (c..3).max_by(|&i, &j| a[i][c].abs().partial_cmp(&a[j][c].abs()).unwrap())?;
+        if a[p][c].abs() < 1e-9 { return None; }
+        a.swap(c, p);
+        for r in 0..3 { if r != c { let f = a[r][c] / a[c][c]; for k in c..4 { a[r][k] -= f * a[c][k]; } } }
+    }
+    Some([a[0][3] / a[0][0], a[1][3] / a[1][1], a[2][3] / a[2][2]])
+}
+
+/// The map that takes the shapes `src` (the text as it was set, at the origin) to the shapes `now` (where
+/// they are on the drawing), with the largest distance (mm) left between a mapped point and its partner.
+/// `None` when the two do not correspond: a different number of shapes or points, which means the outlines
+/// were edited. Shapes that were mirrored run the other way round, which is tried too.
+pub fn fit_affine(src: &[LoopData], now: &[&LoopData]) -> Option<(Affine, f64)> {
+    if src.len() != now.len() || src.is_empty() { return None; }
+    if src.iter().zip(now).any(|(a, b)| a.pts.len() != b.pts.len() || a.closed() != b.closed()) { return None; }
+    let mut best: Option<(Affine, f64)> = None;
+    for reversed in [false, true] {
+        let mut pairs: Vec<([f64; 2], [f64; 2])> = Vec::new();
+        for (a, b) in src.iter().zip(now) {
+            let s: Vec<[f64; 2]> = a.pts.chunks_exact(2).map(|c| [c[0] as f64 / S, c[1] as f64 / S]).collect();
+            let mut d: Vec<[f64; 2]> = b.pts.chunks_exact(2).map(|c| [c[0] as f64 / S, c[1] as f64 / S]).collect();
+            if reversed && a.closed() { d.reverse(); }
+            pairs.extend(s.into_iter().zip(d));
+        }
+        // least squares, x and y separately: [x y 1] * [m0 m1 t0]^T = x'
+        let mut ata = [[0.0_f64; 3]; 3];
+        let (mut bx, mut by) = ([0.0_f64; 3], [0.0_f64; 3]);
+        for (p, q) in &pairs {
+            let v = [p[0], p[1], 1.0];
+            for i in 0..3 { for j in 0..3 { ata[i][j] += v[i] * v[j]; } for (b, t) in [(&mut bx, q[0]), (&mut by, q[1])] { b[i] += v[i] * t; } }
+        }
+        let row = |b: [f64; 3]| [[ata[0][0], ata[0][1], ata[0][2], b[0]], [ata[1][0], ata[1][1], ata[1][2], b[1]], [ata[2][0], ata[2][1], ata[2][2], b[2]]];
+        let (Some(x), Some(y)) = (solve3(row(bx)), solve3(row(by))) else { continue };
+        let af = Affine { m: [x[0], x[1], y[0], y[1]], t: [x[2], y[2]] };
+        let res = pairs.iter().map(|(p, q)| { let r = af.apply(*p); (r[0] - q[0]).hypot(r[1] - q[1]) }).fold(0.0_f64, f64::max);
+        if best.map_or(true, |(_, r)| res < r) { best = Some((af, res)); }
+    }
+    best
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,5 +261,45 @@ mod tests {
         let hole: crate::clip::Path = a.iter().rev().map(|p| [p[0] / 2 + 2_000, p[1] / 2 + 2_000]).collect();
         let m = merge_overlaps(vec![a, hole]);
         assert_eq!(m.len(), 2);
+    }
+
+    fn plus() -> Vec<LoopData> {
+        // an L-shaped letter and a square one: not symmetric, so a wrong match would show
+        vec![
+            crate::shapes::new_poly(&[[0.0, 0.0], [10.0, 0.0], [10.0, 3.0], [3.0, 3.0], [3.0, 12.0], [0.0, 12.0]], true, 0).unwrap(),
+            crate::shapes::new_poly(&[[15.0, 0.0], [20.0, 0.0], [20.0, 5.0], [15.0, 5.0]], true, 0).unwrap(),
+        ]
+    }
+
+    #[test]
+    fn moved_turned_scaled_and_mirrored_shapes_are_found_again() {
+        let src = plus();
+        for (turn, k, flip) in [(0.0, 1.0, false), (0.6, 1.0, false), (-1.2, 2.5, false), (0.3, 0.4, true), (3.0, 1.7, true)] {
+            let rest = if flip { [1.0, 0.0, 0.0, -1.0] } else { [1.0, 0.0, 0.0, 1.0] };
+            let mut a = Affine::compose(turn, rest, [33.3, -7.1]);
+            for v in a.m.iter_mut() { *v *= k; }
+            let mut now = src.clone();
+            apply_affine(&mut now, &a);
+            let refs: Vec<&LoopData> = now.iter().collect();
+            let (f, res) = fit_affine(&src, &refs).expect("fit");
+            assert!(res < 0.01, "turn {turn} k {k} flip {flip}: residual {res}");
+            let (s, t, rest2) = f.decompose();
+            assert!((s - k).abs() < 1e-3, "size {s} vs {k}");
+            let back = Affine::compose(t, rest2, f.t);
+            for i in 0..4 { assert!((back.m[i] * s - f.m[i]).abs() < 1e-6, "{back:?} {f:?}"); }
+        }
+    }
+
+    #[test]
+    fn edited_outlines_do_not_fit() {
+        let src = plus();
+        let mut now = src.clone();
+        now[0].pts.truncate(10); // a point less
+        let refs: Vec<&LoopData> = now.iter().collect();
+        assert!(fit_affine(&src, &refs).is_none());
+        let mut now = src.clone();
+        now[1].pts[2] += 2000; // one corner pulled out by 2 mm
+        let refs: Vec<&LoopData> = now.iter().collect();
+        assert!(fit_affine(&src, &refs).unwrap().1 > 0.1);
     }
 }

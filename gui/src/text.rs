@@ -2,7 +2,8 @@
 use crate::app::{App, Mode};
 use eframe::egui;
 use putiacnc_core::model::LoopData;
-use putiacnc_core::text::{text_loops, Align, TextStyle};
+use putiacnc_core::shapes;
+use putiacnc_core::text::{apply_affine, fit_affine, text_loops, Affine, Align, TextStyle};
 use std::sync::{mpsc, Arc};
 
 #[derive(Clone)]
@@ -21,6 +22,13 @@ pub struct TextTool {
     pub size: f64,
     pub spacing: f64,
     pub align: Align,
+    /// The turn of the text, degrees counter-clockwise about its start point.
+    pub angle: f64,
+    /// What remains of the transform of text being edited after the turn and the size (a stretch or a flip); the identity for new text.
+    pub rest: [f64; 4],
+    /// The text group being edited (its letters are replaced when the text is updated), and the one waiting for the fonts to be listed.
+    pub edit: Option<i64>,
+    pub edit_req: Option<i64>,
     pub fonts: Vec<FontEntry>,
     pub sel: usize,
     /// The font was picked by the user, so a finished font search must not change it.
@@ -46,7 +54,7 @@ impl Default for TextTool {
     fn default() -> Self {
         let fonts = vec![FontEntry { label: "Hack".into(), id: None }, FontEntry { label: "Ubuntu Light".into(), id: None }];
         TextTool {
-            open: false, focus: false, pos: None, content: String::new(), size: 10.0, spacing: 0.0, align: Align::Left,
+            open: false, focus: false, pos: None, content: String::new(), size: 10.0, spacing: 0.0, align: Align::Left, angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
             fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None,
         }
     }
@@ -120,7 +128,7 @@ impl TextTool {
     fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.spacing, align: self.align } }
 
     fn refresh(&mut self) {
-        let key = format!("{}|{}|{}|{}|{:?}|{:?}", self.content, self.sel, self.size, self.spacing, self.align, self.pos);
+        let key = format!("{}|{}|{}|{}|{:?}|{:?}|{}|{:?}", self.content, self.sel, self.size, self.spacing, self.align, self.pos, self.angle, self.rest);
         if key == self.key { return; }
         self.key = key;
         self.preview.clear();
@@ -129,31 +137,160 @@ impl TextTool {
         if self.content.trim().is_empty() { return; }
         match self.font_bytes() {
             None => self.err = Some("This font could not be loaded.".into()),
-            Some((data, idx)) => match text_loops(&data, idx, &self.content, self.style(), pos, 0) {
-                Ok(l) => { if l.is_empty() { self.err = Some("This font has none of those letters.".into()); } self.preview = l; }
+            Some((data, idx)) => match text_loops(&data, idx, &self.content, self.style(), [0.0, 0.0], 0) {
+                Ok(mut l) => {
+                    if l.is_empty() { self.err = Some("This font has none of those letters.".into()); }
+                    // set at the origin, then turned and moved: the same steps the editor takes back later
+                    apply_affine(&mut l, &Affine::compose(self.angle.to_radians(), self.rest, pos));
+                    self.preview = l;
+                }
                 Err(e) => self.err = Some(e),
             },
         }
     }
 }
 
-/// Adds the previewed text to the drawing, in the active operation, and selects it.
-fn place(app: &mut App) {
+/// Adds the previewed text to the drawing, in the active operation, and selects it. The shapes form a group that
+/// remembers the settings, so the text can be edited later; when a text is being edited its letters are replaced.
+pub fn place(app: &mut App) {
     app.text.key.clear();
     app.text.refresh();
-    let op = app.project.data.act;
     let mut loops = std::mem::take(&mut app.text.preview);
     if loops.is_empty() { return; }
-    for l in &mut loops { l.op = op; }
+    let t = &app.text;
+    let spec = putiacnc_core::model::TextSpec {
+        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.spacing, align: t.align,
+    };
+    let first = t.content.lines().find(|l| !l.trim().is_empty()).unwrap_or("").trim().chars().take(24).collect::<String>();
+    let name = format!("Text: {first}");
     app.hist.record(&app.project.data);
-    let start = app.project.data.loops.len();
-    app.project.data.loops.extend(loops);
-    app.sel = (start..app.project.data.loops.len()).collect();
+    if let Some(gid) = app.text.edit {
+        let d = &mut app.project.data;
+        let old: Vec<usize> = d.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(gid)).map(|(i, _)| i).collect();
+        let first_op = old.first().map(|&i| d.loops[i].op).unwrap_or(d.act);
+        let same = old.len() == loops.len();
+        for (k, l) in loops.iter_mut().enumerate() {
+            l.grp = Some(gid);
+            l.op = if same { d.loops[old[k]].op } else { first_op };
+        }
+        if same {
+            // the same number of letters: they take each other's place, so tabs and order stay as they are
+            for (k, l) in loops.into_iter().enumerate() { d.loops[old[k]] = l; }
+            app.sel = old.into_iter().collect();
+        } else {
+            shapes::tabs_after_delete(&mut d.ops, &old);
+            for &i in old.iter().rev() { d.loops.remove(i); }
+            let start = d.loops.len();
+            d.loops.extend(loops);
+            app.sel = (start..d.loops.len()).collect();
+        }
+        if let Some(g) = d.groups.iter_mut().find(|g| g.id == gid) { g.text = Some(spec); g.name = name; }
+    } else {
+        let op = app.project.data.act;
+        let gid = app.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
+        app.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name, locked: false, text: Some(spec) });
+        for l in &mut loops { l.op = op; l.grp = Some(gid); }
+        let start = app.project.data.loops.len();
+        app.project.data.loops.extend(loops);
+        app.sel = (start..app.project.data.loops.len()).collect();
+    }
     app.touch();
     app.text.open = false;
     app.text.content.clear();
     app.text.key.clear();
+    app.text.edit = None;
+    app.text.angle = 0.0;
+    app.text.rest = [1.0, 0.0, 0.0, 1.0];
     app.mode = Mode::Select;
+}
+
+impl App {
+    /// Opens the Text window on a placed text, to change its words, font, size or place. The window fills in
+    /// once the fonts are listed.
+    pub fn edit_text(&mut self, gid: i64) {
+        if self.project.data.groups.iter().all(|g| g.id != gid || g.text.is_none()) { return; }
+        self.mode = Mode::Text;
+        self.text.open = true;
+        self.text.edit_req = Some(gid);
+        self.text.edit = None;
+        self.text.preview.clear();
+        self.text.key.clear();
+    }
+
+    /// Drops the link to the settings: the letters stay as they are, as plain outlines.
+    pub fn text_to_outlines(&mut self, gid: i64) {
+        self.hist.record(&self.project.data);
+        for l in self.project.data.loops.iter_mut().filter(|l| l.grp == Some(gid)) { l.grp = None; }
+        self.project.data.groups.retain(|g| g.id != gid);
+        self.touch();
+    }
+
+    /// All the letters of the placed text that loop `i` belongs to, or just `i` for any other shape.
+    pub fn text_siblings(&self, i: usize) -> Vec<usize> {
+        let d = &self.project.data;
+        match d.loops.get(i).and_then(|l| l.grp).filter(|g| d.groups.iter().any(|x| x.id == *g && x.text.is_some())) {
+            Some(g) => d.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(g)).map(|(k, _)| k).collect(),
+            None => vec![i],
+        }
+    }
+
+    /// A placed text is selected as a whole: any letter in the selection brings in the rest.
+    pub fn expand_text_selection(&mut self) {
+        let all: Vec<usize> = self.sel.iter().flat_map(|&i| self.text_siblings(i)).collect();
+        self.sel.extend(all);
+    }
+
+    /// The group of the letters when the selection is one placed text (or part of it).
+    pub fn selected_text(&self) -> Option<i64> {
+        let d = &self.project.data;
+        let mut gid = None;
+        for &i in &self.sel {
+            let g = d.loops.get(i)?.grp?;
+            if *gid.get_or_insert(g) != g { return None; }
+        }
+        let g = gid?;
+        d.groups.iter().find(|x| x.id == g).and_then(|x| x.text.as_ref()).map(|_| g)
+    }
+}
+
+/// Fills the window from a placed text: its settings, with the move, turn and size it has had since.
+/// `false` while the fonts are still being listed.
+fn begin_edit(app: &mut App, gid: i64) -> bool {
+    let Some(spec) = app.project.data.groups.iter().find(|g| g.id == gid).and_then(|g| g.text.clone()) else { return true };
+    let Some(idx) = app.text.fonts.iter().position(|f| f.label == spec.font) else {
+        if app.text.found.is_none() { return false; }
+        app.error = Some(format!("The font \"{}\" is not on this computer, so this text cannot be edited here. You can still convert it to outlines.", spec.font));
+        app.text.open = false;
+        app.mode = Mode::Select;
+        return true;
+    };
+    app.text.sel = idx;
+    app.text.picked = true;
+    app.text.bytes_for = None;
+    let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, align: spec.align };
+    let g0 = app.text.font_bytes().and_then(|(data, face)| text_loops(&data, face, &spec.content, style, [0.0, 0.0], 0).ok()).unwrap_or_default();
+    let now: Vec<&LoopData> = app.project.data.loops.iter().filter(|l| l.grp == Some(gid)).collect();
+    let fit = fit_affine(&g0, &now).filter(|(_, res)| *res < 0.02);
+    let Some((af, _)) = fit else {
+        // the letters were edited point by point (or the font draws them differently now): they stay as outlines
+        app.text_to_outlines(gid);
+        app.error = Some("These letters were edited as shapes, so they can no longer be edited as text. They are plain outlines now.".into());
+        app.text.open = false;
+        app.mode = Mode::Select;
+        return true;
+    };
+    let (s, turn, rest) = af.decompose();
+    let t = &mut app.text;
+    t.content = spec.content;
+    t.size = spec.size * s;
+    t.spacing = spec.spacing * s;
+    t.align = spec.align;
+    t.angle = turn.to_degrees();
+    t.rest = rest;
+    t.pos = Some(af.t);
+    t.edit = Some(gid);
+    t.key.clear();
+    true
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
@@ -161,6 +298,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.text.open { return; }
     app.text.poll();
     if app.text.db.is_none() { app.text.load(ctx); }
+    if let Some(gid) = app.text.edit_req {
+        if begin_edit(app, gid) { app.text.edit_req = None; } else { ctx.request_repaint_after(std::time::Duration::from_millis(100)); return; }
+        if !app.text.open { return; }
+    }
     // text starts at the XY zero until a position is clicked or typed
     if app.text.pos.is_none() {
         let st = &app.project.data.stock;
@@ -169,9 +310,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     app.text.refresh();
     let stock = app.project.data.stock.clone();
     let (mut do_place, mut cancel) = (false, false);
+    let editing = app.text.edit.is_some();
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([700.0, 150.0]).fixed_size([300.0, 0.0]).show(ctx, |ui| {
-        if crate::csd::dialog_header(ui, "Text", true) { cancel = true; }
+        if crate::csd::dialog_header(ui, if editing { "Edit text" } else { "Text" }, true) { cancel = true; }
         let t = &mut app.text;
         let te = ui.add(egui::TextEdit::multiline(&mut t.content).desired_rows(3).desired_width(f32::INFINITY).hint_text("Type your text"));
         if t.focus { te.request_focus(); t.focus = false; }
@@ -192,6 +334,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.weak("mm");
                 if cx || cy { t.pos = Some([x + zx, y + zy]); }
             });
+            ui.end_row();
+            ui.label("Angle");
+            ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.angle, -360.0, 360.0, 1.0, 1, ""); ui.weak("degrees, counter-clockwise"); });
             ui.end_row();
             ui.label("Font");
             let cur = t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default();
@@ -233,12 +378,104 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if let Some(e) = &t.err { ui.add_space(4.0); ui.colored_label(egui::Color32::from_rgb(0xe0, 0x8a, 0x2a), e); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(!t.preview.is_empty(), egui::Button::new("Place")).clicked() { do_place = true; }
+            if ui.add_enabled(!t.preview.is_empty(), egui::Button::new(if editing { "Update" } else { "Place" })).clicked() { do_place = true; }
             if ui.button("Cancel").clicked() { cancel = true; }
         });
         ui.add_space(2.0);
-        ui.weak("Letters become outlines; the holes in A, O, B… are cut out correctly. Click the drawing, or type X and Y, to move the text.");
+        ui.weak(if editing { "The letters are set again from these settings, where the text is now." } else { "Letters become outlines (holes in A, O, B… are cut out); the text stays editable: double-click it later. Click the drawing, or type X and Y, to move it." });
     });
     if do_place { place(app); }
-    if cancel { app.text.open = false; app.mode = Mode::Select; }
+    if cancel { app.text.open = false; app.text.edit = None; app.text.angle = 0.0; app.text.rest = [1.0, 0.0, 0.0, 1.0]; app.mode = Mode::Select; }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn placed(content: &str) -> App {
+        let mut a = App::new(None);
+        a.text.content = content.into();
+        a.text.sel = a.text.fonts.iter().position(|f| f.label == "Hack").unwrap();
+        a.text.pos = Some([10.0, 20.0]);
+        a.text.size = 12.0;
+        place(&mut a);
+        a
+    }
+
+    fn bbox(a: &App, gid: i64) -> [f64; 4] { shapes::bbox_many(a.project.data.loops.iter().filter(|l| l.grp == Some(gid))).unwrap() }
+
+    #[test]
+    fn placed_text_is_a_group_that_remembers_its_settings() {
+        let a = placed("Hi");
+        let g = &a.project.data.groups[0];
+        assert_eq!(g.text.as_ref().unwrap().content, "Hi");
+        assert_eq!(g.name, "Text: Hi");
+        assert!(!a.project.data.loops.is_empty() && a.project.data.loops.iter().all(|l| l.grp == Some(g.id)));
+        assert_eq!(a.selected_text(), Some(g.id));
+    }
+
+    #[test]
+    fn text_stays_editable_after_it_is_moved_scaled_and_turned() {
+        let mut a = placed("Hi");
+        let gid = a.project.data.groups[0].id;
+        let b = bbox(&a, gid);
+        // scale to twice the size, keeping the shape, then turn by 30 degrees about the centre, then move
+        {
+            let mut refs: Vec<&mut LoopData> = a.project.data.loops.iter_mut().collect();
+            shapes::fit_to_bbox(&mut refs, b, [b[0] + 5.0, b[1] + 5.0, b[0] + 5.0 + (b[2] - b[0]) * 2.0, b[1] + 5.0 + (b[3] - b[1]) * 2.0]);
+        }
+        let b2 = bbox(&a, gid);
+        let (cx, cy) = ((b2[0] + b2[2]) / 2.0, (b2[1] + b2[3]) / 2.0);
+        for l in a.project.data.loops.iter_mut() { shapes::rotate_about(l, cx, cy, 30.0); shapes::translate(l, 7.0, -3.0); }
+        let before = bbox(&a, gid);
+        a.edit_text(gid);
+        assert!(begin_edit(&mut a, gid));
+        assert_eq!(a.text.edit, Some(gid));
+        assert!((a.text.size - 24.0).abs() < 0.05, "size {}", a.text.size);
+        assert!((a.text.angle - 30.0).abs() < 0.05, "angle {}", a.text.angle);
+        // setting the same text again lands on the same place
+        a.text.refresh();
+        let again = shapes::bbox_many(a.text.preview.iter()).unwrap();
+        for i in 0..4 { assert!((again[i] - before[i]).abs() < 0.3, "{again:?} vs {before:?}"); }
+        // change the words and update: the group keeps its id and the new letters keep the size and the turn
+        a.text.content = "Hello".into();
+        place(&mut a);
+        assert_eq!(a.project.data.groups.len(), 1);
+        assert_eq!(a.project.data.groups[0].text.as_ref().unwrap().content, "Hello");
+        assert!((a.project.data.groups[0].text.as_ref().unwrap().size - 24.0).abs() < 0.05);
+        let after = bbox(&a, gid);
+        assert!(after[2] - after[0] > before[2] - before[0], "Hello is wider than Hi");
+        // and it can be edited again
+        a.edit_text(gid);
+        assert!(begin_edit(&mut a, gid));
+        assert!((a.text.angle - 30.0).abs() < 0.05);
+    }
+
+    #[test]
+    fn text_edited_as_shapes_becomes_plain_outlines() {
+        let mut a = placed("Hi");
+        let gid = a.project.data.groups[0].id;
+        a.project.data.loops[0].pts[0] += 3000; // one point pulled away
+        a.edit_text(gid);
+        assert!(begin_edit(&mut a, gid));
+        assert!(a.project.data.groups.is_empty());
+        assert!(a.project.data.loops.iter().all(|l| l.grp.is_none()));
+        assert!(a.error.is_some());
+    }
+
+    #[test]
+    fn to_outlines_keeps_the_letters() {
+        let mut a = placed("Hi");
+        let gid = a.project.data.groups[0].id;
+        let n = a.project.data.loops.len();
+        a.text_to_outlines(gid);
+        assert_eq!(a.project.data.loops.len(), n);
+        assert!(a.project.data.groups.is_empty());
+    }
+
+    #[test]
+    fn clicking_a_letter_selects_the_whole_text() {
+        let a = placed("Hi");
+        assert_eq!(a.text_siblings(0).len(), a.project.data.loops.len());
+    }
 }

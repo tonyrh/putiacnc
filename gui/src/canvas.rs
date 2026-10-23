@@ -264,18 +264,26 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     for (i, l) in app.project.data.loops.iter().enumerate() {
                         if shapes::inside_box(l, r) { app.sel.insert(i); }
                     }
+                    app.expand_text_selection();
                 }
                 app.drag = Drag::None;
             }
             if resp.double_clicked_by(prim) {
-                if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) { enter_node_edit(app, h); }
+                if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) {
+                    // placed text opens in the Text window; everything else in the node editor
+                    let text = app.project.data.loops[h].grp.filter(|g| app.project.data.groups.iter().any(|x| x.id == *g && x.text.is_some()));
+                    match text { Some(g) => { app.sel = app.text_siblings(h).into_iter().collect(); app.edit_text(g); } None => enter_node_edit(app, h) }
+                }
             }
             if resp.clicked_by(prim) && !resp.double_clicked() {
                 if let Some(w) = hover_w {
                     let hit = shapes::pick(&app.project.data.loops, w, tol);
                     match hit {
                         Some(h) => {
-                            if shift { if !app.sel.remove(&h) { app.sel.insert(h); } }
+                            if shift {
+                                let sib = app.text_siblings(h);
+                                if app.sel.contains(&h) { for i in sib { app.sel.remove(&i); } } else { app.sel.extend(sib); }
+                            }
                             else if app.sel.contains(&h) {
                                 // clicking a selected shape again swaps the resize handles for rotate handles and back
                                 if handles_apply(app) && !app.sel_locked() {
@@ -285,7 +293,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                                     } else { None };
                                 }
                             }
-                            else { app.sel.clear(); app.sel.insert(h); }
+                            else { app.sel = app.text_siblings(h).into_iter().collect(); }
                         }
                         None => if !shift { app.sel.clear(); },
                     }
@@ -1323,6 +1331,8 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if app.sel.is_empty() || app.mode != Mode::Select { return; }
     let before = app.project.data.clone();
     let sel = app.sel.clone();
+    let text_gid = app.selected_text();
+    let mut text_act = 0u8; // 1 edit, 2 convert to outlines
     let d = &mut app.project.data;
     let Some(b) = shapes::bbox_many(sel.iter().map(|&i| &d.loops[i])) else { return };
     // X and Y are relative to the XY zero, like the rulers and the pointer readout
@@ -1369,6 +1379,14 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     if ui.selectable_label(same && first_op == 0, "No operation").clicked() { pick = Some(0); }
                 }).response.on_hover_text("Operation applied to the selected shapes");
             });
+            if text_gid.is_some() {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    ui.label("Text");
+                    if ui.button("Edit text").on_hover_text("Change the words, font, size or place of this text (double-click does the same)").clicked() { text_act = 1; }
+                    if ui.button("To outlines").on_hover_text("Stop treating the letters as text: they become ordinary shapes you can edit point by point").clicked() { text_act = 2; }
+                });
+            }
         });
     });
     if locked { geom = false; radius_changed = false; }
@@ -1387,6 +1405,11 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             app.hist.open = true;
         }
         app.touch();
+    }
+    match (text_act, text_gid) {
+        (1, Some(g)) => app.edit_text(g),
+        (2, Some(g)) => app.text_to_outlines(g),
+        _ => {}
     }
 }
 

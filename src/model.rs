@@ -49,6 +49,22 @@ pub struct ShapeGroup {
     pub name: String,
     /// Locked: it cannot be moved, resized, rotated or flipped by accident.
     #[serde(default, skip_serializing_if = "is_false")] pub locked: bool,
+    /// Set when the shapes are letters placed with the Text tool: what it takes to set the same text again,
+    /// so the text can be edited later (see `text::fit_affine`).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub text: Option<TextSpec>,
+}
+
+/// The settings a text was set with. The shapes of its group are these settings turned into outlines at the
+/// origin, then moved, scaled, turned or flipped like any other shapes.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct TextSpec {
+    pub content: String,
+    /// The font as the Text tool names it ("DejaVu Sans Bold", "Hack"...).
+    pub font: String,
+    /// Height of capital letters and extra space between letters, in mm.
+    pub size: f64,
+    pub spacing: f64,
+    pub align: crate::text::Align,
 }
 
 /// A 3D model reduced to a height map (seen from above), carved by relief operations.
