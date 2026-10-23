@@ -665,18 +665,16 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let mut d = data.clone();
         let used = serde_json::to_string(&d.ops).unwrap_or_default();
         for t in d.tools.iter_mut() {
-            let mut what: Vec<String> = vec![];
-            let (r0, f0, p0) = (t.rpm, t.feed, t.plunge);
-            if let Some(m) = machine.rpm_max { if t.rpm > m { t.rpm = m; } }
-            if let Some(m) = machine.rpm_min { if t.rpm < m { t.rpm = m; } }
-            if let Some(m) = machine.feed_max { if t.feed > m { t.feed = m; } }
-            if let Some(m) = machine.plunge_max { if t.plunge > m { t.plunge = m; } }
             if !used.contains(&format!("\"{}\"", t.id)) { continue; }
-            if t.rpm != r0 { what.push(format!("spindle {} rpm (tool: {})", num(t.rpm), num(r0))); }
-            if t.feed != f0 { what.push(format!("feed {} {}/min (tool: {})", num(fl(t.feed)), un, num(fl(f0)))); }
-            if t.plunge != p0 { what.push(format!("plunge {} {}/min (tool: {})", num(fl(t.plunge)), un, num(fl(p0)))); }
+            let (r0, f0, p0) = (t.rpm, t.feed, t.plunge);
+            let h = machine.hold(t);
+            let mut what: Vec<String> = vec![];
+            if h.rpm != r0 { what.push(format!("spindle {} rpm (tool: {})", num(h.rpm), num(r0))); }
+            if h.feed != f0 { what.push(format!("feed {} {}/min (tool: {})", num(fl(h.feed)), un, num(fl(f0)))); }
+            if h.plunge != p0 { what.push(format!("plunge {} {}/min (tool: {})", num(fl(h.plunge)), un, num(fl(p0)))); }
             if !what.is_empty() { limit_notes.push(format!("⚠ {}: held to the machine's limits, {}.", if t.name.is_empty() { "Tool" } else { &t.name }, what.join(", "))); }
         }
+        for t in d.tools.iter_mut() { *t = machine.hold(t); }
         limited = d;
         &limited
     } else { data };

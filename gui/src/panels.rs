@@ -694,6 +694,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             }
         }
         let tools = d.tools.clone();
+        let machine_now = d.machine.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
         for i in 0..d.ops.len() {
@@ -1069,10 +1070,17 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 }
                 changed |= ui.checkbox(&mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed();
                 ui.add_space(4.0);
-                if let Some(t) = tools.iter().find(|t| t.id == p.tool) {
+                if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
+                    // what the machine will really run (its limits applied), with a warning when that differs from the tool
+                    let (t, warn) = match &machine_now { Some(m) => (m.hold(t0), m.hold_text(t0)), None => (t0.clone(), String::new()) };
                     let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
                     ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} mm/min · step {}% · {:.2} mm/pass",
                         putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, t.feed, t.plunge, t.so, t.pd));
+                    if !warn.is_empty() {
+                        let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
+                        ui.add(egui::Label::new(egui::RichText::new(format!("⚠ Held to the machine's limits: {warn}.")).color(col)).wrap(true))
+                            .on_hover_text("The G-code uses the limited values. Change the limits in Libraries → Machines, or the tool's values in the tool library.");
+                    }
                 }
             });
         }

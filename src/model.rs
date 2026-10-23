@@ -121,6 +121,28 @@ pub struct Machine {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub inches: Option<bool>,
 }
 
+impl Machine {
+    /// The tool as this machine can run it: spindle speed, feed and plunge held to the machine's limits.
+    pub fn hold(&self, t: &Tool) -> Tool {
+        let mut h = t.clone();
+        if let Some(m) = self.rpm_max { if h.rpm > m { h.rpm = m; } }
+        if let Some(m) = self.rpm_min { if h.rpm < m { h.rpm = m; } }
+        if let Some(m) = self.feed_max { if h.feed > m { h.feed = m; } }
+        if let Some(m) = self.plunge_max { if h.plunge > m { h.plunge = m; } }
+        h
+    }
+    /// What `hold` changes, as words ("spindle 11000 rpm (tool: 12000), feed ..."); empty when nothing changes. Feeds are in mm/min.
+    pub fn hold_text(&self, t: &Tool) -> String {
+        let h = self.hold(t);
+        let n = |v: f64| format!("{}", (v * 100.0).round() / 100.0);
+        let mut w: Vec<String> = vec![];
+        if h.rpm != t.rpm { w.push(format!("spindle {} rpm (tool: {})", n(h.rpm), n(t.rpm))); }
+        if h.feed != t.feed { w.push(format!("feed {} mm/min (tool: {})", n(h.feed), n(t.feed))); }
+        if h.plunge != t.plunge { w.push(format!("plunge {} mm/min (tool: {})", n(h.plunge), n(t.plunge))); }
+        w.join(", ")
+    }
+}
+
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),

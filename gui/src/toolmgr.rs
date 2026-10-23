@@ -509,6 +509,15 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 });
                 if n % 2 == 1 { ui.end_row(); }
             });
+            if let Some(m) = &app.project.data.machine {
+                let warn = m.hold_text(&t);
+                if !warn.is_empty() {
+                    let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
+                    ui.add_space(4.0);
+                    ui.add(egui::Label::new(egui::RichText::new(format!("⚠ \"{}\" holds this tool to {warn}.", m.name)).color(col)).wrap(true))
+                        .on_hover_text("The G-code uses the machine's limits, not the tool's values. Change them in Libraries → Machines.");
+                }
+            }
             ui.add_space(8.0);
             // what these numbers mean for the cut
             egui::Grid::new("tool_form_est").num_columns(2).spacing([sp, 4.0]).show(ui, |ui| {
