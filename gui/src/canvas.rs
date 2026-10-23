@@ -681,8 +681,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         }
     }
     if let Some(p) = pointer_w {
-        if let Some(v) = crate::dynin::preview(app, app.snap(p), zero) {
-            painter.add(egui::Shape::line(v.iter().map(|q| to_s(*q)).collect(), Stroke::new(2.0_f32, prev_col)));
+        if let Some(all) = crate::dynin::preview(app, app.snap(p), zero) {
+            for v in all { painter.add(egui::Shape::line(v.iter().map(|q| to_s(*q)).collect(), Stroke::new(2.0_f32, prev_col))); }
         }
     }
     if app.mode == Mode::Line && !app.poly.is_empty() {
@@ -1120,8 +1120,8 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
         Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
         Mode::Ellipse => if app.circle_mode { "Drag from the centre: the distance is the radius. Or just type: centre X, Y and the size." } else { "Drag a bounding box. Hold Shift for a circle." },
-        Mode::Point => "Click to place a drill point, or choose Grid and drag a box for columns x rows of holes, or Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Assign the points to a Drill operation. Esc finishes.",
-        Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
+        Mode::Point => "Click to place a drill point, or choose Grid and drag a box for columns x rows of holes, or Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Or type the position (grid: corner and size; bolt circle: centre, radius, angle). Assign the points to a Drill operation. Esc finishes.",
+        Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above. Or type: centre X, Y, radius and angle.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
         Mode::Trim => if app.trim_extend { "Click near the end of an open line: it runs on in a straight line to the first shape it meets." } else { "Click the part of a shape you want to remove: it goes up to the nearest crossing on each side (shown in red). A closed shape needs two crossings." },
     } };
