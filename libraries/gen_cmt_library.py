@@ -302,6 +302,26 @@ add(name="90\u00b0 V-bit \u00d812.7, 6 mm cut (Amana 45704M)", sys="mm", shape="
 add(name="\u00d828.5 surfacing cutter, 12.5 mm (Amana 45523)", sys="mm", shape="flat", angle=60.0, flutes=2, dia=28.5, rpm=12000, feed=1800.0, plunge=300.0, so=70.0, pd=1.0,
     notes="Amana Tool 45523 carbide-tipped spoilboard surfacing / flycutter bit, \u00d828.5 mm, cutting length 12.5 mm, shank 6 mm. The title does not give the flute count; 2 assumed. Take shallow passes with about 70% stepover. Dimensions from the product title on amanatool.com; feeds and speeds are conservative starting values, not Amana's.")
 
+# Amana point cutting roundover bits (the page you gave lists these): convex arc profile, arc radius R, diameter D, cutting length, shank.
+# 56126 and 56121 are the same bit with a 1/4" or a 1/2" shank, so they are one tool. The titles give no flute count; 2 assumed.
+PCR = [("56123-M","Carbide tipped","6","12","13",None,"6"),("56125-M","Solid carbide","3","6","8",None,"6"),
+       ("56125","Solid carbide","1/8","1/4","5/16","in","1/4"),("56126","Carbide tipped","3/16","3/8","19/64","in","1/4"),
+       ("56128","Carbide tipped","19/64","19/32","1/2","in","1/4"),("56142","Solid carbide","1/16","9/64","7/32","in","1/4"),
+       ("56143","Solid carbide","3/32","13/64","1/4","in","1/4"),("56141","Solid carbide","1/32","5/64","3/16","in","1/4")]
+for code, mat, R, D, H, unit, S in PCR:
+    inch_ = unit == "in"
+    r_mm, d_mm, h_mm, s_mm = [(inch(x) * MM if inch_ else float(x)) for x in (R, D, H, S)]
+    rpm_, feed, plunge, so, pd = speeds(d_mm, 2, "arc")
+    sys_ = "in" if inch_ else "mm"
+    fmtv = (lambda v: frac(v) + "\u2033") if inch_ else (lambda v: "\u00d8" + fmt(v))
+    extra = " Also made with a 1/2\u2033 shank as Amana 56121 (cutting length 5/16\u2033); not a separate tool." if code == "56126" else ""
+    t = add(name="R%s point cutting roundover, %s (Amana %s)" % (fmt(r_mm) + " mm" if not inch_ else frac(r_mm) + "\u2033", fmtv(d_mm), code), sys=sys_, shape="arc", angle=60.0, flutes=2,
+            dia=round(d_mm, 3), rpm=min(rpm_, 12000), feed=min(feed, 1200.0), plunge=min(plunge, 250.0), so=40.0, pd=max(0.3, min(pd, r_mm)),
+            notes=("Amana Tool %s %s point cutting roundover, convex arc radius %s mm, diameter %s mm, cutting length %s mm, shank %s mm. For rounding edges and relief carving; "
+                   "the title does not give the flute count (2 assumed).%s Dimensions from the product title on amanatool.com; feeds and speeds are conservative starting values, not Amana's.")
+            % (code, mat.lower(), fmt(r_mm), fmt(d_mm), fmt(h_mm), fmt(s_mm), extra))
+    tools[-1]["arc"] = round(r_mm, 3)
+
 # remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
 def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
