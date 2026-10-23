@@ -177,8 +177,7 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.checkbox(&mut app.grid_on, "Grid");
         crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, " mm").on_hover_text("Grid size (also the snap step)");
-        ui.checkbox(&mut app.snap_on, "Snap").on_hover_text("Snap to the grid");
-        ui.checkbox(&mut app.osnap_on, "Objects").on_hover_text("Snap to the corners, midpoints, centres and crossings of shapes, and to the stock");
+        ui.checkbox(&mut app.snap_on, "Snap").on_hover_text("Snap to the grid (snapping to shapes is in the Guides menu)");
         // view toggles on the right (right-to-left, so listed in reverse)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             guides_menu(ui, app);
@@ -218,6 +217,8 @@ fn guides_menu(ui: &mut Ui, app: &mut App) {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.style_mut().wrap = Some(false);
                     ui.set_min_width(120.0);
+                    ui.checkbox(&mut app.osnap_on, "Snap to shapes").on_hover_text("Snap to the corners, midpoints, centres and crossings of shapes, and to the stock");
+                    ui.separator();
                     ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
                     ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
                     ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
