@@ -82,7 +82,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if item(ui, "New project", "Ctrl+N", true) { app.request(Action::New); }
-            if item(ui, "Open...", "Ctrl+O", true) { app.open_dialog(); }
+            if item(ui, "Open project...", "Ctrl+O", true) { app.open_dialog(); }
             let recent: Vec<String> = app.prefs.recent.iter().filter(|p| std::path::Path::new(p.as_str()).is_file()).cloned().collect();
             ui.add_enabled_ui(!recent.is_empty(), |ui| {
                 ui.menu_button("Open recent", |ui| {
@@ -165,7 +165,7 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
             // same right-hand spots as in the 2D toolbar; the hint takes the left
             let mut dummy = false;
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add_visible(false, egui::Checkbox::new(&mut dummy, "Guides ▼")); // keeps the spacing identical
+                ui.add_visible(false, egui::Checkbox::new(&mut dummy, "Guides")); // keeps the spacing identical
                 ui.checkbox(&mut app.show_rapids, "Rapids");
                 ui.checkbox(&mut app.show_toolpath, "Toolpaths");
             });
@@ -178,7 +178,7 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
         ui.checkbox(&mut app.snap_on, "Snap");
         // view toggles on the right (right-to-left, so listed in reverse)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.menu_button("Guides ▼", |ui| {
+            ui.menu_button("Guides", |ui| {
                 ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
                 ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
                 ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");

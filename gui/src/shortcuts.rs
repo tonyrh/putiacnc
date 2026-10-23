@@ -18,7 +18,7 @@ const LEFT: &[Section] = &[
     ]),
     ("Project", &[
         ("Ctrl+N", "New project"),
-        ("Ctrl+O", "Open"),
+        ("Ctrl+O", "Open project"),
         ("Ctrl+S", "Save"),
         ("Ctrl+Shift+S", "Save as"),
         ("Ctrl+I", "Import vectors (SVG or DXF)"),
