@@ -274,6 +274,7 @@ pub fn status_bar(ui: &mut Ui, app: &App) {
                 ui.separator();
                 ui.label(format!("{} lines, generated in {:.0} ms", o.lines.len(), app.gen_ms));
             }
+            None if app.project.data.ops.is_empty() => { ui.label("Add an operation to generate G-code"); }
             None => { ui.label(app.gen_error.clone().unwrap_or_else(|| "No G-code".into())); }
         }
         ui.separator();
