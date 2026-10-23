@@ -316,6 +316,18 @@ mod tests {
         assert_eq!(fmt_dia(6.0, "mm", true), "6 mm");
         assert_eq!(fmt_dia(3.2, "mm", true), "3.2 mm");
     }
+    #[test]
+    fn the_cmt_library_file_imports() {
+        let mut l = ToolLibs::default();
+        let before = l.libs.len();
+        let (name, n) = l.import(include_str!("../libraries/cmt-cnc-bits.json")).unwrap();
+        assert_eq!(name, "CMT CNC bits");
+        assert!(n > 100);
+        assert_eq!(l.libs.len(), before + 1);
+        let lib = l.libs.last().unwrap();
+        assert!(lib.tools.iter().all(|t| t.dia > 1.0 && t.dia < 40.0 && t.feed > 0.0 && t.rpm <= 12000.0));
+        assert!(lib.tools.iter().any(|t| t.shape == "vbit" && (t.angle - 135.0).abs() < 0.01));
+    }
     use crate::model::OpParams;
 
     fn op(id: i64, tool: &str) -> Operation {
