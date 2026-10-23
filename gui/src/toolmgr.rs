@@ -167,7 +167,7 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     let mut open = true;
     let mut close = false;
     egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(true)
-        .default_size([940.0, 520.0]).min_width(820.0)
+        .default_size([880.0, 520.0]).min_width(760.0)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Tool library", true) { close = true; }
@@ -198,7 +198,7 @@ fn body(ui: &mut Ui, app: &mut App) {
     let fid = egui::Id::new("tool_form_h");
     let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(370.0).max(370.0);
     ui.horizontal_top(|ui| {
-        ui.allocate_ui_with_layout(egui::vec2(330.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
+        ui.allocate_ui_with_layout(egui::vec2(270.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
         // fixed-height divider (ui.separator() would stretch to the whole available height and make the window grow)
         let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
         ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
@@ -246,7 +246,16 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                   let font = egui::TextStyle::Body.resolve(ui.style());
                   let dia = format!("Ø{}", toollib::fmt_dia(t.dia, &t.sys, false));
                   let gd = ui.painter().layout_no_wrap(dia, font.clone(), col.gamma_multiply(0.7));
-                  let gn = ui.painter().layout_no_wrap(t.name.replace('″', "\""), font, col);
+                  // the name is cut with an ellipsis where it would run into the diameter (the tooltip has the full name)
+                  let room = rect.max.x - gd.size().x - 14.0 - (rect.min.x + 36.0);
+                  let full = t.name.replace('″', "\"");
+                  let mut chars: Vec<char> = full.chars().collect();
+                  let mut gn = ui.painter().layout_no_wrap(full.clone(), font.clone(), col);
+                  while gn.size().x > room && chars.len() > 1 {
+                      chars.pop();
+                      while chars.last() == Some(&' ') { chars.pop(); }
+                      gn = ui.painter().layout_no_wrap(format!("{}\u{2026}", chars.iter().collect::<String>()), font.clone(), col);
+                  }
                   let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - gd.size().x - 14.0, rect.max.y)));
                   clip.galley(egui::pos2(rect.min.x + 36.0, rect.center().y - gn.size().y / 2.0), gn, col);
                   ui.painter().galley(egui::pos2(rect.max.x - gd.size().x - 8.0, rect.center().y - gd.size().y / 2.0), gd, col);
