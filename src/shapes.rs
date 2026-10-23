@@ -189,15 +189,21 @@ pub fn has_corners(l: &LoopData) -> bool { corner_count(l) > 0 }
 /// A corner too tight for the size gets the largest one that fits. Returns the new shape, the number of
 /// corners done and how many of them had to be made smaller; `None` when there is no corner.
 pub fn round_corners(l: &LoopData, kind: CornerKind, size: f64) -> Option<(LoopData, usize, usize)> {
+    round_corners_at(l, kind, size, None)
+}
+
+/// Like `round_corners`, but only the corners at the listed point numbers (`None` = all of them).
+pub fn round_corners_at(l: &LoopData, kind: CornerKind, size: f64, only: Option<&std::collections::BTreeSet<usize>>) -> Option<(LoopData, usize, usize)> {
     if l.cr.is_some() || l.el.is_some() || size <= 1e-6 { return None; }
     let closed = l.closed();
     let p = pts_mm(l);
     let n = p.len();
-    let sharp: Vec<bool> = (0..n).map(|i| corner_at(&p, i, closed).is_some()).collect();
+    let chosen = |i: usize| only.map_or(true, |s| s.contains(&i));
+    let sharp: Vec<bool> = (0..n).map(|i| chosen(i) && corner_at(&p, i, closed).is_some()).collect();
     let (mut done, mut limited) = (0, 0);
     let mut out: Vec<[f64; 2]> = Vec::new();
     for i in 0..n {
-        let Some((phi, ua, ub, da, db)) = corner_at(&p, i, closed) else { out.push(p[i]); continue };
+        let Some((phi, ua, ub, da, db)) = corner_at(&p, i, closed).filter(|_| chosen(i)) else { out.push(p[i]); continue };
         // a neighbour that is a corner too may use half of the shared edge, the other half is its own
         let (ia, ib) = ((i + n - 1) % n, (i + 1) % n);
         let (la, lb) = (da * if sharp[ia] { 0.5 } else { 1.0 }, db * if sharp[ib] { 0.5 } else { 1.0 });
@@ -679,6 +685,18 @@ mod tests {
     }
 
     fn area_mm2(l: &LoopData) -> f64 { crate::clip::area(&l.path()).abs() / (S * S) }
+
+    #[test]
+    fn only_the_chosen_corners_are_rounded() {
+        let sq = new_poly(&[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]], true, 1).unwrap();
+        let mut only = std::collections::BTreeSet::new();
+        only.insert(2usize);
+        let (c, n, _) = round_corners_at(&sq, CornerKind::Chamfer, 2.0, Some(&only)).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(c.pts.len() / 2, 5); // three corners stay, one becomes two points
+        // an empty choice does nothing
+        assert!(round_corners_at(&sq, CornerKind::Chamfer, 2.0, Some(&std::collections::BTreeSet::new())).is_none());
+    }
 
     #[test]
     fn corners_are_rounded_and_bevelled() {

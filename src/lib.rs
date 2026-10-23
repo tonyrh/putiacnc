@@ -11,6 +11,7 @@ pub mod svg;
 pub mod text;
 pub mod toollib;
 pub mod toolpath;
+pub mod trim;
 
 pub use model::{ProjectFile, ProjectData, Units};
 pub use toolpath::{generate, Output};

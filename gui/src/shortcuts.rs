@@ -14,6 +14,7 @@ const LEFT: &[Section] = &[
         ("D", "Drill point (click to place, stays active)"),
         ("P", "Polygon or star (Shift: point straight up)"),
         ("T", "Text"),
+        ("X", "Trim and extend"),
         ("Esc", "Cancel, deselect, back to Select"),
     ]),
     ("Project", &[

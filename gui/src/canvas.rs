@@ -56,6 +56,10 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         set_mode(app, Mode::Text);
         return;
     }
+    if ctx.input(|i| i.key_pressed(Key::X) && !i.modifiers.command && !i.modifiers.alt) {
+        set_mode(app, Mode::Trim);
+        return;
+    }
     let (v, l, r, e, pg, dp, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
         (
@@ -291,6 +295,11 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) { enter_node_edit(app, h); }
             }
             if hover_w.map_or(false, |w| shapes::pick(&app.project.data.loops, w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
+        }
+        Some(Mode::Trim) => {
+            if resp.clicked_by(prim) {
+                if let Some(w) = hover_w { trim_click(app, w, 8.0 / app.scale as f64); }
+            }
         }
         Some(Mode::Text) => {
             if resp.clicked_by(prim) {
@@ -698,6 +707,24 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         }
         painter.text(c + Vec2::new(10.0, 10.0), egui::Align2::LEFT_TOP, m.kind.label(), egui::FontId::proportional(11.0), th.shape_selected());
     }
+    if app.mode == Mode::Trim {
+        if let Some(w) = hover_w {
+            match trim_hover(app, w, 8.0 / app.scale as f64) {
+                Some(TrimHover::Trim(_, plan)) => {
+                    painter.add(egui::Shape::line(plan.remove.iter().map(|q| to_s(*q)).collect(), Stroke::new(4.0_f32, Color32::from_rgb(220, 50, 47))));
+                }
+                Some(TrimHover::Extend(_, plan)) => {
+                    painter.line_segment([to_s(plan.from), to_s(plan.to)], Stroke::new(3.0_f32, Color32::from_rgb(40, 160, 90)));
+                    painter.circle_filled(to_s(plan.to), 4.0, Color32::from_rgb(40, 160, 90));
+                }
+                Some(TrimHover::Nothing) => {
+                    let m = if app.trim_extend { "nothing to run on to" } else { "nothing crosses here" };
+                    painter.text(to_s(w) + Vec2::new(12.0, 14.0), egui::Align2::LEFT_TOP, m, egui::FontId::proportional(12.0), th.hud());
+                }
+                None => {}
+            }
+        }
+    }
     if let Some(h) = hover_w {
         let c = app.snap(h);
         if app.mode != Mode::Select && app.mode != Mode::Node && marker.is_none() { painter.circle_stroke(to_s(c), 5.0, Stroke::new(1.0_f32, th.shape_selected())); }
@@ -917,8 +944,51 @@ fn move_target(app: &App, start: [f64; 2], anchor: [f64; 2], applied: [f64; 2], 
     }
 }
 
+enum TrimHover { Trim(usize, putiacnc_core::trim::TrimPlan), Extend(usize, putiacnc_core::trim::ExtendPlan), Nothing }
+
+/// What a click at `w` would trim or extend: the shape nearest the pointer (open ones only when extending).
+fn trim_hover(app: &App, w: [f64; 2], tol: f64) -> Option<TrimHover> {
+    let loops = &app.project.data.loops;
+    let t = loops.iter().enumerate()
+        .filter(|(_, l)| !shapes::is_point(l) && (!app.trim_extend || !l.closed()))
+        .map(|(i, l)| (i, shapes::dist_to_loop(l, w)))
+        .filter(|(_, d)| *d <= tol)
+        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .map(|(i, _)| i)?;
+    Some(if app.trim_extend {
+        match putiacnc_core::trim::plan_extend(loops, t, w) { Some(p) => TrimHover::Extend(t, p), None => TrimHover::Nothing }
+    } else {
+        match putiacnc_core::trim::plan_trim(loops, t, w) { Some(p) => TrimHover::Trim(t, p), None => TrimHover::Nothing }
+    })
+}
+
+fn trim_click(app: &mut App, w: [f64; 2], tol: f64) {
+    match trim_hover(app, w, tol) {
+        Some(TrimHover::Trim(t, plan)) => {
+            let pieces = putiacnc_core::trim::trimmed_shapes(&app.project.data.loops[t], &plan);
+            app.hist.record(&app.project.data);
+            let mut it = pieces.into_iter();
+            match it.next() {
+                // the first piece takes the shape's place, so every other shape keeps its number
+                Some(first) => { app.project.data.loops[t] = first; app.project.data.loops.extend(it); }
+                None => { app.project.data.loops.remove(t); shapes::tabs_after_delete(&mut app.project.data.ops, &[t]); }
+            }
+            app.sel.clear();
+            app.touch();
+        }
+        Some(TrimHover::Extend(t, plan)) => {
+            let r = putiacnc_core::trim::extended_shape(&app.project.data.loops[t], &plan);
+            app.hist.record(&app.project.data);
+            app.project.data.loops[t] = r;
+            app.sel.clear();
+            app.touch();
+        }
+        _ => {}
+    }
+}
+
 fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
-    if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
+    if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect | Mode::Trim) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
     egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 62.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
           ui.horizontal(|ui| {
@@ -966,6 +1036,10 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     ui.weak("%");
                 }
             }
+            if app.mode == Mode::Trim {
+                if ui.selectable_label(!app.trim_extend, "Trim").on_hover_text("Remove the part of a shape between the nearest crossings").clicked() { app.trim_extend = false; }
+                if ui.selectable_label(app.trim_extend, "Extend").on_hover_text("Run the end of an open line on to the next shape").clicked() { app.trim_extend = true; }
+            }
             if app.mode == Mode::Rect {
                 ui.label("Radius");
                 ui.add_space(6.0);
@@ -988,7 +1062,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
             for (m, icon, tip) in [
                 (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
-                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Point, Icon::Point, "Drill point (D): click to place, use with a Drill operation"), (Mode::Text, Icon::Text, "Text (T)"),
+                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Point, Icon::Point, "Drill point (D): click to place, use with a Drill operation"), (Mode::Text, Icon::Text, "Text (T)"), (Mode::Trim, Icon::Trim, "Trim and extend (X): click the part of a line to remove, or switch to Extend to run a line out to the next shape"),
             ] {
                 if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
             }
@@ -1022,6 +1096,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Point => "Click to place a drill point, or choose Grid and drag a box for columns x rows of holes, or Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Assign the points to a Drill operation. Esc finishes.",
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above.",
         Mode::Text => "Click where the text should start, then type it in the Text window.",
+        Mode::Trim => if app.trim_extend { "Click near the end of an open line: it runs on in a straight line to the first shape it meets." } else { "Click the part of a shape you want to remove: it goes up to the nearest crossing on each side (shown in red). A closed shape needs two crossings." },
     } };
     if app.trace.open { return; } // the bitmap dialog covers that part of the canvas
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
@@ -1418,7 +1493,7 @@ fn set_mode(app: &mut App, m: Mode) {
     app.node_edit = None;
     app.node_drag = NodeDrag::None;
     // the drawing tools start from a clean slate: nothing stays selected behind the new shape
-    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Point | Mode::Text) { app.sel.clear(); }
+    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Point | Mode::Text | Mode::Trim) { app.sel.clear(); }
     if m == Mode::Node && app.sel.len() == 1 { let i = *app.sel.iter().next().unwrap(); enter_node_edit(app, i); }
 }
 
@@ -1460,7 +1535,7 @@ fn node_keys(ctx: &egui::Context, app: &mut App) {
     // other tool shortcuts leave point editing
     let tool = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
-        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::P, Mode::Polygon), (Key::D, Mode::Point), (Key::T, Mode::Text)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
+        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::P, Mode::Polygon), (Key::D, Mode::Point), (Key::T, Mode::Text), (Key::X, Mode::Trim)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
     });
     if let Some(m) = tool { set_mode(app, m); return; }
     if del && !app.node_sel.is_empty() {
@@ -1553,8 +1628,9 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let Some(l) = app.project.data.loops.get(li) else { return };
     let n = l.pts.len() / 2;
     let plain = l.rc.is_none() && l.cr.is_none() && l.el.is_none();
-    let (mut done, mut simplify) = (false, false);
+    let (mut done, mut simplify, mut corner) = (false, false, false);
     let mut tol = app.node_tol;
+    let (mut cham, mut csize, nsel) = (app.corners.chamfer, app.corners.size, app.node_sel.len());
     egui::Area::new(egui::Id::new("nodebar")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 66.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 6.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -1566,11 +1642,37 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.add_space(6.0);
                 if crate::icons::icon_text_button(ui, Icon::Close, "Done", "Stop editing points (Esc)", None).clicked() { done = true; }
             });
+            ui.horizontal(|ui| {
+                ui.label("Corners");
+                ui.add_space(4.0);
+                if ui.selectable_label(!cham, "Fillet").on_hover_text("Round the selected corners").clicked() { cham = false; }
+                if ui.selectable_label(cham, "Chamfer").on_hover_text("Bevel the selected corners").clicked() { cham = true; }
+                ui.add_space(4.0);
+                crate::widgets::num(ui, [64.0, 24.0], &mut csize, 0.01, 1000.0, 0.25, 2, "");
+                ui.weak("mm");
+                ui.add_space(4.0);
+                if ui.add_enabled(nsel > 0, egui::Button::new(if nsel > 0 { format!("Apply to {nsel} selected") } else { "Apply to selected".to_string() })).on_hover_text("Click a point (Shift-click or drag a box for several), then round or bevel just those corners").clicked() { corner = true; }
+            });
             if !plain { ui.weak("Changing a point turns this rectangle or ellipse into a plain polygon."); }
             if !app.node_msg.is_empty() { ui.weak(app.node_msg.as_str()); }
         });
     });
     app.node_tol = tol;
+    app.corners.chamfer = cham;
+    app.corners.size = csize;
+    if corner {
+        let kind = if cham { shapes::CornerKind::Chamfer } else { shapes::CornerKind::Fillet };
+        match shapes::round_corners_at(&app.project.data.loops[li], kind, csize, Some(&app.node_sel)) {
+            Some((r, n, lim)) => {
+                app.hist.record(&app.project.data);
+                app.project.data.loops[li] = r;
+                app.node_sel.clear();
+                app.touch();
+                app.node_msg = format!("{} {n} corner{}{}.", if cham { "Chamfered" } else { "Rounded" }, if n == 1 { "" } else { "s" }, if lim > 0 { format!(" ({lim} too tight, made as large as fits)") } else { String::new() });
+            }
+            None => app.node_msg = "The selected points are not sharp corners.".into(),
+        }
+    }
     if simplify {
         let mut probe = app.project.data.loops[li].clone();
         let (before, after) = shapes::simplify(&mut probe, tol);
