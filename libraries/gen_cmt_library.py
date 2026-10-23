@@ -322,6 +322,101 @@ for code, mat, R, D, H, unit, S in PCR:
             % (code, mat.lower(), fmt(r_mm), fmt(d_mm), fmt(h_mm), fmt(s_mm), extra))
     tools[-1]["arc"] = round(r_mm, 3)
 
+# ---- Amana Tool CNC booklet (rows read from the PDF by amana_extract.py) ---------------------------------------------------------------
+import os
+_rows = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "amana_booklet.json")))
+
+def cutlen(t):
+    m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
+    return m.group(1) if m else ""
+def _shank(t):
+    m = re.search(r"shank ([0-9.]+) mm", t["notes"]); return float(m.group(1)) if m else None
+def _direction(t):
+    n = t["name"]
+    return "down" if "downcut" in n else ("up" if ("upcut" in n or "aluminium" in n or "plastic" in n) else "")
+def _class(t):
+    n = t["name"]
+    if "compression" in n or "Compression" in t["notes"][:80]: return "comp"
+    if t["shape"] == "ball": return "ball"
+    if t["shape"] == "flat" and ("spiral" in n or "chipbreaker" in n): return "spiral"
+    return ""
+def _same_geo(t, cls, D, B, d, Z, sys_flutes_ok=True):
+    if _class(t) != cls or abs(t["dia"] - D) > 0.15 or t["flutes"] != Z: return False
+    cl = cutlen(t)
+    if not cl or abs(float(cl) - B) > 0.35: return False
+    sh = _shank(t)
+    return sh is None or abs(sh - d) <= 0.1
+def _stripcode(c): return c.split("-")[0]
+
+groups = {}
+for r in _rows:
+    if r["D"] < 1.5: continue                       # micro bits are not worth a tool-library slot
+    cls = "comp" if r["fam"] == "compression" else ("ball" if r["R"] else "spiral")
+    key = (r["fam"], cls, round(r["D"], 1), round(r["B"], 1), round(r["d"], 1), round(r["L"], 0), r["Z"], round(r["R"] or 0, 2), round(r["B1"] or 0, 1))
+    g = groups.setdefault(key, dict(r=r, up=[], down=[], comp=[]))
+    for k in ("up", "down", "comp"):
+        for c in r[k]:
+            if c not in g[k]: g[k].append(c)
+n_amana = n_merged = 0
+for key, g in groups.items():
+    r = g["r"]; fam, cls = key[0], key[1]
+    D, B, d, L, Z = r["D"], r["B"], r["d"], r["L"], r["Z"]
+    allcodes = g["up"] + g["down"] + g["comp"]
+    # already in the library by code (the title-derived Amana entries), or the same geometry from CMT: note the code there
+    def known():
+        for t in tools:
+            if any(_stripcode(c) in t["notes"] for c in allcodes): return t
+        return None
+    def match(direction):
+        for t in tools:
+            if _same_geo(t, cls, D, B, d, Z) and (cls in ("comp", "ball") or _direction(t) in (direction, "")): return t
+        return None
+    kt = known()
+    if kt is not None:
+        n_merged += 1; continue
+    pending = {"up": g["up"], "down": g["down"], "comp": g["comp"]}
+    for dirn in ("up", "down", "comp"):
+        if pending[dirn] and cls != "comp" or (cls == "comp" and dirn == "comp" and pending[dirn]):
+            t = match("up" if dirn == "comp" else dirn)
+            if t is not None and (cls != "comp" or True) and not (cls == "spiral" and fam == "plastic" and "plastic" not in t["name"] and "aluminium" not in t["name"] and False):
+                t["notes"] += " Amana equivalent: %s (booklet page %d)." % (", ".join(pending[dirn]), r["page"]); pending[dirn] = []; n_merged += 1
+    left = [k for k in ("up", "down", "comp") if pending[k]]
+    if not left: continue
+    codes = pending["up"] + pending["down"] + pending["comp"]
+    inch_ = is_inch(D) and is_inch(d) if False else (abs(D / MM * 64 - round(D / MM * 64)) < 0.03 and abs(D - round(D)) > 1e-6)
+    sys_ = "in" if inch_ else "mm"
+    cutl = (frac(B) + "\u2033") if inch_ else fmt(B) + " mm"
+    if cls == "comp": dword = "compression spiral"; shape = "flat"
+    elif cls == "ball": dword = "ball nose"; shape = "ball"
+    else:
+        dw = "up/downcut" if (pending["up"] and pending["down"]) else ("upcut" if pending["up"] else "downcut")
+        if fam == "plastic":
+            what = "plastic O-flute" if Z == 1 else ("plastic double O-flute" if r["page"] == 31 else "plastic straight-grind")
+        else:
+            what = "chipbreaker spiral" if (r["page"] in (91, 92) and Z == 3) else "spiral"
+        dword = dw + " " + what; shape = "flat"
+    zeff = Z
+    rpm_, feed, plunge, so, pd = speeds(D, zeff, shape, slow=(fam == "plastic"))
+    if D <= 6.5 and fam != "plastic": pd = min(pd, D * 0.5)
+    first = codes[0]
+    code_list = []
+    if pending["up"]: code_list.append("up " + ", ".join(pending["up"]))
+    if pending["down"]: code_list.append("down " + ", ".join(pending["down"]))
+    if pending["comp"]: code_list.append(", ".join(pending["comp"]))
+    note = ("Amana Tool %s %s, solid carbide, %d flute%s. Cutting length %s mm, overall %s mm, shank %s mm.%s Codes: %s%s. "
+            "Dimensions from Amana's CNC booklet (page %d); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version."
+            % (first, dword, Z, "" if Z == 1 else "s", fmt(B), fmt(L), fmt(d),
+               (" Compression section B1 %s mm." % fmt(r["B1"])) if (cls == "comp" and r["B1"]) else "",
+               "; ".join(code_list), ("; radius %s mm" % fmt(r["R"])) if r["R"] else "", r["page"]))
+    short = lambda w: w.replace("chipbreaker spiral", "chipbreaker").replace("plastic straight-grind", "plastic").replace("plastic double O-flute", "plastic dbl O").replace("up/downcut", "up/down")
+    base = "%s %s Z%d, %s" % (label(D, sys_), dword, Z, cutl)
+    if len(base) + 14 > 60: base = "%s %s Z%d, %s" % (label(D, sys_), short(dword), Z, cutl)
+    if len(base) + 4 + 14 <= 60: base += " cut"
+    add(name=base + " (Amana %s)" % first.split("-")[0],
+        sys=sys_, shape=shape, angle=60.0, flutes=Z, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 2000.0), plunge=plunge, so=so, pd=pd, notes=note)
+    n_amana += 1
+print("amana: %d new tools, %d rows merged into existing tools" % (n_amana, n_merged), file=_sys.stderr)
+
 # remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
 def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
