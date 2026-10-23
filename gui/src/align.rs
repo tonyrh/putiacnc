@@ -71,7 +71,7 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
                 ui.horizontal(|ui| {
                     let lw = 120.0;
                     // labels flush right in one column, so the three rows line up
-                    let (r, _) = ui.allocate_exact_size(Vec2::new(lw, 28.0), egui::Sense::hover());
+                    let (r, _) = ui.allocate_exact_size(Vec2::new(lw, 36.0), egui::Sense::hover());
                     ui.painter().text(r.right_center(), egui::Align2::RIGHT_CENTER, title, egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
                     ui.add_space(14.0);
                     for (pos, (k, icon, tip, on)) in items.iter().enumerate() {
