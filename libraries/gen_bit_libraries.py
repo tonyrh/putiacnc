@@ -500,7 +500,8 @@ def kind(t):
     base = re.split(r",| Z\d| \u00d8", base)[0].strip()
     if t["shape"] == "vbit": return "vbit"
     if t["shape"] == "ball": return "spiral round nose" if "spiral" in n else "router round nose"
-    if "plastic" in n: return "plastic"
+    if "chipbreaker" in n: return "chipbreaker " + re.sub(r"\d+", "", base)
+    if "plastic" in n: return "plastic " + ("straight-grind" if ("straight" in n or "double" not in n and "O-flute" not in n) else "O-flute") + (" double" if "double" in n else "")
     if "straight" in n: return "straight"
     if "surfacing" in n: return "surfacing"
     if "compression" in n: return "compression"
@@ -614,7 +615,8 @@ for code, D, cl, sh, z in [("6210","1","1/4","1/4",3),("6220","2","1/4","1/2",4)
 
 unique = []
 for t in tools:
-    k = (t["brand"], t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t), round(t.get("tip", 0.0), 2))
+    tipped = bool(re.search(r"carbide[- ]tipped|\(HW\)", t["notes"], re.I))     # a carbide-tipped bit and a solid carbide one are different tools
+    k = (t["brand"], t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t), round(t.get("tip", 0.0), 2), tipped)
     cl = float(cutlen(t) or 0)
     dup = next((u for u, uk, ucl in unique if uk == k and abs(ucl - cl) < 0.5), None)
     if dup is not None:
