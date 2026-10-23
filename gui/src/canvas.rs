@@ -54,6 +54,9 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     }
     if ctx.input(|i| i.key_pressed(Key::T) && !i.modifiers.command && !i.modifiers.alt) {
         set_mode(app, Mode::Text);
+        // the key that opened the window must not be typed into it
+        ctx.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Text(_))));
+        app.text.focus = true;
         return;
     }
     if ctx.input(|i| i.key_pressed(Key::X) && !i.modifiers.command && !i.modifiers.alt) {
@@ -1122,7 +1125,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Ellipse => if app.circle_mode { "Drag from the centre: the distance is the radius. Or just type: centre X, Y and the size." } else { "Drag a bounding box. Hold Shift for a circle." },
         Mode::Point => "Click to place a drill point, or choose Grid and drag a box for columns x rows of holes, or Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Or type the position (grid: corner and size; bolt circle: centre, radius, angle). Assign the points to a Drill operation. Esc finishes.",
         Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above. Or type: centre X, Y, radius and angle.",
-        Mode::Text => "Click where the text should start, then type it in the Text window.",
+        Mode::Text => "Type the text in the Text window. Click the drawing where it should start, or type X and Y there.",
         Mode::Trim => if app.trim_extend { "Click near the end of an open line: it runs on in a straight line to the first shape it meets." } else { "Click the part of a shape you want to remove: it goes up to the nearest crossing on each side (shown in red). A closed shape needs two crossings." },
     } };
     if app.trace.open || app.clean.open { return; } // a dialog covers that part of the canvas
@@ -1521,6 +1524,8 @@ fn set_mode(app: &mut App, m: Mode) {
     app.node_drag = NodeDrag::None;
     // the drawing tools start from a clean slate: nothing stays selected behind the new shape
     if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Point | Mode::Text | Mode::Trim) { app.sel.clear(); }
+    // the text window opens with the tool, so a position can be typed without clicking first
+    if m == Mode::Text { app.text.open = true; }
     if m == Mode::Node && app.sel.len() == 1 { let i = *app.sel.iter().next().unwrap(); enter_node_edit(app, i); }
 }
 

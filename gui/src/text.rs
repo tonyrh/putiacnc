@@ -161,17 +161,38 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.text.open { return; }
     app.text.poll();
     if app.text.db.is_none() { app.text.load(ctx); }
+    // text starts at the XY zero until a position is clicked or typed
+    if app.text.pos.is_none() {
+        let st = &app.project.data.stock;
+        app.text.pos = Some([match st.zr.as_str() { "lr" | "ur" => st.w, "c" => st.w / 2.0, _ => 0.0 }, match st.zr.as_str() { "ul" | "ur" => st.h, "c" => st.h / 2.0, _ => 0.0 }]);
+    }
     app.text.refresh();
+    let stock = app.project.data.stock.clone();
     let (mut do_place, mut cancel) = (false, false);
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([700.0, 150.0]).fixed_size([300.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Text", true) { cancel = true; }
         let t = &mut app.text;
-        if t.pos.is_none() { ui.weak("Click on the drawing where the text should start."); ui.add_space(4.0); }
         let te = ui.add(egui::TextEdit::multiline(&mut t.content).desired_rows(3).desired_width(f32::INFINITY).hint_text("Type your text"));
         if t.focus { te.request_focus(); t.focus = false; }
         ui.add_space(6.0);
+        let st = &stock;
+        let (zx, zy) = (match st.zr.as_str() { "lr" | "ur" => st.w, "c" => st.w / 2.0, _ => 0.0 }, match st.zr.as_str() { "ul" | "ur" => st.h, "c" => st.h / 2.0, _ => 0.0 });
         egui::Grid::new("text_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
+            ui.label("Start");
+            ui.horizontal(|ui| {
+                // where the first line begins (left end of its baseline), from the XY zero like the rulers
+                let p = t.pos.unwrap_or([zx, zy]);
+                let (mut x, mut y) = (p[0] - zx, p[1] - zy);
+                ui.label("X");
+                let cx = crate::widgets::num(ui, [64.0, 24.0], &mut x, -100000.0, 100000.0, 0.5, 2, "").changed();
+                ui.add_space(4.0);
+                ui.label("Y");
+                let cy = crate::widgets::num(ui, [64.0, 24.0], &mut y, -100000.0, 100000.0, 0.5, 2, "").changed();
+                ui.weak("mm");
+                if cx || cy { t.pos = Some([x + zx, y + zy]); }
+            });
+            ui.end_row();
             ui.label("Font");
             let cur = t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default();
             egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
@@ -216,7 +237,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.button("Cancel").clicked() { cancel = true; }
         });
         ui.add_space(2.0);
-        ui.weak("Letters become outlines; the holes in A, O, B… are cut out correctly. Click the drawing again to move the text.");
+        ui.weak("Letters become outlines; the holes in A, O, B… are cut out correctly. Click the drawing, or type X and Y, to move the text.");
     });
     if do_place { place(app); }
     if cancel { app.text.open = false; app.mode = Mode::Select; }
