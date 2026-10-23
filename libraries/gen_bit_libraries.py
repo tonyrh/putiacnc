@@ -393,7 +393,7 @@ def _stripcode(c): return c.split("-")[0]
 groups = {}
 for r in _rows:
     if r["D"] < 1.5: continue                       # micro bits are not worth a tool-library slot
-    cls = "comp" if r["fam"] == "compression" else ("ball" if r["R"] else "spiral")
+    cls = "comp" if r["fam"] == "compression" else (("ball" if abs(r["R"] * 2 - r["D"]) < 0.05 else "bull") if r["R"] else "spiral")
     key = (r["fam"], cls, round(r["D"], 1), round(r["B"], 1), round(r["d"], 1), round(r["L"], 0), r["Z"], round(r["R"] or 0, 2), round(r["B1"] or 0, 1))
     g = groups.setdefault(key, dict(r=r, up=[], down=[], comp=[]))
     for k in ("up", "down", "comp"):
@@ -429,17 +429,22 @@ for key, g in groups.items():
     sys_ = "in" if inch_ else "mm"
     cutl = (frac(B) + "\u2033") if inch_ else fmt(B) + " mm"
     if cls == "comp": dword = "compression spiral"; shape = "flat"
-    elif cls == "ball": dword = "ball nose"; shape = "ball"
+    elif cls == "ball": dword = {"alu": "aluminium ball nose", "foam": "foam ball nose", "carving": "carving ball nose"}.get(fam, "ball nose"); shape = "ball"
+    elif cls == "bull": dword = "corner-radius spiral"; shape = "arc"
     else:
         dw = "up/downcut" if (pending["up"] and pending["down"]) else ("upcut" if pending["up"] else "downcut")
         if fam == "plastic":
             what = "plastic O-flute" if Z == 1 else ("plastic double O-flute" if r["page"] == 31 else "plastic straight-grind")
+        elif fam == "alu":
+            what = "aluminium O-flute spiral" if Z == 1 else "aluminium spiral"
+        elif fam == "foam": what = "foam cutting spiral"
+        elif fam == "carving": what = "carving spiral"
         else:
             what = "chipbreaker spiral" if (r["page"] in (91, 92) and Z == 3) else "spiral"
         dword = dw + " " + what; shape = "flat"
     zeff = Z
-    rpm_, feed, plunge, so, pd = speeds(D, zeff, shape, slow=(fam == "plastic"))
-    if D <= 6.5 and fam != "plastic": pd = min(pd, D * 0.5)
+    rpm_, feed, plunge, so, pd = speeds(D, zeff, "ball" if shape == "arc" else shape, slow=(fam in ("plastic", "alu")))
+    if D <= 6.5 and fam not in ("plastic", "alu"): pd = min(pd, D * 0.5)
     first = codes[0]
     code_list = []
     if pending["up"]: code_list.append("up " + ", ".join(pending["up"]))
@@ -450,12 +455,13 @@ for key, g in groups.items():
             % (first, dword, Z, "" if Z == 1 else "s", fmt(B), fmt(L), fmt(d),
                (" Compression section B1 %s mm." % fmt(r["B1"])) if (cls == "comp" and r["B1"]) else "",
                "; ".join(code_list), ("; radius %s mm" % fmt(r["R"])) if r["R"] else "", r["page"]))
-    short = lambda w: w.replace("chipbreaker spiral", "chipbreaker").replace("plastic straight-grind", "plastic").replace("plastic double O-flute", "plastic dbl O").replace("up/downcut", "up/down")
+    short = lambda w: w.replace("chipbreaker spiral", "chipbreaker").replace("plastic straight-grind", "plastic").replace("plastic double O-flute", "plastic dbl O").replace("up/downcut", "up/down").replace("aluminium O-flute spiral", "alu O-flute").replace("aluminium spiral", "alu spiral").replace("aluminium ball nose", "alu ball nose").replace("foam cutting spiral", "foam spiral").replace("corner-radius spiral", "corner radius")
     base = "%s %s Z%d, %s" % (label(D, sys_), dword, Z, cutl)
     if len(base) + 14 > 60: base = "%s %s Z%d, %s" % (label(D, sys_), short(dword), Z, cutl)
     if len(base) + 4 + 14 <= 60: base += " cut"
     add(name=base + " (Amana %s)" % first.split("-")[0],
-        sys=sys_, shape=shape, angle=60.0, flutes=Z, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 2000.0), plunge=plunge, so=so, pd=pd, notes=note)
+        sys=sys_, shape=shape, angle=60.0, flutes=Z, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 2000.0), plunge=plunge, so=so, pd=pd, notes=note + (" Cutting aluminium: use a lubricant or an air blast, and light passes." if fam == "alu" else ""))
+    if shape == "arc": tools[-1]["arc"] = round(r["R"], 3)
     n_amana += 1
 print("amana: %d new tools, %d rows merged into existing tools" % (n_amana, n_merged), file=_sys.stderr)
 

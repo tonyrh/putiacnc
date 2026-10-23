@@ -2,7 +2,8 @@
 """Reads the solid-carbide spiral tables of Amana Tool's CNC booklet (PDF) into amana_booklet.json.
 
 Only the families that suit a CNC router tool library are read: spiral plunge (up/down), compression spirals, ball nose spirals,
-3-flute chipbreaker spirals and the single-flute 'O' flute plastic cutters. Run:  python3 amana_extract.py Amana_Tool__CNC_Booklet.pdf
+3-flute chipbreaker spirals, the single-flute 'O' flute plastic cutters, aluminium cutting spirals and end mills, foam cutting spirals and
+2D/3D carving spirals (pages 8-13, 22, 23). Run:  python3 amana_extract.py Amana_Tool__CNC_Booklet.pdf
 Needs pdftotext (poppler). Row values are inches or mm as printed; everything is converted to mm here.
 """
 import json, re, subprocess, sys
@@ -28,12 +29,15 @@ def dim(tok):
 
 CODE = re.compile(r"(?<![\d.])([345]\d{4})((?:-[A-Z]{1,3}\d?)*)")
 # (pdf page, what the section is). 'flutes' is the default when the table has no Flute column.
-PAGES = {81: "spiral", 82: "spiral", 85: "spiral", 83: "compression", 84: "compression", 91: "spiral", 92: "spiral", 31: "plastic", 32: "plastic", 33: "plastic"}
+PAGES = {81: "spiral", 82: "spiral", 85: "spiral", 83: "compression", 84: "compression", 91: "spiral", 92: "spiral", 31: "plastic", 32: "plastic", 33: "plastic",
+         8: "alu", 10: "alu", 11: "alu", 12: "alu", 13: "alu", 22: "carving", 23: "foam"}
+# pages whose table has no Flute column and no "• Single Flute" bullet: the section is single-flute 'O' flute
+DEFAULT_Z = {8: 1}
 
 def scan():
     rows = []
     for p, fam in PAGES.items():
-        hdr = None; upx = dnx = None; sflute = None; title = ""
+        hdr = None; upx = dnx = None; sflute = DEFAULT_Z.get(p); title = ""
         last = None
         for ln in page(p).splitlines():
             s = ln.strip()
