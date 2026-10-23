@@ -274,6 +274,34 @@ for code, D, R, H, L, S in [("DR18106","3/8","3/16","3/8","1-13/16","1/4"),("DR1
                "Hand-router bit. Dimensions from a retailer's listing of the Diablo item number; feeds and speeds are conservative starting values, not Diablo's.")
         % (code, R, fmt(inch(R) * MM), H, fmt(inch(H) * MM), L, fmt(inch(L) * MM), S))
 
+# Amana Tool metric bits. The category pages show no tables to a fetch tool, but each product page title carries all the dimensions
+# ("57322 ... 5mm Dia x 30mm x 5mm Shank x 64mm Long ..."), so these come from titles returned by search. This is a PARTIAL sample, not the whole range.
+# (code, kind, shape, D, cut, overall or None, shank, flutes, extra text)
+AMANA = [("57300","'O' single-flute aluminium cutting upcut spiral","flat",2,6,64,6,1,"Aluminium: use a lubricant or air blast."),
+         ("51498","'O' single-flute aluminium cutting upcut spiral","flat",8,25,64,8,1,"Aluminium: use a lubricant or air blast."),
+         ("57311","'O' single-flute plastic cutting upcut spiral","flat",2,8,64,6,1,"For plastics and acrylic."),
+         ("57322","'O' single-flute plastic cutting upcut spiral","flat",5,30,64,5,1,"For plastics and acrylic."),
+         ("57327","'O' single-flute plastic cutting upcut spiral","flat",10,30,76,10,1,"For plastics and acrylic."),
+         ("46453","solid carbide upcut spiral ball nose, radius 1.5 mm","ball",3,12,50,6,2,""),
+         ("46454","solid carbide upcut spiral ball nose, radius 2 mm","ball",4,12,50,4,2,""),
+         ("46456","solid carbide upcut spiral ball nose, radius 3 mm","ball",6,22,63,6,2,""),
+         ("46458","solid carbide upcut spiral ball nose, radius 6 mm","ball",12,29,75,12,2,""),
+         ("45213","carbide-tipped straight plunge","flat",6,25,None,6,2,"The title does not give the flute count; 2 assumed."),
+         ("45215","carbide-tipped straight plunge","flat",8,25,None,8,2,"The title does not give the flute count; 2 assumed.")]
+for code, what, shape, d, cl, ol, sh, z, extra in AMANA:
+    rpm_, feed, plunge, so, pd = speeds(d, z, shape, slow=("aluminium" in what))
+    if "plastic" in what: feed = min(feed, 1200.0)
+    if shape == "flat" and z == 1 and d <= 3: pd = min(pd, 0.8)
+    note = ("Amana Tool %s %s. Cutting length %s mm%s, shank %s mm. %s Dimensions from the product title on amanatool.com; feeds and speeds are conservative starting values, not Amana's."
+            % (code, what, fmt(cl), (", overall %s mm" % fmt(ol)) if ol else "", fmt(sh), extra))
+    nm = {"flat": "straight" if "straight" in what else ("aluminium spiral" if "aluminium" in what else "plastic spiral"), "ball": "ball nose"}[shape]
+    add(name="\u00d8%s %s Z%d, %s mm cut (Amana %s)" % (fmt(d), nm, z, fmt(cl), code), sys="mm", shape=shape, angle=60.0, flutes=z, dia=d, rpm=min(rpm_, 12000),
+        feed=min(feed, 1500.0), plunge=plunge, so=so, pd=pd, notes=note)
+add(name="90\u00b0 V-bit \u00d812.7, 6 mm cut (Amana 45704M)", sys="mm", shape="vbit", angle=90.0, flutes=2, dia=12.7, rpm=12000, feed=1000.0, plunge=250.0, so=40.0, pd=2.0,
+    notes="Amana Tool 45704M carbide-tipped V-groove bit, 90\u00b0, \u00d812.7 mm, cutting length 6 mm, shank 6 mm. The title does not give the flute count; 2 assumed. Dimensions from the product title on amanatool.com; feeds and speeds are conservative starting values, not Amana's.")
+add(name="\u00d828.5 surfacing cutter, 12.5 mm (Amana 45523)", sys="mm", shape="flat", angle=60.0, flutes=2, dia=28.5, rpm=12000, feed=1800.0, plunge=300.0, so=70.0, pd=1.0,
+    notes="Amana Tool 45523 carbide-tipped spoilboard surfacing / flycutter bit, \u00d828.5 mm, cutting length 12.5 mm, shank 6 mm. The title does not give the flute count; 2 assumed. Take shallow passes with about 70% stepover. Dimensions from the product title on amanatool.com; feeds and speeds are conservative starting values, not Amana's.")
+
 # remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
 def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
@@ -298,6 +326,6 @@ unique = [u[0] for u in unique]
 tools[:] = unique
 for i, t in enumerate(tools, 1): t["id"] = "cmt%03d" % i
 
-out = {"app": "putia-cnc-tools", "v": 1, "name": "CNC router bits (CMT, Diablo)", "tools": tools}
+out = {"app": "putia-cnc-tools", "v": 1, "name": "CNC router bits (CMT, Diablo, Amana)", "tools": tools}
 json.dump(out, _sys.stdout, ensure_ascii=False, indent=1)
 _sys.stdout.write("\n")
