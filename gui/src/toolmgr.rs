@@ -247,7 +247,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                   let dia = format!("Ø{}", toollib::fmt_dia(t.dia, &t.sys, false));
                   let gd = ui.painter().layout_no_wrap(dia, font.clone(), col.gamma_multiply(0.7));
                   // the name is cut with an ellipsis where it would run into the diameter (the tooltip has the full name)
-                  let room = rect.max.x - gd.size().x - 14.0 - (rect.min.x + 36.0);
+                  let room = rect.max.x - gd.size().x - 30.0 - (rect.min.x + 36.0);
                   let full = t.name.replace('″', "\"");
                   let mut chars: Vec<char> = full.chars().collect();
                   let mut gn = ui.painter().layout_no_wrap(full.clone(), font.clone(), col);
@@ -256,7 +256,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                       while chars.last() == Some(&' ') { chars.pop(); }
                       gn = ui.painter().layout_no_wrap(format!("{}\u{2026}", chars.iter().collect::<String>()), font.clone(), col);
                   }
-                  let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - gd.size().x - 14.0, rect.max.y)));
+                  let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - gd.size().x - 30.0, rect.max.y)));
                   clip.galley(egui::pos2(rect.min.x + 36.0, rect.center().y - gn.size().y / 2.0), gn, col);
                   ui.painter().galley(egui::pos2(rect.max.x - gd.size().x - 8.0, rect.center().y - gd.size().y / 2.0), gd, col);
                   let resp = resp.on_hover_text(format!("{}\n{} \u{b7} \u{00d8}{}", t.name, shape_label(&t.shape), toollib::fmt_dia(t.dia, &t.sys, false)));
