@@ -247,6 +247,8 @@ pub struct App {
     pub tool_speed_idx: usize,
     pub confirm_tool_del: bool,
     pub confirm_lib_del: bool,
+    /// the "add a ready-made library" window of the tool manager is open
+    pub ready_open: bool,
     pub lib_name_buf: String,
     pub libs_dirty: bool,
     // machine manager
@@ -272,7 +274,7 @@ impl App {
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_sel: String::new(), tool_msg: String::new(),
-            tool_len_in: false, tool_speed_idx: 0, confirm_tool_del: false, confirm_lib_del: false, lib_name_buf: String::new(), libs_dirty: false,
+            tool_len_in: false, tool_speed_idx: 0, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
             mach_len_in: false, mach_speed_idx: 0, confirm_mach_del: false, machines_dirty: false,
         };

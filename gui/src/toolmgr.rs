@@ -20,7 +20,7 @@ pub fn load_tool_libs() -> ToolLibs {
     libs_path().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| ToolLibs::from_json(&s).ok()).unwrap_or_default()
 }
 
-enum LibAct { Switch(String), New, Duplicate, Delete, Export, Import, Bundled(usize), Rename(String) }
+enum LibAct { Switch(String), New, Duplicate, Delete, Export, Import, ReadyOpen, Bundled(usize), Rename(String) }
 
 impl App {
     /// Write the libraries to disk (normalised copy; the live data keeps what the user is typing).
@@ -80,6 +80,7 @@ impl App {
                 let fname = format!("{}-tools.json", l.name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect::<String>());
                 self.spawn_dialog(crate::app::DlgKind::LibExport, move || rfd::FileDialog::new().add_filter("Tool library", &["json"]).set_file_name(fname).save_file());
             }
+            LibAct::ReadyOpen => self.ready_open = true,
             LibAct::Bundled(i) => {
                 let (name, json) = toollib::BUNDLED[i];
                 if let Some(l) = self.tool_libs.libs.iter().find(|l| l.name == name) {
@@ -135,6 +136,30 @@ impl App {
 }
 
 /// The window. Call every frame; it draws nothing while closed.
+/// The list of the maker libraries built into the app; clicking one adds it (or switches to it if it is already there).
+fn ready_window(ctx: &egui::Context, app: &mut App) {
+    if !app.ready_open { return; }
+    let mut close = false;
+    let mut pick: Option<usize> = None;
+    egui::Window::new("Add a ready-made library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .show(ctx, |ui| {
+            if crate::csd::dialog_header(ui, "Add a ready-made library", true) { close = true; }
+            ui.set_min_width(340.0);
+            ui.add_space(4.0);
+            for (i, (name, json)) in toollib::BUNDLED.iter().enumerate() {
+                let have = app.tool_libs.libs.iter().any(|l| l.name == *name);
+                let txt = format!("{name}  ({} bits){}", toollib::bundled_count(json), if have { "  \u{2713}" } else { "" });
+                if ui.add_sized([ui.available_width(), 26.0], egui::Button::new(txt)).clicked() { pick = Some(i); }
+                ui.add_space(2.0);
+            }
+            ui.add_space(2.0);
+            ui.weak("A \u{2713} marks libraries you already have.");
+        });
+    if let Some(i) = pick { app.lib_action(LibAct::Bundled(i)); close = true; }
+    if close { app.ready_open = false; }
+}
+
 pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     if !app.tools_open { return; }
     let mut open = true;
@@ -144,8 +169,11 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Tool library", true) { close = true; }
+            let was = app.ready_open;
             body(ui, app);
+            if app.ready_open && !was { ctx.request_repaint(); }   // draw the new window right away, not on the next mouse move
         });
+    ready_window(ctx, app);
     if close { open = false; }
     if !open {
         app.tools_open = false;
@@ -182,7 +210,6 @@ fn body(ui: &mut Ui, app: &mut App) {
     ui.add_space(8.0);
     lib_row(ui, app);
     ui.add_space(8.0);
-    ready_made_row(ui, app);
     ui.weak(if app.tool_msg.is_empty() { "Libraries are saved automatically." } else { app.tool_msg.as_str() });
 }
 
@@ -307,19 +334,6 @@ fn units_row(ui: &mut Ui, app: &mut App) {
     });
 }
 
-fn ready_made_row(ui: &mut Ui, app: &mut App) {
-    let mut pick: Option<usize> = None;
-    ui.menu_button("Add a ready-made library\u{2026}", |ui| {
-        for (i, (name, json)) in toollib::BUNDLED.iter().enumerate() {
-            let have = app.tool_libs.libs.iter().any(|l| l.name == *name);
-            let txt = format!("{name}  ({} bits){}", toollib::bundled_count(json), if have { "  \u{2713}" } else { "" });
-            if ui.button(txt).clicked() { pick = Some(i); ui.close_menu(); }
-        }
-    });
-    ui.add_space(4.0);
-    if let Some(i) = pick { app.lib_action(LibAct::Bundled(i)); }
-}
-
 fn lib_row(ui: &mut Ui, app: &mut App) {
     // The row is laid out 8 px wider than the window content so the glyph of the last icon (which has
     // padding inside its button) lines up with the field edges; the parent only reserves its real width.
@@ -340,10 +354,13 @@ fn lib_row_inner(ui: &mut Ui, app: &mut App) {
         egui::ComboBox::from_id_source("libsel").width(212.0)
             .selected_text(format!("{} ({} tool{})", cur.name, cur.tools.len(), if cur.tools.len() == 1 { "" } else { "s" }))
             .show_ui(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 1.0;
                 for l in &app.tool_libs.libs {
                     let txt = format!("{} ({} tool{})", l.name, l.tools.len(), if l.tools.len() == 1 { "" } else { "s" });
                     if ui.selectable_label(l.id == cur.id, txt).clicked() && l.id != cur.id { act = Some(LibAct::Switch(l.id.clone())); }
                 }
+                ui.separator();
+                if ui.selectable_label(false, "Add a ready-made library\u{2026}").clicked() { act = Some(LibAct::ReadyOpen); }
             });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if icon_button(ui, Icon::Import, false, true, "Import library from a file").clicked() { act = Some(LibAct::Import); }
