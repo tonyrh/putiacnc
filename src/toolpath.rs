@@ -1001,6 +1001,10 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     if !any { return Err(format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" "))); }
     e.g.push("M5".into()); e.g.push("G0 X0 Y0".into()); e.g.push(if mach { "M30" } else { "M2" }.into());
     let cut_len: f64 = e.moves.iter().filter(|m| m.cut).map(|m| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt()).sum();
+    if machine.arcs == Some(true) {
+        let (lines, n) = crate::arcs::fit_arcs(&e.g, e.dec(), ku);
+        if n > 0 { e.g = lines; notes.push(format!("{} arc{} written as G2/G3: shorter file; run an air cut first if this machine has not done arcs before.", n, if n == 1 { "" } else { "s" })); }
+    }
     if data.job.numbered { e.g = number_lines(e.g); }
     Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
 }

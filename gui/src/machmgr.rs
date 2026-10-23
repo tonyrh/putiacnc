@@ -292,6 +292,17 @@ fn form(ui: &mut Ui, app: &mut App) {
         let mut sz = m.safe.unwrap_or(5.0) / k;
         if crate::widgets::num(ui, [fw, 22.0], &mut sz, 0.1 / k, 200.0 / k, 0.5 / k, 3, "").on_hover_text("Height above the stock where the tool travels between cuts").changed() { m.safe = Some((sz * k).clamp(0.1, 200.0)); changed = true; }
         ui.end_row();
+        rlabel(ui, lw, "Arcs (G2/G3)");
+        let mut ar = m.arcs.unwrap_or(false);
+        if ui.checkbox(&mut ar, "").on_hover_text("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
+        spacer(ui);
+        ui.allocate_ui_with_layout(egui::vec2(lw + 50.0, 22.0), Layout::right_to_left(Align::Center), |ui| {
+            if ui.button("Copy test lines").on_hover_text("A half circle to send with the spindle off and the tool well above the work. If the machine draws it, it supports arcs.").clicked() {
+                ui.ctx().output_mut(|o| o.copied_text = "G21 G90 G17\nG0 X0 Y0\nG2 X10 Y0 I5 J0 F300\n".into());
+                app.mach_msg = "Test lines copied. Send them with the spindle off and the tool well above the work: a half circle means arcs work, a straight move or an error means they don't.".into();
+            }
+        });
+        ui.end_row();
     });
     ui.add_space(10.0);
     ui.weak("Limits (0 = no limit). A tool that asks for more is held to the limit in the G-code, with a warning.");

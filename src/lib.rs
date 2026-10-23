@@ -1,3 +1,4 @@
+pub mod arcs;
 pub mod bitmap;
 pub mod clip;
 pub mod machines;
