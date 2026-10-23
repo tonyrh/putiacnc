@@ -1167,6 +1167,7 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
         Mode::Trim => if app.trim_extend { "Click near the end of an open line: it runs on in a straight line to the first shape it meets." } else { "Click the part of a shape you want to remove: it goes up to the nearest crossing on each side (shown in red). A closed shape needs two crossings." },
     } };
     if app.trace.open || app.clean.open { return; } // a dialog covers that part of the canvas
+    let hint = if app.dyn_in.is_some() { "Typing values: Enter confirms, Tab moves to the next field, Esc cancels. Empty fields follow the pointer." } else { hint };
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.label(egui::RichText::new(hint).weak());

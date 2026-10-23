@@ -172,7 +172,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
                     if (labels.len() == 4 && k % 2 == 1) || labels.len() == 2 || (labels.len() == 3 && k != 0) { ui.end_row(); }
                 }
             });
-            ui.weak("Enter adds · Tab next · Esc cancels");
+            ui.weak("Enter confirms · Tab next · Esc cancels");
             ui.weak("Empty fields follow the pointer");
         });
     });
