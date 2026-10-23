@@ -309,7 +309,7 @@ fn units_row(ui: &mut Ui, app: &mut App) {
 
 fn ready_made_row(ui: &mut Ui, app: &mut App) {
     let mut pick: Option<usize> = None;
-    ui.menu_button("Add a ready-made library \u{25be}", |ui| {
+    ui.menu_button("Add a ready-made library\u{2026}", |ui| {
         for (i, (name, json)) in toollib::BUNDLED.iter().enumerate() {
             let have = app.tool_libs.libs.iter().any(|l| l.name == *name);
             let txt = format!("{name}  ({} bits){}", toollib::bundled_count(json), if have { "  \u{2713}" } else { "" });
