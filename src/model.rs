@@ -117,12 +117,14 @@ pub struct Machine {
     /// Fastest cutting feed and plunge rate the machine can do, in mm/min (`None` = no limit).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub feed_max: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")] pub plunge_max: Option<f64>,
+    /// Write the G-code in inches (G20) when a project uses this machine (`None` = leave the current choice).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub inches: Option<bool>,
 }
 
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
-                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None }
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false) }
     }
 }
 

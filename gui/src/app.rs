@@ -140,7 +140,7 @@ fn restore(cur: &mut ProjectData, mut snap: ProjectData, kind: Kind) {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DlgKind { Open, SaveAs, Import, Model, Bitmap, ExportGcode, LibExport, LibImport }
+pub enum DlgKind { Open, SaveAs, Import, Model, Bitmap, ExportGcode, LibExport, LibImport, MachExport, MachImport }
 
 pub struct Dlg { pub kind: DlgKind, rx: std::sync::mpsc::Receiver<Option<std::path::PathBuf>> }
 
@@ -514,6 +514,8 @@ impl App {
             }
             DlgKind::LibExport => self.finish_lib_export(p),
             DlgKind::LibImport => self.finish_lib_import(p),
+            DlgKind::MachExport => self.finish_mach_export(p),
+            DlgKind::MachImport => self.finish_mach_import(p),
         }
     }
 

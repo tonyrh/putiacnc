@@ -81,6 +81,31 @@ impl Machines {
         Ok(self.def.clone())
     }
 
+    /// One machine as a shareable file.
+    pub fn export_machine(&self, id: &str) -> String {
+        let m = self.resolve(id);
+        serde_json::to_string_pretty(&serde_json::json!({ "app": "putia-cnc-machine", "v": 1, "machines": [m] })).unwrap_or_default()
+    }
+
+    /// Add the machines of a `putia-cnc-machine` file (with new ids). Returns the id of the last one and how many were added.
+    pub fn import(&mut self, json: &str) -> Result<(String, usize), String> {
+        #[derive(serde::Deserialize)]
+        struct File { app: String, machines: Vec<Machine> }
+        let bad = || "This is not a PutiaCNC machine file.".to_string();
+        let f: File = serde_json::from_str(json).map_err(|_| bad())?;
+        if f.app != "putia-cnc-machine" || f.machines.is_empty() { return Err(bad()); }
+        let mut last = String::new();
+        let mut n = 0;
+        for mut m in f.machines.into_iter().take(20) {
+            m.id = new_id("m");
+            normalize(&mut m);
+            last = m.id.clone();
+            self.list.push(m);
+            n += 1;
+        }
+        Ok((last, n))
+    }
+
     /// Add a machine that came with a project if the list doesn't know it yet. Returns true when added.
     pub fn adopt(&mut self, m: &Machine) -> bool {
         if m.id.is_empty() || self.get(&m.id).is_some() { return false; }
@@ -112,6 +137,22 @@ mod tests {
         bad.list[0].post = Some("weird".into()); bad.list[0].safe = Some(-3.0);
         bad.repair();
         assert_eq!((bad.list[0].post.as_deref(), bad.list[0].safe), (Some(""), Some(5.0)));
+    }
+
+    #[test]
+    fn machine_files_round_trip() {
+        let mut a = Machines::default();
+        a.list[0].name = "Shop router".into(); a.list[0].rpm_max = Some(18000.0); a.list[0].inches = Some(true);
+        let id = a.list[0].id.clone();
+        let file = a.export_machine(&id);
+        let mut b = Machines::default();
+        let (new_id, n) = b.import(&file).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(b.list.len(), 2);
+        let m = b.get(&new_id).unwrap();
+        assert!(m.id != id && m.name == "Shop router" && m.rpm_max == Some(18000.0) && m.inches == Some(true));
+        assert!(b.import("{\"app\":\"putia-cnc-tools\",\"tools\":[]}").is_err());
+        assert!(b.import("nonsense").is_err());
     }
 
     #[test]

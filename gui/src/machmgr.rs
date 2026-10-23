@@ -33,6 +33,7 @@ impl App {
         self.fill_machine_from_job(&id);
         self.project.data.machine = Some(self.machines.resolve(&id).clone());
         self.apply_machine_job();
+        self.apply_machine_units();
         self.gen_pending = true;
         self.machines_dirty = true;
     }
@@ -44,6 +45,7 @@ impl App {
         self.fill_machine_from_job(id);
         self.project.data.machine = Some(self.machines.resolve(id).clone());
         self.apply_machine_job();
+        self.apply_machine_units();
         self.modified = true;
         self.gen_pending = true;
         self.machines_dirty = true;
@@ -51,11 +53,12 @@ impl App {
 
     /// A machine saved before dialect, line numbers and safe Z moved onto it takes them from the project that uses it first.
     fn fill_machine_from_job(&mut self, id: &str) {
-        let (post, numbered, safe) = (self.project.data.job.post.clone(), self.project.data.job.numbered, self.project.data.job.safe);
+        let (post, numbered, safe, imperial) = (self.project.data.job.post.clone(), self.project.data.job.numbered, self.project.data.job.safe, self.imperial);
         if let Some(m) = self.machines.list.iter_mut().find(|m| m.id == id) {
             if m.post.is_none() { m.post = Some(post); }
             if m.numbered.is_none() { m.numbered = Some(numbered); }
             if m.safe.is_none() { m.safe = Some(if safe > 0.0 { safe } else { 5.0 }); }
+            if m.inches.is_none() { m.inches = Some(imperial); }
         }
     }
 
@@ -68,13 +71,39 @@ impl App {
         if let Some(s) = m.safe { j.safe = s; }
     }
 
+    /// The machine's G-code units become the current choice (the G-code tab can still change it for the session).
+    fn apply_machine_units(&mut self) {
+        if let Some(i) = self.project.data.machine.as_ref().and_then(|m| m.inches) { self.imperial = i; }
+    }
+
+    pub fn finish_mach_export(&mut self, p: std::path::PathBuf) {
+        let id = self.mach_sel.clone();
+        self.mach_msg = match std::fs::write(&p, self.machines.export_machine(&id)) {
+            Ok(()) => format!("Exported \"{}\".", self.machines.resolve(&id).name),
+            Err(e) => format!("Could not export: {e}"),
+        };
+    }
+
+    pub fn finish_mach_import(&mut self, p: std::path::PathBuf) {
+        match std::fs::read_to_string(&p).map_err(|e| e.to_string()).and_then(|s| self.machines.import(&s)) {
+            Ok((id, n)) => {
+                self.mach_sel = id;
+                self.mach_msg = format!("Imported {n} machine{}.", if n == 1 { "" } else { "s" });
+                self.machines_dirty = true;
+            }
+            Err(e) => self.mach_msg = e,
+        }
+    }
+
     /// Call after editing a machine in the manager.
     fn machine_edited(&mut self) {
         let cur = self.project.data.machine.as_ref().map(|m| m.id.clone()).unwrap_or_default();
         if let Some(m) = self.machines.get(&cur) {
             if self.project.data.machine.as_ref() != Some(m) {
+                let units_changed = self.project.data.machine.as_ref().map(|p| p.inches) != Some(m.inches);
                 self.project.data.machine = Some(m.clone());
                 self.apply_machine_job();
+                if units_changed { self.apply_machine_units(); }
                 self.modified = true;
                 self.gen_pending = true;
             }
@@ -159,6 +188,13 @@ fn footer(ui: &mut Ui, app: &mut App) {
                 app.mach_sel = id;
                 app.machine_edited();
             }
+            if icon_button(ui, Icon::Import, false, true, "Import a machine from a file").clicked() {
+                app.spawn_dialog(crate::app::DlgKind::MachImport, || rfd::FileDialog::new().add_filter("Machine", &["json"]).pick_file());
+            }
+            if icon_button(ui, Icon::Export, false, true, "Export this machine to a file").clicked() {
+                let fname = format!("{}-machine.json", app.machines.resolve(&app.mach_sel).name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect::<String>());
+                app.spawn_dialog(crate::app::DlgKind::MachExport, move || rfd::FileDialog::new().add_filter("Machine", &["json"]).set_file_name(fname).save_file());
+            }
             if icon_button(ui, Icon::Trash, false, true, "Delete machine").clicked() {
                 if app.machines.list.len() < 2 { app.mach_msg = "Keep at least one machine.".into(); } else { app.confirm_mach_del = true; }
             }
@@ -239,6 +275,13 @@ fn form(ui: &mut Ui, app: &mut App) {
         egui::ComboBox::from_id_source("mach_post").width(fw).selected_text(cur).show_ui(ui, |ui| {
             if ui.selectable_label(cur == "GRBL", "GRBL").clicked() { m.post = Some(String::new()); changed = true; }
             if ui.selectable_label(cur != "GRBL", "Mach3 / LinuxCNC").on_hover_text("Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end").clicked() { m.post = Some("mach".into()); changed = true; }
+        });
+        ui.end_row();
+        rlabel(ui, lw, "G-code units");
+        let in_now = m.inches.unwrap_or(false);
+        egui::ComboBox::from_id_source("mach_units").width(fw).selected_text(if in_now { "inches (G20)" } else { "mm (G21)" }).show_ui(ui, |ui| {
+            if ui.selectable_label(!in_now, "mm (G21)").clicked() { m.inches = Some(false); changed = true; }
+            if ui.selectable_label(in_now, "inches (G20)").on_hover_text("A project that uses this machine writes its G-code in inches").clicked() { m.inches = Some(true); changed = true; }
         });
         ui.end_row();
         rlabel(ui, lw, "Line numbers");
