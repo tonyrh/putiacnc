@@ -23,6 +23,10 @@ pub fn normalize(m: &mut Machine) {
     m.x = n(m.x, 300.0);
     m.y = n(m.y, 200.0);
     m.z = n(m.z, 60.0);
+    if let Some(s) = m.safe { m.safe = Some(if s.is_finite() && s > 0.0 { s.min(200.0) } else { 5.0 }); }
+    for l in [&mut m.rpm_min, &mut m.rpm_max, &mut m.feed_max, &mut m.plunge_max] { if !l.map_or(true, |v| v.is_finite() && v > 0.0) { *l = None; } }
+    if let (Some(a), Some(b)) = (m.rpm_min, m.rpm_max) { if a > b { m.rpm_min = Some(b); m.rpm_max = Some(a); } }
+    if let Some(p) = &m.post { if p != "mach" { m.post = Some(String::new()); } }
 }
 
 impl Default for Machines {
@@ -90,6 +94,25 @@ impl Machines {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_machine_lists_load_and_new_settings_survive() {
+        // a list saved before the dialect, line numbers and safe Z moved onto the machine
+        let old = r#"{"v":1,"def":"a","list":[{"id":"a","name":"Old","rapid":3000,"tsc":1.1,"x":400,"y":300,"z":80}]}"#;
+        let m = Machines::from_json(old).unwrap();
+        assert_eq!((m.list[0].post.clone(), m.list[0].numbered, m.list[0].safe), (None, None, None));
+        // the JSON of a machine without them does not grow new keys
+        assert!(!m.to_json().contains("safe"));
+        let mut n = Machines::default();
+        n.list[0].post = Some("mach".into()); n.list[0].numbered = Some(true); n.list[0].safe = Some(7.5);
+        let back = Machines::from_json(&n.to_json()).unwrap();
+        assert_eq!((back.list[0].post.as_deref(), back.list[0].numbered, back.list[0].safe), (Some("mach"), Some(true), Some(7.5)));
+        // nonsense is repaired
+        let mut bad = Machines::default();
+        bad.list[0].post = Some("weird".into()); bad.list[0].safe = Some(-3.0);
+        bad.repair();
+        assert_eq!((bad.list[0].post.as_deref(), bad.list[0].safe), (Some(""), Some(5.0)));
+    }
 
     #[test]
     fn default_has_one_machine() {

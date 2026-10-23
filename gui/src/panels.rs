@@ -329,29 +329,9 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     if app.tab == RightTab::Gcode {
         ui.horizontal(|ui| {
             if ui.checkbox(&mut app.imperial, "Inches (G20)").on_hover_text("Write the G-code in inches instead of millimetres").changed() { app.gen_pending = true; }
-            let mut numbered = app.project.data.job.numbered;
-            if ui.checkbox(&mut numbered, "Line numbers (N10, N20…)").on_hover_text("Number the G-code lines, for controllers that want them; saved with the project").changed() {
-                app.hist.record(&app.project.data);
-                app.project.data.job.numbered = numbered;
-                app.touch();
-            }
         });
-        ui.horizontal(|ui| {
-            ui.label("Output for");
-            let cur = if app.project.data.job.mach() { "Mach3 / LinuxCNC" } else { "GRBL" };
-            let mut pick: Option<&str> = None;
-            egui::ComboBox::from_id_source("post_dialect").selected_text(cur).show_ui(ui, |ui| {
-                if ui.selectable_label(cur == "GRBL", "GRBL").clicked() { pick = Some(""); }
-                if ui.selectable_label(cur != "GRBL", "Mach3 / LinuxCNC").on_hover_text("Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end").clicked() { pick = Some("mach"); }
-            });
-            if let Some(v) = pick {
-                if app.project.data.job.post != v {
-                    app.hist.record(&app.project.data);
-                    app.project.data.job.post = v.into();
-                    app.touch();
-                }
-            }
-        });
+        let (d, n) = (if app.project.data.job.mach() { "Mach3 / LinuxCNC" } else { "GRBL" }, app.project.data.job.numbered);
+        ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
         ui.add_space(4.0);
     }
     let mut export = false;
@@ -623,8 +603,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 changed |= dv_w(ui, fw, &mut d.stock.h, 1.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
                 rlabel(ui, l1, "Thickness");
                 changed |= dv_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); ui.weak("mm");
-                rlabel(ui, l3, "Safe Z");
-                changed |= dv_w(ui, fw, &mut d.job.safe, 0.5, 200.0, ""); ui.weak("mm"); ui.end_row();
+                ui.end_row();
             });
             ui.add_space(12.0);
             ui.horizontal_top(|ui| {

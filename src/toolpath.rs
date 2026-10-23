@@ -659,12 +659,33 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let fl = |v: f64| to_fixed(v / ku, if imp { 4 } else { 3 });
     let st = &data.stock;
     let machine = data.machine.clone().unwrap_or_default();
+    let mut limit_notes: Vec<String> = Vec::new();
+    let limited;
+    let data = if machine.rpm_min.is_some() || machine.rpm_max.is_some() || machine.feed_max.is_some() || machine.plunge_max.is_some() {
+        let mut d = data.clone();
+        let used = serde_json::to_string(&d.ops).unwrap_or_default();
+        for t in d.tools.iter_mut() {
+            let mut what: Vec<String> = vec![];
+            let (r0, f0, p0) = (t.rpm, t.feed, t.plunge);
+            if let Some(m) = machine.rpm_max { if t.rpm > m { t.rpm = m; } }
+            if let Some(m) = machine.rpm_min { if t.rpm < m { t.rpm = m; } }
+            if let Some(m) = machine.feed_max { if t.feed > m { t.feed = m; } }
+            if let Some(m) = machine.plunge_max { if t.plunge > m { t.plunge = m; } }
+            if !used.contains(&format!("\"{}\"", t.id)) { continue; }
+            if t.rpm != r0 { what.push(format!("spindle {} rpm (tool: {})", num(t.rpm), num(r0))); }
+            if t.feed != f0 { what.push(format!("feed {} {}/min (tool: {})", num(fl(t.feed)), un, num(fl(f0)))); }
+            if t.plunge != p0 { what.push(format!("plunge {} {}/min (tool: {})", num(fl(t.plunge)), un, num(fl(p0)))); }
+            if !what.is_empty() { limit_notes.push(format!("⚠ {}: held to the machine's limits, {}.", if t.name.is_empty() { "Tool" } else { &t.name }, what.join(", "))); }
+        }
+        limited = d;
+        &limited
+    } else { data };
     // air cut is per operation; an old project-level flag still applies to every operation
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
     let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
-    let mut notes: Vec<String> = Vec::new();
+    let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
         notes.push("⚠ Shapes extend beyond the stock.".into());

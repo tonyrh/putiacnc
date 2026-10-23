@@ -719,6 +719,7 @@ impl App {
         self.apply_lib_tools();
         let cur = self.machines.def.clone();
         self.project.data.machine = Some(self.machines.resolve(&self.project.data.machine.as_ref().map(|m| m.id.clone()).unwrap_or(cur)).clone());
+        self.apply_machine_job();
         self.touch();
     }
 

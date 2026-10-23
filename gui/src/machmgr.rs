@@ -30,7 +30,9 @@ impl App {
         if let Some(m) = self.project.data.machine.clone() { self.machines.adopt(&m); }
         let id = self.project.data.machine.as_ref().map(|m| m.id.clone()).filter(|id| self.machines.get(id).is_some())
             .unwrap_or_else(|| self.machines.def.clone());
+        self.fill_machine_from_job(&id);
         self.project.data.machine = Some(self.machines.resolve(&id).clone());
+        self.apply_machine_job();
         self.gen_pending = true;
         self.machines_dirty = true;
     }
@@ -39,18 +41,40 @@ impl App {
     pub fn set_machine(&mut self, id: &str) {
         if self.machines.get(id).is_none() { return; }
         self.machines.def = id.to_string();
+        self.fill_machine_from_job(id);
         self.project.data.machine = Some(self.machines.resolve(id).clone());
+        self.apply_machine_job();
         self.modified = true;
         self.gen_pending = true;
         self.machines_dirty = true;
+    }
+
+    /// A machine saved before dialect, line numbers and safe Z moved onto it takes them from the project that uses it first.
+    fn fill_machine_from_job(&mut self, id: &str) {
+        let (post, numbered, safe) = (self.project.data.job.post.clone(), self.project.data.job.numbered, self.project.data.job.safe);
+        if let Some(m) = self.machines.list.iter_mut().find(|m| m.id == id) {
+            if m.post.is_none() { m.post = Some(post); }
+            if m.numbered.is_none() { m.numbered = Some(numbered); }
+            if m.safe.is_none() { m.safe = Some(if safe > 0.0 { safe } else { 5.0 }); }
+        }
+    }
+
+    /// The machine decides the G-code dialect, the line numbers and the safe Z of the project.
+    pub fn apply_machine_job(&mut self) {
+        let Some(m) = self.project.data.machine.clone() else { return };
+        let j = &mut self.project.data.job;
+        if let Some(p) = m.post { j.post = p; }
+        if let Some(n) = m.numbered { j.numbered = n; }
+        if let Some(s) = m.safe { j.safe = s; }
     }
 
     /// Call after editing a machine in the manager.
     fn machine_edited(&mut self) {
         let cur = self.project.data.machine.as_ref().map(|m| m.id.clone()).unwrap_or_default();
         if let Some(m) = self.machines.get(&cur) {
-            if self.project.data.machine.as_ref().map(|p| (p.rapid, p.tsc, p.x, p.y, p.z, &p.name, &p.notes)) != Some((m.rapid, m.tsc, m.x, m.y, m.z, &m.name, &m.notes)) {
+            if self.project.data.machine.as_ref() != Some(m) {
                 self.project.data.machine = Some(m.clone());
+                self.apply_machine_job();
                 self.modified = true;
                 self.gen_pending = true;
             }
@@ -206,6 +230,47 @@ fn form(ui: &mut Ui, app: &mut App) {
         rlabel(ui, lw, "Time correction ×");
         changed |= crate::widgets::num(ui, [fw, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "")
             .on_hover_text("Multiplies the estimated time to account for acceleration and corners").changed();
+        ui.end_row();
+    });
+    ui.add_space(8.0);
+    egui::Grid::new("mach_gcode").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
+        rlabel(ui, lw, "G-code output for");
+        let cur = if m.post.as_deref() == Some("mach") { "Mach3 / LinuxCNC" } else { "GRBL" };
+        egui::ComboBox::from_id_source("mach_post").width(fw).selected_text(cur).show_ui(ui, |ui| {
+            if ui.selectable_label(cur == "GRBL", "GRBL").clicked() { m.post = Some(String::new()); changed = true; }
+            if ui.selectable_label(cur != "GRBL", "Mach3 / LinuxCNC").on_hover_text("Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end").clicked() { m.post = Some("mach".into()); changed = true; }
+        });
+        ui.end_row();
+        rlabel(ui, lw, "Line numbers");
+        let mut nb = m.numbered.unwrap_or(false);
+        if ui.checkbox(&mut nb, "N10, N20…").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
+        ui.end_row();
+        rlabel(ui, lw, format!("Safe Z ({uname})"));
+        let mut sz = m.safe.unwrap_or(5.0) / k;
+        if crate::widgets::num(ui, [fw, 22.0], &mut sz, 0.1 / k, 200.0 / k, 0.5 / k, 3, "").on_hover_text("Height above the stock where the tool travels between cuts").changed() { m.safe = Some((sz * k).clamp(0.1, 200.0)); changed = true; }
+        ui.end_row();
+    });
+    ui.add_space(10.0);
+    ui.weak("Limits (0 = no limit). A tool that asks for more is held to the limit in the G-code, with a warning.");
+    ui.add_space(4.0);
+    egui::Grid::new("mach_limits").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+        let lim = |ui: &mut Ui, v: &mut Option<f64>, f: f64, max: f64, step: f64| -> bool {
+            let mut d = v.unwrap_or(0.0) / f;
+            let ch = crate::widgets::num(ui, [fw, 22.0], &mut d, 0.0, max / f, step / f, 3, "").on_hover_text("0 = no limit").changed();
+            if ch { *v = if d > 0.0 { Some(d * f) } else { None }; }
+            ch
+        };
+        rlabel(ui, lw, "Spindle min (rpm)");
+        changed |= lim(ui, &mut m.rpm_min, 1.0, 200000.0, 100.0);
+        spacer(ui);
+        rlabel(ui, lw, "Spindle max (rpm)");
+        changed |= lim(ui, &mut m.rpm_max, 1.0, 200000.0, 100.0);
+        ui.end_row();
+        rlabel(ui, lw, format!("Max feed ({sname})"));
+        changed |= lim(ui, &mut m.feed_max, sfac, 1.0e6, 10.0);
+        spacer(ui);
+        rlabel(ui, lw, format!("Max plunge ({sname})"));
+        changed |= lim(ui, &mut m.plunge_max, sfac, 1.0e6, 10.0);
         ui.end_row();
     });
     ui.add_space(10.0);

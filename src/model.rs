@@ -104,11 +104,25 @@ pub struct Machine {
     pub tsc: f64,
     pub x: f64, pub y: f64, pub z: f64,
     #[serde(default)] pub notes: String,
+    /// G-code dialect of the machine: "" = GRBL, "mach" = Mach3 / LinuxCNC. `None` in machine lists saved before the setting moved here:
+    /// the first project that uses the machine then fills it in from its own settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub post: Option<String>,
+    /// Number the G-code lines (N10, N20, ...) for controllers that want them.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub numbered: Option<bool>,
+    /// Safe Z: the height above the stock where the tool travels, in mm.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub safe: Option<f64>,
+    /// Spindle speed limits in rpm: a tool outside them is held to the limit in the G-code (`None` = no limit).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub rpm_min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub rpm_max: Option<f64>,
+    /// Fastest cutting feed and plunge rate the machine can do, in mm/min (`None` = no limit).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub feed_max: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub plunge_max: Option<f64>,
 }
 
 impl Default for Machine {
     fn default() -> Self {
-        Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new() }
+        Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None }
     }
 }
 
