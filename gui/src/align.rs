@@ -64,7 +64,7 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
     let Some(btn) = app.align_btn else { return };
     let n = app.sel.len();
     let mut pick: Option<(bool, u8)> = None;
-    let resp = egui::Area::new(egui::Id::new("align_pop")).order(egui::Order::Foreground).fixed_pos(egui::pos2(btn.left().min(app.canvas_right - 425.0).max(4.0), btn.bottom() + 4.0)).show(ctx, |ui| {
+    let resp = egui::Area::new(egui::Id::new("align_pop")).order(egui::Order::Foreground).fixed_pos(egui::pos2(btn.left().min(app.canvas_right - 445.0).max(4.0), btn.bottom() + 4.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 4.0);
             let row = |ui: &mut egui::Ui, title: &str, items: &[(u8, Icon, &str, bool)], each: bool, pick: &mut Option<(bool, u8)>| {
@@ -73,6 +73,7 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
                     // labels flush right in one column, so the three rows line up
                     let (r, _) = ui.allocate_exact_size(Vec2::new(lw, 28.0), egui::Sense::hover());
                     ui.painter().text(r.right_center(), egui::Align2::RIGHT_CENTER, title, egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
+                    ui.add_space(14.0);
                     for (pos, (k, icon, tip, on)) in items.iter().enumerate() {
                         if pos == 3 || pos == 6 { ui.add_space(6.0); }
                         if icon_button(ui, *icon, false, *on, tip).clicked() { *pick = Some((each, *k)); }
