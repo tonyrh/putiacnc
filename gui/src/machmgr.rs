@@ -284,9 +284,9 @@ fn form(ui: &mut Ui, app: &mut App) {
             if ui.selectable_label(in_now, "inches (G20)").on_hover_text("A project that uses this machine writes its G-code in inches").clicked() { m.inches = Some(true); changed = true; }
         });
         spacer(ui);
-        rlabel(ui, lw, "Line numbers");
+        rlabel(ui, lw + 50.0, "Line numbers (N10, N20…)");
         let mut nb = m.numbered.unwrap_or(false);
-        if ui.checkbox(&mut nb, "N10…").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
+        if ui.checkbox(&mut nb, "").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
         ui.end_row();
         rlabel(ui, lw, format!("Safe Z ({uname})"));
         let mut sz = m.safe.unwrap_or(5.0) / k;
