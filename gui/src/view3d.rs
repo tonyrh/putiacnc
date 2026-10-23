@@ -261,15 +261,15 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
                         let stk = &app.project.data.stock;
                         frame(&mut app.v3, stk);
                         app.v3.yaw = yaw; app.v3.pitch = pitch;
-                        // zoom so the stock fills about 85% of the view in that direction
+                        // zoom so the stock fills about 70% of the view in that direction
                         let (w, h, t) = (stk.w as f32, stk.h as f32, stk.t as f32);
                         let asp = (rect.width() / rect.height()).max(0.2);
-                        let k = 2.0 * (35.0_f32.to_radians() * 0.5).tan() * 0.85;
+                        let k = 2.0 * (35.0_f32.to_radians() * 0.5).tan() * 0.72;
                         match name {
                             "Top" => app.v3.dist = (w / asp).max(h) / k,
                             "Front" => app.v3.dist = (w / asp).max(t * 3.0) / k,
                             "Side" => app.v3.dist = (h / asp).max(t * 3.0) / k,
-                            _ => app.v3.dist *= 1.2,
+                            _ => app.v3.dist *= 1.55,
                         }
                     }
                 }
