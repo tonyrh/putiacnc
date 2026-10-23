@@ -210,17 +210,51 @@ for (d, cl, ol), v in sb.items():
     add(name="%s surfacing cutter, %s mm (CMT %s)" % (label(d, sys_), fmt(cl), v[0][0]), sys=sys_, shape="flat", angle=60.0, flutes=3, dia=d, rpm=rpm,
         feed=2000.0 if d < 50 else 1800.0, plunge=300.0, so=70.0, pd=1.0, notes=note)
 
+# Contractor (hand-router) bits, 8 mm shank, carbide-tipped. Units are not stated on the page; read as millimetres.
+NOTE_K = "Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's."
+STRAIGHT = [("K911-030",3,8,51,1),("K911-040",4,11,51,1),("K911-050",5,12.7,51,1),("K911-060",6,16,51,1),("K912-060",6,25.4,57,2),
+            ("K912-080",8,32,62,2),("K911-080",8,20,51,2),("K911-100",10,20,51,2),("K912-100",10,32,62,2),("K912-120",12,32,62,2),
+            ("K911-120",12,20,51,2),("K911-140",14,25.4,56,2),("K911-150",15,25.4,56,2),("K911-160",16,25.4,56,2),("K911-180",18,25,56,2),
+            ("K911-200",20,25,56,2),("K911-220",22,25.4,56,2),("K911-240",24,25.4,56,2),("K911-250",25,25.4,57,2)]
+for code, d, cl, ol, z in STRAIGHT:
+    rpm = 12000 if d <= 12 else (10000 if d <= 20 else 8000)
+    rpm_, feed, plunge, so, pd = speeds(d, z, "flat")
+    feed = min(feed, 1500.0)
+    note = ("CMT %s straight router bit, carbide-tipped (HW), %d flute%s, 8 mm shank. Cutting length %s mm, overall %s mm. Contractor bit made for hand routers: fine for light "
+            "CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. %s" % (code, z, "" if z == 1 else "s", fmt(cl), fmt(ol), NOTE_K))
+    add(name="\u00d8%s straight Z%d, %s mm cut (CMT %s)" % (fmt(d), z, fmt(cl), code), sys="mm", shape="flat", angle=60.0, flutes=z, dia=d, rpm=rpm,
+        feed=feed, plunge=plunge, so=so, pd=min(pd, cl * 0.5), notes=note)
+
+for code, d, cl, ol, z in [("K914-060",6,9.5,40,2),("K914-095",9.5,9.5,40,2),("K914-127",12.7,12.7,40,2),("K914-160",16,12.7,45,2),("K914-190",19,12.7,46,2)]:
+    rpm_, feed, plunge, so, pd = speeds(d, z, "ball")
+    note = ("CMT %s round nose router bit, carbide-tipped, radius %s mm, 2 flutes, 8 mm shank. Cutting length %s mm, overall %s mm. Contractor bit made for hand routers. %s"
+            % (code, fmt(d / 2), fmt(cl), fmt(ol), NOTE_K))
+    add(name="\u00d8%s round nose, 8 mm shank (CMT %s)" % (fmt(d), code), sys="mm", shape="ball", angle=60.0, flutes=z, dia=d, rpm=min(rpm_, 12000),
+        feed=min(feed, 1500.0), plunge=plunge, so=so, pd=pd, notes=note)
+
+for code, d, cl, ol, ang in [("K958-110",11,14,45,60),("K915-127",12.7,12.7,45,90),("K915-160",16,16,45,90),("K915-317",31.8,20,60,90)]:
+    d_mm = d
+    sys_ = "in" if is_inch(d) else "mm"
+    rpm_, feed, plunge, so, pd = speeds(d, 2, "vbit")
+    note = ("CMT %s V-grooving router bit, carbide-tipped (HW), %d\u00b0, 2 flutes. Cutting length %s mm, overall %s mm. Contractor bit made for hand routers; the page lists no shank size. %s"
+            % (code, ang, fmt(cl), fmt(ol), NOTE_K))
+    add(name="%d\u00b0 V-bit %s (CMT %s)" % (ang, label(d, sys_), code), sys=sys_, shape="vbit", angle=float(ang), flutes=2, dia=d, rpm=min(rpm_, 12000),
+        feed=min(feed, 1200.0), plunge=min(plunge, 250.0), so=40.0, pd=2.0, notes=note)
+
 # remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
 def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]); return m.group(1) if m else ""
-def kind(t): return re.sub(r"^.*?\s(?=[a-zA-Z])", "", re.sub(r"\s*\(CMT.*$", "", t["name"]), count=1)
+def kind(t):
+    if t["shape"] == "vbit": return "vbit"
+    return kind_(t)
+def kind_(t): return re.sub(r"^.*?\s(?=[a-zA-Z])", "", re.sub(r"\s*\(CMT.*$", "", t["name"]), count=1)
 seen = {}
 unique = []
 for t in tools:
     k = (t["shape"], round(t["dia"], 2), t["flutes"], round(t["angle"], 1), cutlen(t), kind(t))
     if k in seen:
         dup = seen[k]
-        codes = re.findall(r"CMT (\d{3}\.\d{3}\.\d{2})", t["notes"])
+        codes = re.findall(r"CMT ([A-Z]?\d{3}[.-]\d{3}(?:\.\d{2})?)", t["notes"])
         dup["notes"] += " Same bit also listed as %s." % ", ".join(codes)
         continue
     seen[k] = t; unique.append(t)
