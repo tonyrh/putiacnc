@@ -279,10 +279,13 @@ fn form(ui: &mut Ui, app: &mut App) {
         ui.end_row();
         rlabel(ui, lw, "G-code units");
         let in_now = m.inches.unwrap_or(false);
-        egui::ComboBox::from_id_source("mach_units").width(fw).selected_text(if in_now { "inches (G20)" } else { "mm (G21)" }).show_ui(ui, |ui| {
-            if ui.selectable_label(!in_now, "mm (G21)").clicked() { m.inches = Some(false); changed = true; }
-            if ui.selectable_label(in_now, "inches (G20)").on_hover_text("A project that uses this machine writes its G-code in inches").clicked() { m.inches = Some(true); changed = true; }
+        let combo = egui::ComboBox::from_id_source("mach_units").width(fw).selected_text(if in_now { "inches" } else { "mm" }).show_ui(ui, |ui| {
+            if ui.selectable_label(!in_now, "mm").clicked() { m.inches = Some(false); changed = true; }
+            if ui.selectable_label(in_now, "inches").on_hover_text("A project that uses this machine writes its G-code in inches").clicked() { m.inches = Some(true); changed = true; }
         });
+        // the code sits after the dropdown without taking any room from the grid, so the columns never move
+        ui.painter().text(egui::pos2(combo.response.rect.right() + 6.0, combo.response.rect.center().y), egui::Align2::LEFT_CENTER,
+            if in_now { "(G20)" } else { "(G21)" }, egui::TextStyle::Small.resolve(ui.style()), ui.visuals().weak_text_color());
         spacer(ui);
         rlabel(ui, lw + 50.0, "Line numbers (N10, N20…)");
         let mut nb = m.numbered.unwrap_or(false);
