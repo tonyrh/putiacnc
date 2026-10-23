@@ -322,6 +322,42 @@ for code, mat, R, D, H, unit, S in PCR:
             % (code, mat.lower(), fmt(r_mm), fmt(d_mm), fmt(h_mm), fmt(s_mm), extra))
     tools[-1]["arc"] = round(r_mm, 3)
 
+# ---- Bosch Professional PRO router bits (product pages on bosch-professional.com, variant tables; all mm) ----------------------------------
+# (article, D1, cutting length L, total length G, shank, flutes)
+BOSCH_STRAIGHT = [("2608628438",3.2,7.7,51,6,1),("2608628439",4.8,12.4,51,6,1),
+    ("2608628372",8,25,56,8,2),("2608628373",10,25,56,8,2),("2608628374",12,31.5,62,8,2),("2608628375",14,19.6,51,8,2),("2608628379",6,15.7,48,8,2),
+    ("2608628381",8,19.6,51,8,2),("2608628383",10,19.6,51,8,2),("2608628385",12,19.6,51,8,2),("2608628387",15,19.6,51,8,2),("2608628388",16,19.6,51,8,2),
+    ("2608628389",18,24.6,56,8,2),("2608628390",20,24.6,56,8,2),("2608628392",25,19.6,51,8,2),("2608628440",6,15.7,48,6,2),("2608628441",8,19.6,51,6,2),
+    ("2608628442",9.5,19.6,51,6,2),("2608628443",12.7,19.6,51,6,2),("2608628444",19,19.6,51,6,2)]
+BOSCH_VGROOVE = [("2608628406",11,13.7,45,8,60,2),("2608628407",16,15.7,45,8,90,2),("2608628445",6.4,9.2,45,6,90,1),("2608628446",9.5,12.4,45,6,90,2),("2608628447",12.7,12.4,45,6,90,2)]
+# core box = round nose: (article, R1, D1, L, G, shank). The page does not give flutes; 2 assumed.
+BOSCH_CORE = [("2608628368",6,12,9.2,40,8),("2608628370",10,20,12.4,46,8),("2608628450",6.3,12.7,9.2,40,6),("2608628451",4.7,9.5,9.2,40,6),("2608628452",8,15.9,12.4,45,6),
+    ("2608628453",12.7,25.4,15.6,48,6),("2608628460",3.2,6.4,9.2,40,6),("2608628473",12,24,15.9,57,12),("2608628418",6.4,12.7,9.2,40,6.35),("2608628425",3.2,6.4,9.2,40,6.35),
+    ("2608628632",4.8,9.5,9.2,40,6.35),("2608628633",7.9,15.9,12.4,45,6.35),("2608628634",12.7,25.4,15.6,48,6.35)]
+NOTE_B = "Dimensions from Bosch's product page; feeds and speeds are conservative starting values, not Bosch's. Hand-router bit (Bosch lists up to 35000 rpm): fine for light CNC work."
+_bg = {}
+for art, d, cl, ol, sh, z in BOSCH_STRAIGHT: _bg.setdefault((d, cl, ol, z), []).append((art, sh))
+for (d, cl, ol, z), v in _bg.items():
+    rpm_, feed, plunge, so, pd = speeds(d, z, "flat")
+    codes = ", ".join("%s (shank %s mm)" % (a, fmt(sh)) for a, sh in v)
+    add(name="\u00d8%s straight Z%d, %s mm cut (Bosch %s)" % (fmt(d), z, fmt(cl), v[0][0]), sys="mm", shape="flat", angle=60.0, flutes=z, dia=d, rpm=min(rpm_, 12000),
+        feed=min(feed, 1500.0), plunge=plunge, so=so, pd=min(pd, cl * 0.5),
+        notes="Bosch PRO straight router bit, %d flute%s, carbide-tipped. Cutting length %s mm, overall %s mm. Articles: %s. %s" % (z, "" if z == 1 else "s", fmt(cl), fmt(ol), codes, NOTE_B))
+for art, d, cl, ol, sh, ang, z in BOSCH_VGROOVE:
+    rpm_, feed, plunge, so, pd = speeds(d, z, "vbit")
+    add(name="%d\u00b0 V-bit \u00d8%s (Bosch %s)" % (ang, fmt(d), art), sys="mm", shape="vbit", angle=float(ang), flutes=z, dia=d, rpm=min(rpm_, 12000), feed=min(feed, 1200.0),
+        plunge=min(plunge, 250.0), so=40.0, pd=2.0,
+        notes="Bosch PRO V-groove bit, %d\u00b0, %d flute%s. Cutting length %s mm, overall %s mm, shank %s mm. Article %s. %s" % (ang, z, "" if z == 1 else "s", fmt(cl), fmt(ol), fmt(sh), art, NOTE_B))
+_bc = {}
+for art, r_, d, cl, ol, sh in BOSCH_CORE: _bc.setdefault((round(d, 1), cl, ol), []).append((art, sh, r_, d))
+for (dk, cl, ol), v in _bc.items():
+    d = v[0][3]; r_ = v[0][2]
+    rpm_, feed, plunge, so, pd = speeds(d, 2, "ball")
+    codes = ", ".join("%s (shank %s mm)" % (a, fmt(sh)) for a, sh, _, _ in v)
+    add(name="\u00d8%s round nose (core box), %s mm cut (Bosch %s)" % (fmt(d), fmt(cl), v[0][0]), sys="mm", shape="ball", angle=60.0, flutes=2, dia=d, rpm=min(rpm_, 12000),
+        feed=min(feed, 1500.0), plunge=plunge, so=so, pd=pd,
+        notes="Bosch PRO core box (round nose) router bit, radius %s mm. Cutting length %s mm, overall %s mm. Articles: %s. The page does not give the flute count (2 assumed). %s" % (fmt(r_), fmt(cl), fmt(ol), codes, NOTE_B))
+
 # ---- Amana Tool CNC booklet (rows read from the PDF by amana_extract.py) ---------------------------------------------------------------
 import os
 _rows = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "amana_booklet.json")))
@@ -422,18 +458,26 @@ def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]) or re.search(r"Carbide height [^()]*\(([0-9.]+) mm\)", t["notes"])
     return m.group(1) if m else ""
 def kind(t):
+    n = re.sub(r"\s*\((?:CMT|Diablo|Amana|Bosch)[^)]*\)$", "", t["name"])
+    base = re.sub(r"^.*?\s(?=[a-zA-Z])", "", n, count=1)
+    base = re.split(r",| Z\d| \u00d8", base)[0].strip()
     if t["shape"] == "vbit": return "vbit"
-    if t["shape"] == "ball": return "spiral round nose" if "spiral" in t["name"] else "router round nose"
-    return kind_(t)
-def kind_(t): return re.sub(r"^.*?\s(?=[a-zA-Z])", "", re.sub(r"\s*\(CMT.*$", "", t["name"]), count=1)
+    if t["shape"] == "ball": return "spiral round nose" if "spiral" in n else "router round nose"
+    if "plastic" in n: return "plastic"
+    if "straight" in n: return "straight"
+    if "surfacing" in n: return "surfacing"
+    if "compression" in n: return "compression"
+    return re.sub(r"\d+", "", base)
 unique = []
 for t in tools:
     k = (t["shape"], round(t["dia"], 1), t["flutes"], round(t["angle"], 1), kind(t))
     cl = float(cutlen(t) or 0)
-    dup = next((u for u, uk, ucl in unique if uk == k and abs(ucl - cl) < 0.35), None)
+    dup = next((u for u, uk, ucl in unique if uk == k and abs(ucl - cl) < 0.5), None)
     if dup is not None:
-        codes = re.findall(r"(?:CMT|Diablo) ([A-Z]{1,2}\d{2,3}[.-]?\d{3}(?:\.\d{2})?|DR\d{5})", t["notes"])
-        dup["notes"] += " Same bit also listed as %s." % ", ".join(codes)
+        codes = re.findall(r"\((?:CMT|Diablo|Amana|Bosch) ([^)]+)\)", t["name"])
+        sh = re.findall(r"shank ([0-9.]+) mm|([0-9.]+) mm shank", t["notes"])
+        sh = [a or b for a, b in sh][:1]
+        dup["notes"] += " Same bit also listed as %s%s." % (", ".join(codes), (" (shank %s mm)" % sh[0]) if sh else "")
         print("merged", t["name"], "->", dup["name"], file=_sys.stderr)
         continue
     unique.append((t, k, cl))
@@ -441,6 +485,6 @@ unique = [u[0] for u in unique]
 tools[:] = unique
 for i, t in enumerate(tools, 1): t["id"] = "cmt%03d" % i
 
-out = {"app": "putia-cnc-tools", "v": 1, "name": "CNC router bits (CMT, Diablo, Amana)", "tools": tools}
+out = {"app": "putia-cnc-tools", "v": 1, "name": "CNC router bits (CMT, Diablo, Amana, Bosch)", "tools": tools}
 json.dump(out, _sys.stdout, ensure_ascii=False, indent=1)
 _sys.stdout.write("\n")

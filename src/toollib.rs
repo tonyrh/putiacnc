@@ -321,8 +321,8 @@ mod tests {
         let mut l = ToolLibs::default();
         let before = l.libs.len();
         let (name, n) = l.import(include_str!("../libraries/cmt-cnc-bits.json")).unwrap();
-        assert_eq!(name, "CNC router bits (CMT, Diablo, Amana)");
-        assert!(n > 300);
+        assert_eq!(name, "CNC router bits (CMT, Diablo, Amana, Bosch)");
+        assert!(n > 340);
         let names: std::collections::HashSet<_> = l.libs.last().unwrap().tools.iter().map(|t| t.name.clone()).collect();
         assert_eq!(names.len(), n, "tool names must be unique");
         assert_eq!(l.libs.len(), before + 1);
