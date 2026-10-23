@@ -30,9 +30,10 @@ def dim(tok):
 CODE = re.compile(r"(?<![\d.])([345]\d{4})((?:-[A-Z]{1,3}\d?)*)")
 # (pdf page, what the section is). 'flutes' is the default when the table has no Flute column.
 PAGES = {81: "spiral", 82: "spiral", 85: "spiral", 83: "compression", 84: "compression", 91: "spiral", 92: "spiral", 31: "plastic", 32: "plastic", 33: "plastic",
-         8: "alu", 10: "alu", 11: "alu", 12: "alu", 13: "alu", 22: "carving", 23: "foam"}
+         8: "alu", 10: "alu", 11: "alu", 12: "alu", 13: "alu", 22: "carving", 23: "foam",
+         18: "carving", 19: "carving", 70: "plunge", 71: "plunge", 72: "plunge", 73: "plunge", 74: "plunge"}
 # pages whose table has no Flute column and no "• Single Flute" bullet: the section is single-flute 'O' flute
-DEFAULT_Z = {8: 1}
+DEFAULT_Z = {8: 1, 71: 2}   # page 71 (45200 series) does not say; Amana lists these as 2-flute bits and the page note talks of "a two-flute bit"
 
 def scan():
     rows = []
@@ -49,6 +50,7 @@ def scan():
                 hdr = []
                 for t in ln.split():
                     if t in ("ØD", "B", "B1", "Ød", "L", "R"): hdr.append(t)
+                    elif t == "a°": hdr.append("A")
                     elif "Flute" in t: hdr.append("Flute"); 
                 continue
             if not hdr: continue
@@ -70,6 +72,10 @@ def scan():
                 if k == "Flute":
                     if not re.fullmatch(r"[1-4]", t): ok = False; break
                     v[k] = int(t)
+                elif k == "A":
+                    m = re.fullmatch(r"(\d+(?:\.\d+)?)\u00b0", t)
+                    if not m: ok = False; break
+                    v[k] = float(m.group(1))
                 else:
                     d = dim(t)
                     if d is None and k != "B1": ok = False; break
@@ -83,14 +89,14 @@ def scan():
             up, down, comp = [], [], []
             for pos, c, suf in codes:
                 full = c + suf
-                if "LH" in suf: continue
+                if "LH" in suf or c == "45582": continue          # 45582 is a drawing label, not a product
                 if fam == "compression": comp.append(full)
                 elif fam == "plastic" and not (upx is not None and dnx is not None): up.append(full)
                 elif upx is not None and dnx is not None:
                     (up if abs(pos - upx) <= abs(pos - dnx) else down).append(full)
                 else: up.append(full)
             if not (up or down or comp): continue
-            last = dict(page=p, fam=fam, title=title, D=v["ØD"], B=v["B"], B1=v.get("B1"), d=v["Ød"], L=v["L"], R=v.get("R"), Z=z, up=up, down=down, comp=comp)
+            last = dict(page=p, fam=fam, title=title, D=v["ØD"], B=v["B"], B1=v.get("B1"), d=v["Ød"], L=v["L"], R=v.get("R"), A=v.get("A"), Z=z, up=up, down=down, comp=comp)
             rows.append(last)
     return rows
 

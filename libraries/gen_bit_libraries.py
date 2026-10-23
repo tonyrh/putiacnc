@@ -391,10 +391,18 @@ def _same_geo(t, cls, D, B, d, Z, sys_flutes_ok=True):
 def _stripcode(c): return c.split("-")[0]
 
 groups = {}
+def _taper_ok(r):
+    """Carving bits with a taper: the table's a\u00b0 is per side. Under 5\u00b0 per side the app's 10\u00b0 minimum included angle cannot hold it; a flat-bottom taper has no shape."""
+    return r.get("A") is not None and r["A"] >= 5.0 and bool(r["R"])
 for r in _rows:
-    if r["D"] < 1.5: continue                       # micro bits are not worth a tool-library slot
-    cls = "comp" if r["fam"] == "compression" else (("ball" if abs(r["R"] * 2 - r["D"]) < 0.05 else "bull") if r["R"] else "spiral")
-    key = (r["fam"], cls, round(r["D"], 1), round(r["B"], 1), round(r["d"], 1), round(r["L"], 0), r["Z"], round(r["R"] or 0, 2), round(r["B1"] or 0, 1))
+    A = r.get("A")
+    if A is not None and 0.2 < A < 5.0: continue    # slight tapers (1 to 3.6 degrees per side) do not fit the app's tool shapes
+    if A is not None and A >= 5.0 and not r["R"]: continue
+    if r["fam"] == "carving" and A is not None and A >= 5.0: r = dict(r, taper=True)
+    if r["D"] < 0.7 and not r.get("taper"): continue
+    if r["D"] < 1.5 and not r.get("taper"): continue                       # micro bits are not worth a tool-library slot
+    cls = "taper" if r.get("taper") else ("comp" if r["fam"] == "compression" else (("ball" if abs(r["R"] * 2 - r["D"]) < 0.05 else "bull") if r["R"] else "spiral"))
+    key = (r["fam"], cls, round(r["D"], 2), round(r["B"], 1), round(r["d"], 1), round(r["L"], 0), r["Z"], round(r["R"] or 0, 2), round(r["B1"] or 0, 1), round(r.get("A") or 0, 1))
     g = groups.setdefault(key, dict(r=r, up=[], down=[], comp=[]))
     for k in ("up", "down", "comp"):
         for c in r[k]:
@@ -431,9 +439,12 @@ for key, g in groups.items():
     if cls == "comp": dword = "compression spiral"; shape = "flat"
     elif cls == "ball": dword = {"alu": "aluminium ball nose", "foam": "foam ball nose", "carving": "carving ball nose"}.get(fam, "ball nose"); shape = "ball"
     elif cls == "bull": dword = "corner-radius spiral"; shape = "arc"
+    elif cls == "taper": dword = "tapered carving"; shape = "taper"
     else:
         dw = "up/downcut" if (pending["up"] and pending["down"]) else ("upcut" if pending["up"] else "downcut")
-        if fam == "plastic":
+        if fam == "plunge":
+            what = "straight plunge"; dw = ""
+        elif fam == "plastic":
             what = "plastic O-flute" if Z == 1 else ("plastic double O-flute" if r["page"] == 31 else "plastic straight-grind")
         elif fam == "alu":
             what = "aluminium O-flute spiral" if Z == 1 else "aluminium spiral"
@@ -441,7 +452,7 @@ for key, g in groups.items():
         elif fam == "carving": what = "carving spiral"
         else:
             what = "chipbreaker spiral" if (r["page"] in (91, 92) and Z == 3) else "spiral"
-        dword = dw + " " + what; shape = "flat"
+        dword = (dw + " " + what).strip(); shape = "flat"
     zeff = Z
     rpm_, feed, plunge, so, pd = speeds(D, zeff, "ball" if shape == "arc" else shape, slow=(fam in ("plastic", "alu")))
     if D <= 6.5 and fam not in ("plastic", "alu"): pd = min(pd, D * 0.5)
@@ -450,10 +461,11 @@ for key, g in groups.items():
     if pending["up"]: code_list.append("up " + ", ".join(pending["up"]))
     if pending["down"]: code_list.append("down " + ", ".join(pending["down"]))
     if pending["comp"]: code_list.append(", ".join(pending["comp"]))
-    note = ("Amana Tool %s %s, solid carbide, %d flute%s. Cutting length %s mm, overall %s mm, shank %s mm.%s Codes: %s%s. "
-            "Dimensions from Amana's CNC booklet (page %d); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version."
+    mat = "carbide tipped" if (fam == "plunge" and r["page"] in (70, 71, 73)) else "solid carbide"
+    note = (("Amana Tool %s %s, " + mat + ", %d flute%s. Cutting length %s mm, overall %s mm, shank %s mm.%s Codes: %s%s. "
+            "Dimensions from Amana's CNC booklet (page %d); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.")
             % (first, dword, Z, "" if Z == 1 else "s", fmt(B), fmt(L), fmt(d),
-               (" Compression section B1 %s mm." % fmt(r["B1"])) if (cls == "comp" and r["B1"]) else "",
+               ((" Compression section B1 %s mm." % fmt(r["B1"])) if (cls == "comp" and r["B1"]) else "") + (" The booklet page does not state the flute count; 2 assumed." if r["page"] == 71 else "") + (" Hand-router style bit: shallow passes." if fam == "plunge" else ""),
                "; ".join(code_list), ("; radius %s mm" % fmt(r["R"])) if r["R"] else "", r["page"]))
     short = lambda w: w.replace("chipbreaker spiral", "chipbreaker").replace("plastic straight-grind", "plastic").replace("plastic double O-flute", "plastic dbl O").replace("up/downcut", "up/down").replace("aluminium O-flute spiral", "alu O-flute").replace("aluminium spiral", "alu spiral").replace("aluminium ball nose", "alu ball nose").replace("foam cutting spiral", "foam spiral").replace("corner-radius spiral", "corner radius")
     base = "%s %s Z%d, %s" % (label(D, sys_), dword, Z, cutl)
@@ -462,6 +474,13 @@ for key, g in groups.items():
     add(name=base + " (Amana %s)" % first.split("-")[0],
         sys=sys_, shape=shape, angle=60.0, flutes=Z, dia=round(D, 3), rpm=min(rpm_, 12000), feed=min(feed, 2000.0), plunge=plunge, so=so, pd=pd, notes=note + (" Cutting aluminium: use a lubricant or an air blast, and light passes." if fam == "alu" else ""))
     if shape == "arc": tools[-1]["arc"] = round(r["R"], 3)
+    if shape == "taper":
+        # the table gives the ball (tip) diameter D and the angle per side: the widest point is D + 2 B tan(a)
+        import math
+        t = tools[-1]; a = r["A"]
+        t["dia"] = round(D + 2 * B * math.tan(math.radians(a)), 3); t["angle"] = round(2 * a, 2); t["tip"] = round(r["R"], 3)
+        t["feed"] = min(t["feed"], 900.0); t["pd"] = min(t["pd"], 1.0); t["so"] = 15.0
+        t["notes"] += " Tapered ball nose: ball diameter %s mm, %s\u00b0 per side (%s\u00b0 included); the diameter shown is the widest point of the cutting length, worked out from the table." % (fmt(D), fmt(a), fmt(2 * a))
     n_amana += 1
 print("amana: %d new tools, %d rows merged into existing tools" % (n_amana, n_merged), file=_sys.stderr)
 
