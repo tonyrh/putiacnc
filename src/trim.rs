@@ -280,4 +280,21 @@ mod tests {
         // the click is on the loop; it goes away leaving the two tails
         assert_eq!(plan.keep.len(), 2);
     }
+
+    #[test]
+    fn two_rectangles_trimmed_against_each_other_join_into_one_outline() {
+        let mut loops = vec![new_rect([0.0, 0.0], [60.0, 60.0], 0.0, 0), new_rect([30.0, 30.0], [90.0, 90.0], 0.0, 0)];
+        // trim the first rectangle where it lies inside the second, then the second where it lies inside the first
+        for (target, at) in [(0usize, [45.0, 60.0]), (1, [45.0, 30.0])] {
+            let plan = plan_trim(&loops, target, at).unwrap();
+            let mut it = trimmed_shapes(&loops[target], &plan).into_iter();
+            loops[target] = it.next().unwrap();
+            loops.extend(it);
+        }
+        assert!(loops.iter().all(|l| !l.closed()));
+        let o = crate::cleanup::Options { join: true, duplicates: false, tiny: false, tol: 0.01 };
+        let (res, _, rep) = crate::cleanup::clean(&loops, None, o);
+        assert_eq!(res.len(), 1, "{:?}", rep);
+        assert!(res[0].closed());
+    }
 }
