@@ -403,8 +403,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     // typed values: a click on the drawing drops them, a number typed over it opens the panel
     if resp.clicked() || resp.drag_started() { app.dyn_in = None; }
     let typed_at = pointer_w.map(|p| app.snap(p));
-    let anchor = rect.min + Vec2::new(0.0, app.palette_extra);
-    crate::dynin::drive(&ctx, app, resp.hovered(), typed_at, zero, anchor);
+    crate::dynin::drive(&ctx, app, resp.hovered(), typed_at, zero, rect);
 
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }

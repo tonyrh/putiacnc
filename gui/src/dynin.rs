@@ -26,6 +26,8 @@ pub struct DynIn {
     pub focus: bool,
     /// The size field is a diameter, not a radius.
     pub diam: bool,
+    /// Where the panel hangs, near the pointer where it was when typing began.
+    pub pos: egui::Pos2,
 }
 
 impl DynIn {
@@ -123,8 +125,8 @@ fn add_points(app: &mut App, v: Vec<putiacnc_core::model::LoopData>) {
 }
 
 /// Opens the panel when a number is typed over the drawing area, and runs it while it is open.
-/// `hover` is the snapped pointer position, `anchor` the screen position the panel hangs from.
-pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Option<[f64; 2]>, zero: (f64, f64), anchor: egui::Pos2) {
+/// `hover` is the snapped pointer position, `canvas` the drawing area, which the panel stays inside.
+pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Option<[f64; 2]>, zero: (f64, f64), canvas: egui::Rect) {
     let usable = matches!(app.mode, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Point) && app.tab_edit.is_none() && app.node_edit.is_none() && matches!(app.drag, crate::app::Drag::None);
     if !usable { app.dyn_in = None; return; }
     // the kind follows the tool, and for lines whether a point has been placed
@@ -138,10 +140,10 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
         ctx.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Text(_))));
         let n = match want { Kind::Start | Kind::Segment => 2, Kind::Circle => 3, Kind::Box | Kind::Radial => 4 };
         let mut vals = vec![String::new(); n];
-        // a rectangle starts at the pointer, so the first thing to type is its width
-        let active = if matches!(want, Kind::Box | Kind::Circle | Kind::Radial) { 2 } else { 0 };
-        vals[active] = t;
-        app.dyn_in = Some(DynIn { kind: want, vals, active, focus: true, diam: app.circle_diam });
+        // typing starts in the first field (X), then Tab goes on to Y, the size and so on
+        vals[0] = t;
+        let at = ctx.input(|i| i.pointer.latest_pos()).unwrap_or(canvas.center()) + Vec2::new(18.0, 18.0);
+        app.dyn_in = Some(DynIn { kind: want, vals, active: 0, focus: true, diam: app.circle_diam, pos: at });
     }
 
     // keys first, so Tab does not move the focus out of the panel
@@ -151,7 +153,10 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
     if tab { d.active = (d.active + 1) % d.vals.len(); d.focus = true; }
     let title = match d.kind { Kind::Start if app.mode == Mode::Point => "Drill point", Kind::Radial if app.mode == Mode::Point => "Bolt circle", Kind::Radial => if app.poly_star { "Star" } else { "Polygon" }, Kind::Box if app.mode == Mode::Point => "Point grid", Kind::Start => "Start point", Kind::Segment => "Next point", Kind::Circle => "Circle", Kind::Box => if app.mode == Mode::Ellipse { "Ellipse" } else { "Rectangle" } };
     let labels = d.labels();
-    egui::Area::new(egui::Id::new("dynin")).order(egui::Order::Foreground).fixed_pos(anchor + Vec2::new(10.0, 108.0)).show(ctx, |ui| {
+    // near where the pointer was, but wholly inside the drawing area
+    let (pw, ph) = (330.0, 80.0 + 32.0 * ((labels.len() + 1) / 2) as f32);
+    let at = egui::pos2(d.pos.x.min(canvas.right() - pw - 6.0).max(canvas.left() + 6.0), d.pos.y.min(canvas.bottom() - ph - 48.0).max(canvas.top() + 6.0));
+    egui::Area::new(egui::Id::new("dynin")).order(egui::Order::Foreground).fixed_pos(at).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
             ui.strong(title);
@@ -221,7 +226,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
 mod tests {
     use super::*;
 
-    fn d(kind: Kind, v: &[&str]) -> DynIn { DynIn { kind, vals: v.iter().map(|s| s.to_string()).collect(), active: 0, focus: false, diam: false } }
+    fn d(kind: Kind, v: &[&str]) -> DynIn { DynIn { kind, vals: v.iter().map(|s| s.to_string()).collect(), active: 0, focus: false, diam: false, pos: egui::Pos2::ZERO } }
 
     #[test]
     fn typed_length_and_angle_make_the_next_point() {

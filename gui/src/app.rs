@@ -359,6 +359,14 @@ impl App {
         if let Ok(s) = std::env::var("PUTIACNC_SHOW_TEXT") {
             a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");
         }
+        if let Ok(s) = std::env::var("PUTIACNC_DYN") {
+            // "x,y" screen position of the pointer when typing started (for screenshots)
+            let v: Vec<f32> = s.split(',').filter_map(|t| t.parse().ok()).collect();
+            if v.len() == 2 {
+                a.mode = Mode::Ellipse;
+                a.dyn_in = Some(crate::dynin::DynIn { kind: crate::dynin::Kind::Box, vals: vec!["2".into(), String::new(), String::new(), String::new()], active: 0, focus: true, diam: false, pos: eframe::egui::pos2(v[0], v[1]) });
+            }
+        }
         if let Some(i) = std::env::var("PUTIACNC_NODE_EDIT").ok().and_then(|v| v.parse::<usize>().ok()) {
             a.mode = Mode::Node;
             a.node_edit = Some(i);
