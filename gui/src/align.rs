@@ -70,9 +70,9 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
             let row = |ui: &mut egui::Ui, title: &str, items: &[(u8, Icon, &str, bool)], each: bool, pick: &mut Option<(bool, u8)>| {
                 ui.horizontal(|ui| {
                     let lw = 120.0;
-                    // labels flush left in one column, so the three rows line up
+                    // labels flush right in one column, so the three rows line up
                     let (r, _) = ui.allocate_exact_size(Vec2::new(lw, 28.0), egui::Sense::hover());
-                    ui.painter().text(r.left_center(), egui::Align2::LEFT_CENTER, title, egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
+                    ui.painter().text(r.right_center(), egui::Align2::RIGHT_CENTER, title, egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
                     for (pos, (k, icon, tip, on)) in items.iter().enumerate() {
                         if pos == 3 || pos == 6 { ui.add_space(6.0); }
                         if icon_button(ui, *icon, false, *on, tip).clicked() { *pick = Some((each, *k)); }
