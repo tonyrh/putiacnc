@@ -31,9 +31,10 @@ CODE = re.compile(r"(?<![\d.])([345]\d{4})((?:-[A-Z]{1,3}\d?)*)")
 # (pdf page, what the section is). 'flutes' is the default when the table has no Flute column.
 PAGES = {81: "spiral", 82: "spiral", 85: "spiral", 83: "compression", 84: "compression", 91: "spiral", 92: "spiral", 31: "plastic", 32: "plastic", 33: "plastic",
          8: "alu", 10: "alu", 11: "alu", 12: "alu", 13: "alu", 22: "carving", 23: "foam",
-         18: "carving", 19: "carving", 70: "plunge", 71: "plunge", 72: "plunge", 73: "plunge", 74: "plunge"}
+         18: "carving", 19: "carving", 70: "plunge", 71: "plunge", 72: "plunge", 73: "plunge", 74: "plunge",
+         34: "plastic", 36: "plastic", 86: "compression", 87: "compression", 88: "compression", 89: "compression", 90: "spiral", 99: "surfacing"}
 # pages whose table has no Flute column and no "• Single Flute" bullet: the section is single-flute 'O' flute
-DEFAULT_Z = {8: 1, 71: 2}   # page 71 (45200 series) does not say; Amana lists these as 2-flute bits and the page note talks of "a two-flute bit"
+DEFAULT_Z = {8: 1, 34: 1, 71: 2}   # page 71 (45200 series) does not say; Amana lists these as 2-flute bits and the page note talks of "a two-flute bit"
 
 def scan():
     rows = []
@@ -41,6 +42,7 @@ def scan():
         hdr = None; upx = dnx = None; sflute = DEFAULT_Z.get(p); title = ""
         last = None
         for ln in page(p).splitlines():
+            if "HIGH SPEED STEEL" in ln: break            # the HSS tables below the carbide ones are not read
             s = ln.strip()
             m = re.search(r"•\s*(Single|\d)\s*(?:&\s*(\d)\s*)?Flute", s)
             if m: sflute = 1 if m.group(1) == "Single" else int(m.group(1))

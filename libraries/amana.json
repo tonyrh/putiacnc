@@ -967,7 +967,7 @@
    "plunge": 900,
    "so": 40.0,
    "pd": 3.3,
-   "notes": "Amana Tool 46114 up/downcut spiral, solid carbide, 3 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 9.52 mm. Codes: up 46114, 59424; down 46214, 46214-K2, 59524. Dimensions from Amana's CNC booklet (page 81); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46114 up/downcut spiral, solid carbide, 3 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 9.52 mm. Codes: up 46114, 59424, 46129; down 46214, 46214-K2, 59524, 46223. Dimensions from Amana's CNC booklet (page 81); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama060",
    "tip": 0.0
   },
@@ -999,7 +999,7 @@
    "plunge": 860,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46118 up/downcut spiral, solid carbide, 3 flutes. Cutting length 50.8 mm, overall 101.6 mm, shank 12.7 mm. Codes: up 46118; down 46218. Dimensions from Amana's CNC booklet (page 81); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 59526 (booklet page 91).",
+   "notes": "Amana Tool 46118 up/downcut spiral, solid carbide, 3 flutes. Cutting length 50.8 mm, overall 101.6 mm, shank 12.7 mm. Codes: up 46118; down 46218. Dimensions from Amana's CNC booklet (page 81); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 59526, 46226, 45582 (booklet page 91).",
    "id": "ama062",
    "tip": 0.0
   },
@@ -1292,7 +1292,7 @@
    "tip": 0.0
   },
   {
-   "name": "3/8″ downcut spiral Z3, 1″ cut (Amana 46055)",
+   "name": "3/8″ up/downcut spiral Z3, 1″ cut (Amana 59420)",
    "sys": "in",
    "shape": "flat",
    "angle": 60.0,
@@ -1303,7 +1303,7 @@
    "plunge": 900,
    "so": 40.0,
    "pd": 3.3,
-   "notes": "Amana Tool 46055-K downcut spiral, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 9.52 mm. Codes: down 46055-K. Dimensions from Amana's CNC booklet (page 82); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 59420 up/downcut spiral, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 9.52 mm. Codes: up 59420; down 46055-K. Dimensions from Amana's CNC booklet (page 82); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama081",
    "tip": 0.0
   },
@@ -1415,7 +1415,7 @@
    "plunge": 220,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 46140 compression spiral, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 9.52 mm. Codes: 46140. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46140 compression spiral, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 9.52 mm. Codes: 46140. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46390 (booklet page 88). Amana equivalent: 46322 (booklet page 88).",
    "id": "ama088",
    "tip": 0.0
   },
@@ -1431,7 +1431,7 @@
    "plunge": 220,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 46036 compression spiral, solid carbide, 1 flute. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 14.22 mm. Codes: 46036. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46036 compression spiral, solid carbide, 1 flute. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 14.22 mm. Codes: 46036. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46393 (booklet page 86).",
    "id": "ama089",
    "tip": 0.0
   },
@@ -1527,7 +1527,7 @@
    "plunge": 440,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 46170 compression spiral, solid carbide, 2 flutes. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 7 mm. Codes: 46170, 46170-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46170 compression spiral, solid carbide, 2 flutes. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 7 mm. Codes: 46170, 46170-K, 46700-K, 46170-DLC. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46033-K (booklet page 86).",
    "id": "ama095",
    "tip": 0.0
   },
@@ -1543,7 +1543,7 @@
    "plunge": 440,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 46037 compression spiral, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 7 mm. Codes: 46037. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46037 compression spiral, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 7 mm. Codes: 46037. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46350, 46350-K2, 46712-K (booklet page 86).",
    "id": "ama096",
    "tip": 0.0
   },
@@ -1559,7 +1559,7 @@
    "plunge": 660,
    "so": 40.0,
    "pd": 3.3,
-   "notes": "Amana Tool 46171 compression spiral, solid carbide, 2 flutes. Cutting length 22.22 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 4.78 mm. Codes: 46171. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46171 compression spiral, solid carbide, 2 flutes. Cutting length 22.22 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 4.78 mm. Codes: 46171, 46702-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46367, 46367-K2 (booklet page 86).",
    "id": "ama097",
    "tip": 0.0
   },
@@ -1591,7 +1591,7 @@
    "plunge": 660,
    "so": 40.0,
    "pd": 3.3,
-   "notes": "Amana Tool 46172 compression spiral, solid carbide, 2 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 9 mm. Codes: 46172, 46172-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46172 compression spiral, solid carbide, 2 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 9 mm. Codes: 46172, 46172-K, 46704-K, 46172-DLC. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46021, 46021-K2, 46711-K (booklet page 86). Same bit also listed as 46352 (shank 12.7 mm).",
    "id": "ama099",
    "tip": 0.0
   },
@@ -1607,7 +1607,7 @@
    "plunge": 660,
    "so": 40.0,
    "pd": 3.3,
-   "notes": "Amana Tool 46174 compression spiral, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 9 mm. Codes: 46174, 46174-K2. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46174 compression spiral, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 9 mm. Codes: 46174, 46174-K2. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 48359 (shank 9.52 mm).",
    "id": "ama100",
    "tip": 0.0
   },
@@ -1623,7 +1623,7 @@
    "plunge": 580,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46182 compression spiral, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 9 mm. Codes: 46182, 46182-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46182 compression spiral, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 9 mm. Codes: 46182, 46182-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46034-K (booklet page 86). Amana equivalent: 46019-K (booklet page 86).",
    "id": "ama101",
    "tip": 0.0
   },
@@ -1639,7 +1639,7 @@
    "plunge": 580,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46188 compression spiral, solid carbide, 2 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 11 mm. Codes: 46188, 46188-K2. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46188 compression spiral, solid carbide, 2 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 11 mm. Codes: 46188, 46188-K2, 46188-DLC. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama102",
    "tip": 0.0
   },
@@ -1671,7 +1671,7 @@
    "plunge": 580,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46190 compression spiral, solid carbide, 2 flutes. Cutting length 41.27 mm, overall 88.9 mm, shank 12.7 mm. Compression section B1 13 mm. Codes: 46190, 46190-K2. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46190 compression spiral, solid carbide, 2 flutes. Cutting length 41.27 mm, overall 88.9 mm, shank 12.7 mm. Compression section B1 13 mm. Codes: 46190, 46190-K2. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46356 (booklet page 86).",
    "id": "ama104",
    "tip": 0.0
   },
@@ -1687,7 +1687,7 @@
    "plunge": 580,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46035 compression spiral, solid carbide, 2 flutes. Cutting length 53.97 mm, overall 127 mm, shank 12.7 mm. Compression section B1 12.98 mm. Codes: 46035, 46035-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46035 compression spiral, solid carbide, 2 flutes. Cutting length 53.97 mm, overall 127 mm, shank 12.7 mm. Compression section B1 12.98 mm. Codes: 46035, 46035-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46360 (booklet page 86).",
    "id": "ama105",
    "tip": 0.0
   },
@@ -1719,7 +1719,7 @@
    "plunge": 900,
    "so": 40.0,
    "pd": 3.3,
-   "notes": "Amana Tool 46010 compression spiral, solid carbide, 3 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 9 mm. Codes: 46010, 46010-K2. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46010 compression spiral, solid carbide, 3 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 9 mm. Codes: 46010, 46010-K2, 46709-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama107",
    "tip": 0.0
   },
@@ -1751,7 +1751,7 @@
    "plunge": 860,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46012 compression spiral, solid carbide, 3 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 9 mm. Codes: 46012, 46012-K2. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46012 compression spiral, solid carbide, 3 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 9 mm. Codes: 46012, 46012-K2, 46710-K. Dimensions from Amana's CNC booklet (page 83); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46372 (booklet page 87).",
    "id": "ama109",
    "tip": 0.0
   },
@@ -1831,7 +1831,7 @@
    "plunge": 550,
    "so": 40.0,
    "pd": 2.8,
-   "notes": "Amana Tool 48306-K compression spiral, solid carbide, 2 flutes. Cutting length 25 mm, overall 64 mm, shank 8 mm. Compression section B1 11 mm. Codes: 48306-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 48306-K compression spiral, solid carbide, 2 flutes. Cutting length 25 mm, overall 64 mm, shank 8 mm. Compression section B1 11 mm. Codes: 48306-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 48352-K2 (booklet page 86).",
    "id": "ama114",
    "tip": 0.0
   },
@@ -1991,7 +1991,7 @@
    "plunge": 580,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46193-K compression spiral, solid carbide, 2 flutes. Cutting length 34.92 mm, overall 88.9 mm, shank 12.7 mm. Compression section B1 12 mm. Codes: 46193-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46193-K compression spiral, solid carbide, 2 flutes. Cutting length 34.92 mm, overall 88.9 mm, shank 12.7 mm. Compression section B1 12 mm. Codes: 46193-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46023-K (booklet page 86).",
    "id": "ama124",
    "tip": 0.0
   },
@@ -2055,7 +2055,7 @@
    "plunge": 330,
    "so": 40.0,
    "pd": 1.1,
-   "notes": "Amana Tool 46015-K compression spiral, solid carbide, 3 flutes. Cutting length 20.64 mm, overall 63.5 mm, shank 3.17 mm. Compression section B1 5.56 mm. Codes: 46015-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46015-K compression spiral, solid carbide, 3 flutes. Cutting length 20.64 mm, overall 63.5 mm, shank 3.17 mm. Compression section B1 5.56 mm. Codes: 46015-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46398-K (booklet page 86).",
    "id": "ama128",
    "tip": 0.0
   },
@@ -2103,7 +2103,7 @@
    "plunge": 660,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 46017-K compression spiral, solid carbide, 3 flutes. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 7 mm. Codes: 46017-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46017-K compression spiral, solid carbide, 3 flutes. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 7 mm. Codes: 46017-K, 46708-K. Dimensions from Amana's CNC booklet (page 84); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama131",
    "tip": 0.0
   },
@@ -2199,7 +2199,7 @@
    "plunge": 660,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 59422 up/downcut chipbreaker spiral, solid carbide, 3 flutes. Cutting length 22.22 mm, overall 57.15 mm, shank 6.35 mm. Codes: up 59422; down 59522. Dimensions from Amana's CNC booklet (page 91); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 59422 up/downcut chipbreaker spiral, solid carbide, 3 flutes. Cutting length 22.22 mm, overall 57.15 mm, shank 6.35 mm. Codes: up 59422, 46141; down 59522. Dimensions from Amana's CNC booklet (page 91); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama137",
    "tip": 0.0
   },
@@ -2215,7 +2215,7 @@
    "plunge": 860,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 59426 upcut chipbreaker spiral, solid carbide, 3 flutes. Cutting length 50.8 mm, overall 114.3 mm, shank 12.7 mm. Codes: up 59426. Dimensions from Amana's CNC booklet (page 91); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 59426 upcut chipbreaker spiral, solid carbide, 3 flutes. Cutting length 50.8 mm, overall 114.3 mm, shank 12.7 mm. Codes: up 59426, 46126. Dimensions from Amana's CNC booklet (page 91); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama138",
    "tip": 0.0
   },
@@ -2295,7 +2295,7 @@
    "plunge": 350,
    "so": 15.0,
    "pd": 2.2,
-   "notes": "Amana Tool 46376 ball nose, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46376, 46376-K; down 46476, 46476-K; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 91); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46376 ball nose, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46376, 46376-K; down 46476, 46476-K; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 91); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46451 (booklet page 36).",
    "id": "ama143",
    "tip": 0.0
   },
@@ -2455,7 +2455,7 @@
    "plunge": 860,
    "so": 40.0,
    "pd": 4.4,
-   "notes": "Amana Tool 46134 up/downcut chipbreaker spiral, solid carbide, 3 flutes. Cutting length 41.27 mm, overall 88.9 mm, shank 12.7 mm. Codes: up 46134; down 46234. Dimensions from Amana's CNC booklet (page 92); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 46134 up/downcut chipbreaker spiral, solid carbide, 3 flutes. Cutting length 41.27 mm, overall 88.9 mm, shank 12.7 mm. Codes: up 46134; down 46234. Dimensions from Amana's CNC booklet (page 92); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46224 (booklet page 90).",
    "id": "ama153",
    "tip": 0.0
   },
@@ -2647,7 +2647,7 @@
    "plunge": 60.0,
    "so": 40.0,
    "pd": 1.1,
-   "notes": "Amana Tool 51445-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 15.88 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51445-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "notes": "Amana Tool 51445-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 15.88 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51445-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 43503 (shank 3.17 mm).",
    "id": "ama165",
    "tip": 0.0
   },
@@ -2663,7 +2663,7 @@
    "plunge": 60.0,
    "so": 40.0,
    "pd": 1.1,
-   "notes": "Amana Tool 51410-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 3.17 mm. Codes: up 51410-K, 57365-K; down 51510-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 51411 (shank 6.35 mm).",
+   "notes": "Amana Tool 51410-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 3.17 mm. Codes: up 51410-K, 57365-K, 43502; down 51510-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 51411 (shank 6.35 mm).",
    "id": "ama166",
    "tip": 0.0
   },
@@ -2684,22 +2684,6 @@
    "tip": 0.0
   },
   {
-   "name": "1/8″ up/downcut plastic O-flute Z1, 7/8″ cut (Amana 51435)",
-   "sys": "in",
-   "shape": "flat",
-   "angle": 60.0,
-   "flutes": 1,
-   "dia": 3.175,
-   "rpm": 10000,
-   "feed": 180,
-   "plunge": 60.0,
-   "so": 40.0,
-   "pd": 1.1,
-   "notes": "Amana Tool 51435-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51435-K, 45582, 51412-K, 51417-K; down 51517-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama168",
-   "tip": 0.0
-  },
-  {
    "name": "3/16″ upcut plastic O-flute Z1, 7/8″ cut (Amana 51442)",
    "sys": "in",
    "shape": "flat",
@@ -2712,7 +2696,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51442-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51442-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama169",
+   "id": "ama168",
    "tip": 0.0
   },
   {
@@ -2728,7 +2712,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51418-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 31.75 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 51418-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama170",
+   "id": "ama169",
    "tip": 0.0
   },
   {
@@ -2744,7 +2728,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51425-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 9.52 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51425-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama171",
+   "id": "ama170",
    "tip": 0.0
   },
   {
@@ -2760,7 +2744,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51810-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51810-K, 57362-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama172",
+   "id": "ama171",
    "tip": 0.0
   },
   {
@@ -2776,7 +2760,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51419-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51419-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama173",
+   "id": "ama172",
    "tip": 0.0
   },
   {
@@ -2791,8 +2775,8 @@
    "plunge": 110,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 51404-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51404-K, 57363-K; down 51504-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 51421 (shank 6.35 mm).",
-   "id": "ama174",
+   "notes": "Amana Tool 51404-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51404-K, 57363-K, 43508; down 51504-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 51421 (shank 6.35 mm).",
+   "id": "ama173",
    "tip": 0.0
   },
   {
@@ -2808,7 +2792,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51444-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51444-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama175",
+   "id": "ama174",
    "tip": 0.0
   },
   {
@@ -2823,8 +2807,8 @@
    "plunge": 110,
    "so": 40.0,
    "pd": 2.2,
-   "notes": "Amana Tool 51405-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51405-K, 57367-K; down 51505-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama176",
+   "notes": "Amana Tool 51405-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51405-K, 57367-K, 43512; down 51505-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama175",
    "tip": 0.0
   },
   {
@@ -2840,7 +2824,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51392-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 28.57 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 51392-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama177",
+   "id": "ama176",
    "tip": 0.0
   },
   {
@@ -2856,7 +2840,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51407-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 31.75 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 51407-K; down 51507-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama178",
+   "id": "ama177",
    "tip": 0.0
   },
   {
@@ -2872,7 +2856,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51413-K up/downcut plastic O-flute, solid carbide, 1 flute. Cutting length 38.1 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 51413-K; down 51513-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama179",
+   "id": "ama178",
    "tip": 0.0
   },
   {
@@ -2888,7 +2872,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51646-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 57.15 mm, overall 95.25 mm, shank 6.35 mm. Codes: up 51646-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama180",
+   "id": "ama179",
    "tip": 0.0
   },
   {
@@ -2904,7 +2888,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 51427-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 41.27 mm, overall 88.9 mm, shank 9.52 mm. Codes: up 51427-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama181",
+   "id": "ama180",
    "tip": 0.0
   },
   {
@@ -2920,7 +2904,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 51428-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 41.27 mm, overall 88.9 mm, shank 12.7 mm. Codes: up 51428-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama182",
+   "id": "ama181",
    "tip": 0.0
   },
   {
@@ -2936,7 +2920,7 @@
    "so": 40.0,
    "pd": 0.5,
    "notes": "Amana Tool 51391-K downcut plastic O-flute, solid carbide, 1 flute. Cutting length 6 mm, overall 30 mm, shank 3 mm. Codes: down 51391-K. Dimensions from Amana's CNC booklet (page 32); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama183",
+   "id": "ama182",
    "tip": 0.0
   },
   {
@@ -2951,8 +2935,8 @@
    "plunge": 80,
    "so": 40.0,
    "pd": 1.7,
-   "notes": "Amana Tool 57366-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 57366-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama184",
+   "notes": "Amana Tool 57366-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 57366-K, 43504, 43504-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama183",
    "tip": 0.0
   },
   {
@@ -2968,7 +2952,7 @@
    "so": 40.0,
    "pd": 0.6,
    "notes": "Amana Tool 51811-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 0.79 mm, overall 6.35 mm, shank 6.35 mm. Codes: up 51811-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama185",
+   "id": "ama184",
    "tip": 0.0
   },
   {
@@ -2984,7 +2968,7 @@
    "so": 40.0,
    "pd": 0.6,
    "notes": "Amana Tool 51814 upcut plastic O-flute, solid carbide, 1 flute. Cutting length 3.17 mm, overall 3.17 mm, shank 12.7 mm. Codes: up 51814. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama186",
+   "id": "ama185",
    "tip": 0.0
   },
   {
@@ -3000,7 +2984,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51815-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 1.59 mm, overall 6.35 mm, shank 12.7 mm. Codes: up 51815-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 51816 (shank 19.05 mm).",
-   "id": "ama187",
+   "id": "ama186",
    "tip": 0.0
   },
   {
@@ -3016,7 +3000,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51817-K upcut plastic O-flute, solid carbide, 1 flute. Cutting length 2.38 mm, overall 6.35 mm, shank 15.88 mm. Codes: up 51817-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama188",
+   "id": "ama187",
    "tip": 0.0
   },
   {
@@ -3032,7 +3016,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 43507 upcut plastic straight-grind, solid carbide, 2 flutes. Cutting length 6.35 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 43507, 43507-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama189",
+   "id": "ama188",
    "tip": 0.0
   },
   {
@@ -3048,7 +3032,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 43616 upcut plastic straight-grind, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Codes: up 43616. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama190",
+   "id": "ama189",
    "tip": 0.0
   },
   {
@@ -3064,7 +3048,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 46483-K upcut plastic straight-grind, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46483-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama191",
+   "id": "ama190",
    "tip": 0.0
   },
   {
@@ -3080,7 +3064,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 59432-K upcut plastic straight-grind, solid carbide, 3 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 59432-K. Dimensions from Amana's CNC booklet (page 33); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama192",
+   "id": "ama191",
    "tip": 0.0
   },
   {
@@ -3096,7 +3080,7 @@
    "so": 40.0,
    "pd": 0.6,
    "notes": "Amana Tool 51470 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 6.35 mm, overall 38.1 mm, shank 3.17 mm. Codes: up 51470; down 51770. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama193",
+   "id": "ama192",
    "tip": 0.0
   },
   {
@@ -3112,7 +3096,7 @@
    "so": 40.0,
    "pd": 0.8,
    "notes": "Amana Tool 51472 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 6.35 mm, overall 50.8 mm, shank 3.17 mm. Codes: up 51472. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama194",
+   "id": "ama193",
    "tip": 0.0
   },
   {
@@ -3128,7 +3112,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51471 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 6.35 mm, overall 38.1 mm, shank 3.17 mm. Codes: up 51471; down 51771. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Same bit also listed as 51474 (shank 6.35 mm).",
-   "id": "ama195",
+   "id": "ama194",
    "tip": 0.0
   },
   {
@@ -3144,7 +3128,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51406 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 7.94 mm, overall 38.1 mm, shank 3.17 mm. Codes: up 51406; down 51506. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama196",
+   "id": "ama195",
    "tip": 0.0
   },
   {
@@ -3159,8 +3143,8 @@
    "plunge": 60.0,
    "so": 40.0,
    "pd": 1.1,
-   "notes": "Amana Tool 51373 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 7.94 mm, overall 38.1 mm, shank 6.35 mm. Codes: up 51373. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama197",
+   "notes": "Amana Tool 51373 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 7.94 mm, overall 38.1 mm, shank 6.35 mm. Codes: up 51373. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 43501 (booklet page 34).",
+   "id": "ama196",
    "tip": 0.0
   },
   {
@@ -3176,7 +3160,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51459 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 3.17 mm. Codes: up 51459; down 51501. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Same bit also listed as 51454 (shank 6.35 mm).",
-   "id": "ama198",
+   "id": "ama197",
    "tip": 0.0
   },
   {
@@ -3192,7 +3176,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51482 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 15.88 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51482. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama199",
+   "id": "ama198",
    "tip": 0.0
   },
   {
@@ -3208,7 +3192,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51486 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51486. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama200",
+   "id": "ama199",
    "tip": 0.0
   },
   {
@@ -3224,7 +3208,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "Amana Tool 51473 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 7.94 mm, overall 50.8 mm, shank 4.76 mm. Codes: up 51473. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama201",
+   "id": "ama200",
    "tip": 0.0
   },
   {
@@ -3240,7 +3224,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "Amana Tool 51840 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 14.29 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51840. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama202",
+   "id": "ama201",
    "tip": 0.0
   },
   {
@@ -3256,7 +3240,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51475 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 9.52 mm, overall 38.1 mm, shank 4.76 mm. Codes: up 51475. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama203",
+   "id": "ama202",
    "tip": 0.0
   },
   {
@@ -3272,7 +3256,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51477 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 9.52 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51477; down 51773. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama204",
+   "id": "ama203",
    "tip": 0.0
   },
   {
@@ -3288,7 +3272,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51374 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 4.76 mm. Codes: up 51374. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama205",
+   "id": "ama204",
    "tip": 0.0
   },
   {
@@ -3304,7 +3288,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51408 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51408; down 51508. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama206",
+   "id": "ama205",
    "tip": 0.0
   },
   {
@@ -3320,7 +3304,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51375 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 4.76 mm. Codes: up 51375. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama207",
+   "id": "ama206",
    "tip": 0.0
   },
   {
@@ -3336,7 +3320,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51478 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51478; down 51838. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama208",
+   "id": "ama207",
    "tip": 0.0
   },
   {
@@ -3352,7 +3336,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51456 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51456, 51479; down 51774. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama209",
+   "id": "ama208",
    "tip": 0.0
   },
   {
@@ -3368,7 +3352,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51402 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51402; down 51502. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama210",
+   "id": "ama209",
    "tip": 0.0
   },
   {
@@ -3384,7 +3368,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51401 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 15.88 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51401. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama211",
+   "id": "ama210",
    "tip": 0.0
   },
   {
@@ -3400,7 +3384,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51377 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51377. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 51480 (booklet page 8). Amana equivalent: 45106, 43716 (booklet page 70).",
-   "id": "ama212",
+   "id": "ama211",
    "tip": 0.0
   },
   {
@@ -3416,7 +3400,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51775 downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: down 51775. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama213",
+   "id": "ama212",
    "tip": 0.0
   },
   {
@@ -3432,7 +3416,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51458 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51458. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama214",
+   "id": "ama213",
    "tip": 0.0
   },
   {
@@ -3448,7 +3432,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51481 up/downcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 31.75 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 51481; down 51776. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama215",
+   "id": "ama214",
    "tip": 0.0
   },
   {
@@ -3464,7 +3448,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51476 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 38.1 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 51476. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama216",
+   "id": "ama215",
    "tip": 0.0
   },
   {
@@ -3480,7 +3464,7 @@
    "so": 40.0,
    "pd": 2.5,
    "notes": "Amana Tool 51451 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51451. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama217",
+   "id": "ama216",
    "tip": 0.0
   },
   {
@@ -3496,7 +3480,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 51642 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 14.29 mm, overall 63.5 mm, shank 7.94 mm. Codes: up 51642. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama218",
+   "id": "ama217",
    "tip": 0.0
   },
   {
@@ -3512,7 +3496,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 51483 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 19.05 mm, overall 76.2 mm, shank 12.7 mm. Codes: up 51483. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama219",
+   "id": "ama218",
    "tip": 0.0
   },
   {
@@ -3528,7 +3512,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 51842 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 20.64 mm, overall 63.5 mm, shank 9.52 mm. Codes: up 51842. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama220",
+   "id": "ama219",
    "tip": 0.0
   },
   {
@@ -3544,7 +3528,7 @@
    "so": 40.0,
    "pd": 3.1,
    "notes": "Amana Tool 51457 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 14.29 mm, overall 63.5 mm, shank 9.52 mm. Codes: up 51457. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama221",
+   "id": "ama220",
    "tip": 0.0
   },
   {
@@ -3560,7 +3544,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 51484 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 19.05 mm, overall 76.2 mm, shank 9.52 mm. Codes: up 51484. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama222",
+   "id": "ama221",
    "tip": 0.0
   },
   {
@@ -3576,7 +3560,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 51844 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 22.22 mm, overall 63.5 mm, shank 9.52 mm. Codes: up 51844. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama223",
+   "id": "ama222",
    "tip": 0.0
   },
   {
@@ -3592,7 +3576,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 51378 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 25.4 mm, overall 76.2 mm, shank 9.52 mm. Codes: up 51378. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 45300 (booklet page 70).",
-   "id": "ama224",
+   "id": "ama223",
    "tip": 0.0
   },
   {
@@ -3608,7 +3592,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 51485 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 28.57 mm, overall 76.2 mm, shank 9.52 mm. Codes: up 51485. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama225",
+   "id": "ama224",
    "tip": 0.0
   },
   {
@@ -3624,7 +3608,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 51643 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 34.92 mm, overall 88.9 mm, shank 9.52 mm. Codes: up 51643. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama226",
+   "id": "ama225",
    "tip": 0.0
   },
   {
@@ -3640,7 +3624,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 51846 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Codes: up 51846. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama227",
+   "id": "ama226",
    "tip": 0.0
   },
   {
@@ -3656,7 +3640,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 51379 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 28.57 mm, overall 63.5 mm, shank 12.7 mm. Codes: up 51379. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 51487 (booklet page 8).",
-   "id": "ama228",
+   "id": "ama227",
    "tip": 0.0
   },
   {
@@ -3672,7 +3656,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 51644 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 34.92 mm, overall 88.9 mm, shank 12.7 mm. Codes: up 51644. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama229",
+   "id": "ama228",
    "tip": 0.0
   },
   {
@@ -3688,7 +3672,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 51489 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 41.27 mm, overall 88.9 mm, shank 12.7 mm. Codes: up 51489. Dimensions from Amana's CNC booklet (page 8); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama230",
+   "id": "ama229",
    "tip": 0.0
   },
   {
@@ -3704,7 +3688,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51850-Z upcut aluminium spiral, solid carbide, 2 flutes. Cutting length 6.35 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51850-Z. Dimensions from Amana's CNC booklet (page 10); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama231",
+   "id": "ama230",
    "tip": 0.0
   },
   {
@@ -3720,7 +3704,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51854-Z upcut aluminium spiral, solid carbide, 2 flutes. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51854-Z. Dimensions from Amana's CNC booklet (page 10); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 43808 (booklet page 72).",
-   "id": "ama232",
+   "id": "ama231",
    "tip": 0.0
   },
   {
@@ -3736,7 +3720,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51856-Z upcut aluminium spiral, solid carbide, 2 flutes. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51856-Z. Dimensions from Amana's CNC booklet (page 10); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama233",
+   "id": "ama232",
    "tip": 0.0
   },
   {
@@ -3752,7 +3736,7 @@
    "so": 15.0,
    "pd": 1.1,
    "notes": "Amana Tool 51876-Z aluminium ball nose, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51876-Z; radius 1.59 mm. Dimensions from Amana's CNC booklet (page 11); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama234",
+   "id": "ama233",
    "tip": 0.0
   },
   {
@@ -3768,7 +3752,7 @@
    "so": 15.0,
    "pd": 1.7,
    "notes": "Amana Tool 51878-Z aluminium ball nose, solid carbide, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51878-Z; radius 2.38 mm. Dimensions from Amana's CNC booklet (page 11); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama235",
+   "id": "ama234",
    "tip": 0.0
   },
   {
@@ -3784,7 +3768,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Amana Tool 51880-Z aluminium ball nose, solid carbide, 1 flute. Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51880-Z; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 11); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama236",
+   "id": "ama235",
    "tip": 0.0
   },
   {
@@ -3800,7 +3784,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Amana Tool 51882-Z aluminium ball nose, solid carbide, 1 flute. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51882-Z; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 11); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama237",
+   "id": "ama236",
    "tip": 0.0
   },
   {
@@ -3816,7 +3800,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Amana Tool 46460-Z corner-radius spiral, solid carbide, 2 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46460-Z; radius 1.59 mm. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama238",
+   "id": "ama237",
    "tip": 0.0,
    "arc": 1.587
   },
@@ -3833,7 +3817,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51624 upcut aluminium spiral, solid carbide, 2 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51624, 51832. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 46587-K (booklet page 22). Amana equivalent: 45208 (booklet page 71). Amana equivalent: 43820 (booklet page 72).",
-   "id": "ama239",
+   "id": "ama238",
    "tip": 0.0
   },
   {
@@ -3849,7 +3833,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51865-Z upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 51865-Z. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama240",
+   "id": "ama239",
    "tip": 0.0
   },
   {
@@ -3865,7 +3849,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51866-Z upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 51866-Z. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 46578 (booklet page 19).",
-   "id": "ama241",
+   "id": "ama240",
    "tip": 0.0
   },
   {
@@ -3881,7 +3865,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 51868-Z upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 22.22 mm, overall 63.5 mm, shank 9.52 mm. Codes: up 51868-Z, 51867-Z, 51869-Z. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama242",
+   "id": "ama241",
    "tip": 0.0
   },
   {
@@ -3897,7 +3881,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 51870-Z upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Codes: up 51870-Z. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama243",
+   "id": "ama242",
    "tip": 0.0
   },
   {
@@ -3913,7 +3897,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 51450 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 6.35 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51450. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama244",
+   "id": "ama243",
    "tip": 0.0
   },
   {
@@ -3929,7 +3913,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 51452 upcut aluminium O-flute spiral, solid carbide, 1 flute. Cutting length 6.35 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51452. Dimensions from Amana's CNC booklet (page 12); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama245",
+   "id": "ama244",
    "tip": 0.0
   },
   {
@@ -3945,7 +3929,7 @@
    "so": 15.0,
    "pd": 1.7,
    "notes": "Amana Tool 51620 corner-radius spiral, solid carbide, 1 flute. Cutting length 2.38 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 51620; radius 1.19 mm. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama246",
+   "id": "ama245",
    "tip": 0.0,
    "arc": 1.191
   },
@@ -3962,7 +3946,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 51830 upcut aluminium spiral, solid carbide, 2 flutes. Cutting length 12.7 mm, overall 38.1 mm, shank 3.17 mm. Codes: up 51830. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama247",
+   "id": "ama246",
    "tip": 0.0
   },
   {
@@ -3978,7 +3962,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 51833 upcut aluminium spiral, solid carbide, 2 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 7.94 mm. Codes: up 51833. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama248",
+   "id": "ama247",
    "tip": 0.0
   },
   {
@@ -3994,7 +3978,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 51835 upcut aluminium spiral, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Codes: up 51835. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes. Amana equivalent: 45418 (booklet page 73).",
-   "id": "ama249",
+   "id": "ama248",
    "tip": 0.0
   },
   {
@@ -4010,7 +3994,7 @@
    "so": 40.0,
    "pd": 1.0,
    "notes": "Amana Tool 51821 upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 15 mm, overall 75 mm, shank 6 mm. Codes: up 51821. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama250",
+   "id": "ama249",
    "tip": 0.0
   },
   {
@@ -4026,7 +4010,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "Amana Tool 51823 upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 35 mm, overall 100 mm, shank 6 mm. Codes: up 51823. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama251",
+   "id": "ama250",
    "tip": 0.0
   },
   {
@@ -4042,7 +4026,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 51824 upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 45 mm, overall 100 mm, shank 8 mm. Codes: up 51824. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama252",
+   "id": "ama251",
    "tip": 0.0
   },
   {
@@ -4058,7 +4042,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "Amana Tool 51820 upcut aluminium spiral, solid carbide, 3 flutes. Cutting length 45 mm, overall 100 mm, shank 10 mm. Codes: up 51820. Dimensions from Amana's CNC booklet (page 13); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Cutting aluminium: use a lubricant or an air blast, and light passes.",
-   "id": "ama253",
+   "id": "ama252",
    "tip": 0.0
   },
   {
@@ -4073,8 +4057,8 @@
    "plunge": 350,
    "so": 15.0,
    "pd": 2.2,
-   "notes": "Amana Tool 46294-K2 carving ball nose, solid carbide, 2 flutes. Cutting length 12.7 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46294-K2; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama254",
+   "notes": "Amana Tool 46294-K2 carving ball nose, solid carbide, 2 flutes. Cutting length 12.7 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46294-K2; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46426, 46426-K (booklet page 36).",
+   "id": "ama253",
    "tip": 0.0
   },
   {
@@ -4090,7 +4074,7 @@
    "so": 15.0,
    "pd": 0.3,
    "notes": "Amana Tool 46280-K2 tapered carving, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46280-K2, 46280-U, 46280; radius 0.4 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 0.79 mm, 6.2° per side (12.4° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama255",
+   "id": "ama254",
    "tip": 0.397
   },
   {
@@ -4106,7 +4090,7 @@
    "so": 15.0,
    "pd": 0.5,
    "notes": "Amana Tool 48420-K-M2 tapered carving, solid carbide, 3 flutes. Cutting length 26 mm, overall 75 mm, shank 6 mm. Codes: up 48420-K-M2; radius 0.75 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 1.5 mm, 5° per side (10° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama256",
+   "id": "ama255",
    "tip": 0.75
   },
   {
@@ -4122,7 +4106,7 @@
    "so": 15.0,
    "pd": 1.0,
    "notes": "Amana Tool 46288-K tapered carving, solid carbide, 3 flutes. Cutting length 12.7 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46288-K, 46288; radius 1.59 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 3.17 mm, 7° per side (14° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama257",
+   "id": "ama256",
    "tip": 1.587
   },
   {
@@ -4138,7 +4122,7 @@
    "so": 15.0,
    "pd": 1.1,
    "notes": "Amana Tool 46295-K2 carving ball nose, solid carbide, 3 flutes. Cutting length 38.1 mm, overall 76.2 mm, shank 3.17 mm. Codes: up 46295-K2, 46295; radius 1.59 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama258",
+   "id": "ama257",
    "tip": 0.0
   },
   {
@@ -4154,7 +4138,7 @@
    "so": 15.0,
    "pd": 0.5,
    "notes": "Amana Tool 48422-K2 tapered carving, solid carbide, 4 flutes. Cutting length 26 mm, overall 76 mm, shank 6 mm. Codes: up 48422-K2; radius 0.75 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 1.5 mm, 5.4° per side (10.8° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama259",
+   "id": "ama258",
    "tip": 0.75
   },
   {
@@ -4170,7 +4154,7 @@
    "so": 15.0,
    "pd": 0.6,
    "notes": "Amana Tool 46282-K2 tapered carving, solid carbide, 4 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46282-K2, 46282-U, 46282; radius 0.79 mm. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 1.59 mm, 5.4° per side (10.8° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama260",
+   "id": "ama259",
    "tip": 0.794
   },
   {
@@ -4186,7 +4170,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 46577-K upcut carving spiral, solid carbide, 2 flutes. Cutting length 38.1 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46577-K. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama261",
+   "id": "ama260",
    "tip": 0.0
   },
   {
@@ -4202,7 +4186,7 @@
    "so": 40.0,
    "pd": 0.6,
    "notes": "Amana Tool 46290-K up/downcut carving spiral, solid carbide, 3 flutes. Cutting length 7.94 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 46290-K; down 46486-K2. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama262",
+   "id": "ama261",
    "tip": 0.0
   },
   {
@@ -4218,7 +4202,7 @@
    "so": 40.0,
    "pd": 1.0,
    "notes": "Amana Tool 48424-K upcut carving spiral, solid carbide, 4 flutes. Cutting length 28 mm, overall 63 mm, shank 6 mm. Codes: up 48424-K. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama263",
+   "id": "ama262",
    "tip": 0.0
   },
   {
@@ -4234,7 +4218,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 46586-K upcut carving spiral, solid carbide, 4 flutes. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 46586-K. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama264",
+   "id": "ama263",
    "tip": 0.0
   },
   {
@@ -4250,7 +4234,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 46292-SK upcut carving spiral, solid carbide, 4 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46292-SK. Dimensions from Amana's CNC booklet (page 22); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama265",
+   "id": "ama264",
    "tip": 0.0
   },
   {
@@ -4266,7 +4250,7 @@
    "so": 40.0,
    "pd": 1.0,
    "notes": "Amana Tool 48442 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 28 mm, overall 64 mm, shank 6 mm. Codes: up 48442, 48442-K. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama266",
+   "id": "ama265",
    "tip": 0.0
   },
   {
@@ -4282,7 +4266,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 46269 up/downcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 26.99 mm, overall 76.2 mm, shank 3.17 mm. Codes: up 46269, 46269-K; down 46562. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama267",
+   "id": "ama266",
    "tip": 0.0
   },
   {
@@ -4298,7 +4282,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 46270 up/downcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 28.57 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46270, 46270-K; down 46564, 46564-K. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama268",
+   "id": "ama267",
    "tip": 0.0
   },
   {
@@ -4314,7 +4298,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 46271 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 4.76 mm. Codes: up 46271. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama269",
+   "id": "ama268",
    "tip": 0.0
   },
   {
@@ -4330,7 +4314,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 46273 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 41.27 mm, overall 101.6 mm, shank 4.76 mm. Codes: up 46273. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama270",
+   "id": "ama269",
    "tip": 0.0
   },
   {
@@ -4346,7 +4330,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "Amana Tool 48444 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 57 mm, overall 100 mm, shank 6 mm. Codes: up 48444, 48444-K. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama271",
+   "id": "ama270",
    "tip": 0.0
   },
   {
@@ -4362,7 +4346,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 46274 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 31.75 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46274. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama272",
+   "id": "ama271",
    "tip": 0.0
   },
   {
@@ -4378,7 +4362,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 46272 up/downcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 57.15 mm, overall 101.6 mm, shank 6.35 mm. Codes: up 46272, 46272-K; down 46566, 46566-K. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama273",
+   "id": "ama272",
    "tip": 0.0
   },
   {
@@ -4394,7 +4378,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 46275 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 76.2 mm, overall 152.4 mm, shank 6.35 mm. Codes: up 46275. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama274",
+   "id": "ama273",
    "tip": 0.0
   },
   {
@@ -4410,7 +4394,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 46278 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 88.9 mm, overall 152.4 mm, shank 9.52 mm. Codes: up 46278. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama275",
+   "id": "ama274",
    "tip": 0.0
   },
   {
@@ -4426,7 +4410,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 46277 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 101.6 mm, overall 152.4 mm, shank 9.52 mm. Codes: up 46277. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama276",
+   "id": "ama275",
    "tip": 0.0
   },
   {
@@ -4442,7 +4426,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 46279 upcut foam cutting spiral, solid carbide, 2 flutes. Cutting length 114.3 mm, overall 177.8 mm, shank 9.52 mm. Codes: up 46279. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama277",
+   "id": "ama276",
    "tip": 0.0
   },
   {
@@ -4458,7 +4442,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 48461 upcut foam cutting spiral, solid carbide, 3 flutes. Cutting length 12.7 mm, overall 101.6 mm, shank 6.35 mm. Codes: up 48461. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama278",
+   "id": "ama277",
    "tip": 0.0
   },
   {
@@ -4474,7 +4458,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 48460 upcut foam cutting spiral, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 48460. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama279",
+   "id": "ama278",
    "tip": 0.0
   },
   {
@@ -4490,7 +4474,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 48468 upcut foam cutting spiral, solid carbide, 3 flutes. Cutting length 38.1 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 48468. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama280",
+   "id": "ama279",
    "tip": 0.0
   },
   {
@@ -4506,7 +4490,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 48462 upcut foam cutting spiral, solid carbide, 3 flutes. Cutting length 50.8 mm, overall 101.6 mm, shank 6.35 mm. Codes: up 48462. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama281",
+   "id": "ama280",
    "tip": 0.0
   },
   {
@@ -4522,7 +4506,7 @@
    "so": 15.0,
    "pd": 1.1,
    "notes": "Amana Tool 46030 foam ball nose, solid carbide, 2 flutes. Cutting length 28.57 mm, overall 63.5 mm, shank 6.35 mm. Codes: down 46030; radius 1.59 mm. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama282",
+   "id": "ama281",
    "tip": 0.0
   },
   {
@@ -4538,7 +4522,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Amana Tool 46032 foam ball nose, solid carbide, 2 flutes. Cutting length 57.15 mm, overall 101.6 mm, shank 6.35 mm. Codes: down 46032; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 23); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama283",
+   "id": "ama282",
    "tip": 0.0
   },
   {
@@ -4554,7 +4538,7 @@
    "so": 15.0,
    "pd": 0.3,
    "notes": "Amana Tool 46256 tapered carving, solid carbide, 2 flutes. Cutting length 28.18 mm, overall 59.93 mm, shank 6.35 mm. Codes: up 46256; radius 0.5 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 1 mm, 5.4° per side (10.8° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama284",
+   "id": "ama283",
    "tip": 0.5
   },
   {
@@ -4570,7 +4554,7 @@
    "so": 15.0,
    "pd": 0.6,
    "notes": "Amana Tool 46252-S tapered carving, solid carbide, 2 flutes. Cutting length 25.4 mm, overall 57.15 mm, shank 6.35 mm. Codes: up 46252-S; radius 0.79 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 1.59 mm, 5.5° per side (11° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama285",
+   "id": "ama284",
    "tip": 0.794
   },
   {
@@ -4586,7 +4570,7 @@
    "so": 15.0,
    "pd": 1.0,
    "notes": "Amana Tool 46285 tapered carving, solid carbide, 2 flutes. Cutting length 34.92 mm, overall 101.6 mm, shank 12.7 mm. Codes: up 46285; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 6.35 mm, 5° per side (10° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama286",
+   "id": "ama285",
    "tip": 3.175
   },
   {
@@ -4602,7 +4586,7 @@
    "so": 15.0,
    "pd": 0.3,
    "notes": "Amana Tool 46291 tapered carving, solid carbide, 3 flutes. Cutting length 11.3 mm, overall 76.2 mm, shank 3.17 mm. Codes: up 46291; radius 0.4 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 0.79 mm, 6.2° per side (12.4° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama287",
+   "id": "ama286",
    "tip": 0.397
   },
   {
@@ -4618,7 +4602,7 @@
    "so": 15.0,
    "pd": 1.0,
    "notes": "Amana Tool 46287 tapered carving, solid carbide, 3 flutes. Cutting length 19.05 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46287; radius 1.59 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 3.17 mm, 5° per side (10° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama288",
+   "id": "ama287",
    "tip": 1.587
   },
   {
@@ -4634,7 +4618,7 @@
    "so": 15.0,
    "pd": 3.3,
    "notes": "Amana Tool 46494 carving ball nose, solid carbide, 3 flutes. Cutting length 57.15 mm, overall 101.6 mm, shank 9.52 mm. Codes: up 46494; radius 4.76 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama289",
+   "id": "ama288",
    "tip": 0.0
   },
   {
@@ -4650,7 +4634,7 @@
    "so": 15.0,
    "pd": 4.4,
    "notes": "Amana Tool 46495 carving ball nose, solid carbide, 3 flutes. Cutting length 57.15 mm, overall 101.6 mm, shank 12.7 mm. Codes: up 46495; radius 6.35 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama290",
+   "id": "ama289",
    "tip": 0.0
   },
   {
@@ -4666,7 +4650,7 @@
    "so": 15.0,
    "pd": 0.6,
    "notes": "Amana Tool 46293 tapered carving, solid carbide, 4 flutes. Cutting length 9.19 mm, overall 76.2 mm, shank 3.17 mm. Codes: up 46293; radius 0.79 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 1.59 mm, 5.4° per side (10.8° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama291",
+   "id": "ama290",
    "tip": 0.794
   },
   {
@@ -4682,7 +4666,7 @@
    "so": 15.0,
    "pd": 0.6,
    "notes": "Amana Tool 46582 tapered carving, solid carbide, 4 flutes. Cutting length 38.1 mm, overall 88.9 mm, shank 9.52 mm. Codes: up 46582; radius 0.79 mm. Dimensions from Amana's CNC booklet (page 18); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 1.59 mm, 5.4° per side (10.8° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama292",
+   "id": "ama291",
    "tip": 0.794
   },
   {
@@ -4698,7 +4682,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 46254 upcut carving spiral, solid carbide, 2 flutes. Cutting length 11.91 mm, overall 59.93 mm, shank 6.35 mm. Codes: up 46254. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama293",
+   "id": "ama292",
    "tip": 0.0
   },
   {
@@ -4714,7 +4698,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 46299 upcut carving spiral, solid carbide, 3 flutes. Cutting length 38.1 mm, overall 76.2 mm, shank 3.17 mm. Codes: up 46299. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama294",
+   "id": "ama293",
    "tip": 0.0
   },
   {
@@ -4730,7 +4714,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 46597 upcut carving spiral, solid carbide, 3 flutes. Cutting length 44.45 mm, overall 76.2 mm, shank 9.52 mm. Codes: up 46597. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama295",
+   "id": "ama294",
    "tip": 0.0
   },
   {
@@ -4746,7 +4730,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 46579 upcut carving spiral, solid carbide, 3 flutes. Cutting length 57.15 mm, overall 101.6 mm, shank 12.7 mm. Codes: up 46579. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama296",
+   "id": "ama295",
    "tip": 0.0
   },
   {
@@ -4762,7 +4746,7 @@
    "so": 15.0,
    "pd": 2.1,
    "notes": "Amana Tool 46479 carving ball nose, solid carbide, 2 flutes. Cutting length 38 mm, overall 75 mm, shank 6 mm. Codes: up 46479; radius 3 mm. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama297",
+   "id": "ama296",
    "tip": 0.0
   },
   {
@@ -4778,7 +4762,7 @@
    "so": 15.0,
    "pd": 0.25,
    "notes": "Amana Tool 46473 tapered carving, solid carbide, 3 flutes. Cutting length 26.5 mm, overall 75 mm, shank 6 mm. Codes: up 46473; radius 0.25 mm. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 0.5 mm, 6.2° per side (12.4° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama298",
+   "id": "ama297",
    "tip": 0.25
   },
   {
@@ -4794,7 +4778,7 @@
    "so": 15.0,
    "pd": 0.3,
    "notes": "Amana Tool 46470 tapered carving, solid carbide, 3 flutes. Cutting length 25 mm, overall 75 mm, shank 6 mm. Codes: up 46470; radius 0.4 mm. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Tapered ball nose: ball diameter 0.8 mm, 6.2° per side (12.4° included); the diameter shown is the widest point of the cutting length, worked out from the table.",
-   "id": "ama299",
+   "id": "ama298",
    "tip": 0.4
   },
   {
@@ -4810,7 +4794,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "Amana Tool 46585 upcut carving spiral, solid carbide, 2 flutes. Cutting length 38 mm, overall 75 mm, shank 6 mm. Codes: up 46585. Dimensions from Amana's CNC booklet (page 19); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama300",
+   "id": "ama299",
    "tip": 0.0
   },
   {
@@ -4826,7 +4810,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 45100 straight plunge, carbide tipped, 1 flute. Cutting length 11.11 mm, overall 50.8 mm, shank 6.35 mm. Hand-router style bit: shallow passes. Codes: up 45100, 43700. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama301",
+   "id": "ama300",
    "tip": 0.0
   },
   {
@@ -4842,7 +4826,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 45102 straight plunge, carbide tipped, 1 flute. Cutting length 11.11 mm, overall 50.8 mm, shank 6.35 mm. Hand-router style bit: shallow passes. Codes: up 45102. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama302",
+   "id": "ama301",
    "tip": 0.0
   },
   {
@@ -4858,7 +4842,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 45104 straight plunge, carbide tipped, 1 flute. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Hand-router style bit: shallow passes. Codes: up 45104. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama303",
+   "id": "ama302",
    "tip": 0.0
   },
   {
@@ -4874,7 +4858,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 45108 straight plunge, carbide tipped, 1 flute. Cutting length 25.4 mm, overall 57.15 mm, shank 6.35 mm. Hand-router style bit: shallow passes. Codes: up 45108. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45110 (shank 6.35 mm). Same bit also listed as 43720 (shank 6.35 mm). Same bit also listed as 43724 (shank 6.35 mm).",
-   "id": "ama304",
+   "id": "ama303",
    "tip": 0.0
   },
   {
@@ -4890,7 +4874,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 45302 straight plunge, carbide tipped, 1 flute. Cutting length 25.4 mm, overall 69.85 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45302. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama305",
+   "id": "ama304",
    "tip": 0.0
   },
   {
@@ -4906,7 +4890,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45307 straight plunge, carbide tipped, 1 flute. Cutting length 19.05 mm, overall 60.32 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45307. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama306",
+   "id": "ama305",
    "tip": 0.0
   },
   {
@@ -4922,7 +4906,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45308 straight plunge, carbide tipped, 1 flute. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45308. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama307",
+   "id": "ama306",
    "tip": 0.0
   },
   {
@@ -4938,7 +4922,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45310 straight plunge, carbide tipped, 1 flute. Cutting length 38.1 mm, overall 79.38 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45310. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama308",
+   "id": "ama307",
    "tip": 0.0
   },
   {
@@ -4954,7 +4938,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45312 straight plunge, carbide tipped, 1 flute. Cutting length 50.8 mm, overall 107.95 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45312. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama309",
+   "id": "ama308",
    "tip": 0.0
   },
   {
@@ -4970,7 +4954,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45313 straight plunge, carbide tipped, 1 flute. Cutting length 63.5 mm, overall 111.12 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45313. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama310",
+   "id": "ama309",
    "tip": 0.0
   },
   {
@@ -4986,7 +4970,7 @@
    "so": 40.0,
    "pd": 5.0,
    "notes": "Amana Tool 45314 straight plunge, carbide tipped, 1 flute. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45314, 45454-CB. Dimensions from Amana's CNC booklet (page 70); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama311",
+   "id": "ama310",
    "tip": 0.0
   },
   {
@@ -5002,7 +4986,7 @@
    "so": 40.0,
    "pd": 0.6,
    "notes": "Amana Tool 46480 straight plunge, carbide tipped, 2 flutes. Cutting length 4.76 mm, overall 38.1 mm, shank 3.17 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 46480. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45190 (shank 6.35 mm).",
-   "id": "ama312",
+   "id": "ama311",
    "tip": 0.0
   },
   {
@@ -5018,7 +5002,7 @@
    "so": 40.0,
    "pd": 0.7,
    "notes": "Amana Tool 45191 straight plunge, carbide tipped, 2 flutes. Cutting length 4.76 mm, overall 44.45 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45191. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama313",
+   "id": "ama312",
    "tip": 0.0
   },
   {
@@ -5034,7 +5018,7 @@
    "so": 40.0,
    "pd": 0.8,
    "notes": "Amana Tool 46482 straight plunge, carbide tipped, 2 flutes. Cutting length 6.35 mm, overall 38.1 mm, shank 3.17 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 46482. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45192 (shank 6.35 mm).",
-   "id": "ama314",
+   "id": "ama313",
    "tip": 0.0
   },
   {
@@ -5050,7 +5034,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Amana Tool 45199 straight plunge, carbide tipped, 2 flutes. Cutting length 11.11 mm, overall 38.1 mm, shank 3.17 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45199. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45200 (shank 6.35 mm).",
-   "id": "ama315",
+   "id": "ama314",
    "tip": 0.0
   },
   {
@@ -5066,7 +5050,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "Amana Tool 45201 straight plunge, carbide tipped, 2 flutes. Cutting length 11.11 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45201, 43800. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama316",
+   "id": "ama315",
    "tip": 0.0
   },
   {
@@ -5082,7 +5066,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 45202 straight plunge, carbide tipped, 2 flutes. Cutting length 11.11 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45202. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama317",
+   "id": "ama316",
    "tip": 0.0
   },
   {
@@ -5098,7 +5082,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Amana Tool 45239 straight plunge, carbide tipped, 2 flutes. Cutting length 15.88 mm, overall 55.56 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45239. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama318",
+   "id": "ama317",
    "tip": 0.0
   },
   {
@@ -5114,7 +5098,7 @@
    "so": 40.0,
    "pd": 1.8,
    "notes": "Amana Tool 45217 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45217. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama319",
+   "id": "ama318",
    "tip": 0.0
   },
   {
@@ -5130,7 +5114,7 @@
    "so": 40.0,
    "pd": 1.9,
    "notes": "Amana Tool 45206 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45206. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama320",
+   "id": "ama319",
    "tip": 0.0
   },
   {
@@ -5146,7 +5130,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "Amana Tool 45203 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45203. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama321",
+   "id": "ama320",
    "tip": 0.0
   },
   {
@@ -5162,7 +5146,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 45204 straight plunge, carbide tipped, 2 flutes. Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45204, 43812. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama322",
+   "id": "ama321",
    "tip": 0.0
   },
   {
@@ -5178,7 +5162,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Amana Tool 45210 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 57.15 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45210. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45211 (shank 6.35 mm). Same bit also listed as 45205 (shank 6.35 mm). Same bit also listed as 45486 (shank 12.7 mm).",
-   "id": "ama323",
+   "id": "ama322",
    "tip": 0.0
   },
   {
@@ -5194,7 +5178,7 @@
    "so": 40.0,
    "pd": 2.5,
    "notes": "Amana Tool 45212 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 57.15 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45212. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama324",
+   "id": "ama323",
    "tip": 0.0
   },
   {
@@ -5210,7 +5194,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 45242 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45242. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama325",
+   "id": "ama324",
    "tip": 0.0
   },
   {
@@ -5226,7 +5210,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 45214 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 57.15 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45214. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45412 (shank 12.7 mm).",
-   "id": "ama326",
+   "id": "ama325",
    "tip": 0.0
   },
   {
@@ -5242,7 +5226,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 45216 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45216. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45413 (shank 12.7 mm).",
-   "id": "ama327",
+   "id": "ama326",
    "tip": 0.0
   },
   {
@@ -5258,7 +5242,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 45218 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45218. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45414 (shank 12.7 mm).",
-   "id": "ama328",
+   "id": "ama327",
    "tip": 0.0
   },
   {
@@ -5274,7 +5258,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Amana Tool 45220 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 63.5 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45220. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45415 (shank 12.7 mm).",
-   "id": "ama329",
+   "id": "ama328",
    "tip": 0.0
   },
   {
@@ -5290,7 +5274,7 @@
    "so": 40.0,
    "pd": 3.6,
    "notes": "Amana Tool 45193 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45193. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama330",
+   "id": "ama329",
    "tip": 0.0
   },
   {
@@ -5306,7 +5290,7 @@
    "so": 40.0,
    "pd": 3.9,
    "notes": "Amana Tool 45222 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 53.97 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45222. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama331",
+   "id": "ama330",
    "tip": 0.0
   },
   {
@@ -5322,7 +5306,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "Amana Tool 45223 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45223. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama332",
+   "id": "ama331",
    "tip": 0.0
   },
   {
@@ -5338,7 +5322,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45224 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 44.45 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45224. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45419 (shank 12.7 mm).",
-   "id": "ama333",
+   "id": "ama332",
    "tip": 0.0
   },
   {
@@ -5354,7 +5338,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45226 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 53.97 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45226. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45244 (shank 6.35 mm).",
-   "id": "ama334",
+   "id": "ama333",
    "tip": 0.0
   },
   {
@@ -5370,7 +5354,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45245 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 63.5 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45245. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45420 (shank 12.7 mm).",
-   "id": "ama335",
+   "id": "ama334",
    "tip": 0.0
   },
   {
@@ -5386,7 +5370,7 @@
    "so": 40.0,
    "pd": 5.0,
    "notes": "Amana Tool 45227 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 53.97 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45227. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama336",
+   "id": "ama335",
    "tip": 0.0
   },
   {
@@ -5402,7 +5386,7 @@
    "so": 40.0,
    "pd": 5.3,
    "notes": "Amana Tool 45238 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 57.15 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45238. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama337",
+   "id": "ama336",
    "tip": 0.0
   },
   {
@@ -5418,7 +5402,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Amana Tool 45228 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45228. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama338",
+   "id": "ama337",
    "tip": 0.0
   },
   {
@@ -5434,7 +5418,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Amana Tool 45247 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 57.15 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45247. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45430 (shank 12.7 mm).",
-   "id": "ama339",
+   "id": "ama338",
    "tip": 0.0
   },
   {
@@ -5450,7 +5434,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Amana Tool 45249 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45249. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45432 (shank 12.7 mm).",
-   "id": "ama340",
+   "id": "ama339",
    "tip": 0.0
   },
   {
@@ -5466,7 +5450,7 @@
    "so": 40.0,
    "pd": 6.1,
    "notes": "Amana Tool 45229 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45229. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama341",
+   "id": "ama340",
    "tip": 0.0
   },
   {
@@ -5482,7 +5466,7 @@
    "so": 40.0,
    "pd": 6.4,
    "notes": "Amana Tool 45231 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45231. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama342",
+   "id": "ama341",
    "tip": 0.0
   },
   {
@@ -5498,7 +5482,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Amana Tool 45230 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45230. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama343",
+   "id": "ama342",
    "tip": 0.0
   },
   {
@@ -5514,7 +5498,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Amana Tool 45251 straight plunge, carbide tipped, 2 flutes. Cutting length 25.4 mm, overall 57.15 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45251. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45438 (shank 12.7 mm).",
-   "id": "ama344",
+   "id": "ama343",
    "tip": 0.0
   },
   {
@@ -5530,7 +5514,7 @@
    "so": 40.0,
    "pd": 7.2,
    "notes": "Amana Tool 45232 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45232. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama345",
+   "id": "ama344",
    "tip": 0.0
   },
   {
@@ -5546,7 +5530,7 @@
    "so": 40.0,
    "pd": 7.8,
    "notes": "Amana Tool 45234 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45234. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama346",
+   "id": "ama345",
    "tip": 0.0
   },
   {
@@ -5562,7 +5546,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45236 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. The booklet page does not state the flute count; 2 assumed. Hand-router style bit: shallow passes. Codes: up 45236. Dimensions from Amana's CNC booklet (page 71); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama347",
+   "id": "ama346",
    "tip": 0.0
   },
   {
@@ -5578,7 +5562,7 @@
    "so": 40.0,
    "pd": 0.6,
    "notes": "Amana Tool 43509 straight plunge, solid carbide, 1 flute. Cutting length 4.76 mm, overall 38.1 mm, shank 6.35 mm. Hand-router style bit: shallow passes. Codes: up 43509. Dimensions from Amana's CNC booklet (page 72); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama348",
+   "id": "ama347",
    "tip": 0.0
   },
   {
@@ -5594,7 +5578,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45189 straight plunge, solid carbide, 2 flutes. Cutting length 88.9 mm, overall 140.49 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45189, 45408. Dimensions from Amana's CNC booklet (page 72); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama349",
+   "id": "ama348",
    "tip": 0.0
   },
   {
@@ -5610,7 +5594,7 @@
    "so": 40.0,
    "pd": 2.4,
    "notes": "Amana Tool 45254 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 69.85 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45254. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama350",
+   "id": "ama349",
    "tip": 0.0
   },
   {
@@ -5626,7 +5610,7 @@
    "so": 40.0,
    "pd": 2.5,
    "notes": "Amana Tool 45409 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 69.85 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45409. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama351",
+   "id": "ama350",
    "tip": 0.0
   },
   {
@@ -5642,7 +5626,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Amana Tool 45186 straight plunge, carbide tipped, 3 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45186. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama352",
+   "id": "ama351",
    "tip": 0.0
   },
   {
@@ -5658,7 +5642,7 @@
    "so": 40.0,
    "pd": 3.6,
    "notes": "Amana Tool 45401 straight plunge, carbide tipped, 2 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45401. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama353",
+   "id": "ama352",
    "tip": 0.0
   },
   {
@@ -5674,7 +5658,7 @@
    "so": 40.0,
    "pd": 3.8,
    "notes": "Amana Tool 45255 straight plunge, carbide tipped, 2 flutes. Cutting length 25 mm, overall 70 mm, shank 12 mm. Hand-router style bit: shallow passes. Codes: up 45255. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama354",
+   "id": "ama353",
    "tip": 0.0
   },
   {
@@ -5690,7 +5674,7 @@
    "so": 40.0,
    "pd": 3.9,
    "notes": "Amana Tool 45416 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45416. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama355",
+   "id": "ama354",
    "tip": 0.0
   },
   {
@@ -5706,7 +5690,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "Amana Tool 45425 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45425. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama356",
+   "id": "ama355",
    "tip": 0.0
   },
   {
@@ -5722,7 +5706,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45422 straight plunge, carbide tipped, 2 flutes. Cutting length 38.1 mm, overall 79.38 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45422. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45424 (shank 12.7 mm).",
-   "id": "ama357",
+   "id": "ama356",
    "tip": 0.0
   },
   {
@@ -5738,7 +5722,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45426 straight plunge, carbide tipped, 2 flutes. Cutting length 50.8 mm, overall 88.9 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45426. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama358",
+   "id": "ama357",
    "tip": 0.0
   },
   {
@@ -5754,7 +5738,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45427 straight plunge, carbide tipped, 2 flutes. Cutting length 63.5 mm, overall 114.3 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45427. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama359",
+   "id": "ama358",
    "tip": 0.0
   },
   {
@@ -5770,7 +5754,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Amana Tool 45477 straight plunge, carbide tipped, 2 flutes. Cutting length 76.2 mm, overall 133.35 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45477. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama360",
+   "id": "ama359",
    "tip": 0.0
   },
   {
@@ -5786,7 +5770,7 @@
    "so": 40.0,
    "pd": 4.7,
    "notes": "Amana Tool 45429 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45429. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama361",
+   "id": "ama360",
    "tip": 0.0
   },
   {
@@ -5802,7 +5786,7 @@
    "so": 40.0,
    "pd": 5.0,
    "notes": "Amana Tool 45428 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45428. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama362",
+   "id": "ama361",
    "tip": 0.0
   },
   {
@@ -5818,7 +5802,7 @@
    "so": 40.0,
    "pd": 5.3,
    "notes": "Amana Tool 45437 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45437. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama363",
+   "id": "ama362",
    "tip": 0.0
   },
   {
@@ -5834,7 +5818,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Amana Tool 45434 straight plunge, carbide tipped, 2 flutes. Cutting length 38.1 mm, overall 79.38 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45434. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama364",
+   "id": "ama363",
    "tip": 0.0
   },
   {
@@ -5850,7 +5834,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Amana Tool 45433 straight plunge, carbide tipped, 2 flutes. Cutting length 50.8 mm, overall 95.25 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45433. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama365",
+   "id": "ama364",
    "tip": 0.0
   },
   {
@@ -5866,7 +5850,7 @@
    "so": 40.0,
    "pd": 5.8,
    "notes": "Amana Tool 45435 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45435. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama366",
+   "id": "ama365",
    "tip": 0.0
   },
   {
@@ -5882,7 +5866,7 @@
    "so": 40.0,
    "pd": 6.1,
    "notes": "Amana Tool 45436 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45436. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama367",
+   "id": "ama366",
    "tip": 0.0
   },
   {
@@ -5898,7 +5882,7 @@
    "so": 40.0,
    "pd": 6.4,
    "notes": "Amana Tool 45445 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45445. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama368",
+   "id": "ama367",
    "tip": 0.0
   },
   {
@@ -5914,7 +5898,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Amana Tool 45181 straight plunge, carbide tipped, 2 flutes. Cutting length 15.88 mm, overall 57.15 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45181. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama369",
+   "id": "ama368",
    "tip": 0.0
   },
   {
@@ -5930,7 +5914,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Amana Tool 45440 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45440. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama370",
+   "id": "ama369",
    "tip": 0.0
   },
   {
@@ -5946,7 +5930,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Amana Tool 45442 straight plunge, carbide tipped, 2 flutes. Cutting length 38.1 mm, overall 79.38 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45442. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama371",
+   "id": "ama370",
    "tip": 0.0
   },
   {
@@ -5962,7 +5946,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Amana Tool 45441 straight plunge, carbide tipped, 2 flutes. Cutting length 50.8 mm, overall 92.07 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45441. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama372",
+   "id": "ama371",
    "tip": 0.0
   },
   {
@@ -5978,7 +5962,7 @@
    "so": 40.0,
    "pd": 6.9,
    "notes": "Amana Tool 45443 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45443. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama373",
+   "id": "ama372",
    "tip": 0.0
   },
   {
@@ -5994,7 +5978,7 @@
    "so": 40.0,
    "pd": 7.2,
    "notes": "Amana Tool 45444 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45444. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama374",
+   "id": "ama373",
    "tip": 0.0
   },
   {
@@ -6010,7 +5994,7 @@
    "so": 40.0,
    "pd": 7.8,
    "notes": "Amana Tool 45446 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45446. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama375",
+   "id": "ama374",
    "tip": 0.0
   },
   {
@@ -6026,7 +6010,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45182 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45182. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama376",
+   "id": "ama375",
    "tip": 0.0
   },
   {
@@ -6042,7 +6026,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45448 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45448. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama377",
+   "id": "ama376",
    "tip": 0.0
   },
   {
@@ -6058,7 +6042,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45403 straight plunge, carbide tipped, 2 flutes. Cutting length 38.1 mm, overall 79.38 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45403. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama378",
+   "id": "ama377",
    "tip": 0.0
   },
   {
@@ -6074,7 +6058,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45447 straight plunge, carbide tipped, 2 flutes. Cutting length 50.8 mm, overall 92.07 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45447. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama379",
+   "id": "ama378",
    "tip": 0.0
   },
   {
@@ -6090,7 +6074,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45459 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45459. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama380",
+   "id": "ama379",
    "tip": 0.0
   },
   {
@@ -6106,7 +6090,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45449 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45449. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama381",
+   "id": "ama380",
    "tip": 0.0
   },
   {
@@ -6122,7 +6106,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45450 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45450. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama382",
+   "id": "ama381",
    "tip": 0.0
   },
   {
@@ -6138,7 +6122,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45452 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45452. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama383",
+   "id": "ama382",
    "tip": 0.0
   },
   {
@@ -6154,7 +6138,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45453 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45453. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama384",
+   "id": "ama383",
    "tip": 0.0
   },
   {
@@ -6170,7 +6154,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Amana Tool 45480 straight plunge, carbide tipped, 2 flutes. Cutting length 31.75 mm, overall 73.02 mm, shank 12.7 mm. Hand-router style bit: shallow passes. Codes: up 45480. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
-   "id": "ama385",
+   "id": "ama384",
    "tip": 0.0
   },
   {
@@ -6186,7 +6170,471 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "Amana Tool 45185-M straight plunge, carbide tipped, 3 flutes. Cutting length 21 mm, overall 77 mm, shank 12 mm. Hand-router style bit: shallow passes. Codes: up 45185-M. Dimensions from Amana's CNC booklet (page 73); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama385",
+   "tip": 0.0
+  },
+  {
+   "name": "3/16″ plastic ball nose Z2, 1/2″ cut (Amana 46424)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 4.762,
+   "rpm": 10000,
+   "feed": 440,
+   "plunge": 130,
+   "so": 15.0,
+   "pd": 1.7,
+   "notes": "Amana Tool 46424 plastic ball nose, solid carbide, 2 flutes. Cutting length 12.7 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46424, 46424-K; radius 2.38 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
    "id": "ama386",
+   "tip": 0.0
+  },
+  {
+   "name": "3/16″ plastic ball nose Z2, 3/4″ cut (Amana 46425)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 4.762,
+   "rpm": 10000,
+   "feed": 440,
+   "plunge": 130,
+   "so": 15.0,
+   "pd": 1.7,
+   "notes": "Amana Tool 46425 plastic ball nose, solid carbide, 2 flutes. Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 46425; radius 2.38 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46450 (booklet page 36). Amana equivalent: 46389 (booklet page 36).",
+   "id": "ama387",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ plastic ball nose Z2, 3/4″ cut (Amana 46463)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 10000,
+   "feed": 590,
+   "plunge": 180,
+   "so": 15.0,
+   "pd": 2.2,
+   "notes": "Amana Tool 46463 plastic ball nose, solid carbide, 2 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46463; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama388",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ plastic ball nose Z2, 7/8″ cut (Amana 46379)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 10000,
+   "feed": 590,
+   "plunge": 180,
+   "so": 15.0,
+   "pd": 2.2,
+   "notes": "Amana Tool 46379 plastic ball nose, solid carbide, 2 flutes. Cutting length 22.22 mm, overall 63.5 mm, shank 6.35 mm. Codes: up 46379; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama389",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ plastic ball nose Z2, 1-1/8″ cut (Amana 46428)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 10000,
+   "feed": 590,
+   "plunge": 180,
+   "so": 15.0,
+   "pd": 2.2,
+   "notes": "Amana Tool 46428 plastic ball nose, solid carbide, 2 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 6.35 mm. Codes: up 46428; radius 3.17 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama390",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ plastic ball nose Z2, 1-1/8″ cut (Amana 46381)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 9.525,
+   "rpm": 10000,
+   "feed": 880,
+   "plunge": 260,
+   "so": 15.0,
+   "pd": 3.3,
+   "notes": "Amana Tool 46381 plastic ball nose, solid carbide, 2 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 9.52 mm. Codes: up 46381; radius 4.76 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama391",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ plastic ball nose Z2, 1-1/8″ cut (Amana 46383)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 920,
+   "plunge": 280,
+   "so": 15.0,
+   "pd": 4.4,
+   "notes": "Amana Tool 46383 plastic ball nose, solid carbide, 2 flutes. Cutting length 28.57 mm, overall 76.2 mm, shank 12.7 mm. Codes: up 46383; radius 6.35 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama392",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ plastic ball nose Z2, 1-1/2″ cut (Amana 46459)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 920,
+   "plunge": 280,
+   "so": 15.0,
+   "pd": 4.4,
+   "notes": "Amana Tool 46459 plastic ball nose, solid carbide, 2 flutes. Cutting length 38.1 mm, overall 127 mm, shank 12.7 mm. Codes: up 46459; radius 6.35 mm. Dimensions from Amana's CNC booklet (page 36); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama393",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ compression spiral Z2, 1-1/16″ cut (Amana 46395)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 9.525,
+   "rpm": 12000,
+   "feed": 2000.0,
+   "plunge": 660,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "Amana Tool 46395 compression spiral, solid carbide, 2 flutes. Cutting length 26.99 mm, overall 76.2 mm, shank 9.52 mm. Codes: 46395. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama394",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ compression spiral Z3, 1″ cut (Amana 46020)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 9.525,
+   "rpm": 12000,
+   "feed": 2000.0,
+   "plunge": 900,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "Amana Tool 46020 compression spiral, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 4.76 mm. Codes: 46020, 46020-K2. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46371 (booklet page 87).",
+   "id": "ama395",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z3, 1″ cut (Amana 46022)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 2000.0,
+   "plunge": 860,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "Amana Tool 46022 compression spiral, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Compression section B1 6.35 mm. Codes: 46022. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama396",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z3, 1-3/8″ cut (Amana 46024)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 2000.0,
+   "plunge": 860,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "Amana Tool 46024 compression spiral, solid carbide, 3 flutes. Cutting length 34.92 mm, overall 88.9 mm, shank 12.7 mm. Compression section B1 6.35 mm. Codes: 46024. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama397",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z4, 1-3/8″ cut (Amana 46028)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 2000.0,
+   "plunge": 900,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "Amana Tool 46028 compression spiral, solid carbide, 4 flutes. Cutting length 34.92 mm, overall 88.9 mm, shank 12.7 mm. Compression section B1 5.08 mm. Codes: 46028, 59456-DLC. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama398",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø5 compression spiral Z2, 25 mm cut (Amana 48351)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 5.0,
+   "rpm": 12000,
+   "feed": 1150,
+   "plunge": 340,
+   "so": 40.0,
+   "pd": 1.8,
+   "notes": "Amana Tool 48351-K compression spiral, solid carbide, 2 flutes. Cutting length 25 mm, overall 64 mm, shank 5 mm. Compression section B1 4.76 mm. Codes: 48351-K. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama399",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø6 compression spiral Z2, 22 mm cut (Amana 46025)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.0,
+   "rpm": 12000,
+   "feed": 1380,
+   "plunge": 410,
+   "so": 40.0,
+   "pd": 2.1,
+   "notes": "Amana Tool 46025-K compression spiral, solid carbide, 2 flutes. Cutting length 22 mm, overall 64 mm, shank 6 mm. Compression section B1 4.76 mm. Codes: 46025-K. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama400",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ compression spiral Z2, 5/8″ cut (Amana 46029)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1460,
+   "plunge": 440,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "Amana Tool 46029-K compression spiral, solid carbide, 2 flutes. Cutting length 15.88 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 4.76 mm. Codes: 46029-K. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama401",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø10 compression spiral Z2, 22 mm cut (Amana 48354)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 10.0,
+   "rpm": 12000,
+   "feed": 2000.0,
+   "plunge": 690,
+   "so": 40.0,
+   "pd": 3.5,
+   "notes": "Amana Tool 48354-K2 compression spiral, solid carbide, 2 flutes. Cutting length 22 mm, overall 76 mm, shank 10 mm. Compression section B1 5 mm. Codes: 48354-K2. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama402",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø12 compression spiral Z2, 25 mm cut (Amana 46027)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.0,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.2,
+   "notes": "Amana Tool 46027-K compression spiral, solid carbide, 2 flutes. Cutting length 25 mm, overall 76 mm, shank 12 mm. Compression section B1 6.35 mm. Codes: 46027-K. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama403",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø6 compression spiral Z3, 25 mm cut (Amana 48358)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 6.0,
+   "rpm": 12000,
+   "feed": 2000.0,
+   "plunge": 620,
+   "so": 40.0,
+   "pd": 2.1,
+   "notes": "Amana Tool 48358-K compression spiral, solid carbide, 3 flutes. Cutting length 25 mm, overall 75 mm, shank 6 mm. Compression section B1 4.7 mm. Codes: 48358-K. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama404",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ compression spiral Z3, 1″ cut (Amana 46018)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 2000.0,
+   "plunge": 660,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "Amana Tool 46018-K compression spiral, solid carbide, 3 flutes. Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 3.17 mm. Codes: 46018-K. Dimensions from Amana's CNC booklet (page 86); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Amana equivalent: 46016-K (booklet page 86). Amana equivalent: 59434-K (booklet page 88).",
+   "id": "ama405",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ compression spiral Z3, 5/8″ cut (Amana 46370)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 2000.0,
+   "plunge": 660,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "Amana Tool 46370 compression spiral, solid carbide, 3 flutes. Cutting length 15.88 mm, overall 63.5 mm, shank 6.35 mm. Compression section B1 7.14 mm. Codes: 46370. Dimensions from Amana's CNC booklet (page 87); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama406",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ compression spiral Z1, 7/8″ cut (Amana 46324)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 9.525,
+   "rpm": 12000,
+   "feed": 1100,
+   "plunge": 330,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "Amana Tool 46324 compression spiral, solid carbide, 1 flute. Cutting length 22.22 mm, overall 76.2 mm, shank 9.52 mm. Compression section B1 5.16 mm. Codes: 46324. Dimensions from Amana's CNC booklet (page 88); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama407",
+   "tip": 0.0
+  },
+  {
+   "name": "1/8″ downcut spiral Z1, 7/8″ cut (Amana 46154)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 3.175,
+   "rpm": 12000,
+   "feed": 370,
+   "plunge": 110,
+   "so": 40.0,
+   "pd": 1.1,
+   "notes": "Amana Tool 46154-K downcut spiral, solid carbide, 1 flute. Cutting length 22.22 mm, overall 50.8 mm, shank 3.17 mm. Codes: down 46154-K. Dimensions from Amana's CNC booklet (page 90); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama408",
+   "tip": 0.0
+  },
+  {
+   "name": "1/8″ downcut spiral Z1, 3/8″ cut (Amana 46155)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 3.175,
+   "rpm": 12000,
+   "feed": 370,
+   "plunge": 110,
+   "so": 40.0,
+   "pd": 1.1,
+   "notes": "Amana Tool 46155-K downcut spiral, solid carbide, 1 flute. Cutting length 9.52 mm, overall 50.8 mm, shank 6.35 mm. Codes: down 46155-K. Dimensions from Amana's CNC booklet (page 90); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama409",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ upcut chipbreaker spiral Z3, 1-5/8″ cut (Amana 46124)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 2000.0,
+   "plunge": 860,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "Amana Tool 46124 upcut chipbreaker spiral, solid carbide, 3 flutes. Cutting length 41.27 mm, overall 101.6 mm, shank 12.7 mm. Codes: up 46124. Dimensions from Amana's CNC booklet (page 90); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama410",
+   "tip": 0.0
+  },
+  {
+   "name": "1-1/4″ surfacing Z2, 9/16″ cut (Amana 45528)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 31.75,
+   "rpm": 8000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 40.0,
+   "pd": 8.0,
+   "notes": "Amana Tool 45528 surfacing, carbide tipped, 2 flutes. Cutting length 14.29 mm, overall 50.8 mm, shank 6.35 mm. Codes: up 45528. Dimensions from Amana's CNC booklet (page 99); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version. Same bit also listed as 45529 (shank 12.7 mm).",
+   "id": "ama411",
+   "tip": 0.0
+  },
+  {
+   "name": "1″ surfacing Z3, 1/4″ cut (Amana 45522)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 25.4,
+   "rpm": 8000,
+   "feed": 2000.0,
+   "plunge": 690,
+   "so": 40.0,
+   "pd": 8.0,
+   "notes": "Amana Tool 45522 surfacing, carbide tipped, 3 flutes. Cutting length 6.35 mm, overall 44.45 mm, shank 6.35 mm. Codes: up 45522. Dimensions from Amana's CNC booklet (page 99); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama412",
+   "tip": 0.0
+  },
+  {
+   "name": "1-1/8″ surfacing Z3, 1/2″ cut (Amana 45525)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 28.575,
+   "rpm": 8000,
+   "feed": 2000.0,
+   "plunge": 690,
+   "so": 40.0,
+   "pd": 8.0,
+   "notes": "Amana Tool 45525 surfacing, carbide tipped, 3 flutes. Cutting length 12.7 mm, overall 46.04 mm, shank 6.35 mm. Codes: up 45525. Dimensions from Amana's CNC booklet (page 99); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama413",
+   "tip": 0.0
+  },
+  {
+   "name": "1-1/2″ surfacing Z4, 1/2″ cut (Amana 45526)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 38.1,
+   "rpm": 8000,
+   "feed": 2000.0,
+   "plunge": 900,
+   "so": 40.0,
+   "pd": 8.0,
+   "notes": "Amana Tool 45526 surfacing, carbide tipped, 4 flutes. Cutting length 12.7 mm, overall 57.15 mm, shank 12.7 mm. Codes: up 45526. Dimensions from Amana's CNC booklet (page 99); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.",
+   "id": "ama414",
    "tip": 0.0
   }
  ]

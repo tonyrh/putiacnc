@@ -10864,5 +10864,1854 @@
 ],
 "down": [],
 "comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 3.175,
+"B": 7.9375,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43501"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 3.175,
+"B": 12.7,
+"B1": null,
+"d": 3.175,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43502"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 3.175,
+"B": 15.875,
+"B1": null,
+"d": 3.175,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43503"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 3.175,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43500"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 3.175,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43500-K"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 4.762499999999999,
+"B": 15.875,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43504"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 4.762499999999999,
+"B": 15.875,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43504-K"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 6.35,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43508"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 34,
+"fam": "plastic",
+"title": "",
+"D": 6.35,
+"B": 25.4,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [
+"43512"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 3.175,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 76.19999999999999,
+"R": 1.5875,
+"A": null,
+"Z": 2,
+"up": [
+"46385"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 6.35,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 3.175,
+"A": null,
+"Z": 2,
+"up": [
+"46426"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 4.762499999999999,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 2.3812499999999996,
+"A": null,
+"Z": 2,
+"up": [
+"46424"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 4.762499999999999,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": 2.3812499999999996,
+"A": null,
+"Z": 2,
+"up": [
+"46425"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 4.762499999999999,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 2.3812499999999996,
+"A": null,
+"Z": 2,
+"up": [
+"46450"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 4.762499999999999,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 76.19999999999999,
+"R": 2.3812499999999996,
+"A": null,
+"Z": 2,
+"up": [
+"46389"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 6.35,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 3.175,
+"A": null,
+"Z": 2,
+"up": [
+"46463"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 3.175,
+"A": null,
+"Z": 2,
+"up": [
+"46379"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 6.35,
+"B": 25.4,
+"B1": null,
+"d": 6.35,
+"L": 101.6,
+"R": 3.175,
+"A": null,
+"Z": 2,
+"up": [
+"46451"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 6.35,
+"B": 28.575,
+"B1": null,
+"d": 6.35,
+"L": 76.19999999999999,
+"R": 3.175,
+"A": null,
+"Z": 2,
+"up": [
+"46428"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 9.524999999999999,
+"B": 28.575,
+"B1": null,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": 4.762499999999999,
+"A": null,
+"Z": 2,
+"up": [
+"46381"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 12.7,
+"B": 28.575,
+"B1": null,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": 6.35,
+"A": null,
+"Z": 2,
+"up": [
+"46383"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 12.7,
+"B": 38.099999999999994,
+"B1": null,
+"d": 12.7,
+"L": 127.0,
+"R": 6.35,
+"A": null,
+"Z": 2,
+"up": [
+"46459"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 12.7,
+"B": 19.049999999999997,
+"B1": null,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": 6.35,
+"A": null,
+"Z": 4,
+"up": [
+"46446",
+"45582",
+"46453"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 4.0,
+"B": 12.0,
+"B1": null,
+"d": 4.0,
+"L": 50.0,
+"R": 2.0,
+"A": null,
+"Z": 2,
+"up": [
+"46454"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "L                                                                                                46446",
+"D": 6.0,
+"B": 22.0,
+"B1": null,
+"d": 6.0,
+"L": 63.0,
+"R": 3.0,
+"A": null,
+"Z": 2,
+"up": [
+"46456"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "CNC PLASTIC CUTTING SPIRAL BALL NOSE",
+"D": 4.762499999999999,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 2.3812499999999996,
+"A": null,
+"Z": 2,
+"up": [
+"46424-K"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 36,
+"fam": "plastic",
+"title": "CNC PLASTIC CUTTING SPIRAL BALL NOSE",
+"D": 6.35,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 3.175,
+"A": null,
+"Z": 2,
+"up": [
+"46426-K"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.35,
+"B": 25.4,
+"B1": 3.175,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [],
+"down": [],
+"comp": [
+"46393"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.35,
+"B": 25.4,
+"B1": 3.175,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46350"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 22.224999999999998,
+"B1": 3.175,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46367"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 26.987499999999997,
+"B1": null,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46395"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": 4.762499999999999,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46021"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": 4.762499999999999,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46352"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 31.75,
+"B1": 6.35,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46354"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 41.275,
+"B1": 6.35,
+"d": 12.7,
+"L": 88.89999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46356"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 53.974999999999994,
+"B1": 6.35,
+"d": 12.7,
+"L": 101.6,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46360"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 25.4,
+"B1": 4.762499999999999,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46020"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 25.4,
+"B1": 6.35,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46022"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 34.925,
+"B1": 6.35,
+"d": 12.7,
+"L": 88.89999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46024"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 34.925,
+"B1": 5.08,
+"d": 12.7,
+"L": 88.89999999999999,
+"R": null,
+"A": null,
+"Z": 4,
+"up": [],
+"down": [],
+"comp": [
+"46028"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 34.925,
+"B1": 5.08,
+"d": 12.7,
+"L": 88.89999999999999,
+"R": null,
+"A": null,
+"Z": 4,
+"up": [],
+"down": [],
+"comp": [
+"59456-DLC"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 4.762499999999999,
+"B": 25.4,
+"B1": 5.5562499999999995,
+"d": 6.35,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"48353-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 5.0,
+"B": 25.0,
+"B1": 4.763,
+"d": 5.0,
+"L": 64.0,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"48351-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.0,
+"B": 22.0,
+"B1": 4.762499999999999,
+"d": 6.0,
+"L": 64.0,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46025-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.35,
+"B": 15.875,
+"B1": 4.762499999999999,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46029-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": 4.762499999999999,
+"d": 6.35,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46033-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.35,
+"B": 25.4,
+"B1": 3.175,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46350-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 8.0,
+"B": 25.0,
+"B1": 5.0,
+"d": 8.0,
+"L": 64.0,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"48352-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 22.224999999999998,
+"B1": 3.175,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46367-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 25.4,
+"B1": 6.35,
+"d": 9.524999999999999,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"48359-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 26.987499999999997,
+"B1": 5.1308,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46395-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": 4.762499999999999,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46021-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": 4.762499999999999,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46352-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 10.0,
+"B": 22.0,
+"B1": 5.0,
+"d": 10.0,
+"L": 76.0,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"48354-K2"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.0,
+"B": 25.0,
+"B1": 6.35,
+"d": 12.0,
+"L": 76.0,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46027-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 25.4,
+"B1": 4.762499999999999,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46034-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 25.4,
+"B1": 6.35,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46019-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 31.75,
+"B1": 6.35,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46354-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 12.7,
+"B": 34.925,
+"B1": 5.08,
+"d": 12.7,
+"L": 88.89999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46023-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 3.175,
+"B": 20.6375,
+"B1": 4.7752,
+"d": 3.175,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46398-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.0,
+"B": 25.0,
+"B1": 4.7,
+"d": 6.0,
+"L": 75.0,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"48358-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.35,
+"B": 25.4,
+"B1": 3.175,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46018-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 6.35,
+"B": 25.4,
+"B1": 4.762499999999999,
+"d": 6.35,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46016-K"
+]
+},
+{
+"page": 86,
+"fam": "compression",
+"title": "CNC MORTISE COMPRESSION SPIRAL",
+"D": 9.524999999999999,
+"B": 25.4,
+"B1": 4.762499999999999,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46020-K2"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR NESTING",
+"D": 6.35,
+"B": 15.875,
+"B1": 7.14375,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46370"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR NESTING",
+"D": 9.524999999999999,
+"B": 25.4,
+"B1": 7.14375,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46371"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR NESTING",
+"D": 12.7,
+"B": 31.75,
+"B1": 9.128124999999999,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46372"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD                                                                                                 L",
+"D": 3.175,
+"B": 20.6375,
+"B1": 5.5562499999999995,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46701-K"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD                                                                                                 L",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": 7.0,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46700-K"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD                                                                                                 L",
+"D": 9.524999999999999,
+"B": 22.224999999999998,
+"B1": 4.7752,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46702-K"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD                                                                                                 L",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": 9.0,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46704-K"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD                                                                                                 L",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": 7.00024,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46708-K"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD                                                                                                 L",
+"D": 9.524999999999999,
+"B": 28.575,
+"B1": 8.99922,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46709-K"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD                                                                                                 L",
+"D": 12.7,
+"B": 31.75,
+"B1": 8.99922,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"46710-K"
+]
+},
+{
+"page": 87,
+"fam": "compression",
+"title": "WITH CHIP BREAKER                                                         D                                                  L",
+"D": 6.35,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"59432-K"
+]
+},
+{
+"page": 88,
+"fam": "compression",
+"title": "FOR SOLID WOOD",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": 7.14375,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [],
+"down": [],
+"comp": [
+"46390"
+]
+},
+{
+"page": 88,
+"fam": "compression",
+"title": "FOR SOLID WOOD",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": 5.159375,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [],
+"down": [],
+"comp": [
+"46322"
+]
+},
+{
+"page": 88,
+"fam": "compression",
+"title": "FOR SOLID WOOD",
+"D": 9.524999999999999,
+"B": 22.224999999999998,
+"B1": 5.159375,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [],
+"down": [],
+"comp": [
+"46324"
+]
+},
+{
+"page": 88,
+"fam": "compression",
+"title": "SOLID WOOD WITH DLC COATING",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": 7.0,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46170-DLC"
+]
+},
+{
+"page": 88,
+"fam": "compression",
+"title": "SOLID WOOD WITH DLC COATING",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": 9.0,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46172-DLC"
+]
+},
+{
+"page": 88,
+"fam": "compression",
+"title": "SOLID WOOD WITH DLC COATING",
+"D": 12.7,
+"B": 31.75,
+"B1": 11.0,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46188-DLC"
+]
+},
+{
+"page": 88,
+"fam": "compression",
+"title": "D                            B1",
+"D": 6.35,
+"B": 25.4,
+"B1": 3.175,
+"d": 6.35,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [],
+"down": [],
+"comp": [
+"59434-K"
+]
+},
+{
+"page": 89,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD",
+"D": 6.35,
+"B": 25.4,
+"B1": 3.175,
+"d": 6.35,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46712-K"
+]
+},
+{
+"page": 89,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": 4.762499999999999,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46711-K"
+]
+},
+{
+"page": 89,
+"fam": "compression",
+"title": "FOR BALTIC BIRCH PLYWOOD",
+"D": 12.7,
+"B": 31.75,
+"B1": 6.35,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46714-K",
+"45582"
+]
+},
+{
+"page": 89,
+"fam": "compression",
+"title": "WITH CORNER RADIUS                                               B",
+"D": 6.35,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 1.5875,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46460"
+]
+},
+{
+"page": 89,
+"fam": "compression",
+"title": "WITH CORNER RADIUS                                               B",
+"D": 12.7,
+"B": 31.75,
+"B1": null,
+"d": 12.7,
+"L": 76.19999999999999,
+"R": 3.175,
+"A": null,
+"Z": 2,
+"up": [],
+"down": [],
+"comp": [
+"46462"
+]
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "WITH CORNER RADIUS                                                                                                      L",
+"D": 6.35,
+"B": 19.049999999999997,
+"B1": null,
+"d": 6.35,
+"L": 63.5,
+"R": 1.5875,
+"A": null,
+"Z": 2,
+"up": [
+"46460-K"
+],
+"down": [
+"45582"
+],
+"comp": []
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "CNC COMPRESSION SPIRAL \u2018O\u2019 FLUTE",
+"D": 3.175,
+"B": 22.224999999999998,
+"B1": 4.762499999999999,
+"d": 3.175,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [],
+"down": [
+"46154-K"
+],
+"comp": []
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "CNC COMPRESSION SPIRAL \u2018O\u2019 FLUTE",
+"D": 3.175,
+"B": 9.524999999999999,
+"B1": 4.762499999999999,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 1,
+"up": [],
+"down": [
+"46155-K"
+],
+"comp": []
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "D                                        D                               D",
+"D": 6.35,
+"B": 22.224999999999998,
+"B1": null,
+"d": 6.35,
+"L": 57.15,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"46141"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "D                                        D                               D",
+"D": 9.524999999999999,
+"B": 25.4,
+"B1": null,
+"d": 9.524999999999999,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"59420"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "D                                        D                               D",
+"D": 9.524999999999999,
+"B": 31.75,
+"B1": null,
+"d": 9.524999999999999,
+"L": 76.19999999999999,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"46129"
+],
+"down": [
+"46223"
+],
+"comp": []
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "D                                        D                               D",
+"D": 12.7,
+"B": 41.275,
+"B1": null,
+"d": 12.7,
+"L": 101.6,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"46124"
+],
+"down": [
+"46224"
+],
+"comp": []
+},
+{
+"page": 90,
+"fam": "spiral",
+"title": "D                                        D                               D",
+"D": 12.7,
+"B": 50.8,
+"B1": null,
+"d": 12.7,
+"L": 114.3,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"46126"
+],
+"down": [
+"46226",
+"45582"
+],
+"comp": []
+},
+{
+"page": 99,
+"fam": "surfacing",
+"title": "LEVELER, SURFACE PLANER &",
+"D": 31.75,
+"B": 14.2875,
+"B1": null,
+"d": 6.35,
+"L": 50.8,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [
+"45528"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 99,
+"fam": "surfacing",
+"title": "LEVELER, SURFACE PLANER &",
+"D": 31.75,
+"B": 14.2875,
+"B1": null,
+"d": 12.7,
+"L": 57.15,
+"R": null,
+"A": null,
+"Z": 2,
+"up": [
+"45529"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 99,
+"fam": "surfacing",
+"title": "LEVELER, SURFACE PLANER &",
+"D": 25.4,
+"B": 6.35,
+"B1": null,
+"d": 6.35,
+"L": 44.449999999999996,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"45522"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 99,
+"fam": "surfacing",
+"title": "LEVELER, SURFACE PLANER &",
+"D": 28.5,
+"B": 12.5,
+"B1": null,
+"d": 6.0,
+"L": 46.0,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"45523"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 99,
+"fam": "surfacing",
+"title": "LEVELER, SURFACE PLANER &",
+"D": 28.575,
+"B": 12.7,
+"B1": null,
+"d": 6.35,
+"L": 46.037499999999994,
+"R": null,
+"A": null,
+"Z": 3,
+"up": [
+"45525"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 99,
+"fam": "surfacing",
+"title": "LEVELER, SURFACE PLANER &",
+"D": 38.099999999999994,
+"B": 12.7,
+"B1": null,
+"d": 12.7,
+"L": 57.15,
+"R": null,
+"A": null,
+"Z": 4,
+"up": [
+"45526"
+],
+"down": [],
+"comp": []
+},
+{
+"page": 99,
+"fam": "surfacing",
+"title": "LEVELER, SURFACE PLANER &",
+"D": 50.8,
+"B": 12.7,
+"B1": null,
+"d": 12.7,
+"L": 63.5,
+"R": null,
+"A": null,
+"Z": 4,
+"up": [
+"45527",
+"45200"
+],
+"down": [],
+"comp": []
 }
 ]

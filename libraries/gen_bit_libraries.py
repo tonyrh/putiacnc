@@ -396,6 +396,8 @@ def _taper_ok(r):
     return r.get("A") is not None and r["A"] >= 5.0 and bool(r["R"])
 for r in _rows:
     A = r.get("A")
+    if not r.get("up") and not r.get("comp") and not r.get("down"): continue   # no tool number: a drawing label or a table I could not read
+    if r["fam"] in ("compression", "spiral") and r["page"] in (89, 90) and r["R"]: continue   # corner-radius rows on the compression pages: shape not given
     if A is not None and 0.2 < A < 5.0: continue    # slight tapers (1 to 3.6 degrees per side) do not fit the app's tool shapes
     if A is not None and A >= 5.0 and not r["R"]: continue
     if r["fam"] == "carving" and A is not None and A >= 5.0: r = dict(r, taper=True)
@@ -437,13 +439,17 @@ for key, g in groups.items():
     sys_ = "in" if inch_ else "mm"
     cutl = (frac(B) + "\u2033") if inch_ else fmt(B) + " mm"
     if cls == "comp": dword = "compression spiral"; shape = "flat"
-    elif cls == "ball": dword = {"alu": "aluminium ball nose", "foam": "foam ball nose", "carving": "carving ball nose"}.get(fam, "ball nose"); shape = "ball"
+    elif cls == "ball": dword = {"alu": "aluminium ball nose", "foam": "foam ball nose", "carving": "carving ball nose", "plastic": "plastic ball nose"}.get(fam, "ball nose"); shape = "ball"
     elif cls == "bull": dword = "corner-radius spiral"; shape = "arc"
     elif cls == "taper": dword = "tapered carving"; shape = "taper"
     else:
         dw = "up/downcut" if (pending["up"] and pending["down"]) else ("upcut" if pending["up"] else "downcut")
         if fam == "plunge":
             what = "straight plunge"; dw = ""
+        elif fam == "surfacing":
+            what = "surfacing"; dw = ""
+        elif fam == "plastic" and r["page"] == 34:
+            what = "plastic straight O-flute"; dw = ""
         elif fam == "plastic":
             what = "plastic O-flute" if Z == 1 else ("plastic double O-flute" if r["page"] == 31 else "plastic straight-grind")
         elif fam == "alu":
@@ -451,7 +457,7 @@ for key, g in groups.items():
         elif fam == "foam": what = "foam cutting spiral"
         elif fam == "carving": what = "carving spiral"
         else:
-            what = "chipbreaker spiral" if (r["page"] in (91, 92) and Z == 3) else "spiral"
+            what = "chipbreaker spiral" if (r["page"] in (90, 91, 92) and Z == 3) else "spiral"
         dword = (dw + " " + what).strip(); shape = "flat"
     zeff = Z
     rpm_, feed, plunge, so, pd = speeds(D, zeff, "ball" if shape == "arc" else shape, slow=(fam in ("plastic", "alu")))
@@ -461,7 +467,7 @@ for key, g in groups.items():
     if pending["up"]: code_list.append("up " + ", ".join(pending["up"]))
     if pending["down"]: code_list.append("down " + ", ".join(pending["down"]))
     if pending["comp"]: code_list.append(", ".join(pending["comp"]))
-    mat = "carbide tipped" if (fam == "plunge" and r["page"] in (70, 71, 73)) else "solid carbide"
+    mat = "carbide tipped" if ((fam == "plunge" and r["page"] in (70, 71, 73)) or fam == "surfacing") else "solid carbide"
     note = (("Amana Tool %s %s, " + mat + ", %d flute%s. Cutting length %s mm, overall %s mm, shank %s mm.%s Codes: %s%s. "
             "Dimensions from Amana's CNC booklet (page %d); feeds and speeds are conservative starting values, not Amana's. A -K suffix is the Spektra-coated version.")
             % (first, dword, Z, "" if Z == 1 else "s", fmt(B), fmt(L), fmt(d),
