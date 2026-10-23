@@ -269,7 +269,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         ui.end_row();
     });
     ui.add_space(8.0);
-    egui::Grid::new("mach_gcode").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
+    egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, "G-code output for");
         let cur = if m.post.as_deref() == Some("mach") { "Mach3 / LinuxCNC" } else { "GRBL" };
         egui::ComboBox::from_id_source("mach_post").width(fw).selected_text(cur).show_ui(ui, |ui| {
@@ -283,10 +283,10 @@ fn form(ui: &mut Ui, app: &mut App) {
             if ui.selectable_label(!in_now, "mm (G21)").clicked() { m.inches = Some(false); changed = true; }
             if ui.selectable_label(in_now, "inches (G20)").on_hover_text("A project that uses this machine writes its G-code in inches").clicked() { m.inches = Some(true); changed = true; }
         });
-        ui.end_row();
+        spacer(ui);
         rlabel(ui, lw, "Line numbers");
         let mut nb = m.numbered.unwrap_or(false);
-        if ui.checkbox(&mut nb, "N10, N20…").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
+        if ui.checkbox(&mut nb, "N10…").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
         ui.end_row();
         rlabel(ui, lw, format!("Safe Z ({uname})"));
         let mut sz = m.safe.unwrap_or(5.0) / k;
