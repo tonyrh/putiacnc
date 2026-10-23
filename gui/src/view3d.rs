@@ -265,10 +265,12 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
                         let (w, h, t) = (stk.w as f32, stk.h as f32, stk.t as f32);
                         let asp = (rect.width() / rect.height()).max(0.2);
                         let k = 2.0 * (35.0_f32.to_radians() * 0.5).tan() * 0.72;
+                        // in perspective the near face of the stock is closer than the target, so it looks bigger: step back by half the depth
+                        let back = if app.v3.ortho { 0.0 } else { 0.5 };
                         match name {
-                            "Top" => app.v3.dist = (w / asp).max(h) / k,
-                            "Front" => app.v3.dist = (w / asp).max(t * 3.0) / k,
-                            "Side" => app.v3.dist = (h / asp).max(t * 3.0) / k,
+                            "Top" => app.v3.dist = (w / asp).max(h) / k + back * t,
+                            "Front" => app.v3.dist = (w / asp).max(t * 3.0) / k + back * h,
+                            "Side" => app.v3.dist = (h / asp).max(t * 3.0) / k + back * w,
                             _ => app.v3.dist *= 1.55,
                         }
                     }
