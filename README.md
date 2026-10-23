@@ -62,6 +62,7 @@ Features:
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
 - The 3D preview replays the program in short slices, so switching to it never freezes the window; a progress badge shows while it catches up.
 - Stock appearance (wood, metal or foam) in the drawing and the 3D preview.
+- 3D view cube: in the corner of the 3D preview, click a face (Top, Front, Right, Back, Left), an edge (a 45 degree view) or a corner (isometric) and the camera glides there and fits the stock; drag the cube to orbit; Persp./Ortho and Fit sit below it.
 - Libraries for tools and machines, with imperial and metric tools. A machine holds its work area, rapid rate, G-code dialect (GRBL or Mach3 / LinuxCNC), G-code units (mm or inches), line numbers, arcs (G2/G3), safe Z and optional limits (spindle min/max rpm, max feed, max plunge): a tool that asks for more is held to the limit in the G-code, with a warning. Machines can be exported to and imported from a file.
 - 3D preview: GPU ray-marched height field of the stock with the toolpath, rapids and cutter
   marker, and a play bar to replay the job.

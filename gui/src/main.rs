@@ -25,6 +25,7 @@ mod trace;
 mod toolmgr;
 mod update;
 mod view3d;
+mod viewcube;
 mod widgets;
 
 use app::App;

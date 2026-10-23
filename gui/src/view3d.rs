@@ -30,6 +30,8 @@ pub struct State {
     /// How far behind the target the orthographic eye sits (mm): beyond the whole stock.
     pub back: f32,
     pub framed: bool,
+    /// The camera is gliding to a view picked on the view cube.
+    pub anim: Option<crate::viewcube::Anim>,
     /// End time (minutes) of every move, and the total.
     pub cum: Vec<f64>,
     pub total: f64,
@@ -49,7 +51,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, cum: vec![], total: 0.0, t: 0.0,
+        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], total: 0.0, t: 0.0,
             playing: false, speed_idx: 3, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
@@ -129,7 +131,7 @@ fn sync(app: &mut App, ctx: &egui::Context) {
     }
 }
 
-fn frame(st: &mut State, stock: &putiacnc_core::model::Stock) {
+pub(crate) fn frame(st: &mut State, stock: &putiacnc_core::model::Stock) {
     st.target = [stock.w as f32 / 2.0, stock.h as f32 / 2.0, -(stock.t as f32) / 2.0];
     let diag = ((stock.w * stock.w + stock.h * stock.h + stock.t * stock.t) as f32).sqrt();
     st.dist = diag * 1.9;
@@ -220,12 +222,14 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     // hint line, as wide as the view
     egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
-        ui.label(egui::RichText::new("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll: zoom  ·  Double-click: reset").weak());
+        ui.label(egui::RichText::new("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll: zoom  ·  Double-click: reset  ·  Click the cube to change view").weak());
     });
 
     // camera controls
+    crate::viewcube::step(&mut app.v3, &ctx);
     {
         let st = &mut app.v3;
+        if resp.dragged() || (resp.hovered() && ctx.input(|i| i.smooth_scroll_delta.y != 0.0)) { st.anim = None; }
         let pan = resp.dragged_by(egui::PointerButton::Middle) || resp.dragged_by(egui::PointerButton::Secondary)
             || (resp.dragged_by(egui::PointerButton::Primary) && ctx.input(|i| i.modifiers.shift));
         if pan {
@@ -245,42 +249,8 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         if resp.double_clicked() { st.framed = false; st.yaw = -1.15; st.pitch = 0.62; frame(st, &app.project.data.stock); }
     }
 
-    // view buttons, top right
-    egui::Area::new(egui::Id::new("views3d")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + egui::Vec2::new(-10.0, 10.0)).show(&ctx, |ui| {
-        egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(6.0, 4.0)).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 4.0;
-                let views: [(&str, &str, f32, f32); 4] = [
-                    ("Top", "Look straight down on the work", -std::f32::consts::FRAC_PI_2, 1.57),
-                    ("Front", "Look at the front edge, from the bottom of the drawing", -std::f32::consts::FRAC_PI_2, 0.0),
-                    ("Side", "Look at the right edge", 0.0, 0.0),
-                    ("Iso", "Isometric: from the front right, at the classic 35 degrees", -std::f32::consts::FRAC_PI_4, 0.6155),
-                ];
-                for (name, tip, yaw, pitch) in views {
-                    if ui.button(name).on_hover_text(tip).clicked() {
-                        let stk = &app.project.data.stock;
-                        frame(&mut app.v3, stk);
-                        app.v3.yaw = yaw; app.v3.pitch = pitch;
-                        // zoom so the stock fills about 70% of the view in that direction
-                        let (w, h, t) = (stk.w as f32, stk.h as f32, stk.t as f32);
-                        let asp = (rect.width() / rect.height()).max(0.2);
-                        let k = 2.0 * (35.0_f32.to_radians() * 0.5).tan() * 0.72;
-                        // in perspective the near face of the stock is closer than the target, so it looks bigger: step back by half the depth
-                        let back = if app.v3.ortho { 0.0 } else { 0.5 };
-                        match name {
-                            "Top" => app.v3.dist = (w / asp).max(h) / k + back * t,
-                            "Front" => app.v3.dist = (w / asp).max(t * 3.0) / k + back * h,
-                            "Side" => app.v3.dist = (h / asp).max(t * 3.0) / k + back * w,
-                            _ => app.v3.dist *= 1.55,
-                        }
-                    }
-                }
-                ui.separator();
-                let label = if app.v3.ortho { "Ortho" } else { "Persp." };
-                if ui.selectable_label(app.v3.ortho, label).on_hover_text("Switch between a perspective view and an orthographic one, where parallel lines stay parallel and sizes do not shrink with distance").clicked() { app.v3.ortho = !app.v3.ortho; }
-            });
-        });
-    });
+    // the view cube, top right
+    crate::viewcube::show(&ctx, app, rect);
 
     let cam = Cam::new(&app.v3, rect);
     let Some(sim) = app.v3.sim.as_ref() else { return };
