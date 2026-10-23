@@ -25,6 +25,10 @@ pub struct State {
     pub pitch: f32,
     pub dist: f32,
     pub target: V3,
+    /// Orthographic projection instead of perspective.
+    pub ortho: bool,
+    /// How far behind the target the orthographic eye sits (mm): beyond the whole stock.
+    pub back: f32,
     pub framed: bool,
     /// End time (minutes) of every move, and the total.
     pub cum: Vec<f64>,
@@ -45,12 +49,12 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], framed: false, cum: vec![], total: 0.0, t: 0.0,
+        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, cum: vec![], total: 0.0, t: 0.0,
             playing: false, speed_idx: 3, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
 
-struct Cam { eye: V3, f: V3, r: V3, u: V3, focal: f32, c: Pos2 }
+struct Cam { eye: V3, f: V3, r: V3, u: V3, focal: f32, c: Pos2, ortho: bool, target: V3, half: f32 }
 
 impl Cam {
     fn new(s: &State, rect: Rect) -> Cam {
@@ -60,10 +64,18 @@ impl Cam {
         let f = norm(sub(s.target, eye));
         let r = norm(cross(f, [0.0, 0.0, 1.0]));
         let u = cross(r, f);
-        let focal = rect.height() * 0.5 / (35.0_f32.to_radians() * 0.5).tan();
-        Cam { eye, f, r, u, focal, c: rect.center() }
+        let tanh = (35.0_f32.to_radians() * 0.5).tan();
+        let focal = rect.height() * 0.5 / tanh;
+        // orthographic: the eye moves back past the whole stock and the picture keeps the size it has at the target
+        let eye = if s.ortho { [s.target[0] - f[0] * s.back, s.target[1] - f[1] * s.back, s.target[2] - f[2] * s.back] } else { eye };
+        Cam { eye, f, r, u, focal, c: rect.center(), ortho: s.ortho, target: s.target, half: s.dist * tanh }
     }
     fn p(&self, q: V3) -> Option<Pos2> {
+        if self.ortho {
+            let d = sub(q, self.target);
+            let k = self.focal / (self.half / (35.0_f32.to_radians() * 0.5).tan());
+            return Some(Pos2::new(self.c.x + dot(d, self.r) * k, self.c.y - dot(d, self.u) * k));
+        }
         let d = sub(q, self.eye);
         let z = dot(d, self.f);
         if z < 1.0 { return None; }
@@ -121,6 +133,7 @@ fn frame(st: &mut State, stock: &putiacnc_core::model::Stock) {
     st.target = [stock.w as f32 / 2.0, stock.h as f32 / 2.0, -(stock.t as f32) / 2.0];
     let diag = ((stock.w * stock.w + stock.h * stock.h + stock.t * stock.t) as f32).sqrt();
     st.dist = diag * 1.9;
+    st.back = diag * 3.0 + 100.0;
     if let Some(z) = std::env::var("PUTIACNC_ZOOM").ok().and_then(|s| s.parse::<f32>().ok()) { st.dist *= z; st.target = [stock.w as f32 * 0.35, stock.h as f32 * 0.55, 0.0]; }
     st.framed = true;
 }
@@ -223,7 +236,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         } else if resp.dragged_by(egui::PointerButton::Primary) {
             let d = resp.drag_delta();
             st.yaw -= d.x * 0.008;
-            st.pitch = (st.pitch + d.y * 0.008).clamp(0.04, 1.55);
+            st.pitch = (st.pitch + d.y * 0.008).clamp(0.0, 1.57);
         }
         if resp.hovered() {
             let s = ctx.input(|i| i.smooth_scroll_delta.y);
@@ -231,6 +244,41 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
         if resp.double_clicked() { st.framed = false; st.yaw = -1.15; st.pitch = 0.62; frame(st, &app.project.data.stock); }
     }
+
+    // view buttons, top right
+    egui::Area::new(egui::Id::new("views3d")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + egui::Vec2::new(-10.0, 10.0)).show(&ctx, |ui| {
+        egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(6.0, 4.0)).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 4.0;
+                let views: [(&str, &str, f32, f32); 4] = [
+                    ("Top", "Look straight down on the work", -std::f32::consts::FRAC_PI_2, 1.57),
+                    ("Front", "Look at the front edge, from the bottom of the drawing", -std::f32::consts::FRAC_PI_2, 0.0),
+                    ("Side", "Look at the right edge", 0.0, 0.0),
+                    ("Iso", "Isometric: from the front right, at the classic 35 degrees", -std::f32::consts::FRAC_PI_4, 0.6155),
+                ];
+                for (name, tip, yaw, pitch) in views {
+                    if ui.button(name).on_hover_text(tip).clicked() {
+                        let stk = &app.project.data.stock;
+                        frame(&mut app.v3, stk);
+                        app.v3.yaw = yaw; app.v3.pitch = pitch;
+                        // zoom so the stock fills about 85% of the view in that direction
+                        let (w, h, t) = (stk.w as f32, stk.h as f32, stk.t as f32);
+                        let asp = (rect.width() / rect.height()).max(0.2);
+                        let k = 2.0 * (35.0_f32.to_radians() * 0.5).tan() * 0.85;
+                        match name {
+                            "Top" => app.v3.dist = (w / asp).max(h) / k,
+                            "Front" => app.v3.dist = (w / asp).max(t * 3.0) / k,
+                            "Side" => app.v3.dist = (h / asp).max(t * 3.0) / k,
+                            _ => app.v3.dist *= 1.2,
+                        }
+                    }
+                }
+                ui.separator();
+                let label = if app.v3.ortho { "Ortho" } else { "Persp." };
+                if ui.selectable_label(app.v3.ortho, label).on_hover_text("Switch between a perspective view and an orthographic one, where parallel lines stay parallel and sizes do not shrink with distance").clicked() { app.v3.ortho = !app.v3.ortho; }
+            });
+        });
+    });
 
     let cam = Cam::new(&app.v3, rect);
     let Some(sim) = app.v3.sim.as_ref() else { return };
@@ -247,7 +295,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     }
     let col = |c: Color32| [c.r() as f32 / 255.0, c.g() as f32 / 255.0, c.b() as f32 / 255.0];
     let u = Uniforms {
-        eye: cam.eye, f: cam.f, r: cam.r, u: cam.u, tanh: (35.0_f32.to_radians() * 0.5).tan(),
+        eye: cam.eye, f: cam.f, r: cam.r, u: cam.u, tanh: (35.0_f32.to_radians() * 0.5).tan(), ortho: if cam.ortho { cam.half } else { 0.0 },
         bx: [w, h, t], cell, n: [sim.nx as i32, sim.ny as i32],
         wood: col(app.theme.material(&app.project.data.stock.mat).top),
         floor: col(if dark { Color32::from_rgb(70, 70, 76) } else { Color32::from_rgb(120, 120, 128) }),
@@ -355,7 +403,7 @@ pub struct GlRes {
 
 #[derive(Clone, Copy)]
 pub struct Uniforms {
-    eye: V3, f: V3, r: V3, u: V3, tanh: f32, bx: V3, cell: f32, n: [i32; 2], wood: V3, floor: V3, side: V3, grain: f32, rings: f32, brush: f32,
+    eye: V3, f: V3, r: V3, u: V3, tanh: f32, ortho: f32, bx: V3, cell: f32, n: [i32; 2], wood: V3, floor: V3, side: V3, grain: f32, rings: f32, brush: f32,
 }
 
 const VS: &str = "void main(){ vec2 p = vec2(float(gl_VertexID & 1) * 2.0 - 1.0, float(gl_VertexID >> 1) * 2.0 - 1.0); gl_Position = vec4(p, 0.0, 1.0); }";
@@ -364,7 +412,7 @@ const FS: &str = r#"
 uniform sampler2D u_h;
 uniform vec3 u_eye, u_f, u_r, u_u;
 uniform vec2 u_org, u_res;
-uniform float u_tanh, u_cell;
+uniform float u_tanh, u_cell, u_ortho;
 uniform vec3 u_box, u_wood, u_floor, u_side;
 uniform float u_grain, u_rings, u_brush;
 uniform ivec2 u_n;
@@ -400,15 +448,17 @@ float brushed(vec3 p) {
 vec4 shade(vec2 pix) {
     vec2 ndc = pix / u_res * 2.0 - 1.0;
     vec3 d = normalize(u_f + u_r * (ndc.x * u_tanh * u_res.x / u_res.y) + u_u * (ndc.y * u_tanh));
+    vec3 ro = u_eye;
+    if (u_ortho > 0.0) { d = u_f; ro = u_eye + u_r * (ndc.x * u_ortho * u_res.x / u_res.y) + u_u * (ndc.y * u_ortho); }
     vec3 bmin = vec3(0.0, 0.0, -u_box.z), bmax = vec3(u_box.x, u_box.y, 0.0);
     vec3 inv = 1.0 / (d + vec3(1e-9));
-    vec3 a = (bmin - u_eye) * inv, b = (bmax - u_eye) * inv;
+    vec3 a = (bmin - ro) * inv, b = (bmax - ro) * inv;
     vec3 tn = min(a, b), tf = max(a, b);
     float tin = max(max(tn.x, tn.y), tn.z), tout = min(min(tf.x, tf.y), tf.z);
     if (tout <= max(tin, 0.0)) return vec4(0.0);
     vec3 fn = vec3(0.0);
     if (tin == tn.x) fn = vec3(-sign(d.x), 0.0, 0.0); else if (tin == tn.y) fn = vec3(0.0, -sign(d.y), 0.0); else fn = vec3(0.0, 0.0, -sign(d.z));
-    float t = tin; vec3 p = u_eye + d * t;
+    float t = tin; vec3 p = ro + d * t;
     bool hit = false, face = false;
     if (p.z <= H(p.xy) + 1e-4) { hit = true; face = fn.z == 0.0; }
     else {
@@ -418,11 +468,11 @@ vec4 shade(vec2 pix) {
             t += st;
             bool last = false;
             if (t > tout) { t = tout; last = true; }
-            p = u_eye + d * t;
+            p = ro + d * t;
             if (p.z <= H(p.xy)) {
                 float lo = prev, hi = t;
-                for (int k = 0; k < 7; k++) { float m = 0.5 * (lo + hi); vec3 q = u_eye + d * m; if (q.z <= H(q.xy)) hi = m; else lo = m; }
-                t = hi; p = u_eye + d * t; hit = true; break;
+                for (int k = 0; k < 7; k++) { float m = 0.5 * (lo + hi); vec3 q = ro + d * m; if (q.z <= H(q.xy)) hi = m; else lo = m; }
+                t = hi; p = ro + d * t; hit = true; break;
             }
             if (last) break;
             prev = t;
@@ -532,6 +582,7 @@ fn draw_gl(res: &std::sync::Mutex<GlRes>, pending: &std::sync::Mutex<Option<(usi
         gl.uniform_2_f32(loc("u_org").as_ref(), vp.left_px as f32, vp.from_bottom_px as f32);
         gl.uniform_2_f32(loc("u_res").as_ref(), vp.width_px as f32, vp.height_px as f32);
         gl.uniform_1_f32(loc("u_tanh").as_ref(), u.tanh);
+        gl.uniform_1_f32(loc("u_ortho").as_ref(), u.ortho);
         gl.uniform_1_f32(loc("u_cell").as_ref(), u.cell);
         gl.uniform_3_f32_slice(loc("u_box").as_ref(), &u.bx);
         gl.uniform_3_f32_slice(loc("u_wood").as_ref(), &u.wood);
