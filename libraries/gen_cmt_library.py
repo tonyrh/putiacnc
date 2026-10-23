@@ -251,6 +251,19 @@ add(name="90\u00b0 V-bit 1/2\u2033, 7/16\u2033 cut (Diablo DR20104)", sys="in", 
            "shank 1/4\u2033. Diablo lists a maximum of 24000 rpm and CNC machines among its uses; for engraving, signmaking and veining. Very close to CMT 815.127.11 but with a slightly shorter cutting edge. "
            "Dimensions from Diablo's product page; feeds and speeds are conservative starting values, not Diablo's.") % (fmt(inch("7/16") * MM), fmt(inch("1-3/4") * MM)))
 
+# Diablo straight bits, 2 cutters, TiCo carbide (D, carbide height, overall length, shank; inches). The diablotools.com product pages show no
+# dimensions to a fetch tool, so these come from a retailer's listing (burnstools.com) of the same item numbers.
+for code, D, H, L, S in [("DR04100","1/8","3/8","1-3/4","1/4"),("DR04108","1/4","1","2-1/2","1/4"),("DR04124","3/8","1","2-1/2","1/4"),
+                         ("DR04132","1/2","1","2-1/8","1/4"),("DR12156","3/4","1-1/2","3","1/2")]:
+    d_mm = inch(D) * MM
+    rpm_, feed, plunge, so, pd = speeds(d_mm, 2, "flat")
+    add(name="%s\u2033 straight Z2, %s\u2033 cut (Diablo %s)" % (D, H, code), sys="in", shape="flat", angle=60.0, flutes=2, dia=round(d_mm, 3),
+        rpm=12000 if d_mm <= 12.7 else 10000, feed=min(feed, 1500.0), plunge=plunge, so=so, pd=min(pd, inch(H) * MM * 0.5),
+        notes=("Diablo %s double-flute straight router bit, TiCo Hi-Density carbide, 2 cutters. Carbide height %s\u2033 (%s mm), overall length %s\u2033 (%s mm), shank %s\u2033 (%s mm). "
+               "Hand-router bit: fine for light CNC work in wood and composites, with shallow passes. Dimensions from a retailer's listing of the Diablo item number; "
+               "feeds and speeds are conservative starting values, not Diablo's.")
+        % (code, H, fmt(inch(H) * MM), L, fmt(inch(L) * MM), S, fmt(inch(S) * MM)))
+
 # remove duplicates: the same kind of bit with the same diameter, flutes, angle and cutting length is one tool
 def cutlen(t):
     m = re.search(r"Cutting length ([0-9.]+) mm", t["notes"]); return m.group(1) if m else ""
