@@ -201,6 +201,16 @@ pub struct App {
     pub grid_on: bool,
     pub snap_on: bool,
     pub snap_mm: f64,
+    /// Object snap: corners, midpoints, centres and crossings of the drawing (and the stock).
+    pub osnap_on: bool,
+    /// How close the pointer must be to a snap point, in mm (set from the zoom every frame).
+    pub snap_tol_mm: f64,
+    /// Shapes the pointer must not snap to (the ones being moved or edited).
+    pub snap_skip: Vec<usize>,
+    /// Typed values for the shape being drawn (see dynin.rs).
+    pub dyn_in: Option<crate::dynin::DynIn>,
+    /// While dragging a selection: the snap point it jumped to, for the marker.
+    pub snap_hit: std::cell::Cell<Option<crate::osnap::Hit>>,
     pub rect_radius: f64,
     /// Picture of the 3D model for the 2D view, and which model it is for.
     pub relief_tex: Option<(String, eframe::egui::TextureHandle)>,
@@ -271,7 +281,7 @@ impl App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
-            grid_on: true, snap_on: true, snap_mm: 1.0, rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
+            grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
@@ -379,6 +389,7 @@ impl App {
         match p.right_tab.as_deref() { Some("gcode") => self.tab = RightTab::Gcode, Some("notes") => self.tab = RightTab::Info, Some("ops") => self.tab = RightTab::Ops, _ => {} }
         if let Some(v) = p.grid_on { self.grid_on = v; }
         if let Some(v) = p.snap_on { self.snap_on = v; }
+        if let Some(v) = p.osnap_on { self.osnap_on = v; }
         if let Some(v) = p.snap_mm.filter(|v| *v > 0.0 && *v <= 1000.0) { self.snap_mm = v; }
         if let Some(v) = p.show_toolpath { self.show_toolpath = v; }
         if let Some(v) = p.show_rapids { self.show_rapids = v; }
@@ -402,6 +413,7 @@ impl App {
         s.right_tab = Some(match self.tab { RightTab::Ops => "ops", RightTab::Gcode => "gcode", RightTab::Info => "notes" }.to_string());
         s.grid_on = Some(self.grid_on);
         s.snap_on = Some(self.snap_on);
+        s.osnap_on = Some(self.osnap_on);
         s.snap_mm = Some(self.snap_mm);
         s.show_toolpath = Some(self.show_toolpath);
         s.show_rapids = Some(self.show_rapids);
@@ -841,7 +853,19 @@ impl App {
         self.touch();
     }
 
+    /// The object snap point near `p`, if object snap is on and one is close.
+    pub fn object_snap(&self, p: [f64; 2]) -> Option<crate::osnap::Hit> {
+        if !self.osnap_on { return None; }
+        let st = &self.project.data.stock;
+        crate::osnap::find(&self.project.data.loops, &self.snap_skip, (st.w, st.h), p, self.snap_tol_mm)
+    }
+
     pub fn snap(&self, p: [f64; 2]) -> [f64; 2] {
+        if let Some(h) = self.object_snap(p) { return h.p; }
+        self.grid_snap(p)
+    }
+
+    pub fn grid_snap(&self, p: [f64; 2]) -> [f64; 2] {
         if self.snap_on && self.snap_mm > 1e-6 {
             [(p[0] / self.snap_mm).round() * self.snap_mm, (p[1] / self.snap_mm).round() * self.snap_mm]
         } else { p }

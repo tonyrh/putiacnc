@@ -24,6 +24,7 @@ pub struct Settings {
     pub right_tab: Option<String>,
     pub grid_on: Option<bool>,
     pub snap_on: Option<bool>,
+    pub osnap_on: Option<bool>,
     pub snap_mm: Option<f64>,
     pub show_toolpath: Option<bool>,
     pub show_rapids: Option<bool>,

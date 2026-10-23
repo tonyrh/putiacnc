@@ -131,6 +131,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.separator();
             ui.checkbox(&mut app.grid_on, "Grid");
             ui.checkbox(&mut app.snap_on, "Snap to grid");
+            ui.checkbox(&mut app.osnap_on, "Snap to shapes");
             ui.checkbox(&mut app.show_toolpath, "Toolpaths");
             ui.checkbox(&mut app.show_rapids, "Rapid moves");
             ui.checkbox(&mut app.show_machine_area, "Machine work area");
@@ -174,7 +175,8 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.checkbox(&mut app.grid_on, "Grid");
         crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, " mm").on_hover_text("Grid size (also the snap step)");
-        ui.checkbox(&mut app.snap_on, "Snap");
+        ui.checkbox(&mut app.snap_on, "Snap").on_hover_text("Snap to the grid");
+        ui.checkbox(&mut app.osnap_on, "Objects").on_hover_text("Snap to the corners, midpoints, centres and crossings of shapes, and to the stock");
         // view toggles on the right (right-to-left, so listed in reverse)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             guides_menu(ui, app);

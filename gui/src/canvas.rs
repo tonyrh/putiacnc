@@ -125,6 +125,14 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let shift = ctx.input(|i| i.modifiers.shift);
     let tol = 6.0 / app.scale as f64;
     let prim = PointerButton::Primary;
+    // object snap: ten pixels of reach, never to the shapes that are being moved or edited
+    app.snap_tol_mm = 10.0 / app.scale as f64;
+    app.snap_hit.set(None);
+    app.snap_skip = match (&app.drag, app.node_edit) {
+        (Drag::Move { .. } | Drag::Resize { .. } | Drag::Rotate { .. }, _) => app.sel.iter().copied().collect(),
+        (_, Some(li)) => vec![li],
+        _ => Vec::new(),
+    };
 
     // ---------------------------------------------------------------- interaction
     // tab placement only makes sense for a manual-tab operation that still exists
@@ -230,7 +238,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 if let (Drag::Pivot, Some(cur)) = (&app.drag, pointer_w) { app.rot_pivot = Some(app.snap(cur)); }
                 if let (Drag::Move { start, anchor, applied }, Some(cur)) = (&app.drag, pointer_w) {
                     let (start, anchor, applied) = (*start, *anchor, *applied);
-                    let t = app.snap([anchor[0] + cur[0] - start[0], anchor[1] + cur[1] - start[1]]);
+                    let t = move_target(app, start, anchor, applied, cur);
                     let desired = [t[0] - anchor[0], t[1] - anchor[1]];
                     let step = [desired[0] - applied[0], desired[1] - applied[1]];
                     if step[0].abs() > 1e-9 || step[1].abs() > 1e-9 {
@@ -374,6 +382,11 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             }
         }
     }
+
+    // typed values: a click on the drawing drops them, a number typed over it opens the panel
+    if resp.clicked() || resp.drag_started() { app.dyn_in = None; }
+    let typed_at = pointer_w.map(|p| app.snap(p));
+    crate::dynin::drive(&ctx, app, resp.hovered(), typed_at, zero, rect.min);
 
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
@@ -648,9 +661,14 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.accent));
         }
     }
+    if let Some(p) = pointer_w {
+        if let Some(v) = crate::dynin::preview(app, app.snap(p), zero) {
+            painter.add(egui::Shape::line(v.iter().map(|q| to_s(*q)).collect(), Stroke::new(2.0_f32, prev_col)));
+        }
+    }
     if app.mode == Mode::Line && !app.poly.is_empty() {
         let mut pts: Vec<Pos2> = app.poly.iter().map(|p| to_s(*p)).collect();
-        if let Some(h) = hover_w {
+        if let (Some(h), true) = (hover_w, app.dyn_in.is_none()) {
             let c = app.snap(h);
             let last = *app.poly.last().unwrap();
             hud = Some(format!("{:.2} mm", (c[0] - last[0]).hypot(c[1] - last[1])));
@@ -659,9 +677,30 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
         for p in &app.poly { painter.circle_filled(to_s(*p), 3.0, prev_col); }
     }
+    // the snap marker: what the pointer (or the dragged shape) is locked onto
+    let marker = match &app.drag {
+        Drag::Move { .. } => app.snap_hit.get(),
+        Drag::Resize { .. } => hover_w.and_then(|h| app.object_snap(h)),
+        Drag::None | Drag::Draw { .. } if !matches!(app.mode, Mode::Select) || app.node_edit.is_some() => hover_w.and_then(|h| app.object_snap(h)),
+        _ => None,
+    };
+    if let Some(m) = marker {
+        let c = to_s(m.p);
+        let st = Stroke::new(2.0_f32, th.shape_selected());
+        match m.kind {
+            crate::osnap::Kind::Corner | crate::osnap::Kind::Stock => { painter.rect_stroke(Rect::from_center_size(c, Vec2::splat(11.0)), 0.0, st); }
+            crate::osnap::Kind::Midpoint => { painter.add(egui::Shape::closed_line(vec![c + Vec2::new(0.0, -6.0), c + Vec2::new(6.0, 5.0), c + Vec2::new(-6.0, 5.0)], st)); }
+            crate::osnap::Kind::Centre => { painter.circle_stroke(c, 6.0, st); painter.circle_filled(c, 1.5, th.shape_selected()); }
+            crate::osnap::Kind::Crossing => {
+                painter.line_segment([c + Vec2::new(-6.0, -6.0), c + Vec2::new(6.0, 6.0)], st);
+                painter.line_segment([c + Vec2::new(-6.0, 6.0), c + Vec2::new(6.0, -6.0)], st);
+            }
+        }
+        painter.text(c + Vec2::new(10.0, 10.0), egui::Align2::LEFT_TOP, m.kind.label(), egui::FontId::proportional(11.0), th.shape_selected());
+    }
     if let Some(h) = hover_w {
         let c = app.snap(h);
-        if app.mode != Mode::Select && app.mode != Mode::Node { painter.circle_stroke(to_s(c), 5.0, Stroke::new(1.0_f32, th.shape_selected())); }
+        if app.mode != Mode::Select && app.mode != Mode::Node && marker.is_none() { painter.circle_stroke(to_s(c), 5.0, Stroke::new(1.0_f32, th.shape_selected())); }
         if let Some(t) = hud {
             painter.text(to_s(c) + Vec2::new(12.0, -12.0), egui::Align2::LEFT_BOTTOM, t, egui::FontId::monospace(12.0), th.hud());
         }
@@ -851,6 +890,33 @@ fn draw_end(app: &App, a: [f64; 2], b: [f64; 2], shift: bool) -> [f64; 2] {
 }
 
 /// Options of the active drawing tool, in a second bar under the palette so the palette itself stays compact.
+/// Where the selection's lower-left corner goes while it is dragged: the key points of its box
+/// (corners, edge middles, centre) jump to a nearby snap point, otherwise the corner follows the grid.
+fn move_target(app: &App, start: [f64; 2], anchor: [f64; 2], applied: [f64; 2], cur: [f64; 2]) -> [f64; 2] {
+    let delta = [cur[0] - start[0], cur[1] - start[1]];
+    let mut best: Option<([f64; 2], f64, crate::osnap::Hit)> = None;
+    if app.osnap_on {
+        if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))) {
+            // the box is already at `applied`; this is where it would be with the full drag
+            let (ox, oy) = (delta[0] - applied[0], delta[1] - applied[1]);
+            let (mx, my) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
+            for q in [[b[0], b[1]], [mx, b[1]], [b[2], b[1]], [b[0], my], [mx, my], [b[2], my], [b[0], b[3]], [mx, b[3]], [b[2], b[3]]] {
+                let q = [q[0] + ox, q[1] + oy];
+                if let Some(h) = app.object_snap(q) {
+                    let c = [h.p[0] - q[0], h.p[1] - q[1]];
+                    let d = c[0].hypot(c[1]);
+                    if best.map_or(true, |(_, bd, _)| d < bd) { best = Some((c, d, h)); }
+                }
+            }
+        }
+    }
+    app.snap_hit.set(best.map(|b| b.2));
+    match best {
+        Some((c, _, _)) => [anchor[0] + delta[0] + c[0], anchor[1] + delta[1] + c[1]],
+        None => app.grid_snap([anchor[0] + delta[0], anchor[1] + delta[1]]),
+    }
+}
+
 fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
     egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Foreground).fixed_pos(rect.min + Vec2::new(10.0, 62.0)).show(ctx, |ui| {
@@ -1045,6 +1111,28 @@ mod tests {
 
     fn app() -> App { let mut a = App::new(None); a.snap_on = true; a.snap_mm = 1.0; a }
     fn close(a: [f64; 4], b: [f64; 4]) -> bool { a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-6) }
+
+    #[test]
+    fn a_dragged_selection_snaps_its_key_points_to_other_shapes() {
+        let mut a = app();
+        a.snap_on = false;
+        a.snap_tol_mm = 1.0;
+        a.project.data.loops = vec![
+            shapes::new_rect([100.0, 100.0], [140.0, 120.0], 0.0, 0),
+            shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0), // the one being moved
+        ];
+        a.sel = [1usize].into_iter().collect();
+        a.snap_skip = vec![1];
+        // drag so that its upper-right corner (30,20) lands 0.4 mm from the other's lower-left corner (100,100)
+        let t = move_target(&a, [0.0, 0.0], [10.0, 10.0], [0.0, 0.0], [70.3, 80.4]);
+        // the box (20 x 10) must end with its upper right on (100,100): lower left at (80,90)
+        assert!((t[0] - 80.0).abs() < 1e-9 && (t[1] - 90.0).abs() < 1e-9, "{t:?}");
+        assert_eq!(a.snap_hit.get().map(|h| h.kind), Some(crate::osnap::Kind::Corner));
+        // far from everything: plain drag
+        let t = move_target(&a, [0.0, 0.0], [10.0, 10.0], [0.0, 0.0], [40.0, 30.0]);
+        assert!((t[0] - 50.0).abs() < 1e-9 && (t[1] - 40.0).abs() < 1e-9, "{t:?}");
+        assert!(a.snap_hit.get().is_none());
+    }
 
     #[test]
     fn drag_corner_free() {
