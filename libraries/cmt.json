@@ -1,8 +1,328 @@
 {
  "app": "putia-cnc-tools",
  "v": 1,
- "name": "CMT router bits (mm)",
+ "name": "CMT router bits",
  "tools": [
+  {
+   "name": "1/8″ upcut spiral Z2 (CMT 191.001.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 3.175,
+   "rpm": 12000,
+   "feed": 730,
+   "plunge": 220,
+   "so": 40.0,
+   "pd": 1.1,
+   "notes": "CMT 191.001.11, upcut spiral, solid carbide (HWM). Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt001",
+   "tip": 0.0
+  },
+  {
+   "name": "5/32″ upcut spiral Z2 (CMT 191.003.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 3.969,
+   "rpm": 12000,
+   "feed": 910,
+   "plunge": 270,
+   "so": 40.0,
+   "pd": 1.4,
+   "notes": "CMT 191.003.11, upcut spiral, solid carbide (HWM). Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt002",
+   "tip": 0.0
+  },
+  {
+   "name": "3/16″ upcut spiral Z2 (CMT 191.005.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 4.762,
+   "rpm": 12000,
+   "feed": 1100,
+   "plunge": 330,
+   "so": 40.0,
+   "pd": 1.7,
+   "notes": "CMT 191.005.11, upcut spiral, solid carbide (HWM). Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt003",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ upcut spiral Z2 (CMT 191.007.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1460,
+   "plunge": 440,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "CMT 191.007.11, upcut spiral, solid carbide (HWM). Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt004",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ upcut spiral Z2 (CMT 191.008.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1460,
+   "plunge": 440,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "CMT 191.008.11, upcut spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt005",
+   "tip": 0.0
+  },
+  {
+   "name": "5/16″ upcut spiral Z2 (CMT 191.501.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 7.938,
+   "rpm": 12000,
+   "feed": 1830,
+   "plunge": 550,
+   "so": 40.0,
+   "pd": 2.8,
+   "notes": "CMT 191.501.11, upcut spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt006",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ upcut spiral Z2 (CMT 191.503.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 9.525,
+   "rpm": 12000,
+   "feed": 2190,
+   "plunge": 660,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "CMT 191.503.11, upcut spiral, solid carbide (HWM). Cutting length 31.75 mm, overall 82.55 mm, shank 12.7 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt007",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ upcut spiral Z2 (CMT 191.505.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 191.505.11, upcut spiral, solid carbide (HWM). Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt008",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ upcut spiral Z2 (CMT 191.506.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 191.506.11, upcut spiral, solid carbide (HWM). Cutting length 38.1 mm, overall 88.9 mm, shank 12.7 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt009",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ upcut spiral Z2 (CMT 191.507.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 191.507.11, upcut spiral, solid carbide (HWM). Cutting length 50.8 mm, overall 101.6 mm, shank 12.7 mm. Upcut: chips are ejected upward; a clean underside. Contour cutting, end trimming and panel sizing in solid wood, wood composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt010",
+   "tip": 0.0
+  },
+  {
+   "name": "1/8″ downcut spiral Z2 (CMT 192.001.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 3.175,
+   "rpm": 12000,
+   "feed": 730,
+   "plunge": 220,
+   "so": 40.0,
+   "pd": 1.1,
+   "notes": "CMT 192.001.11, downcut spiral, solid carbide (HWM). Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt011",
+   "tip": 0.0
+  },
+  {
+   "name": "5/32″ downcut spiral Z2 (CMT 192.003.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 3.969,
+   "rpm": 12000,
+   "feed": 910,
+   "plunge": 270,
+   "so": 40.0,
+   "pd": 1.4,
+   "notes": "CMT 192.003.11, downcut spiral, solid carbide (HWM). Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt012",
+   "tip": 0.0
+  },
+  {
+   "name": "3/16″ downcut spiral Z2 (CMT 192.005.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 4.762,
+   "rpm": 12000,
+   "feed": 1100,
+   "plunge": 330,
+   "so": 40.0,
+   "pd": 1.7,
+   "notes": "CMT 192.005.11, downcut spiral, solid carbide (HWM). Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt013",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ downcut spiral Z2 (CMT 192.007.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1460,
+   "plunge": 440,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "CMT 192.007.11, downcut spiral, solid carbide (HWM). Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. Also sold with DLCS chrome coating for longer life: CMT 192.007.41 (same dimensions). Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt014",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ downcut spiral Z2 (CMT 192.008.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1460,
+   "plunge": 440,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "CMT 192.008.11, downcut spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Also sold with DLCS chrome coating for longer life: CMT 192.008.41 (same dimensions). Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt015",
+   "tip": 0.0
+  },
+  {
+   "name": "5/16″ downcut spiral Z2 (CMT 192.501.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 7.938,
+   "rpm": 12000,
+   "feed": 1830,
+   "plunge": 550,
+   "so": 40.0,
+   "pd": 2.8,
+   "notes": "CMT 192.501.11, downcut spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt016",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ downcut spiral Z2 (CMT 192.503.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 9.525,
+   "rpm": 12000,
+   "feed": 2190,
+   "plunge": 660,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "CMT 192.503.11, downcut spiral, solid carbide (HWM). Cutting length 31.75 mm, overall 82.55 mm, shank 12.7 mm. Also sold with DLCS chrome coating for longer life: CMT 192.503.41 (same dimensions). Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt017",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ downcut spiral Z2 (CMT 192.505.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 192.505.11, downcut spiral, solid carbide (HWM). Cutting length 31.75 mm, overall 76.2 mm, shank 12.7 mm. Also sold with DLCS chrome coating for longer life: CMT 192.505.41 (same dimensions). Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt018",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ downcut spiral Z2 (CMT 192.506.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 192.506.11, downcut spiral, solid carbide (HWM). Cutting length 38.1 mm, overall 88.9 mm, shank 12.7 mm. Also sold with DLCS chrome coating for longer life: CMT 192.506.41 (same dimensions). Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt019",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ downcut spiral Z2 (CMT 192.507.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 192.507.11, downcut spiral, solid carbide (HWM). Cutting length 50.8 mm, overall 101.6 mm, shank 12.7 mm. Also sold with DLCS chrome coating for longer life: CMT 192.507.41 (same dimensions). Downcut: chips are pushed down; an excellent finish on the upper face. Cutting, copying and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt020",
+   "tip": 0.0
+  },
   {
    "name": "Ø8 upcut spiral Z3 (CMT 193.081.11)",
    "sys": "mm",
@@ -16,7 +336,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "CMT 193.081.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 32 mm, overall 80 mm, shank 8 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm001",
+   "id": "cmt021",
    "tip": 0.0
   },
   {
@@ -32,7 +352,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "CMT 193.100.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 32 mm, overall 80 mm, shank 10 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm002",
+   "id": "cmt022",
    "tip": 0.0
   },
   {
@@ -48,7 +368,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "CMT 193.101.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 42 mm, overall 90 mm, shank 10 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm003",
+   "id": "cmt023",
    "tip": 0.0
   },
   {
@@ -64,7 +384,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 193.120.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 35 mm, overall 83 mm, shank 12 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm004",
+   "id": "cmt024",
    "tip": 0.0
   },
   {
@@ -80,7 +400,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 193.121.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 42 mm, overall 90 mm, shank 12 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm005",
+   "id": "cmt025",
    "tip": 0.0
   },
   {
@@ -96,7 +416,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 193.122.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 52 mm, overall 100 mm, shank 12 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm006",
+   "id": "cmt026",
    "tip": 0.0
   },
   {
@@ -112,7 +432,7 @@
    "so": 40.0,
    "pd": 4.9,
    "notes": "CMT 193.140.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 58 mm, overall 110 mm, shank 14 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm007",
+   "id": "cmt027",
    "tip": 0.0
   },
   {
@@ -128,7 +448,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT 193.160.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 55 mm, overall 110 mm, shank 16 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm008",
+   "id": "cmt028",
    "tip": 0.0
   },
   {
@@ -144,7 +464,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT 193.161.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 35 mm, overall 90 mm, shank 16 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm009",
+   "id": "cmt029",
    "tip": 0.0
   },
   {
@@ -160,7 +480,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT 193.162.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 95 mm, overall 150 mm, shank 16 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm010",
+   "id": "cmt030",
    "tip": 0.0
   },
   {
@@ -176,7 +496,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT 193.165.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 72 mm, overall 120 mm, shank 16 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm011",
+   "id": "cmt031",
    "tip": 0.0
   },
   {
@@ -192,7 +512,7 @@
    "so": 40.0,
    "pd": 6.3,
    "notes": "CMT 193.180.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 55 mm, overall 110 mm, shank 18 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm012",
+   "id": "cmt032",
    "tip": 0.0
   },
   {
@@ -208,7 +528,7 @@
    "so": 40.0,
    "pd": 7.0,
    "notes": "CMT 193.200.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 60 mm, overall 120 mm, shank 20 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm013",
+   "id": "cmt033",
    "tip": 0.0
   },
   {
@@ -224,7 +544,7 @@
    "so": 40.0,
    "pd": 7.0,
    "notes": "CMT 193.201.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 70 mm, overall 120 mm, shank 20 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm014",
+   "id": "cmt034",
    "tip": 0.0
   },
   {
@@ -240,7 +560,87 @@
    "so": 40.0,
    "pd": 7.0,
    "notes": "CMT 193.202.11, 3-flute upcut spiral, solid carbide (HWM). Cutting length 102 mm, overall 165 mm, shank 20 mm. Three flutes, upcut: a clean underside at high feed. Contour cutting, end trimming and panel sizing in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm015",
+   "id": "cmt035",
+   "tip": 0.0
+  },
+  {
+   "name": "1/8″ upcut spiral Z1 (CMT 198.001.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 3.175,
+   "rpm": 12000,
+   "feed": 370,
+   "plunge": 110,
+   "so": 40.0,
+   "pd": 1.1,
+   "notes": "CMT 198.001.11, single-flute upcut spiral, solid carbide (HWM). Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. One flute, upcut: big chip clearance for plastics and soft materials; a clean underside. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt036",
+   "tip": 0.0
+  },
+  {
+   "name": "3/16″ upcut spiral Z1 (CMT 198.005.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 4.762,
+   "rpm": 12000,
+   "feed": 550,
+   "plunge": 160,
+   "so": 40.0,
+   "pd": 1.7,
+   "notes": "CMT 198.005.11, single-flute upcut spiral, solid carbide (HWM). Cutting length 15.88 mm, overall 50.8 mm, shank 6.35 mm. One flute, upcut: big chip clearance for plastics and soft materials; a clean underside. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt037",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ upcut spiral Z1 (CMT 198.007.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 730,
+   "plunge": 220,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "CMT 198.007.11, single-flute upcut spiral, solid carbide (HWM). Cutting length 19.05 mm, overall 50.8 mm, shank 6.35 mm. One flute, upcut: big chip clearance for plastics and soft materials; a clean underside. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt038",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ upcut spiral Z1 (CMT 198.008.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 730,
+   "plunge": 220,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "CMT 198.008.11, single-flute upcut spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. One flute, upcut: big chip clearance for plastics and soft materials; a clean underside. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt039",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ upcut spiral Z1 (CMT 198.504.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 1,
+   "dia": 9.525,
+   "rpm": 12000,
+   "feed": 1100,
+   "plunge": 330,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "CMT 198.504.11, single-flute upcut spiral, solid carbide (HWM). Cutting length 28.57 mm, overall 76.2 mm, shank 9.52 mm. One flute, upcut: big chip clearance for plastics and soft materials; a clean underside. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt040",
    "tip": 0.0
   },
   {
@@ -256,7 +656,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "CMT 198.660.11, single-flute downcut spiral, solid carbide (HWM). Cutting length 27 mm, overall 60 mm, shank 6 mm. One flute, downcut: chips pushed down, an excellent finish on the upper face. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm016",
+   "id": "cmt041",
    "tip": 0.0
   },
   {
@@ -272,7 +672,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "CMT 190.040.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 15 mm, overall 50 mm, shank 4 mm. I1 (as listed by CMT) 7 mm. Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm017",
+   "id": "cmt042",
    "tip": 0.0
   },
   {
@@ -288,7 +688,7 @@
    "so": 40.0,
    "pd": 1.8,
    "notes": "CMT 190.050.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 22 mm, overall 60 mm, shank 5 mm. I1 (as listed by CMT) 8 mm. Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm018",
+   "id": "cmt043",
    "tip": 0.0
   },
   {
@@ -304,7 +704,23 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "CMT 190.060.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 22 mm, overall 60 mm, shank 6 mm. I1 (as listed by CMT) 8 mm. Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm019",
+   "id": "cmt044",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ compression spiral Z2+2 (CMT 190.008.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1460,
+   "plunge": 440,
+   "so": 40.0,
+   "pd": 2.2,
+   "notes": "CMT 190.008.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 22.6 mm, overall 63.5 mm, shank 6.35 mm. I1 (as listed by CMT) 7 mm. Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt045",
    "tip": 0.0
   },
   {
@@ -320,7 +736,55 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "CMT 190.080.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 32 mm, overall 80 mm, shank 8 mm. I1 (as listed by CMT) 7 mm. Also sold with DLCS chrome coating for longer life: CMT 190.080.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm020",
+   "id": "cmt046",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ compression spiral Z2+2 (CMT 190.513.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 9.52,
+   "rpm": 12000,
+   "feed": 2190,
+   "plunge": 660,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "CMT 190.513.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 22.2 mm, overall 76.2 mm, shank 9.53 mm. I1 (as listed by CMT) 4.8 mm. Also sold with DLCS chrome coating for longer life: CMT 190.513.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt047",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ compression spiral Z2+2 (CMT 190.504.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 9.53,
+   "rpm": 12000,
+   "feed": 2200,
+   "plunge": 660,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "CMT 190.504.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 28.6 mm, overall 76.2 mm, shank 9.52 mm. I1 (as listed by CMT) 7 mm. Also sold with DLCS chrome coating for longer life: CMT 190.504.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt048",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ compression spiral Z3+3 (CMT 190.813.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 6,
+   "dia": 9.53,
+   "rpm": 12000,
+   "feed": 3000.0,
+   "plunge": 900,
+   "so": 40.0,
+   "pd": 3.3,
+   "notes": "CMT 190.813.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 76.2 mm, shank 9.52 mm. I1 (as listed by CMT) 5.2 mm. Also sold with DLCS chrome coating for longer life: CMT 190.813.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt049",
    "tip": 0.0
   },
   {
@@ -336,7 +800,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "CMT 190.100.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 32 mm, overall 80 mm, shank 10 mm. I1 (as listed by CMT) 7 mm. Also sold with DLCS chrome coating for longer life: CMT 190.100.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm021",
+   "id": "cmt050",
    "tip": 0.0
   },
   {
@@ -352,7 +816,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "CMT 190.101.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 42 mm, overall 90 mm, shank 10 mm. I1 (as listed by CMT) 7 mm. Also sold with DLCS chrome coating for longer life: CMT 190.101.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm022",
+   "id": "cmt051",
    "tip": 0.0
   },
   {
@@ -368,7 +832,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 190.120.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 42 mm, overall 90 mm, shank 12 mm. I1 (as listed by CMT) 7 mm. Also sold with DLCS chrome coating for longer life: CMT 190.120.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm023",
+   "id": "cmt052",
    "tip": 0.0
   },
   {
@@ -384,7 +848,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 190.121.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 52 mm, overall 100 mm, shank 12 mm. I1 (as listed by CMT) 7 mm. Also sold with DLCS chrome coating for longer life: CMT 190.121.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm024",
+   "id": "cmt053",
    "tip": 0.0
   },
   {
@@ -400,7 +864,103 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 190.320.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 83 mm, shank 12 mm. I1 (as listed by CMT) 5.2 mm. Also sold with DLCS chrome coating for longer life: CMT 190.320.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm025",
+   "id": "cmt054",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z2+2 (CMT 190.515.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 190.515.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 22.2 mm, overall 76.2 mm, shank 12.7 mm. I1 (as listed by CMT) 5.2 mm. Also sold with DLCS chrome coating for longer life: CMT 190.515.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt055",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z2+2 (CMT 190.517.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 190.517.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 34.9 mm, overall 88.9 mm, shank 12.7 mm. I1 (as listed by CMT) 5.2 mm. Also sold with DLCS chrome coating for longer life: CMT 190.517.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's. Same bit also listed as 190.507.11 (shank 12.7 mm).",
+   "id": "cmt056",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z2+2 (CMT 190.505.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 190.505.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 76.2 mm, shank 12.7 mm. I1 (as listed by CMT) 12 mm. Also sold with DLCS chrome coating for longer life: CMT 190.505.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt057",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z2+2 (CMT 190.506.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 190.506.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 28.6 mm, overall 76.2 mm, shank 12.7 mm. I1 (as listed by CMT) 12 mm. Also sold with DLCS chrome coating for longer life: CMT 190.506.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt058",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z2+2 (CMT 190.508.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 4,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1920,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 190.508.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 41.3 mm, overall 101.6 mm, shank 12.7 mm. I1 (as listed by CMT) 12 mm. Also sold with DLCS chrome coating for longer life: CMT 190.508.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt059",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ compression spiral Z3+3 (CMT 190.815.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 6,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 2880,
+   "plunge": 860,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 190.815.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 28.5 mm, overall 76.2 mm, shank 12.7 mm. I1 (as listed by CMT) 6 mm. Also sold with DLCS chrome coating for longer life: CMT 190.815.41 (same dimensions). Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt060",
    "tip": 0.0
   },
   {
@@ -416,7 +976,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT 190.160.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 55 mm, overall 110 mm, shank 16 mm. I1 (as listed by CMT) 24 mm. Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm026",
+   "id": "cmt061",
    "tip": 0.0
   },
   {
@@ -432,7 +992,55 @@
    "so": 40.0,
    "pd": 6.3,
    "notes": "CMT 190.180.11, up & downcut compression spiral, solid carbide (HWM). Cutting length 55 mm, overall 110 mm, shank 18 mm. I1 (as listed by CMT) 30 mm. Compression (an upcut and a downcut section): a clean finish on both faces of plywood, MDF and laminated boards. Cut at least as deep as the downcut section so the full thickness is compressed. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm027",
+   "id": "cmt062",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ upcut chipbreaker Z3 (CMT 195.506.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 2880,
+   "plunge": 860,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 195.506.11, 3-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 38.1 mm, overall 88.9 mm, shank 12.7 mm. Three flutes with a chipbreaker (maximum tooth depth 0.3 mm), upcut: for roughing and fast contour cutting in solid wood, composites, plastics and laminates. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt063",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ downcut chipbreaker Z3 (CMT 196.506.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 2880,
+   "plunge": 860,
+   "so": 40.0,
+   "pd": 4.4,
+   "notes": "CMT 196.506.11, 3-flute downcut spiral with chipbreaker, solid carbide (HWM). Cutting length 38.1 mm, overall 88.9 mm, shank 12.7 mm. Three flutes with a chipbreaker (maximum tooth depth 0.3 mm), downcut: a good upper face with fast contour cutting. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt064",
+   "tip": 0.0
+  },
+  {
+   "name": "1/8″ round nose upcut spiral Z2 (CMT 199.001.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 3.18,
+   "rpm": 12000,
+   "feed": 590,
+   "plunge": 180,
+   "so": 15.0,
+   "pd": 1.1,
+   "notes": "CMT 199.001.11, round nose upcut spiral, solid carbide (HWM). Cutting length 12.7 mm, overall 50.8 mm, shank 6.35 mm. Radius 1.6 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt065",
    "tip": 0.0
   },
   {
@@ -448,7 +1056,23 @@
    "so": 15.0,
    "pd": 2.1,
    "notes": "CMT 199.060.11, round nose upcut spiral, solid carbide (HWM). Cutting length 27 mm, overall 70 mm, shank 6 mm. Radius 3 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm028",
+   "id": "cmt066",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ round nose upcut spiral Z2 (CMT 199.008.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1170,
+   "plunge": 350,
+   "so": 15.0,
+   "pd": 2.2,
+   "notes": "CMT 199.008.11, round nose upcut spiral, solid carbide (HWM). Cutting length 25.4 mm, overall 63.5 mm, shank 6.35 mm. Radius 3.2 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt067",
    "tip": 0.0
   },
   {
@@ -464,7 +1088,23 @@
    "so": 15.0,
    "pd": 2.8,
    "notes": "CMT 199.081.11, round nose upcut spiral, solid carbide (HWM). Cutting length 32 mm, overall 80 mm, shank 8 mm. Radius 4 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm029",
+   "id": "cmt068",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ round nose upcut spiral Z2 (CMT 199.504.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 9.53,
+   "rpm": 12000,
+   "feed": 1760,
+   "plunge": 530,
+   "so": 15.0,
+   "pd": 3.3,
+   "notes": "CMT 199.504.11, round nose upcut spiral, solid carbide (HWM). Cutting length 28.6 mm, overall 76 mm, shank 9.52 mm. Radius 4.8 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt069",
    "tip": 0.0
   },
   {
@@ -480,7 +1120,7 @@
    "so": 15.0,
    "pd": 3.5,
    "notes": "CMT 199.100.11, round nose upcut spiral, solid carbide (HWM). Cutting length 32 mm, overall 80 mm, shank 10 mm. Radius 5 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm030",
+   "id": "cmt070",
    "tip": 0.0
   },
   {
@@ -496,7 +1136,39 @@
    "so": 15.0,
    "pd": 4.2,
    "notes": "CMT 199.120.11, round nose upcut spiral, solid carbide (HWM). Cutting length 35 mm, overall 83 mm, shank 12 mm. Radius 6 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm031",
+   "id": "cmt071",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ round nose upcut spiral Z2 (CMT 199.505.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 15.0,
+   "pd": 4.4,
+   "notes": "CMT 199.505.11, round nose upcut spiral, solid carbide (HWM). Cutting length 31.8 mm, overall 76.2 mm, shank 12.7 mm. Radius 6.4 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt072",
+   "tip": 0.0
+  },
+  {
+   "name": "5/8″ round nose upcut spiral Z2 (CMT 199.509.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 15.88,
+   "rpm": 10000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 15.0,
+   "pd": 5.6,
+   "notes": "CMT 199.509.11, round nose upcut spiral, solid carbide (HWM). Cutting length 57.15 mm, overall 109.5 mm, shank 15.87 mm. Radius 7.9 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt073",
    "tip": 0.0
   },
   {
@@ -512,7 +1184,23 @@
    "so": 15.0,
    "pd": 5.6,
    "notes": "CMT 199.160.11, round nose upcut spiral, solid carbide (HWM). Cutting length 55 mm, overall 110 mm, shank 16 mm. Radius 8 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm032",
+   "id": "cmt074",
+   "tip": 0.0
+  },
+  {
+   "name": "3/4″ round nose upcut spiral Z2 (CMT 199.511.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 19.05,
+   "rpm": 8000,
+   "feed": 1230,
+   "plunge": 370,
+   "so": 15.0,
+   "pd": 6.7,
+   "notes": "CMT 199.511.11, round nose upcut spiral, solid carbide (HWM). Cutting length 57.15 mm, overall 109.5 mm, shank 19.05 mm. Radius 9.5 mm. Full-radius ball end, upcut: 3D relief, rounded pockets and fluting. Radius = half the diameter. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt075",
    "tip": 0.0
   },
   {
@@ -528,7 +1216,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 197.121.11, 4-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 42 mm, overall 90 mm, shank 12 mm. Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm033",
+   "id": "cmt076",
    "tip": 0.0
   },
   {
@@ -544,7 +1232,7 @@
    "so": 40.0,
    "pd": 4.9,
    "notes": "CMT 197.140.11, 4-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 50 mm, overall 110 mm, shank 14 mm. Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm034",
+   "id": "cmt077",
    "tip": 0.0
   },
   {
@@ -560,7 +1248,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT 197.160.11, 4-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 55 mm, overall 110 mm, shank 16 mm. Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm035",
+   "id": "cmt078",
    "tip": 0.0
   },
   {
@@ -576,7 +1264,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT 197.161.11, 4-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 35 mm, overall 90 mm, shank 16 mm. Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm036",
+   "id": "cmt079",
    "tip": 0.0
   },
   {
@@ -592,7 +1280,7 @@
    "so": 40.0,
    "pd": 6.3,
    "notes": "CMT 197.180.11, 4-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 55 mm, overall 110 mm, shank 18 mm. Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm037",
+   "id": "cmt080",
    "tip": 0.0
   },
   {
@@ -608,7 +1296,7 @@
    "so": 40.0,
    "pd": 7.0,
    "notes": "CMT 197.200.11, 4-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 60 mm, overall 120 mm, shank 20 mm. Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm038",
+   "id": "cmt081",
    "tip": 0.0
   },
   {
@@ -624,7 +1312,7 @@
    "so": 40.0,
    "pd": 7.0,
    "notes": "CMT 197.201.11, 4-flute upcut spiral with chipbreaker, solid carbide (HWM). Cutting length 70 mm, overall 120 mm, shank 20 mm. Four flutes with a chipbreaker (maximum tooth depth 0.1 mm), upcut: fast roughing and contour cutting in solid wood, composites and plastics. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm039",
+   "id": "cmt082",
    "tip": 0.0
   },
   {
@@ -640,7 +1328,7 @@
    "so": 40.0,
    "pd": 1.0,
    "notes": "CMT 188.030.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 12 mm, overall 60 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm040",
+   "id": "cmt083",
    "tip": 0.0
   },
   {
@@ -656,7 +1344,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "CMT 188.040.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 12 mm, overall 60 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm041",
+   "id": "cmt084",
    "tip": 0.0
   },
   {
@@ -672,7 +1360,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "CMT 188.041.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 40 mm, overall 100 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm042",
+   "id": "cmt085",
    "tip": 0.0
   },
   {
@@ -688,7 +1376,7 @@
    "so": 40.0,
    "pd": 1.8,
    "notes": "CMT 188.050.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 14 mm, overall 60 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm043",
+   "id": "cmt086",
    "tip": 0.0
   },
   {
@@ -704,7 +1392,7 @@
    "so": 40.0,
    "pd": 1.8,
    "notes": "CMT 188.051.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 40 mm, overall 100 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm044",
+   "id": "cmt087",
    "tip": 0.0
   },
   {
@@ -720,7 +1408,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "CMT 188.060.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 14 mm, overall 60 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm045",
+   "id": "cmt088",
    "tip": 0.0
   },
   {
@@ -736,7 +1424,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "CMT 188.061.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 40 mm, overall 100 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm046",
+   "id": "cmt089",
    "tip": 0.0
   },
   {
@@ -752,7 +1440,7 @@
    "so": 40.0,
    "pd": 2.4,
    "notes": "CMT 188.070.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 14 mm, overall 60 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm047",
+   "id": "cmt090",
    "tip": 0.0
   },
   {
@@ -768,7 +1456,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "CMT 188.080.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 14 mm, overall 80 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm048",
+   "id": "cmt091",
    "tip": 0.0
   },
   {
@@ -784,7 +1472,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "CMT 188.081.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 40 mm, overall 100 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm049",
+   "id": "cmt092",
    "tip": 0.0
   },
   {
@@ -800,7 +1488,7 @@
    "so": 40.0,
    "pd": 3.1,
    "notes": "CMT 188.090.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 14 mm, overall 80 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm050",
+   "id": "cmt093",
    "tip": 0.0
   },
   {
@@ -816,7 +1504,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "CMT 188.100.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 14 mm, overall 80 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm051",
+   "id": "cmt094",
    "tip": 0.0
   },
   {
@@ -832,7 +1520,23 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT 188.120.51, single-flute spiral for aluminium, 5% cobalt HSS. Cutting length 14 mm, overall 80 mm, shank 8 mm. One polished upcut flute with a positive rake: aluminium and soft non-ferrous metals, plastics. Maximum 12000 rpm per CMT. Use a lubricant or air blast. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm052",
+   "id": "cmt095",
+   "tip": 0.0
+  },
+  {
+   "name": "1/8″ round nose, R1.6 (CMT 714.032.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 3.18,
+   "rpm": 12000,
+   "feed": 590,
+   "plunge": 180,
+   "so": 15.0,
+   "pd": 1.1,
+   "notes": "CMT round nose router bit, radius 1.6 mm, 2 flutes. Cutting length 9.5 mm, overall 50.8 mm. Codes: 714.032.11 (shank 6 mm), 814.032.11 (shank 6.35 mm), 914.032.11 (shank 8 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt096",
    "tip": 0.0
   },
   {
@@ -848,7 +1552,167 @@
    "so": 15.0,
    "pd": 2.1,
    "notes": "CMT round nose router bit, radius 3 mm, 2 flutes. Cutting length 12.7 mm, overall 50.8 mm. Codes: 914.060.11 (shank 8 mm), 714.060.11 (shank 6 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm053",
+   "id": "cmt097",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ round nose, R3.2 (CMT 814.064.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1170,
+   "plunge": 350,
+   "so": 15.0,
+   "pd": 2.2,
+   "notes": "CMT round nose router bit, radius 3.2 mm, 2 flutes. Cutting length 12.7 mm, overall 50.8 mm. Codes: 814.064.11 (shank 6.35 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt098",
+   "tip": 0.0
+  },
+  {
+   "name": "1/4″ round nose, R3.2 (CMT 814.564.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1170,
+   "plunge": 350,
+   "so": 15.0,
+   "pd": 2.2,
+   "notes": "CMT round nose router bit, radius 3.2 mm, 2 flutes. Cutting length 15.9 mm, overall 63.5 mm. Codes: 814.564.11 (shank 12.7 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt099",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ round nose, R4.8 (CMT 814.595.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 9.53,
+   "rpm": 12000,
+   "feed": 1760,
+   "plunge": 530,
+   "so": 15.0,
+   "pd": 3.3,
+   "notes": "CMT round nose router bit, radius 4.8 mm, 2 flutes. Cutting length 25.4 mm, overall 66.7 mm. Codes: 814.595.11 (shank 12.7 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt100",
+   "tip": 0.0
+  },
+  {
+   "name": "3/8″ round nose, R4.8 (CMT 814.095.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 9.53,
+   "rpm": 12000,
+   "feed": 1760,
+   "plunge": 530,
+   "so": 15.0,
+   "pd": 3.3,
+   "notes": "CMT round nose router bit, radius 4.8 mm, 2 flutes. Cutting length 6.4 mm, overall 50.8 mm. Codes: 814.095.11 (shank 6.35 mm), 714.095.11 (shank 6 mm), 914.095.11 (shank 8 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt101",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ round nose, R6.4 (CMT 914.127.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 15.0,
+   "pd": 4.4,
+   "notes": "CMT round nose router bit, radius 6.4 mm, 2 flutes. Cutting length 9.5 mm, overall 50.8 mm. Codes: 914.127.11 (shank 8 mm), 714.127.11 (shank 6 mm), 814.127.11 (shank 6.35 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt102",
+   "tip": 0.0
+  },
+  {
+   "name": "1/2″ round nose, R6.4 (CMT 914.627.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 15.0,
+   "pd": 4.4,
+   "notes": "CMT round nose router bit, radius 6.4 mm, 2 flutes. Cutting length 31.8 mm, overall 73 mm. Codes: 914.627.11 (shank 12 mm), 814.627.11 (shank 12.7 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt103",
+   "tip": 0.0
+  },
+  {
+   "name": "5/8″ round nose, R7.9 (CMT 814.660.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 15.88,
+   "rpm": 10000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 15.0,
+   "pd": 5.6,
+   "notes": "CMT round nose router bit, radius 7.9 mm, 2 flutes. Cutting length 31.8 mm, overall 73 mm. Codes: 814.660.11 (shank 12.7 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt104",
+   "tip": 0.0
+  },
+  {
+   "name": "5/8″ round nose, R7.9 (CMT 814.160.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 15.88,
+   "rpm": 10000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 15.0,
+   "pd": 5.6,
+   "notes": "CMT round nose router bit, radius 7.9 mm, 2 flutes. Cutting length 9.5 mm, overall 50.8 mm. Codes: 814.160.11 (shank 6.35 mm), 714.160.11 (shank 6 mm), 914.160.11 (shank 8 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt105",
+   "tip": 0.0
+  },
+  {
+   "name": "3/4″ round nose, R9.5 (CMT 914.190.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 19.05,
+   "rpm": 8000,
+   "feed": 1230,
+   "plunge": 370,
+   "so": 15.0,
+   "pd": 6.7,
+   "notes": "CMT round nose router bit, radius 9.5 mm, 2 flutes. Cutting length 11.3 mm, overall 50.8 mm. Codes: 914.190.11 (shank 8 mm), 714.190.11 (shank 6 mm), 814.190.11 (shank 6.35 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt106",
+   "tip": 0.0
+  },
+  {
+   "name": "3/4″ round nose, R9.5 (CMT 914.690.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 19.05,
+   "rpm": 8000,
+   "feed": 1230,
+   "plunge": 370,
+   "so": 15.0,
+   "pd": 6.7,
+   "notes": "CMT round nose router bit, radius 9.5 mm, 2 flutes. Cutting length 31.8 mm, overall 73 mm. Codes: 914.690.11 (shank 12 mm), 814.690.11 (shank 12.7 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt107",
    "tip": 0.0
   },
   {
@@ -864,7 +1728,199 @@
    "so": 15.0,
    "pd": 7.7,
    "notes": "CMT round nose router bit, radius 11 mm, 2 flutes. Cutting length 25.4 mm, overall 63.5 mm. Codes: 814.721.11 (shank 12.7 mm), 914.221.11 (shank 8 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm054",
+   "id": "cmt108",
+   "tip": 0.0
+  },
+  {
+   "name": "1″ round nose, R12.7 (CMT 914.254.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 25.4,
+   "rpm": 8000,
+   "feed": 1230,
+   "plunge": 370,
+   "so": 15.0,
+   "pd": 8.0,
+   "notes": "CMT round nose router bit, radius 12.7 mm, 2 flutes. Cutting length 15.9 mm, overall 58.8 mm. Codes: 914.254.11 (shank 8 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt109",
+   "tip": 0.0
+  },
+  {
+   "name": "1″ round nose, R12.7 (CMT 914.754.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 25.4,
+   "rpm": 8000,
+   "feed": 1230,
+   "plunge": 370,
+   "so": 15.0,
+   "pd": 8.0,
+   "notes": "CMT round nose router bit, radius 12.7 mm, 2 flutes. Cutting length 31.8 mm, overall 73 mm. Codes: 914.754.11 (shank 12 mm), 814.754.11 (shank 12.7 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt110",
+   "tip": 0.0
+  },
+  {
+   "name": "1-1/4″ round nose, R15.9 (CMT 814.817.11)",
+   "sys": "in",
+   "shape": "ball",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 31.75,
+   "rpm": 8000,
+   "feed": 1230,
+   "plunge": 370,
+   "so": 15.0,
+   "pd": 8.0,
+   "notes": "CMT round nose router bit, radius 15.9 mm, 2 flutes. Cutting length 19.1 mm, overall 58.8 mm. Codes: 814.817.11 (shank 12.7 mm), 914.817.11 (shank 12 mm). Engraving, fluting and rounded grooves in wood and wood products; use several passes in cove cuts. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt111",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 1/4″ (CMT 815.064.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 6.35,
+   "rpm": 12000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.064.11 V-grooving bit, 90°, carbide-tipped (HWM), 2 flutes. Cutting length 7.94 mm, overall 38.1 mm, shank 6.35 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt112",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 3/8″ (CMT 815.095.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 9.525,
+   "rpm": 12000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.095.11 V-grooving bit, 90°, carbide-tipped (HW), 2 flutes. Cutting length 12.7 mm, overall 44.45 mm, shank 6.35 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt113",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 1/2″ (CMT 815.127.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 12.7,
+   "rpm": 10000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.127.11 V-grooving bit, 90°, carbide-tipped (HW), 2 flutes. Cutting length 12.7 mm, overall 44.45 mm, shank 6.35 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's. Same bit also listed as K915-127.",
+   "id": "cmt114",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 5/8″ (CMT 815.660.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 15.875,
+   "rpm": 10000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.660.11 V-grooving bit, 90°, carbide-tipped (HW), 2 flutes. Cutting length 12.7 mm, overall 63.5 mm, shank 12.7 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt115",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 3/4″ (CMT 815.690.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 19.05,
+   "rpm": 8000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.690.11 V-grooving bit, 90°, carbide-tipped (HW), 2 flutes. Cutting length 15.88 mm, overall 63.5 mm, shank 12.7 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt116",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 1-1/4″ (CMT 815.817.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 31.75,
+   "rpm": 8000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.817.11 V-grooving bit, 90°, carbide-tipped (HW), 2 flutes. Cutting length 19.05 mm, overall 63.5 mm, shank 12.7 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt117",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 1-1/2″ (CMT 815.880.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 38.1,
+   "rpm": 8000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.880.11 V-grooving bit, 90°, carbide-tipped (HW), 2 flutes. Cutting length 28.57 mm, overall 69.85 mm, shank 12.7 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt118",
+   "tip": 0.0
+  },
+  {
+   "name": "90° V-bit 47/64″ (CMT 815.001.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 90.0,
+   "flutes": 2,
+   "dia": 18.653,
+   "rpm": 8000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.001.11 V-grooving bit, 90°, carbide-tipped (HW), 2 flutes. Cutting length 7.54 mm, overall 60.32 mm, shank 6.35 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt119",
+   "tip": 0.0
+  },
+  {
+   "name": "135° V-bit 47/64″ (CMT 815.002.11)",
+   "sys": "in",
+   "shape": "vbit",
+   "angle": 135.0,
+   "flutes": 2,
+   "dia": 18.653,
+   "rpm": 8000,
+   "feed": 1200.0,
+   "plunge": 250.0,
+   "so": 40.0,
+   "pd": 2.0,
+   "notes": "CMT 815.002.11 V-grooving bit, 135°, carbide-tipped (HW), 2 flutes. Cutting length 3.17 mm, overall 60.32 mm, shank 6.35 mm. Chamfers (45° each side), V-grooves, folding grooves and lettering. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt120",
    "tip": 0.0
   },
   {
@@ -880,7 +1936,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT 663.103.11 V-groove / folding / signmaking cutter with replaceable knives, 45°, 1 flute. Cutting length 40 mm, overall 115 mm, shank 20 mm. Large cutter: check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm055",
+   "id": "cmt121",
    "tip": 0.0
   },
   {
@@ -896,7 +1952,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT 663.102.11 V-groove / folding / signmaking cutter with replaceable knives, 60°, 1 flute. Cutting length 38 mm, overall 115 mm, shank 20 mm. Large cutter: check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm056",
+   "id": "cmt122",
    "tip": 0.0
   },
   {
@@ -912,7 +1968,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT 663.101.11 V-groove / folding / signmaking cutter with replaceable knives, 91°, 1 flute. Cutting length 25 mm, overall 100 mm, shank 20 mm. Large cutter: check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm057",
+   "id": "cmt123",
    "tip": 0.0
   },
   {
@@ -928,7 +1984,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT 663.110.11 V-groove / folding / signmaking cutter with replaceable knives, 110°, 1 flute. Cutting length 21 mm, overall 95 mm, shank 20 mm. Large cutter: check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm058",
+   "id": "cmt124",
    "tip": 0.0
   },
   {
@@ -944,7 +2000,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT 663.120.11 V-groove / folding / signmaking cutter with replaceable knives, 120°, 2 flutes. Cutting length 24 mm, overall 95 mm, shank 20 mm. Large cutter: check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm059",
+   "id": "cmt125",
    "tip": 0.0
   },
   {
@@ -960,7 +2016,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT 663.130.11 V-groove / folding / signmaking cutter with replaceable knives, 130°, 2 flutes. Cutting length 20 mm, overall 95 mm, shank 20 mm. Large cutter: check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm060",
+   "id": "cmt126",
    "tip": 0.0
   },
   {
@@ -976,7 +2032,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT 663.150.11 V-groove / folding / signmaking cutter with replaceable knives, 150°, 2 flutes. Cutting length 12.7 mm, overall 95 mm, shank 20 mm. Large cutter: check that your spindle and collet suit a 20 mm shank and keep the speed down. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm061",
+   "id": "cmt127",
    "tip": 0.0
   },
   {
@@ -992,7 +2048,23 @@
    "so": 70.0,
    "pd": 1.0,
    "notes": "CMT spoilboard surfacing cutter with replaceable insert knives, 3 or 4 cutting edges (CMT does not say which per item; 3 assumed). Cutting length 10 mm, overall 60 mm. Codes: 663.007.11 (shank 8 mm). Flattening spoilboards and slabs: take shallow passes with a stepover of about 70% of the diameter. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm062",
+   "id": "cmt128",
+   "tip": 0.0
+  },
+  {
+   "name": "1-1/2″ surfacing cutter, 12 mm (CMT 663.015.11)",
+   "sys": "in",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 3,
+   "dia": 38.1,
+   "rpm": 12000,
+   "feed": 2000.0,
+   "plunge": 300.0,
+   "so": 70.0,
+   "pd": 1.0,
+   "notes": "CMT spoilboard surfacing cutter with replaceable insert knives, 3 or 4 cutting edges (CMT does not say which per item; 3 assumed). Cutting length 12 mm, overall 60 mm. Codes: 663.015.11 (shank 12.7 mm), 663.005.11 (shank 12 mm). Flattening spoilboards and slabs: take shallow passes with a stepover of about 70% of the diameter. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
+   "id": "cmt129",
    "tip": 0.0
   },
   {
@@ -1008,7 +2080,7 @@
    "so": 70.0,
    "pd": 1.0,
    "notes": "CMT spoilboard surfacing cutter with replaceable insert knives, 3 or 4 cutting edges (CMT does not say which per item; 3 assumed). Cutting length 12 mm, overall 80 mm. Codes: 663.004.11 (shank 12 mm), 663.014.11 (shank 12.7 mm). Flattening spoilboards and slabs: take shallow passes with a stepover of about 70% of the diameter. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm063",
+   "id": "cmt130",
    "tip": 0.0
   },
   {
@@ -1024,7 +2096,7 @@
    "so": 70.0,
    "pd": 1.0,
    "notes": "CMT spoilboard surfacing cutter with replaceable insert knives, 3 or 4 cutting edges (CMT does not say which per item; 3 assumed). Cutting length 12 mm, overall 90 mm. Codes: 663.003.11 (shank 20 mm). Flattening spoilboards and slabs: take shallow passes with a stepover of about 70% of the diameter. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm064",
+   "id": "cmt131",
    "tip": 0.0
   },
   {
@@ -1040,7 +2112,7 @@
    "so": 70.0,
    "pd": 1.0,
    "notes": "CMT spoilboard surfacing cutter with replaceable insert knives, 3 or 4 cutting edges (CMT does not say which per item; 3 assumed). Cutting length 12 mm, overall 90 mm. Codes: 663.006.11 (shank 20 mm). Flattening spoilboards and slabs: take shallow passes with a stepover of about 70% of the diameter. The page gives no units; read as millimetres. Dimensions from CMT's website; feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm065",
+   "id": "cmt132",
    "tip": 0.0
   },
   {
@@ -1056,7 +2128,7 @@
    "so": 40.0,
    "pd": 1.0,
    "notes": "CMT K911-030 straight router bit, carbide-tipped (HW), 1 flute, 8 mm shank. Cutting length 8 mm, overall 51 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm066",
+   "id": "cmt133",
    "tip": 0.0
   },
   {
@@ -1072,7 +2144,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "CMT K911-040 straight router bit, carbide-tipped (HW), 1 flute, 8 mm shank. Cutting length 11 mm, overall 51 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm067",
+   "id": "cmt134",
    "tip": 0.0
   },
   {
@@ -1088,7 +2160,7 @@
    "so": 40.0,
    "pd": 1.8,
    "notes": "CMT K911-050 straight router bit, carbide-tipped (HW), 1 flute, 8 mm shank. Cutting length 12.7 mm, overall 51 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm068",
+   "id": "cmt135",
    "tip": 0.0
   },
   {
@@ -1104,7 +2176,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "CMT K911-060 straight router bit, carbide-tipped (HW), 1 flute, 8 mm shank. Cutting length 16 mm, overall 51 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm069",
+   "id": "cmt136",
    "tip": 0.0
   },
   {
@@ -1120,7 +2192,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "CMT K912-060 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25.4 mm, overall 57 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm070",
+   "id": "cmt137",
    "tip": 0.0
   },
   {
@@ -1136,7 +2208,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "CMT K912-080 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 32 mm, overall 62 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm071",
+   "id": "cmt138",
    "tip": 0.0
   },
   {
@@ -1152,7 +2224,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "CMT K911-080 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 20 mm, overall 51 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm072",
+   "id": "cmt139",
    "tip": 0.0
   },
   {
@@ -1168,7 +2240,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "CMT K911-100 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 20 mm, overall 51 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm073",
+   "id": "cmt140",
    "tip": 0.0
   },
   {
@@ -1184,7 +2256,7 @@
    "so": 40.0,
    "pd": 3.5,
    "notes": "CMT K912-100 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 32 mm, overall 62 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm074",
+   "id": "cmt141",
    "tip": 0.0
   },
   {
@@ -1200,7 +2272,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT K912-120 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 32 mm, overall 62 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm075",
+   "id": "cmt142",
    "tip": 0.0
   },
   {
@@ -1216,7 +2288,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "CMT K911-120 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 20 mm, overall 51 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm076",
+   "id": "cmt143",
    "tip": 0.0
   },
   {
@@ -1232,7 +2304,7 @@
    "so": 40.0,
    "pd": 4.9,
    "notes": "CMT K911-140 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25.4 mm, overall 56 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm077",
+   "id": "cmt144",
    "tip": 0.0
   },
   {
@@ -1248,7 +2320,7 @@
    "so": 40.0,
    "pd": 5.2,
    "notes": "CMT K911-150 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25.4 mm, overall 56 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm078",
+   "id": "cmt145",
    "tip": 0.0
   },
   {
@@ -1264,7 +2336,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "CMT K911-160 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25.4 mm, overall 56 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm079",
+   "id": "cmt146",
    "tip": 0.0
   },
   {
@@ -1280,7 +2352,7 @@
    "so": 40.0,
    "pd": 6.3,
    "notes": "CMT K911-180 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25 mm, overall 56 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm080",
+   "id": "cmt147",
    "tip": 0.0
   },
   {
@@ -1296,7 +2368,7 @@
    "so": 40.0,
    "pd": 7.0,
    "notes": "CMT K911-200 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25 mm, overall 56 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm081",
+   "id": "cmt148",
    "tip": 0.0
   },
   {
@@ -1312,7 +2384,7 @@
    "so": 40.0,
    "pd": 7.7,
    "notes": "CMT K911-220 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25.4 mm, overall 56 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm082",
+   "id": "cmt149",
    "tip": 0.0
   },
   {
@@ -1328,7 +2400,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "CMT K911-240 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25.4 mm, overall 56 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm083",
+   "id": "cmt150",
    "tip": 0.0
   },
   {
@@ -1344,7 +2416,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "CMT K911-250 straight router bit, carbide-tipped (HW), 2 flutes, 8 mm shank. Cutting length 25.4 mm, overall 57 mm. Contractor bit made for hand routers: fine for light CNC work in wood and wood composites, but not a solid-carbide spiral; use shallow passes. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm084",
+   "id": "cmt151",
    "tip": 0.0
   },
   {
@@ -1360,7 +2432,7 @@
    "so": 15.0,
    "pd": 2.1,
    "notes": "CMT K914-060 round nose router bit, carbide-tipped, radius 3 mm, 2 flutes, 8 mm shank. Cutting length 9.5 mm, overall 40 mm. Contractor bit made for hand routers. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm085",
+   "id": "cmt152",
    "tip": 0.0
   },
   {
@@ -1376,7 +2448,7 @@
    "so": 15.0,
    "pd": 3.3,
    "notes": "CMT K914-095 round nose router bit, carbide-tipped, radius 4.75 mm, 2 flutes, 8 mm shank. Cutting length 9.5 mm, overall 40 mm. Contractor bit made for hand routers. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm086",
+   "id": "cmt153",
    "tip": 0.0
   },
   {
@@ -1392,7 +2464,7 @@
    "so": 15.0,
    "pd": 4.4,
    "notes": "CMT K914-127 round nose router bit, carbide-tipped, radius 6.35 mm, 2 flutes, 8 mm shank. Cutting length 12.7 mm, overall 40 mm. Contractor bit made for hand routers. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm087",
+   "id": "cmt154",
    "tip": 0.0
   },
   {
@@ -1408,7 +2480,7 @@
    "so": 15.0,
    "pd": 5.6,
    "notes": "CMT K914-160 round nose router bit, carbide-tipped, radius 8 mm, 2 flutes, 8 mm shank. Cutting length 12.7 mm, overall 45 mm. Contractor bit made for hand routers. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm088",
+   "id": "cmt155",
    "tip": 0.0
   },
   {
@@ -1424,7 +2496,7 @@
    "so": 15.0,
    "pd": 6.6,
    "notes": "CMT K914-190 round nose router bit, carbide-tipped, radius 9.5 mm, 2 flutes, 8 mm shank. Cutting length 12.7 mm, overall 46 mm. Contractor bit made for hand routers. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm089",
+   "id": "cmt156",
    "tip": 0.0
   },
   {
@@ -1440,7 +2512,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT K958-110 V-grooving router bit, carbide-tipped (HW), 60°, 2 flutes. Cutting length 14 mm, overall 45 mm. Contractor bit made for hand routers; the page lists no shank size. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm090",
+   "id": "cmt157",
    "tip": 0.0
   },
   {
@@ -1456,7 +2528,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT K915-160 V-grooving router bit, carbide-tipped (HW), 90°, 2 flutes. Cutting length 16 mm, overall 45 mm. Contractor bit made for hand routers; the page lists no shank size. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm091",
+   "id": "cmt158",
    "tip": 0.0
   },
   {
@@ -1472,7 +2544,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "CMT K915-317 V-grooving router bit, carbide-tipped (HW), 90°, 2 flutes. Cutting length 20 mm, overall 60 mm. Contractor bit made for hand routers; the page lists no shank size. Dimensions from CMT's website (the page states no units; read as millimetres); feeds and speeds are conservative starting values, not CMT's.",
-   "id": "cmtm092",
+   "id": "cmt159",
    "tip": 0.0
   }
  ]

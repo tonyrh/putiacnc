@@ -1,7 +1,7 @@
 {
  "app": "putia-cnc-tools",
  "v": 1,
- "name": "Freud router bits (inch)",
+ "name": "Freud router bits",
  "tools": [
   {
    "name": "3/8″ straight Z2, 1-1/4″ cut (Freud 04-126)",
@@ -16,7 +16,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 04-126 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 68.26 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 12-110 (shank 12.7 mm).",
-   "id": "frei001",
+   "id": "fre001",
    "tip": 0.0
   },
   {
@@ -32,7 +32,7 @@
    "so": 40.0,
    "pd": 3.9,
    "notes": "Freud 04-129 double-flute straight router bit, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 63.5 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei002",
+   "id": "fre002",
    "tip": 0.0
   },
   {
@@ -48,7 +48,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 04-130 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 57.15 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei003",
+   "id": "fre003",
    "tip": 0.0
   },
   {
@@ -64,7 +64,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 04-131 double-flute straight router bit, carbide (solid carbide). Cutting length 22.23 mm (7/8″), overall length 47.62 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei004",
+   "id": "fre004",
    "tip": 0.0
   },
   {
@@ -80,7 +80,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 04-132 double-flute straight router bit, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 53.98 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 08-132 (shank 9.53 mm). Same bit also listed as 12-116 (shank 12.7 mm).",
-   "id": "frei005",
+   "id": "fre005",
    "tip": 0.0
   },
   {
@@ -96,7 +96,7 @@
    "so": 40.0,
    "pd": 6.1,
    "notes": "Freud 04-138 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 53.98 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei006",
+   "id": "fre006",
    "tip": 0.0
   },
   {
@@ -112,7 +112,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Freud 04-140 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 53.98 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei007",
+   "id": "fre007",
    "tip": 0.0
   },
   {
@@ -128,7 +128,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 04-152 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 50.8 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei008",
+   "id": "fre008",
    "tip": 0.0
   },
   {
@@ -144,7 +144,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 04-156 double-flute straight router bit, carbide (solid carbide). Cutting length 28.57 mm (1-1/8″), overall length 65.09 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei009",
+   "id": "fre009",
    "tip": 0.0
   },
   {
@@ -160,7 +160,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 08-106 double-flute straight router bit, carbide tipped. Cutting length 19.05 mm (3/4″), overall length 50.8 mm, shank 9.53 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 12-100 (shank 12.7 mm).",
-   "id": "frei010",
+   "id": "fre010",
    "tip": 0.0
   },
   {
@@ -176,7 +176,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Freud 08-136 double-flute straight router bit, carbide tipped. Cutting length 25.4 mm (1″), overall length 57.15 mm, shank 9.53 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei011",
+   "id": "fre011",
    "tip": 0.0
   },
   {
@@ -192,7 +192,7 @@
    "so": 40.0,
    "pd": 2.1,
    "notes": "Freud 12-096 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 61.12 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei012",
+   "id": "fre012",
    "tip": 0.0
   },
   {
@@ -208,7 +208,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Freud 12-106 double-flute straight router bit, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 69.85 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei013",
+   "id": "fre013",
    "tip": 0.0
   },
   {
@@ -224,7 +224,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 12-108 double-flute straight router bit, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 66.67 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei014",
+   "id": "fre014",
    "tip": 0.0
   },
   {
@@ -240,7 +240,7 @@
    "so": 40.0,
    "pd": 3.6,
    "notes": "Freud 12-112 double-flute straight router bit, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 66.67 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei015",
+   "id": "fre015",
    "tip": 0.0
   },
   {
@@ -256,7 +256,7 @@
    "so": 40.0,
    "pd": 3.9,
    "notes": "Freud 12-113 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 82.55 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei016",
+   "id": "fre016",
    "tip": 0.0
   },
   {
@@ -272,7 +272,7 @@
    "so": 40.0,
    "pd": 7.8,
    "notes": "Freud 12-115 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 69.85 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 12-168 (shank 12.7 mm).",
-   "id": "frei017",
+   "id": "fre017",
    "tip": 0.0
   },
   {
@@ -288,7 +288,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 12-118 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 73.03 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei018",
+   "id": "fre018",
    "tip": 0.0
   },
   {
@@ -304,7 +304,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 12-122 double-flute straight router bit, carbide (solid carbide). Cutting length 38.1 mm (1-1/2″), overall length 79.38 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 12-124 (shank 12.7 mm).",
-   "id": "frei019",
+   "id": "fre019",
    "tip": 0.0
   },
   {
@@ -320,7 +320,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 12-128 double-flute straight router bit, carbide (solid carbide). Cutting length 50.8 mm (2″), overall length 104.78 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei020",
+   "id": "fre020",
    "tip": 0.0
   },
   {
@@ -336,7 +336,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 12-130 double-flute straight router bit, carbide (solid carbide). Cutting length 63.5 mm (2-1/2″), overall length 111.12 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei021",
+   "id": "fre021",
    "tip": 0.0
   },
   {
@@ -352,7 +352,7 @@
    "so": 40.0,
    "pd": 5.0,
    "notes": "Freud 12-134 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 73.03 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei022",
+   "id": "fre022",
    "tip": 0.0
   },
   {
@@ -368,7 +368,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Freud 12-140 double-flute straight router bit, carbide (solid carbide). Cutting length 38.1 mm (1-1/2″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei023",
+   "id": "fre023",
    "tip": 0.0
   },
   {
@@ -384,7 +384,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Freud 12-142 double-flute straight router bit, carbide (solid carbide). Cutting length 50.8 mm (2″), overall length 101.6 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei024",
+   "id": "fre024",
    "tip": 0.0
   },
   {
@@ -400,7 +400,7 @@
    "so": 40.0,
    "pd": 6.1,
    "notes": "Freud 12-148 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei025",
+   "id": "fre025",
    "tip": 0.0
   },
   {
@@ -416,7 +416,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Freud 12-152 double-flute straight router bit, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 63.5 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei026",
+   "id": "fre026",
    "tip": 0.0
   },
   {
@@ -432,7 +432,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Freud 12-154 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei027",
+   "id": "fre027",
    "tip": 0.0
   },
   {
@@ -448,7 +448,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Freud 12-156 double-flute straight router bit, carbide (solid carbide). Cutting length 38.1 mm (1-1/2″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei028",
+   "id": "fre028",
    "tip": 0.0
   },
   {
@@ -464,7 +464,7 @@
    "so": 40.0,
    "pd": 6.7,
    "notes": "Freud 12-158 double-flute straight router bit, carbide (solid carbide). Cutting length 50.8 mm (2″), overall length 88.9 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei029",
+   "id": "fre029",
    "tip": 0.0
   },
   {
@@ -480,7 +480,7 @@
    "so": 40.0,
    "pd": 7.2,
    "notes": "Freud 12-162 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei030",
+   "id": "fre030",
    "tip": 0.0
   },
   {
@@ -496,7 +496,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 12-172 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei031",
+   "id": "fre031",
    "tip": 0.0
   },
   {
@@ -512,7 +512,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 12-178 double-flute straight router bit, carbide (solid carbide). Cutting length 38.1 mm (1-1/2″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei032",
+   "id": "fre032",
    "tip": 0.0
   },
   {
@@ -528,7 +528,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 12-182 double-flute straight router bit, carbide (solid carbide). Cutting length 38.1 mm (1-1/2″), overall length 73.03 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei033",
+   "id": "fre033",
    "tip": 0.0
   },
   {
@@ -544,7 +544,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 12-186 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei034",
+   "id": "fre034",
    "tip": 0.0
   },
   {
@@ -560,7 +560,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 12-190 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei035",
+   "id": "fre035",
    "tip": 0.0
   },
   {
@@ -576,7 +576,7 @@
    "so": 40.0,
    "pd": 8.0,
    "notes": "Freud 12-194 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei036",
+   "id": "fre036",
    "tip": 0.0
   },
   {
@@ -592,7 +592,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "Freud 04-127 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 50.8 mm, shank 6.35 mm. Undersized plywood bit (cuts a slot slightly narrower than the nominal diameter). A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei037",
+   "id": "fre037",
    "tip": 0.0
   },
   {
@@ -608,7 +608,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "Freud 04-128 double-flute straight router bit, carbide (solid carbide). Cutting length 22.23 mm (7/8″), overall length 60.33 mm, shank 6.35 mm. Undersized plywood bit (cuts a slot slightly narrower than the nominal diameter). A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei038",
+   "id": "fre038",
    "tip": 0.0
   },
   {
@@ -624,7 +624,7 @@
    "so": 40.0,
    "pd": 4.2,
    "notes": "Freud 12-114 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 73.03 mm, shank 12.7 mm. Undersized plywood bit (cuts a slot slightly narrower than the nominal diameter). A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei039",
+   "id": "fre039",
    "tip": 0.0
   },
   {
@@ -640,7 +640,7 @@
    "so": 40.0,
    "pd": 5.3,
    "notes": "Freud 12-135 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 73.03 mm, shank 12.7 mm. Undersized plywood bit (cuts a slot slightly narrower than the nominal diameter). A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei040",
+   "id": "fre040",
    "tip": 0.0
   },
   {
@@ -656,7 +656,135 @@
    "so": 40.0,
    "pd": 6.4,
    "notes": "Freud 12-150 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 73.03 mm, shank 12.7 mm. Undersized plywood bit (cuts a slot slightly narrower than the nominal diameter). A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei041",
+   "id": "fre041",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø10 mm straight Z2, 1-1/4″ cut (Freud 04-520)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 10.0,
+   "rpm": 12000,
+   "feed": 1800.0,
+   "plunge": 690,
+   "so": 40.0,
+   "pd": 3.5,
+   "notes": "Freud 04-520 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 60.33 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 12-520 (shank 12.7 mm).",
+   "id": "fre042",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø12 mm straight Z2, 1-1/4″ cut (Freud 04-528)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 12.0,
+   "rpm": 10000,
+   "feed": 1800.0,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 4.2,
+   "notes": "Freud 04-528 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 60.33 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 12-530 (shank 12.7 mm).",
+   "id": "fre043",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø15 mm straight Z2, 3/4″ cut (Freud 04-532)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 15.0,
+   "rpm": 10000,
+   "feed": 1800.0,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 5.2,
+   "notes": "Freud 04-532 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 57.15 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
+   "id": "fre044",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø15 mm straight Z2, 1-1/4″ cut (Freud 04-536)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 15.0,
+   "rpm": 10000,
+   "feed": 1800.0,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 5.2,
+   "notes": "Freud 04-536 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 66.67 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
+   "id": "fre045",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø16 mm straight Z2, 3/4″ cut (Freud 04-540)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 16.0,
+   "rpm": 10000,
+   "feed": 1800.0,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 5.6,
+   "notes": "Freud 04-540 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 57.15 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
+   "id": "fre046",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø16 mm straight Z2, 1-1/4″ cut (Freud 04-544)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 16.0,
+   "rpm": 10000,
+   "feed": 1800.0,
+   "plunge": 580,
+   "so": 40.0,
+   "pd": 5.6,
+   "notes": "Freud 04-544 double-flute straight router bit, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 66.67 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 12-544 (shank 12.7 mm).",
+   "id": "fre047",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø18 mm straight Z2, 3/4″ cut (Freud 04-548)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 18.0,
+   "rpm": 8000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 40.0,
+   "pd": 6.3,
+   "notes": "Freud 04-548 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 50.8 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
+   "id": "fre048",
+   "tip": 0.0
+  },
+  {
+   "name": "Ø20 mm straight Z2, 3/4″ cut (Freud 04-552)",
+   "sys": "mm",
+   "shape": "flat",
+   "angle": 60.0,
+   "flutes": 2,
+   "dia": 20.0,
+   "rpm": 8000,
+   "feed": 1540,
+   "plunge": 460,
+   "so": 40.0,
+   "pd": 7.0,
+   "notes": "Freud 04-552 double-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 50.8 mm, shank 6.35 mm. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
+   "id": "fre049",
    "tip": 0.0
   },
   {
@@ -672,7 +800,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Freud 03-112 single-flute straight router bit, carbide (solid carbide). Cutting length 9.53 mm (3/8″), overall length 38.1 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei042",
+   "id": "fre050",
    "tip": 0.0
   },
   {
@@ -688,7 +816,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Freud 03-116 single-flute straight router bit, carbide (solid carbide). Cutting length 12.7 mm (1/2″), overall length 50.8 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei043",
+   "id": "fre051",
    "tip": 0.0
   },
   {
@@ -704,7 +832,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Freud 03-120 single-flute straight router bit, carbide (solid carbide). Cutting length 15.88 mm (5/8″), overall length 50.8 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei044",
+   "id": "fre052",
    "tip": 0.0
   },
   {
@@ -720,7 +848,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Freud 03-128 single-flute straight router bit, carbide (solid carbide). Cutting length 12.7 mm (1/2″), overall length 50.8 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei045",
+   "id": "fre053",
    "tip": 0.0
   },
   {
@@ -736,7 +864,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 03-132 single-flute straight router bit, carbide (solid carbide). Cutting length 12.7 mm (1/2″), overall length 50.8 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 11-136 (shank 12.7 mm).",
-   "id": "frei046",
+   "id": "fre054",
    "tip": 0.0
   },
   {
@@ -752,7 +880,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 03-136 single-flute straight router bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 63.5 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei047",
+   "id": "fre055",
    "tip": 0.0
   },
   {
@@ -768,7 +896,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 03-140 single-flute straight router bit, carbide (solid carbide). Cutting length 38.1 mm (1-1/2″), overall length 63.5 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei048",
+   "id": "fre056",
    "tip": 0.0
   },
   {
@@ -784,7 +912,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 03-144 single-flute straight router bit, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei049",
+   "id": "fre057",
    "tip": 0.0
   },
   {
@@ -800,7 +928,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Freud 03-148 single-flute straight router bit, carbide tipped. Cutting length 19.05 mm (3/4″), overall length 63.5 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei050",
+   "id": "fre058",
    "tip": 0.0
   },
   {
@@ -816,7 +944,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Freud 03-152 single-flute straight router bit, carbide tipped. Cutting length 25.4 mm (1″), overall length 63.5 mm, shank 6.35 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei051",
+   "id": "fre059",
    "tip": 0.0
   },
   {
@@ -832,7 +960,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 11-158 single-flute straight router bit, carbide tipped. Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 12.7 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei052",
+   "id": "fre060",
    "tip": 0.0
   },
   {
@@ -848,7 +976,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 11-160 single-flute straight router bit, carbide tipped. Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei053",
+   "id": "fre061",
    "tip": 0.0
   },
   {
@@ -864,7 +992,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 11-164 single-flute straight router bit, carbide tipped. Cutting length 25.4 mm (1″), overall length 61.91 mm, shank 12.7 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei054",
+   "id": "fre062",
    "tip": 0.0
   },
   {
@@ -880,7 +1008,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 11-172 single-flute straight router bit, carbide tipped. Cutting length 38.1 mm (1-1/2″), overall length 79.38 mm, shank 12.7 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei055",
+   "id": "fre063",
    "tip": 0.0
   },
   {
@@ -896,7 +1024,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 11-176 single-flute straight router bit, carbide tipped. Cutting length 50.8 mm (2″), overall length 104.78 mm, shank 12.7 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei056",
+   "id": "fre064",
    "tip": 0.0
   },
   {
@@ -912,7 +1040,7 @@
    "so": 40.0,
    "pd": 5.0,
    "notes": "Freud 11-184 single-flute straight router bit, carbide tipped. Cutting length 31.75 mm (1-1/4″), overall length 63.5 mm, shank 12.7 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei057",
+   "id": "fre065",
    "tip": 0.0
   },
   {
@@ -928,7 +1056,7 @@
    "so": 40.0,
    "pd": 5.6,
    "notes": "Freud 11-188 single-flute straight router bit, carbide tipped. Cutting length 31.75 mm (1-1/4″), overall length 63.5 mm, shank 12.7 mm. Single flute: more chip room for fast feeds. A hand-router bit; fine for light CNC work with shallow passes. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei058",
+   "id": "fre066",
    "tip": 0.0
   },
   {
@@ -944,7 +1072,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Freud 75-100 premier solid carbide up spiral, carbide (solid carbide). Cutting length 12.7 mm (1/2″), overall length 50.8 mm, shank 6.35 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei059",
+   "id": "fre067",
    "tip": 0.0
   },
   {
@@ -960,7 +1088,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Freud 75-101 premier solid carbide up spiral, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 57.15 mm, shank 6.35 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei060",
+   "id": "fre068",
    "tip": 0.0
   },
   {
@@ -976,7 +1104,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 75-102 premier solid carbide up spiral, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 63.5 mm, shank 6.35 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei061",
+   "id": "fre069",
    "tip": 0.0
   },
   {
@@ -992,7 +1120,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 75-103 premier solid carbide up spiral, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 63.5 mm, shank 6.35 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei062",
+   "id": "fre070",
    "tip": 0.0
   },
   {
@@ -1008,7 +1136,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Freud 75-104 premier solid carbide up spiral, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei063",
+   "id": "fre071",
    "tip": 0.0
   },
   {
@@ -1024,7 +1152,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 75-105 premier solid carbide up spiral, carbide (solid carbide). Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 9.53 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei064",
+   "id": "fre072",
    "tip": 0.0
   },
   {
@@ -1040,7 +1168,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 75-106 premier solid carbide up spiral, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei065",
+   "id": "fre073",
    "tip": 0.0
   },
   {
@@ -1056,7 +1184,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 75-108 premier solid carbide up spiral, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei066",
+   "id": "fre074",
    "tip": 0.0
   },
   {
@@ -1072,7 +1200,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 75-109 premier solid carbide up spiral, carbide (solid carbide). Cutting length 50.8 mm (2″), overall length 101.6 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei067",
+   "id": "fre075",
    "tip": 0.0
   },
   {
@@ -1088,7 +1216,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 75-110 premier solid carbide up spiral, carbide (solid carbide). Cutting length 41.27 mm (1-5/8″), overall length 88.9 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 75-510 (shank 12.7 mm).",
-   "id": "frei068",
+   "id": "fre076",
    "tip": 0.0
   },
   {
@@ -1104,7 +1232,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 75-112 premier solid carbide up spiral, carbide (solid carbide). Cutting length 53.98 mm (2-1/8″), overall length 101.6 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei069",
+   "id": "fre077",
    "tip": 0.0
   },
   {
@@ -1120,7 +1248,7 @@
    "so": 40.0,
    "pd": 1.4,
    "notes": "Freud 75-202 premier solid carbide up spiral, carbide (solid carbide). Cutting length 15.88 mm (5/8″), overall length 50.8 mm, shank 6.35 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei070",
+   "id": "fre078",
    "tip": 0.0
   },
   {
@@ -1136,7 +1264,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 75-306 premier solid carbide up spiral, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei071",
+   "id": "fre079",
    "tip": 0.0
   },
   {
@@ -1152,7 +1280,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 75-308 premier solid carbide up spiral, carbide (solid carbide). Cutting length 50.8 mm (2″), overall length 101.6 mm, shank 12.7 mm. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei072",
+   "id": "fre080",
    "tip": 0.0
   },
   {
@@ -1168,7 +1296,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Freud 76-101 premier solid carbide down spiral, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 57.15 mm, shank 6.35 mm. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei073",
+   "id": "fre081",
    "tip": 0.0
   },
   {
@@ -1184,7 +1312,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 76-102 premier solid carbide down spiral, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 63.5 mm, shank 6.35 mm. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei074",
+   "id": "fre082",
    "tip": 0.0
   },
   {
@@ -1200,7 +1328,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 76-103 premier solid carbide down spiral, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 63.5 mm, shank 6.35 mm. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei075",
+   "id": "fre083",
    "tip": 0.0
   },
   {
@@ -1216,7 +1344,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Freud 76-104 premier solid carbide down spiral, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 63.5 mm, shank 12.7 mm. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei076",
+   "id": "fre084",
    "tip": 0.0
   },
   {
@@ -1232,7 +1360,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 76-105 premier solid carbide down spiral, carbide (solid carbide). Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 9.53 mm. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei077",
+   "id": "fre085",
    "tip": 0.0
   },
   {
@@ -1248,7 +1376,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 76-108 premier solid carbide down spiral, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei078",
+   "id": "fre086",
    "tip": 0.0
   },
   {
@@ -1264,7 +1392,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 76-306 premier solid carbide down spiral, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei079",
+   "id": "fre087",
    "tip": 0.0
   },
   {
@@ -1280,7 +1408,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 75-608 premier solid carbide up spiral, carbide (solid carbide). Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 12.7 mm. Chipbreaker flutes: leave a rougher but faster cut in thick stock. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei080",
+   "id": "fre088",
    "tip": 0.0
   },
   {
@@ -1296,7 +1424,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 75-610 premier solid carbide up spiral, carbide (solid carbide). Cutting length 41.27 mm (1-5/8″), overall length 88.9 mm, shank 12.7 mm. Chipbreaker flutes: leave a rougher but faster cut in thick stock. Up spiral clears chips out of the cut; use it for slots and pockets. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei081",
+   "id": "fre089",
    "tip": 0.0
   },
   {
@@ -1312,7 +1440,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 76-510 premier solid carbide down spiral, carbide (solid carbide). Cutting length 41.27 mm (1-5/8″), overall length 88.9 mm, shank 12.7 mm. Chipbreaker flutes: leave a rougher but faster cut in thick stock. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei082",
+   "id": "fre090",
    "tip": 0.0
   },
   {
@@ -1328,7 +1456,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 76-608 premier solid carbide down spiral, carbide (solid carbide). Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 12.7 mm. Chipbreaker flutes: leave a rougher but faster cut in thick stock. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei083",
+   "id": "fre091",
    "tip": 0.0
   },
   {
@@ -1344,7 +1472,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 76-610 premier solid carbide down spiral, carbide (solid carbide). Cutting length 41.27 mm (1-5/8″), overall length 88.9 mm, shank 12.7 mm. Chipbreaker flutes: leave a rougher but faster cut in thick stock. Down spiral presses chips into the cut for a clean top edge on veneer and laminate. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei084",
+   "id": "fre092",
    "tip": 0.0
   },
   {
@@ -1360,7 +1488,7 @@
    "so": 40.0,
    "pd": 1.1,
    "notes": "Freud 73-712 premier solid carbide O-flute up spiral, carbide (solid carbide). Cutting length 12.7 mm (1/2″), overall length 50.8 mm, shank 6.35 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 73-762 (shank 6.35 mm). Same bit also listed as 71-040 (shank 6.35 mm).",
-   "id": "frei085",
+   "id": "fre093",
    "tip": 0.0
   },
   {
@@ -1376,7 +1504,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 73-724 premier solid carbide O-flute up spiral, carbide (solid carbide). Cutting length 9.53 mm (3/8″), overall length 50.8 mm, shank 6.35 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei086",
+   "id": "fre094",
    "tip": 0.0
   },
   {
@@ -1392,7 +1520,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 75-025 premier solid carbide O-flute up spiral, carbide (solid carbide). Cutting length 22.23 mm (7/8″), overall length 63.5 mm, shank 6.35 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei087",
+   "id": "fre095",
    "tip": 0.0
   },
   {
@@ -1408,7 +1536,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 73-204 premier solid carbide O-flute up spiral, carbide (solid carbide). Cutting length 9.53 mm (3/8″), overall length 63.5 mm, shank 6.35 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei088",
+   "id": "fre096",
    "tip": 0.0
   },
   {
@@ -1424,7 +1552,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 73-210 premier solid carbide O-flute up spiral, carbide (solid carbide). Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 9.53 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei089",
+   "id": "fre097",
    "tip": 0.0
   },
   {
@@ -1440,7 +1568,7 @@
    "so": 40.0,
    "pd": 1.7,
    "notes": "Freud 71-060 premier solid carbide O-flute straight bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 50.8 mm, shank 6.35 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei090",
+   "id": "fre098",
    "tip": 0.0
   },
   {
@@ -1456,7 +1584,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 71-080 premier solid carbide O-flute straight bit, carbide (solid carbide). Cutting length 19.05 mm (3/4″), overall length 63.5 mm, shank 6.35 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei091",
+   "id": "fre099",
    "tip": 0.0
   },
   {
@@ -1472,7 +1600,7 @@
    "so": 40.0,
    "pd": 2.8,
    "notes": "Freud 71-100 premier solid carbide O-flute straight bit, carbide (solid carbide). Cutting length 20.64 mm (13/16″), overall length 63.5 mm, shank 9.53 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei092",
+   "id": "fre100",
    "tip": 0.0
   },
   {
@@ -1488,7 +1616,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 71-120 premier solid carbide O-flute straight bit, carbide (solid carbide). Cutting length 22.23 mm (7/8″), overall length 63.5 mm, shank 9.53 mm. O-flute geometry with a polished edge for plastics, acrylic and solid surface; also cuts wood and aluminium with lubricant. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei093",
+   "id": "fre101",
    "tip": 0.0
   },
   {
@@ -1504,7 +1632,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 77-102 premier solid carbide compression spiral, carbide tipped. Cutting length 22.23 mm (7/8″), overall length 63.5 mm, shank 6.35 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei094",
+   "id": "fre102",
    "tip": 0.0
   },
   {
@@ -1520,7 +1648,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-104 premier solid carbide compression spiral, carbide tipped. Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 9.53 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei095",
+   "id": "fre103",
    "tip": 0.0
   },
   {
@@ -1536,7 +1664,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-106 premier solid carbide compression spiral, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei096",
+   "id": "fre104",
    "tip": 0.0
   },
   {
@@ -1552,7 +1680,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-108 premier solid carbide compression spiral, carbide tipped. Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Upcut section 0.79 mm (1/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei097",
+   "id": "fre105",
    "tip": 0.0
   },
   {
@@ -1568,7 +1696,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-109 premier solid carbide compression spiral, carbide tipped. Cutting length 38.1 mm (1-1/2″), overall length 88.9 mm, shank 12.7 mm. Upcut section 0.79 mm (1/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei098",
+   "id": "fre106",
    "tip": 0.0
   },
   {
@@ -1584,7 +1712,7 @@
    "so": 40.0,
    "pd": 2.2,
    "notes": "Freud 77-202 premier solid carbide compression spiral, carbide tipped. Cutting length 22.23 mm (7/8″), overall length 63.5 mm, shank 6.35 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei099",
+   "id": "fre107",
    "tip": 0.0
   },
   {
@@ -1600,7 +1728,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-204 premier solid carbide compression spiral, carbide tipped. Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 9.53 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei100",
+   "id": "fre108",
    "tip": 0.0
   },
   {
@@ -1616,7 +1744,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-206 premier solid carbide compression spiral, carbide (solid carbide). Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei101",
+   "id": "fre109",
    "tip": 0.0
   },
   {
@@ -1632,7 +1760,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-208 premier solid carbide compression spiral, carbide tipped. Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 12.7 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 77-509 (shank 12.7 mm).",
-   "id": "frei102",
+   "id": "fre110",
    "tip": 0.0
   },
   {
@@ -1648,7 +1776,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-209 premier solid carbide compression spiral, carbide tipped. Cutting length 38.1 mm (1-1/2″), overall length 88.9 mm, shank 12.7 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei103",
+   "id": "fre111",
    "tip": 0.0
   },
   {
@@ -1664,7 +1792,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-210 premier solid carbide compression spiral, carbide tipped. Cutting length 34.92 mm (1-3/8″), overall length 88.9 mm, shank 12.7 mm. Upcut section 15.88 mm (5/8″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 77-510 (shank 12.7 mm).",
-   "id": "frei104",
+   "id": "fre112",
    "tip": 0.0
   },
   {
@@ -1680,7 +1808,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-212 premier solid carbide compression spiral, carbide tipped. Cutting length 41.27 mm (1-5/8″), overall length 101.6 mm, shank 12.7 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 77-610 (shank 12.7 mm).",
-   "id": "frei105",
+   "id": "fre113",
    "tip": 0.0
   },
   {
@@ -1696,7 +1824,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-213 premier solid carbide compression spiral, carbide tipped. Cutting length 44.45 mm (1-3/4″), overall length 88.9 mm, shank 12.7 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei106",
+   "id": "fre114",
    "tip": 0.0
   },
   {
@@ -1712,7 +1840,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-216 premier solid carbide compression spiral, carbide tipped. Cutting length 50.8 mm (2″), overall length 101.6 mm, shank 12.7 mm. Upcut section 8.73 mm (11/32″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei107",
+   "id": "fre115",
    "tip": 0.0
   },
   {
@@ -1728,7 +1856,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-217 premier solid carbide compression spiral, carbide tipped. Cutting length 53.98 mm (2-1/8″), overall length 101.6 mm, shank 12.7 mm. Upcut section 19.05 mm (3/4″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei108",
+   "id": "fre116",
    "tip": 0.0
   },
   {
@@ -1744,7 +1872,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-306 premier solid carbide compression spiral, carbide tipped. Cutting length 31.75 mm (1-1/4″), overall length 76.2 mm, shank 9.53 mm. Upcut section 12.7 mm (1/2″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei109",
+   "id": "fre117",
    "tip": 0.0
   },
   {
@@ -1760,7 +1888,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-307 premier solid carbide compression spiral, carbide tipped. Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 12.7 mm. Upcut section 12.7 mm (1/2″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei110",
+   "id": "fre118",
    "tip": 0.0
   },
   {
@@ -1776,7 +1904,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-308 premier solid carbide compression spiral, carbide tipped. Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 12.7 mm. Upcut section 12.7 mm (1/2″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei111",
+   "id": "fre119",
    "tip": 0.0
   },
   {
@@ -1792,7 +1920,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-310 premier solid carbide compression spiral, carbide tipped. Cutting length 34.92 mm (1-3/8″), overall length 88.9 mm, shank 12.7 mm. Upcut section 15.88 mm (5/8″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 77-620 (shank 12.7 mm).",
-   "id": "frei112",
+   "id": "fre120",
    "tip": 0.0
   },
   {
@@ -1808,7 +1936,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-312 premier solid carbide compression spiral, carbide tipped. Cutting length 41.27 mm (1-5/8″), overall length 88.9 mm, shank 12.7 mm. Upcut section 12.7 mm (1/2″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 77-610 (shank 12.7 mm). Same bit also listed as 77-622 (shank 12.7 mm).",
-   "id": "frei113",
+   "id": "fre121",
    "tip": 0.0
   },
   {
@@ -1824,7 +1952,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-313 premier solid carbide compression spiral, carbide tipped. Cutting length 44.45 mm (1-3/4″), overall length 88.9 mm, shank 12.7 mm. Upcut section 19.05 mm (3/4″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei114",
+   "id": "fre122",
    "tip": 0.0
   },
   {
@@ -1840,7 +1968,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-707 premier solid carbide compression spiral, carbide tipped. Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 12.7 mm. Upcut section 12.7 mm (1/2″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 77-807 (shank 12.7 mm).",
-   "id": "frei115",
+   "id": "fre123",
    "tip": 0.0
   },
   {
@@ -1856,7 +1984,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-710 premier solid carbide compression spiral, carbide tipped. Cutting length 34.92 mm (1-3/8″), overall length 88.9 mm, shank 12.7 mm. Upcut section 15.88 mm (5/8″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei116",
+   "id": "fre124",
    "tip": 0.0
   },
   {
@@ -1872,7 +2000,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-713 premier solid carbide compression spiral, carbide tipped. Cutting length 44.45 mm (1-3/4″), overall length 88.9 mm, shank 12.7 mm. Upcut section 19.05 mm (3/4″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei117",
+   "id": "fre125",
    "tip": 0.0
   },
   {
@@ -1888,7 +2016,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-404 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 9.53 mm. Upcut section 5.16 mm (13/64″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei118",
+   "id": "fre126",
    "tip": 0.0
   },
   {
@@ -1904,7 +2032,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-408 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 22.23 mm (7/8″), overall length 76.2 mm, shank 12.7 mm. Upcut section 5.95 mm (15/64″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei119",
+   "id": "fre127",
    "tip": 0.0
   },
   {
@@ -1920,7 +2048,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-410 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 34.92 mm (1-3/8″), overall length 88.9 mm, shank 12.7 mm. Upcut section 5.95 mm (15/64″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei120",
+   "id": "fre128",
    "tip": 0.0
   },
   {
@@ -1936,7 +2064,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-504 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 9.53 mm. Upcut section 5.16 mm (13/64″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei121",
+   "id": "fre129",
    "tip": 0.0
   },
   {
@@ -1952,7 +2080,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-508 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 22.23 mm (7/8″), overall length 76.2 mm, shank 12.7 mm. Upcut section 5.95 mm (15/64″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei122",
+   "id": "fre130",
    "tip": 0.0
   },
   {
@@ -1968,7 +2096,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-614 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 57.15 mm (2-1/4″), overall length 101.6 mm, shank 12.7 mm. Upcut section 12.7 mm (1/2″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei123",
+   "id": "fre131",
    "tip": 0.0
   },
   {
@@ -1984,7 +2112,7 @@
    "so": 40.0,
    "pd": 3.3,
    "notes": "Freud 77-604 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 9.53 mm. Upcut section 5.16 mm (13/64″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei124",
+   "id": "fre132",
    "tip": 0.0
   },
   {
@@ -2000,7 +2128,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-624 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 57.15 mm (2-1/4″), overall length 101.6 mm, shank 12.7 mm. Upcut section 12.7 mm (1/2″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei125",
+   "id": "fre133",
    "tip": 0.0
   },
   {
@@ -2016,7 +2144,7 @@
    "so": 40.0,
    "pd": 4.4,
    "notes": "Freud 77-822 premier solid carbide mortise compression spiral, carbide tipped. Cutting length 41.27 mm (1-5/8″), overall length 88.9 mm, shank 12.7 mm. Upcut section 6.35 mm (1/4″) at the tip, downcut above it: clean top and bottom faces on plywood, laminate and solid wood; cut deeper than the upcut section. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei126",
+   "id": "fre134",
    "tip": 0.0
   },
   {
@@ -2032,7 +2160,7 @@
    "so": 15.0,
    "pd": 1.1,
    "notes": "Freud 18-100 round nose router bit (radius 1.59 mm), carbide (solid carbide). Cutting length 9.53 mm (3/8″), overall length 50.8 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei127",
+   "id": "fre135",
    "tip": 0.0
   },
   {
@@ -2048,7 +2176,7 @@
    "so": 15.0,
    "pd": 1.7,
    "notes": "Freud 18-102 round nose router bit (radius 2.38 mm), carbide (solid carbide). Cutting length 9.53 mm (3/8″), overall length 50.8 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei128",
+   "id": "fre136",
    "tip": 0.0
   },
   {
@@ -2064,7 +2192,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Freud 18-104 round nose router bit (radius 3.17 mm), carbide (solid carbide). Cutting length 9.53 mm (3/8″), overall length 50.8 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 18-114 (shank 12.7 mm).",
-   "id": "frei129",
+   "id": "fre137",
    "tip": 0.0
   },
   {
@@ -2080,7 +2208,7 @@
    "so": 15.0,
    "pd": 3.3,
    "notes": "Freud 18-106 round nose router bit (radius 4.76 mm), carbide tipped. Cutting length 9.53 mm (3/8″), overall length 46.04 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's. Same bit also listed as 18-115 (shank 12.7 mm). Same bit also listed as 20-310 (shank 6.35 mm).",
-   "id": "frei130",
+   "id": "fre138",
    "tip": 0.0
   },
   {
@@ -2096,7 +2224,7 @@
    "so": 15.0,
    "pd": 4.4,
    "notes": "Freud 18-108 round nose router bit (radius 6.35 mm), carbide tipped. Cutting length 9.53 mm (3/8″), overall length 46.04 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei131",
+   "id": "fre139",
    "tip": 0.0
   },
   {
@@ -2112,7 +2240,7 @@
    "so": 15.0,
    "pd": 5.6,
    "notes": "Freud 18-110 round nose router bit (radius 7.94 mm), carbide tipped. Cutting length 11.11 mm (7/16″), overall length 50.8 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei132",
+   "id": "fre140",
    "tip": 0.0
   },
   {
@@ -2128,7 +2256,7 @@
    "so": 15.0,
    "pd": 6.7,
    "notes": "Freud 18-112 round nose router bit (radius 9.53 mm), carbide tipped. Cutting length 11.11 mm (7/16″), overall length 50.8 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei133",
+   "id": "fre141",
    "tip": 0.0
   },
   {
@@ -2144,7 +2272,7 @@
    "so": 15.0,
    "pd": 8.0,
    "notes": "Freud 18-113 round nose router bit (radius 12.7 mm), carbide tipped. Cutting length 19.05 mm (3/4″), overall length 55.56 mm, shank 6.35 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei134",
+   "id": "fre142",
    "tip": 0.0
   },
   {
@@ -2160,7 +2288,7 @@
    "so": 15.0,
    "pd": 4.4,
    "notes": "Freud 18-116 round nose router bit (radius 6.35 mm), carbide tipped. Cutting length 28.57 mm (1-1/8″), overall length 71.44 mm, shank 12.7 mm. Grooves, fluting and cove cuts. Hand-router bit. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei135",
+   "id": "fre143",
    "tip": 0.0
   },
   {
@@ -2176,7 +2304,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-100 90° V-grooving bit, carbide (solid carbide). Cutting length 6.35 mm (1/4″), overall length 38.1 mm, shank 6.35 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei136",
+   "id": "fre144",
    "tip": 0.0
   },
   {
@@ -2192,7 +2320,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-102 90° V-grooving bit, carbide tipped. Cutting length 7.94 mm (5/16″), overall length 44.45 mm, shank 6.35 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei137",
+   "id": "fre145",
    "tip": 0.0
   },
   {
@@ -2208,7 +2336,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-104 90° V-grooving bit, carbide tipped. Cutting length 11.11 mm (7/16″), overall length 44.45 mm, shank 6.35 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei138",
+   "id": "fre146",
    "tip": 0.0
   },
   {
@@ -2224,7 +2352,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-106 90° V-grooving bit, carbide tipped. Cutting length 12.7 mm (1/2″), overall length 57.15 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei139",
+   "id": "fre147",
    "tip": 0.0
   },
   {
@@ -2240,7 +2368,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-107 90° V-grooving bit, carbide tipped. Cutting length 12.7 mm (1/2″), overall length 57.15 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei140",
+   "id": "fre148",
    "tip": 0.0
   },
   {
@@ -2256,7 +2384,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-108 90° V-grooving bit, carbide tipped. Cutting length 12.7 mm (1/2″), overall length 57.15 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei141",
+   "id": "fre149",
    "tip": 0.0
   },
   {
@@ -2272,7 +2400,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-109 90° V-grooving bit, carbide tipped. Cutting length 12.7 mm (1/2″), overall length 57.15 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei142",
+   "id": "fre150",
    "tip": 0.0
   },
   {
@@ -2288,7 +2416,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-110 90° V-grooving bit, carbide tipped. Cutting length 15.88 mm (5/8″), overall length 57.15 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei143",
+   "id": "fre151",
    "tip": 0.0
   },
   {
@@ -2304,7 +2432,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-112 90° V-grooving bit, carbide tipped. Cutting length 15.88 mm (5/8″), overall length 63.5 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei144",
+   "id": "fre152",
    "tip": 0.0
   },
   {
@@ -2320,7 +2448,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-116 90° V-grooving bit, carbide tipped. Cutting length 25.4 mm (1″), overall length 76.2 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei145",
+   "id": "fre153",
    "tip": 0.0
   },
   {
@@ -2336,7 +2464,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-120 90° V-grooving bit, carbide tipped. Cutting length 31.75 mm (1-1/4″), overall length 73.03 mm, shank 12.7 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei146",
+   "id": "fre154",
    "tip": 0.0
   },
   {
@@ -2352,7 +2480,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-150 60° V-grooving bit, carbide (solid carbide). Cutting length 5.56 mm (7/32″), overall length 50.8 mm, shank 6.35 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei147",
+   "id": "fre155",
    "tip": 0.0
   },
   {
@@ -2368,7 +2496,7 @@
    "so": 40.0,
    "pd": 2.0,
    "notes": "Freud 20-154 60° V-grooving bit, carbide (solid carbide). Cutting length 11.11 mm (7/16″), overall length 57.15 mm, shank 6.35 mm. V-grooves, chamfers and sign lettering. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei148",
+   "id": "fre156",
    "tip": 0.0
   },
   {
@@ -2384,7 +2512,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Freud 20-305 radius V-grooving (core box) bit, radius 3.17 mm, carbide (solid carbide). Cutting length 6.35 mm (1/4″), overall length 50.8 mm, shank 6.35 mm. Rounded grooves for lettering, fluting and signs. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei149",
+   "id": "fre157",
    "tip": 0.0
   },
   {
@@ -2400,7 +2528,7 @@
    "so": 15.0,
    "pd": 4.4,
    "notes": "Freud 20-315 radius V-grooving (core box) bit, radius 6.35 mm, carbide (solid carbide). Cutting length 12.7 mm (1/2″), overall length 50.8 mm, shank 6.35 mm. Rounded grooves for lettering, fluting and signs. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei150",
+   "id": "fre158",
    "tip": 0.0
   },
   {
@@ -2416,7 +2544,7 @@
    "so": 15.0,
    "pd": 6.7,
    "notes": "Freud 20-320 radius V-grooving (core box) bit, radius 9.53 mm, carbide (solid carbide). Cutting length 15.88 mm (5/8″), overall length 50.8 mm, shank 6.35 mm. Rounded grooves for lettering, fluting and signs. 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei151",
+   "id": "fre159",
    "tip": 0.0
   },
   {
@@ -2432,7 +2560,7 @@
    "so": 30.0,
    "pd": 1.0,
    "notes": "Freud 70-110 22° detail carving bit, carbide (solid carbide). Cutting length 15.88 mm (5/8″), overall length 63.5 mm, shank 6.35 mm. Fine V-carving and lettering details (the angle is the included angle, checked against the diameter and height). 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei152",
+   "id": "fre160",
    "tip": 0.0
   },
   {
@@ -2448,7 +2576,7 @@
    "so": 30.0,
    "pd": 1.0,
    "notes": "Freud 70-115 30° detail carving bit, carbide (solid carbide). Cutting length 11.51 mm (29/64″), overall length 50.8 mm, shank 6.35 mm. Fine V-carving and lettering details (the angle is the included angle, checked against the diameter and height). 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei153",
+   "id": "fre161",
    "tip": 0.0
   },
   {
@@ -2464,7 +2592,7 @@
    "so": 30.0,
    "pd": 1.0,
    "notes": "Freud 70-120 45° detail carving bit, carbide (solid carbide). Cutting length 7.54 mm (19/64″), overall length 50.8 mm, shank 6.35 mm. Fine V-carving and lettering details (the angle is the included angle, checked against the diameter and height). 2 cutters assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei154",
+   "id": "fre162",
    "tip": 0.0
   },
   {
@@ -2480,7 +2608,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Freud 72-101 up-cut spiral ball nose bit (radius 3.17 mm), carbide (solid carbide). Cutting length 12.7 mm (1/2″), overall length 63.5 mm, shank 6.35 mm. 3D finishing and rounded pockets. 2 flutes assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei155",
+   "id": "fre163",
    "tip": 0.0
   },
   {
@@ -2496,7 +2624,7 @@
    "so": 15.0,
    "pd": 2.2,
    "notes": "Freud 72-202 up-cut spiral ball nose bit (radius 3.17 mm), carbide (solid carbide). Cutting length 28.57 mm (1-1/8″), overall length 76.2 mm, shank 6.35 mm. 3D finishing and rounded pockets. 2 flutes assumed. From Freud's 2020 General Purpose catalog; feeds and speeds are conservative starting values, not Freud's.",
-   "id": "frei156",
+   "id": "fre164",
    "tip": 0.0
   }
  ]
