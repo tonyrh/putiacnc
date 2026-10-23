@@ -163,9 +163,9 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     if app.view_tab == crate::view3d::ViewTab::Preview {
         ui.horizontal(|ui| {
             // same right-hand spots as in the 2D toolbar; the hint takes the left
-            let mut dummy = false;
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add_visible(false, egui::Checkbox::new(&mut dummy, "Guides")); // keeps the spacing identical
+                let sz = guides_size(ui);
+                ui.allocate_exact_size(sz, egui::Sense::hover()); // keeps the spacing identical to the 2D toolbar
                 ui.checkbox(&mut app.show_rapids, "Rapids");
                 ui.checkbox(&mut app.show_toolpath, "Toolpaths");
             });
@@ -178,15 +178,53 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
         ui.checkbox(&mut app.snap_on, "Snap");
         // view toggles on the right (right-to-left, so listed in reverse)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.menu_button("Guides", |ui| {
-                ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
-                ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
-                ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
-            });
+            guides_menu(ui, app);
             ui.checkbox(&mut app.show_rapids, "Rapids");
             ui.checkbox(&mut app.show_toolpath, "Toolpaths");
         });
     });
+}
+
+/// The "Guides" drop-up in the bottom bar: a button with a painted arrow (a text arrow is a box in some fonts) whose panel opens upwards
+/// and stays open while the toggles are clicked.
+fn guides_size(ui: &Ui) -> egui::Vec2 {
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let w = ui.painter().layout_no_wrap("Guides".to_string(), font, Color32::PLACEHOLDER).size().x;
+    egui::vec2(w + 36.0, ui.spacing().interact_size.y)
+}
+
+fn guides_menu(ui: &mut Ui, app: &mut App) {
+    let id = ui.id().with("guides_menu");
+    let open = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let galley = ui.painter().layout_no_wrap("Guides".to_string(), font, Color32::PLACEHOLDER);
+    let size = guides_size(ui);
+    let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::click());
+    let v = ui.style().interact_selectable(&resp, open);
+    ui.painter().rect(rect.expand(v.expansion), v.rounding, v.bg_fill, v.bg_stroke);
+    let col = v.fg_stroke.color;
+    ui.painter().galley(egui::pos2(rect.left() + 10.0, rect.center().y - galley.size().y / 2.0), galley, col);
+    let c = egui::pos2(rect.right() - 12.0, rect.center().y);
+    let tri = if open { [c + egui::vec2(-4.0, -2.0), c + egui::vec2(4.0, -2.0), c + egui::vec2(0.0, 3.0)] } else { [c + egui::vec2(-4.0, 3.0), c + egui::vec2(4.0, 3.0), c + egui::vec2(0.0, -2.0)] };
+    ui.painter().add(egui::Shape::convex_polygon(tri.to_vec(), col, egui::Stroke::NONE));
+    let mut open_now = open;
+    if resp.clicked() { open_now = !open; }
+    if open_now {
+        let area = egui::Area::new(id).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_BOTTOM).fixed_pos(rect.right_top() - egui::vec2(0.0, 4.0))
+            .show(ui.ctx(), |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.style_mut().wrap = Some(false);
+                    ui.set_min_width(120.0);
+                    ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
+                    ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
+                    ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
+                });
+            });
+        let outside = ui.input(|i| i.pointer.any_click()) && !resp.clicked()
+            && ui.input(|i| i.pointer.interact_pos()).map_or(false, |p| !area.response.rect.contains(p));
+        if outside || ui.input(|i| i.key_pressed(egui::Key::Escape)) { open_now = false; }
+    }
+    if open_now != open { ui.data_mut(|d| d.insert_temp(id, open_now)); ui.ctx().request_repaint(); }
 }
 
 /// Dialog button with an icon: `fill` None = the normal button look; otherwise a tinted / solid button.
