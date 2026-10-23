@@ -148,6 +148,14 @@ its G-code and a meta file in the same format.
 - Offsets that collapse a shape are very slow in Clipper. Repeated offsets (pocket rings, V-carve rings)
   therefore offset the previous ring by one step instead of offsetting the original shape by a growing distance.
 
+## Trademarks and bit data
+
+Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by
+them; the names are used only to say which bits the ready-made library entries match. The libraries hold part numbers and dimensions
+taken from the makers' published catalogs, booklets and web pages. The feeds, speeds and notes are the author's own conservative
+starting values, not the makers' recommendations. If you are a rights holder and want a library or a bit removed or corrected,
+open an issue on GitHub.
+
 ## License
 
 PutiaCNC is free software, released under the GNU General Public License v3.0 or later. See `LICENSE`.

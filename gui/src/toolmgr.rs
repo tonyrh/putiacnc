@@ -155,6 +155,8 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
             }
             ui.add_space(2.0);
             ui.weak("A \u{2713} marks libraries you already have.");
+            ui.add_space(4.0);
+            ui.add(egui::Label::new(egui::RichText::new("Brand names are trademarks of their owners; PutiaCNC is not affiliated with or endorsed by them. Dimensions come from the makers' published catalogs; speeds and feeds are generic starting values, not the makers' recommendations.").small().weak()).wrap(true));
         });
     if let Some(i) = pick { app.lib_action(LibAct::Bundled(i)); close = true; }
     if close { app.ready_open = false; }
