@@ -109,17 +109,23 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let zr = app.project.data.stock.zr.clone();
     let zero = (match zr.as_str() { "lr" | "ur" => sw, "c" => sw / 2.0, _ => 0.0 }, match zr.as_str() { "ul" | "ur" => sh, "c" => sh / 2.0, _ => 0.0 });
 
+    // the tool palette wrapped to another row (or back): frame the stock again below it, unless the view was moved by hand
+    if !app.view_touched && (app.palette_extra - app.fit_extra).abs() > 0.5 { app.fit_pending = true; }
     if app.fit_pending || (!ctx.wants_keyboard_input() && ctx.input(|i| i.key_pressed(Key::F))) {
         // frame the stock, plus the machine work area when it is shown
         let (mut bw, mut bh) = (sw, sh);
         if app.show_machine_area { if let Some(m) = &app.project.data.machine { bw = bw.max(m.x); bh = bh.max(m.y); } }
+        // the palette floats over the top of the canvas and the hint over the bottom: frame the stock in the free band between them
+        let (top, bottom) = (62.0 + app.palette_extra, 50.0);
+        let avail = rect.height() - top - bottom;
+        let (band, top) = if avail >= rect.height() * 0.4 { (avail, top) } else { (rect.height(), 0.0) };
         let sx = rect.width() / (bw as f32 * 1.12);
-        let sy = rect.height() / (bh as f32 * 1.12);
+        let sy = band / (bh as f32 * 1.12);
         app.scale = sx.min(sy).max(0.01);
-        app.offset = Vec2::new(rect.width() / 2.0 - bw as f32 * app.scale / 2.0, rect.height() / 2.0 + bh as f32 * app.scale / 2.0);
-        app.fit_pending = false;
+        app.offset = Vec2::new(rect.width() / 2.0 - bw as f32 * app.scale / 2.0, top + band / 2.0 + bh as f32 * app.scale / 2.0);
+        app.fit_pending = false; app.fit_extra = app.palette_extra; app.view_touched = false;
     }
-    if resp.dragged_by(PointerButton::Middle) || resp.dragged_by(PointerButton::Secondary) { app.offset += resp.drag_delta(); }
+    if resp.dragged_by(PointerButton::Middle) || resp.dragged_by(PointerButton::Secondary) { app.offset += resp.drag_delta(); app.view_touched = true; }
     if resp.hovered() {
         let scroll = ctx.input(|i| i.smooth_scroll_delta.y);
         if scroll != 0.0 {
@@ -128,7 +134,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 let local = m - rect.min;
                 app.offset = local - (local - app.offset) * (ns / app.scale);
             }
-            app.scale = ns;
+            app.scale = ns; app.view_touched = true;
         }
     }
     // the rotate handles belong to one selection; a different selection ends them (Esc is handled with the other keys)
