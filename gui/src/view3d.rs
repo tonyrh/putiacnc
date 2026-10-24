@@ -283,6 +283,27 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     });
     let sim = app.v3.sim.as_ref().unwrap();
 
+    // clamps: translucent red boxes from the table to their top
+    for c in &app.project.data.clamps {
+        let (z0, z1) = (-(app.project.data.stock.t as f32), c.height as f32);
+        let (x0, y0, x1, y1) = (c.x as f32, c.y as f32, (c.x + c.w) as f32, (c.y + c.h) as f32);
+        let corner = |i: usize, z: f32| cam.p([if i == 1 || i == 2 { x1 } else { x0 }, if i >= 2 { y1 } else { y0 }, z]);
+        let fill = Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 70);
+        let edge = Stroke::new(1.5_f32, Color32::from_rgb(0xe0, 0x1b, 0x24));
+        for i in 0..4 {
+            let j = (i + 1) % 4;
+            if let (Some(a), Some(b), Some(c2), Some(d)) = (corner(i, z0), corner(j, z0), corner(j, z1), corner(i, z1)) {
+                painter.add(Shape::convex_polygon(vec![a, b, c2, d], fill, Stroke::NONE));
+            }
+        }
+        let top: Vec<Pos2> = (0..4).filter_map(|i| corner(i, z1)).collect();
+        if top.len() == 4 { painter.add(Shape::convex_polygon(top.clone(), fill, edge)); }
+        for i in 0..4 {
+            if let (Some(a), Some(b)) = (corner(i, z0), corner(i, z1)) { painter.line_segment([a, b], edge); }
+            if let (Some(a), Some(b)) = (corner(i, z0), corner((i + 1) % 4, z0)) { painter.line_segment([a, b], edge); }
+        }
+    }
+
     // toolpath
     if let Some(o) = &app.output {
         let done = sim.done;
