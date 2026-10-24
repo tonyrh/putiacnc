@@ -523,7 +523,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 if !warn.is_empty() {
                     let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
                     ui.add_space(4.0);
-                    ui.add(egui::Label::new(egui::RichText::new(format!("⚠ \"{}\" holds this tool to {warn}.", m.name)).color(col)).wrap(true))
+                    crate::checkui::warn_line(ui, col, &format!("\"{}\" holds this tool to {warn}.", m.name))
                         .on_hover_text("The G-code uses the machine's limits, not the tool's values. Change them in Libraries → Machines.");
                 }
             }

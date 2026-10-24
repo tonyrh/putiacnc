@@ -387,7 +387,12 @@ fn notes_panel(ui: &mut Ui, app: &mut App) {
     if !warnings.is_empty() {
         ui.add_space(8.0);
         ui.label(egui::RichText::new("Warnings").strong());
-        for n in &warnings { ui.label(format!("• {n}")); }
+        for n in &warnings {
+            match n.strip_prefix("⚠ ") {
+                Some(rest) => { crate::checkui::warn_line(ui, if app.theme.dark { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(190, 100, 0) }, rest); }
+                None => { ui.label(format!("• {n}")); }
+            }
+        }
     }
 }
 
@@ -1034,10 +1039,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if p.depth > stock_t + 1e-6 {
                     ui.add_space(2.0);
                     let col = if ui.visuals().dark_mode { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(190, 100, 0) };
-                    ui.horizontal_wrapped(|ui| {
-                        ui.spacing_mut().item_spacing.x = 4.0;
-                        ui.colored_label(col, format!("⚠ Depth is more than the stock thickness ({} mm): the cutter would go through into the spoilboard.", stock_t));
-                    });
+                    crate::checkui::warn_line(ui, col, &format!("Depth is more than the stock thickness ({} mm): the cutter would go through into the spoilboard.", stock_t));
                 }
                 ui.add_space(2.0);
                 if ["outside", "inside", "online"].contains(&p.kind.as_str()) {
@@ -1127,7 +1129,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, t.feed, t.plunge, t.so, t.pd));
                     if !warn.is_empty() {
                         let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
-                        ui.add(egui::Label::new(egui::RichText::new(format!("⚠ Held to the machine's limits: {warn}.")).color(col)).wrap(true))
+                        crate::checkui::warn_line(ui, col, &format!("Held to the machine's limits: {warn}."))
                             .on_hover_text("The G-code uses the limited values. Change the limits in Libraries → Machines, or the tool's values in the tool library.");
                     }
                 }

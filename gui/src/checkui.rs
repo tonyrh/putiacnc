@@ -20,13 +20,15 @@ pub fn chip(ui: &mut egui::Ui, app: &mut App) {
 }
 
 /// A small red warning triangle, painted (a glyph may be missing from the system's fonts).
-pub fn warn_sign(ui: &mut egui::Ui) {
+pub fn warn_sign(ui: &mut egui::Ui) { warn_sign_col(ui, RED) }
+
+pub fn warn_sign_col(ui: &mut egui::Ui, col: Color32) {
     let (r, _) = ui.allocate_exact_size(egui::vec2(18.0, 16.0), Sense::hover());
     let p = ui.painter();
     let c = r.center();
-    p.add(egui::Shape::convex_polygon(vec![c + egui::vec2(0.0, -7.0), c + egui::vec2(8.0, 7.0), c + egui::vec2(-8.0, 7.0)], RED, Stroke::new(1.0_f32, RED)));
-    p.line_segment([c + egui::vec2(0.0, -2.5), c + egui::vec2(0.0, 2.0)], Stroke::new(1.6_f32, Color32::WHITE));
-    p.circle_filled(c + egui::vec2(0.0, 4.6), 1.0, Color32::WHITE);
+    p.add(egui::Shape::convex_polygon(vec![c + egui::vec2(0.0, -7.0), c + egui::vec2(8.0, 7.0), c + egui::vec2(-8.0, 7.0)], col, Stroke::new(1.0_f32, col)));
+    p.line_segment([c + egui::vec2(0.0, -2.5), c + egui::vec2(0.0, 2.0)], Stroke::new(1.6_f32, Color32::from_black_alpha(200)));
+    p.circle_filled(c + egui::vec2(0.0, 4.6), 1.0, Color32::from_black_alpha(200));
 }
 
 /// Red ring in the 3D preview where a warning happens.
@@ -93,4 +95,13 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         if let Some(op) = app.checks[i].op { if let Some(o) = app.project.data.ops.get(op) { app.project.data.act = o.id; app.tab = crate::app::RightTab::Ops; } }
     }
     if close || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.checks_open = false; }
+}
+
+/// A warning line: the painted triangle, then the text wrapped beside it, both in `col`.
+pub fn warn_line(ui: &mut egui::Ui, col: Color32, text: &str) -> egui::Response {
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing.x = 6.0;
+        warn_sign_col(ui, col);
+        ui.add(egui::Label::new(egui::RichText::new(text).color(col)).wrap(true))
+    }).inner
 }
