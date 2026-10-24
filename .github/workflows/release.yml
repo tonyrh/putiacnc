@@ -11,6 +11,33 @@ permissions:
   contents: write
 
 jobs:
+  linux-appimage:
+    # the oldest runner on purpose: an AppImage runs on systems with the same glibc or newer
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          # GitHub's runners have no FUSE, so appimagetool unpacks itself and runs from there
+          printf '#!/bin/sh\nexec "%s/appimagetool" --appimage-extract-and-run "$@"\n' "$PWD" > appimagetool-run
+          chmod +x appimagetool-run
+      - name: Build the AppImage
+        run: APPIMAGETOOL="$PWD/appimagetool-run" sh ./packaging/build-appimage.sh
+      - uses: actions/upload-artifact@v6
+        with:
+          name: linux-appimage
+          path: PutiaCNC-*-x86_64.AppImage
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: PutiaCNC-*-x86_64.AppImage
+
   macos-dmg:
     runs-on: macos-14
     steps:
