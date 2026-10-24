@@ -311,8 +311,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let stock = app.project.data.stock.clone();
     let (mut do_place, mut cancel) = (false, false);
     let editing = app.text.edit.is_some();
-    egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .default_pos([700.0, 150.0]).fixed_size([300.0, 0.0]).show(ctx, |ui| {
+    egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .current_pos(crate::csd::spot(ctx, "Text", egui::pos2(700.0, 150.0))).fixed_size([300.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, if editing { "Edit text" } else { "Text" }, true) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.text;

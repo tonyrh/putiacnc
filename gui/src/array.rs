@@ -86,8 +86,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     }
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
-    egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .default_pos([650.0, 300.0]).fixed_size([360.0, 0.0]).show(ctx, |ui| {
+    egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .current_pos(crate::csd::spot(ctx, "Array and copy", egui::pos2(650.0, 300.0))).fixed_size([360.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Array and copy", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });

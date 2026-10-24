@@ -58,8 +58,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             t.dirty = false;
         }
     }
-    egui::Window::new("Import bitmap").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .default_pos([560.0, 172.0]).fixed_size([380.0, 0.0]).show(ctx, |ui| {
+    egui::Window::new("Import bitmap").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .current_pos(crate::csd::spot(ctx, "Import bitmap", egui::pos2(560.0, 172.0))).fixed_size([380.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Import bitmap", true) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.trace;

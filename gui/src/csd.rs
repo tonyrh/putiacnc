@@ -148,6 +148,14 @@ pub fn edges(ctx: &egui::Context) {
 pub fn dialog_header(ui: &mut Ui, title: &str, closable: bool) -> bool {
     let h = 34.0;
     let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), h), Sense::hover());
+    // the header is the handle that moves the dialog
+    let key = ui.layer_id();
+    let grab = ui.interact(rect, ui.id().with(("dialog_drag", title)), Sense::drag()).on_hover_cursor(egui::CursorIcon::Grab);
+    if grab.dragged() {
+        let off = ui.ctx().data(|d| d.get_temp::<egui::Vec2>(dialog_key(key))).unwrap_or_default() + grab.drag_delta();
+        ui.ctx().data_mut(|d| d.insert_temp(dialog_key(key), off));
+        ui.ctx().request_repaint();
+    }
     let vis = ui.visuals().clone();
     let font = egui::FontId::proportional(14.5);
     ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, title, font, vis.strong_text_color());
@@ -188,4 +196,18 @@ pub fn scroll<R>(ui: &mut Ui, reserve: f32, add: impl FnOnce(&mut Ui) -> R) -> R
 pub fn scroll_fill<R>(ui: &mut Ui, footer: f32, add: impl FnOnce(&mut Ui) -> R) -> R {
     let h = (ui.available_height() - footer).clamp(120.0, (ui.ctx().screen_rect().height() - 140.0).max(160.0));
     egui::ScrollArea::vertical().max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show(ui, add).inner
+}
+
+fn dialog_key(layer: egui::LayerId) -> egui::Id { egui::Id::new(("dialog_offset", layer)) }
+
+/// Where a dialog goes: its starting spot plus however far the user has dragged it by the header
+/// (kept so the dialog's anchor point stays inside the window).
+pub fn spot(ctx: &egui::Context, title: &str, base: Pos2) -> Pos2 {
+    let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::new(title));
+    let off = ctx.data(|d| d.get_temp::<egui::Vec2>(dialog_key(layer))).unwrap_or_default();
+    let s = ctx.screen_rect().shrink(30.0);
+    let p = base + off;
+    let p = Pos2::new(p.x.clamp(s.min.x, s.max.x.max(s.min.x)), p.y.clamp(s.min.y, s.max.y.max(s.min.y)));
+    ctx.data_mut(|d| d.insert_temp(dialog_key(layer), p - base));
+    p
 }

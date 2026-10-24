@@ -7,8 +7,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.combine_open { return; }
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
-    egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .default_pos([650.0, 300.0]).fixed_size([340.0, 0.0]).show(ctx, |ui| {
+    egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .current_pos(crate::csd::spot(ctx, "Combine shapes", egui::pos2(650.0, 300.0))).fixed_size([340.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Combine shapes", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n < 2 { "Select two or more closed shapes first.".to_string() } else { format!("{n} shapes selected.") });

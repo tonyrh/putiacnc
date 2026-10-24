@@ -105,8 +105,8 @@ fn column(ui: &mut Ui, sections: &[Section], id: &str, kw: f32) {
 pub fn window(ctx: &egui::Context, app: &mut App) {
     if !app.shortcuts_open { return; }
     let mut close = false;
-    egui::Window::new("Keyboard shortcuts").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center()).show(ctx, |ui| {
+    egui::Window::new("Keyboard shortcuts").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Keyboard shortcuts", ctx.screen_rect().center())).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Keyboard shortcuts", true) { close = true; }
         egui::ScrollArea::vertical().max_height((ctx.screen_rect().height() - 140.0).max(200.0)).auto_shrink([true, true]).show(ui, |ui| {
             ui.horizontal_top(|ui| {

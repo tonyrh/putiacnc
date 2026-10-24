@@ -141,8 +141,8 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
     if !app.ready_open { return; }
     let mut close = false;
     let mut pick: Option<usize> = None;
-    egui::Window::new("Add a ready-made library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center())
+    egui::Window::new("Add a ready-made library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Add a ready-made library", ctx.screen_rect().center()))
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Add a ready-made library", true) { close = true; }
             ui.set_min_width(340.0);
@@ -166,9 +166,9 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     if !app.tools_open { return; }
     let mut open = true;
     let mut close = false;
-    egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(true)
+    egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(true)
         .default_size([925.0, 540.0]).min_width(925.0).max_width(925.0).min_height(340.0)
-        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center())
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Tool library", ctx.screen_rect().center()))
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Tool library", true) { close = true; }
             let was = app.ready_open;

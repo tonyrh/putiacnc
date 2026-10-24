@@ -116,9 +116,9 @@ pub fn machine_manager(ctx: &egui::Context, app: &mut App) {
     if !app.machines_open { return; }
     let mut open = true;
     let mut close = false;
-    egui::Window::new("Machines").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(true)
+    egui::Window::new("Machines").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(true)
         .default_size([770.0, 520.0]).min_width(770.0).max_width(770.0).min_height(320.0)
-        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center())
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Machines", ctx.screen_rect().center()))
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Machines", true) { close = true; }
             body(ui, app);

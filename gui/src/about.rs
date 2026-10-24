@@ -27,8 +27,8 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     if app.about_icon.is_none() { app.about_icon = icon_texture(ctx); }
     let mut close = false;
     let accent = app.theme.accent;
-    egui::Window::new("About PutiaCNC").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center()).show(ctx, |ui| {
+    egui::Window::new("About PutiaCNC").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "About PutiaCNC", ctx.screen_rect().center())).show(ctx, |ui| {
         ui.set_width(430.0);
         if crate::csd::dialog_header(ui, "About PutiaCNC", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
