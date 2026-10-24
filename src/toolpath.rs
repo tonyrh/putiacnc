@@ -442,7 +442,9 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
             let mut t = 0.0;
             for i in 1..pts.len() { t += (pts[i][0] - pts[i - 1][0]).hypot(pts[i][1] - pts[i - 1][1]); lc.push(t); }
             for (i, q) in pts.iter().enumerate() { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + pz + (z - pz) * lc[i] / t), c.feed); }
-            for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
+            // the sloped lap leaves a sloped floor, but the next lap ramps down from there and cuts deeper everywhere, so
+            // only the last depth needs a flat lap to level the floor: 3 depth passes are 3 ramps and one flat lap, not 6 laps
+            if zl.last() == Some(&z) { for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
         } else {
             e.go("G1", None, None, Some(c.z0 + z), c.plunge);
             for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
