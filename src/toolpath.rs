@@ -338,7 +338,7 @@ fn assign_manual_tabs(c: &OpCtx, jobs: &mut [Job], tabs: &[[f64; 2]], notes: &mu
 }
 
 /// Even-odd test of a point (mm) against a set of closed paths.
-fn inside_eo(paths: &[Path], x: f64, y: f64) -> bool {
+pub(crate) fn inside_eo(paths: &[Path], x: f64, y: f64) -> bool {
     let (xi, yi) = (x * S, y * S);
     let mut c = false;
     for p in paths {

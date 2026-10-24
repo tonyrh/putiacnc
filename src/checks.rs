@@ -4,10 +4,55 @@
 //! the walls, a clamp in the way).
 use crate::model::{ProjectData, Tool};
 use crate::sim::Sim;
-use crate::toolpath::Output;
+use crate::clip::{self, Path};
+use crate::shapes::S;
+use crate::toolpath::{inside_eo, Output};
+
+/// How far (mm) the cutter may stray from the line before it counts as cutting past the design.
+const TOL: f64 = 0.2;
+
+/// Where a flat cutter's centre may not be, for one operation.
+enum Guard {
+    /// Outside profile: the centre must stay out of every part (own and other operations') grown by the cutter radius.
+    Keep(Vec<Vec<Path>>),
+    /// Inside profile or pocket: the centre must stay within the shape shrunk by the cutter radius.
+    Stay(Vec<Path>),
+}
+
+/// Even-odd test against closed paths, looking only at the paths whose bounding box holds the point.
+fn inside_zone(z: &[Path], x: f64, y: f64) -> bool {
+    let (xi, yi) = ((x * S) as i64, (y * S) as i64);
+    let near: Vec<Path> = z.iter().filter(|p| {
+        let (mut x0, mut x1, mut y0, mut y1) = (i64::MAX, i64::MIN, i64::MAX, i64::MIN);
+        for q in p.iter() { x0 = x0.min(q[0]); x1 = x1.max(q[0]); y0 = y0.min(q[1]); y1 = y1.max(q[1]); }
+        xi >= x0 && xi <= x1 && yi >= y0 && yi <= y1
+    }).cloned().collect();
+    inside_eo(&near, x, y)
+}
+
+impl Guard {
+    fn violates(&self, x: f64, y: f64) -> bool {
+        match self {
+            Guard::Keep(zones) => zones.iter().any(|z| inside_zone(z, x, y)),
+            Guard::Stay(safe) => !inside_zone(safe, x, y),
+        }
+    }
+}
+
+fn region_of(data: &ProjectData, op: usize) -> Vec<Path> {
+    let Some(o) = data.ops.get(op) else { return vec![] };
+    let closed: Vec<Path> = data.loops.iter().filter(|l| l.op == o.id && l.closed() && l.pts.len() / 2 > 2 && !crate::shapes::is_point(l)).map(|l| l.path()).collect();
+    clip::simplify_even_odd(&closed)
+}
+
+fn flat_radius(data: &ProjectData, op: usize) -> Option<f64> {
+    let t = tool_of(data, op, false)?;
+    if t.shape == "flat" && t.dia > 0.0 { Some(t.dia / 2.0) } else { None }
+}
+
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Kind { TooDeep, Spoilboard, OutOfArea, ZTravel, RapidCut, Shank, Clamp }
+pub enum Kind { TooDeep, Spoilboard, OutOfArea, ZTravel, RapidCut, Shank, Clamp, TooSmall, Overcut }
 
 impl Kind {
     pub fn title(self) -> &'static str {
@@ -19,6 +64,8 @@ impl Kind {
             Kind::RapidCut => "Rapid move through material",
             Kind::Shank => "Shank rubbing the walls",
             Kind::Clamp => "Tool hits a clamp",
+            Kind::TooSmall => "Shape smaller than the tool",
+            Kind::Overcut => "Tool cuts past the design",
         }
     }
 }
@@ -106,6 +153,40 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         }
     }
 
+    // ---- against the drawing ----
+    let kind_of = |op: usize| data.ops.get(op).map(|o| o.p.kind.as_str()).unwrap_or("");
+    let mut guards: Vec<Option<Guard>> = (0..data.ops.len()).map(|_| None).collect();
+    let parts: Vec<(usize, Vec<Path>)> = (0..data.ops.len()).filter(|&j| kind_of(j) == "outside").map(|j| (j, region_of(data, j))).collect();
+    for op in 0..data.ops.len() {
+        let kind = kind_of(op);
+        let Some(r) = flat_radius(data, op) else { continue };
+        match kind {
+            "outside" => {
+                let zones: Vec<Vec<Path>> = parts.iter().filter(|(_, p)| !p.is_empty()).map(|(_, p)| clip::offset(p, (r - TOL) * S, S * 0.01)).collect();
+                guards[op] = Some(Guard::Keep(zones));
+            }
+            "inside" | "pocket" => {
+                let region = region_of(data, op);
+                if region.is_empty() { continue; }
+                guards[op] = Some(Guard::Stay(clip::offset(&region, -(r - TOL) * S, S * 0.01)));
+                // shapes narrower than the cutter give no toolpath at all
+                let id = data.ops[op].id;
+                let loops: Vec<Path> = data.loops.iter().filter(|l| l.op == id && l.closed() && l.pts.len() / 2 > 2 && !crate::shapes::is_point(l)).map(|l| l.path()).collect();
+                let small = loops.iter().enumerate().filter(|(i, p)| {
+                    let others: Vec<Path> = loops.iter().enumerate().filter(|(j, _)| j != i).map(|(_, q)| q.clone()).collect();
+                    let nested = inside_eo(&others, p[0][0] as f64 / S, p[0][1] as f64 / S);
+                    !nested && clip::offset(&clip::simplify_even_odd(&[(*p).clone()]), -r * S, S * 0.01).is_empty()
+                }).count();
+                if small > 0 {
+                    found.push(Finding { kind: Kind::TooSmall, op: Some(op), mv: None, at: [0.0; 3], count: small,
+                        msg: format!("{}: {} shape{} narrower than the {:.2} mm tool, so {} not cut at all. Use a smaller tool or remove {}.", op_name(data, op), small, if small == 1 { " is" } else { "s are" }, r * 2.0, if small == 1 { "it is" } else { "they are" }, if small == 1 { "it" } else { "them" }) });
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut over_done = vec![false; data.ops.len()];
+
     // ---- by replaying the moves ----
     let mut sim = Sim::new(data, 250_000);
     let step = sim.cell.max(0.4);
@@ -128,6 +209,18 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         for c in &data.clamps {
             if m.from[2].min(m.to[2]) <= c.height && seg_near_rect([m.from[0], m.from[1]], [m.to[0], m.to[1]], c, r) {
                 note(&mut found, Kind::Clamp, i, m.to, format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y));
+            }
+        }
+        if m.cut && !m.alt && !over_done.get(m.op).copied().unwrap_or(true) && m.from[2].min(m.to[2]) < -0.01 {
+            if let Some(g) = guards.get(m.op).and_then(|g| g.as_ref()) {
+                for k in 0..=n {
+                    let p = at(k);
+                    if p[2] >= -0.01 || !g.violates(p[0], p[1]) { continue; }
+                    over_done[m.op] = true;
+                    let why = if matches!(g, Guard::Keep(_)) { "cuts into a part: shapes closer together than the tool's width, or overlapping" } else { "cuts outside its shape" };
+                    note(&mut found, Kind::Overcut, i, p, format!("{} {why} (by more than {TOL} mm), first at {:.1}, {:.1} mm.", op_name(data, m.op), p[0], p[1]));
+                    break;
+                }
             }
         }
         if !m.cut {
@@ -246,5 +339,35 @@ mod tests {
         assert!(kinds(&d).contains(&Kind::Shank));
         d.tools[0].shank = 0.0;
         assert!(!kinds(&d).contains(&Kind::Shank));
+    }
+
+    #[test]
+    fn parts_too_close_for_a_second_operation_are_a_gouge() {
+        let mut d = proj("outside", 3.0);
+        d.machine = None;
+        // a second part 1 mm from the first, cut by its own operation with the same 3 mm tool
+        d.ops.push(crate::model::Operation { id: 2, p: d.ops[0].p.clone() });
+        d.oid = 2;
+        d.loops.push(shapes::new_rect([46.0, 10.0], [56.0, 30.0], 0.0, 2));
+        assert!(kinds(&d).contains(&Kind::Overcut));
+        // a clear gap is fine
+        d.loops.pop();
+        d.loops.push(shapes::new_rect([55.0, 10.0], [58.0, 30.0], 0.0, 2));
+        assert!(!kinds(&d).contains(&Kind::Overcut));
+    }
+
+    #[test]
+    fn a_shape_narrower_than_the_tool_is_reported() {
+        let mut d = proj("pocket", 2.0);
+        d.machine = None;
+        d.loops.push(shapes::new_rect([5.0, 5.0], [7.0, 7.0], 0.0, 1));
+        let o = generate(&d, Units::Metric).unwrap();
+        let f = run(&d, &o);
+        let small = f.iter().find(|f| f.kind == Kind::TooSmall).expect("reported");
+        assert_eq!(small.count, 1);
+        // islands inside a pocket are not "too small"
+        d.loops.pop();
+        d.loops.push(shapes::new_rect([25.0, 15.0], [27.0, 17.0], 0.0, 1));
+        assert!(!kinds(&d).contains(&Kind::TooSmall));
     }
 }
