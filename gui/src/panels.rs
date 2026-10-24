@@ -664,7 +664,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         ui.add_space(6.0);
         ui.horizontal(|ui| {
             ui.heading("Clamps");
-            ui.weak("keep-out zones").on_hover_text("Rectangles on the table that the tool must not touch. Positions are measured from the stock's lower-left corner; the toolpath warnings check them");
+            ui.weak("keep-out zones").on_hover_text("Rectangles on the table that the tool must not touch. X and Y are measured from the stock's lower-left corner; Width is the size along X, Length along Y, and Rise is how far the clamp stands above the stock top. The toolpath warnings check them");
         });
         egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
             ui.set_max_width(stock_w - 34.0);
@@ -672,7 +672,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             if d.clamps.is_empty() { ui.weak("None. Add one for each clamp or screw on the table."); }
             let n_clamps = d.clamps.len();
             let fw = 62.0_f32;
-            let (lc1, lc2) = (tw(ui, "Width").max(tw(ui, "X")), tw(ui, "Height").max(tw(ui, "Depth")).max(tw(ui, "Y")));
+            let (lc1, lc2) = (tw(ui, "Width").max(tw(ui, "Rise")).max(tw(ui, "X")), tw(ui, "Length").max(tw(ui, "Y")));
             for (i, c) in d.clamps.iter_mut().enumerate() {
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(format!("Clamp {}", i + 1)).strong());
@@ -684,8 +684,8 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     rlabel(ui, lc1, "X"); changed |= dv_w(ui, fw, &mut c.x, -10000.0, 10000.0, ""); ui.weak("mm");
                     rlabel(ui, lc2, "Y"); changed |= dv_w(ui, fw, &mut c.y, -10000.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
                     rlabel(ui, lc1, "Width"); changed |= dv_w(ui, fw, &mut c.w, 0.1, 10000.0, ""); ui.weak("mm");
-                    rlabel(ui, lc2, "Depth"); changed |= dv_w(ui, fw, &mut c.h, 0.1, 10000.0, ""); ui.weak("mm"); ui.end_row();
-                    rlabel(ui, lc1, "Height"); changed |= dv_w(ui, fw, &mut c.height, 0.1, 10000.0, ""); ui.weak("mm");
+                    rlabel(ui, lc2, "Length"); changed |= dv_w(ui, fw, &mut c.h, 0.1, 10000.0, ""); ui.weak("mm"); ui.end_row();
+                    rlabel(ui, lc1, "Rise"); changed |= dv_w(ui, fw, &mut c.height, 0.1, 10000.0, ""); ui.weak("mm");
                     ui.end_row();
                 });
                 if i + 1 < n_clamps { ui.add_space(4.0); ui.separator(); ui.add_space(4.0); }
@@ -693,7 +693,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             ui.add_space(if n_clamps > 0 { 8.0 } else { 4.0 });
             if let Some(i) = del { d.clamps.remove(i); changed = true; }
             ui.horizontal(|ui| {
-                if icon_text_button(ui, Icon::Add, "Add clamp", "A clamp on the left edge, 20 mm tall; edit X, Y, width, depth and height (mm)", None).clicked() {
+                if icon_text_button(ui, Icon::Add, "Add clamp", "A clamp on the left edge, 20 mm tall; edit X, Y, width (X size), length (Y size) and rise (how far it stands above the stock top), all in mm", None).clicked() {
                     d.clamps.push(putiacnc_core::model::Clamp { x: -30.0, y: d.stock.h / 2.0 - 15.0, w: 30.0, h: 30.0, height: 20.0 });
                     changed = true;
                 }
