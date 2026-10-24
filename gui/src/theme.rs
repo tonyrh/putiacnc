@@ -164,5 +164,7 @@ pub fn apply_style(ctx: &egui::Context, t: &Theme) {
     s.spacing.window_margin = egui::Margin::same(14.0);
     s.spacing.menu_margin = egui::Margin::same(6.0);
     s.spacing.indent = 16.0;
+    // scrollbars get their own lane beside the content instead of floating over it
+    s.spacing.scroll = egui::style::ScrollStyle { bar_width: 6.0, handle_min_length: 28.0, bar_inner_margin: 3.0, bar_outer_margin: 0.0, ..egui::style::ScrollStyle::solid() };
     ctx.set_style(s);
 }

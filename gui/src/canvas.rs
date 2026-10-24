@@ -813,7 +813,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         draw_rulers(&painter, rect, &view, app.scale, zero, hover_w, sel_bb, th.accent, ui);
         orect = Rect::from_min_max(rect.min + Vec2::splat(RULER), rect.max);
     }
-    if !app.tools_open && !app.machines_open { overlays(&ctx, app, orect); rotate_popup(&ctx, app, rect); }
+    if !app.tools_open && !app.machines_open && !app.shortcuts_open && !app.about_open && !app.checks_open { overlays(&ctx, app, orect); rotate_popup(&ctx, app, rect); }
 }
 
 /// In rotate mode: a small field above the selection to turn it by a typed angle (counter-clockwise is positive).
