@@ -49,6 +49,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Fillet and chamfer").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([650.0, 300.0]).fixed_size([320.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Fillet and chamfer", true) { close = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
         egui::Grid::new("corner_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
@@ -72,6 +73,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(2.0);
         ui.weak(if app.corners.chamfer { "The distance is measured along each edge from the corner." } else { "Smooth curves, circles and ellipses are left alone." });
+        });
     });
     if apply {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };

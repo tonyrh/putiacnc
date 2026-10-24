@@ -61,6 +61,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Import bitmap").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([560.0, 172.0]).fixed_size([380.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Import bitmap", true) { cancel = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.trace;
         let (bw, bh) = t.bm.as_ref().map(|b| (b.w as f32, b.h as f32)).unwrap_or((1.0, 1.0));
         // the picture, dimmed, with the traced outlines on top
@@ -153,6 +154,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.horizontal(|ui| {
             if ui.add_enabled(count > 0, egui::Button::new("Import")).clicked() { place = true; }
             if ui.button("Cancel").clicked() { cancel = true; }
+        });
         });
     });
     if place {

@@ -200,8 +200,9 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let (mut do_check, mut do_download, mut close) = (false, None::<Release>, false);
     let mut auto = up.auto;
     egui::Window::new("Check for updates").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).fixed_size([420.0, 0.0]).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center()).fixed_size([420.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Check for updates", true) { close = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(format!("You are using PutiaCNC {CURRENT}."));
         ui.add_space(6.0);
         match &up.status {
@@ -244,6 +245,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             });
         });
         ui.add_space(4.0);
+        });
     });
     if auto != up.auto { up.auto = auto; save_auto(auto); }
     if do_check { up.check(false); }

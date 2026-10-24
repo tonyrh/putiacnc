@@ -142,7 +142,7 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
     let mut close = false;
     let mut pick: Option<usize> = None;
     egui::Window::new("Add a ready-made library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center())
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Add a ready-made library", true) { close = true; }
             ui.set_min_width(340.0);
@@ -168,7 +168,7 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     let mut close = false;
     egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(true)
         .default_size([880.0, 520.0]).min_width(760.0)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center())
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Tool library", true) { close = true; }
             let was = app.ready_open;
@@ -197,14 +197,16 @@ fn body(ui: &mut Ui, app: &mut App) {
     // the list column is as tall as the form next to it (measured last frame), so its buttons stay at the bottom
     let fid = egui::Id::new("tool_form_h");
     let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(370.0).max(370.0);
-    ui.horizontal_top(|ui| {
-        ui.allocate_ui_with_layout(egui::vec2(270.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
-        // fixed-height divider (ui.separator() would stretch to the whole available height and make the window grow)
-        let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
-        ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
-        let r = ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), 370.0), Layout::top_down(Align::LEFT), |ui| tool_form(ui, app));
-        let fh = r.response.rect.height().max(370.0);
-        if (fh - h).abs() > 0.5 { ui.ctx().data_mut(|d| d.insert_temp(fid, fh)); ui.ctx().request_repaint(); }
+    crate::csd::scroll(ui, 250.0, |ui| {
+        ui.horizontal_top(|ui| {
+            ui.allocate_ui_with_layout(egui::vec2(270.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
+            // fixed-height divider (ui.separator() would stretch to the whole available height and make the window grow)
+            let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
+            ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
+            let r = ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), 370.0), Layout::top_down(Align::LEFT), |ui| tool_form(ui, app));
+            let fh = r.response.rect.height().max(370.0);
+            if (fh - h).abs() > 0.5 { ui.ctx().data_mut(|d| d.insert_temp(fid, fh)); ui.ctx().request_repaint(); }
+        });
     });
     ui.add_space(6.0);
     let (ln, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), Sense::hover());

@@ -54,9 +54,10 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let mut show: Option<usize> = None;
     let mut goto: Option<usize> = None;
     egui::Window::new("Toolpath warnings").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center()).show(ctx, |ui| {
         ui.set_width(520.0);
         if crate::csd::dialog_header(ui, "Toolpath warnings", true) { close = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         ui.add_space(8.0);
         if app.checks.is_empty() {
             ui.label("Nothing found: no move goes deeper than the cutting length, through the stock at rapid speed, outside the machine or into a clamp.");
@@ -89,6 +90,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             });
         }
         ui.add_space(6.0);
+        });
     });
     if let Some(i) = show { show_in_3d(app, i); }
     if let Some(i) = goto {

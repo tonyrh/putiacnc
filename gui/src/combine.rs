@@ -10,6 +10,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([650.0, 300.0]).fixed_size([340.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Combine shapes", true) { close = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n < 2 { "Select two or more closed shapes first.".to_string() } else { format!("{n} shapes selected.") });
         ui.add_space(6.0);
         for (op, name, tip) in [
@@ -36,6 +37,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(2.0);
         ui.weak("The result takes the operation of the base shape. Open shapes are skipped.");
+        });
     });
     if apply {
         let (op, keep, swap) = (app.combine_op, app.combine_keep, app.combine_swap);

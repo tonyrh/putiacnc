@@ -65,6 +65,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Import 3D model").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([560.0, 172.0]).fixed_size([380.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Import 3D model", true) { cancel = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.model3d;
         let (rect, _) = ui.allocate_exact_size(Vec2::new(360.0, 230.0), Sense::hover());
         let painter = ui.painter_at(rect);
@@ -102,6 +103,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.horizontal(|ui| {
             if ui.add_enabled(t.err.is_none(), egui::Button::new("Import")).clicked() { place = true; }
             if ui.button("Cancel").clicked() { cancel = true; }
+        });
         });
     });
     if place {

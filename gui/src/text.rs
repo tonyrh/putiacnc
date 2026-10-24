@@ -314,6 +314,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([700.0, 150.0]).fixed_size([300.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, if editing { "Edit text" } else { "Text" }, true) { cancel = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.text;
         let te = ui.add(egui::TextEdit::multiline(&mut t.content).desired_rows(3).desired_width(f32::INFINITY).hint_text("Type your text"));
         if t.focus { te.request_focus(); t.focus = false; }
@@ -383,6 +384,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(2.0);
         ui.weak(if editing { "The letters are set again from these settings, where the text is now." } else { "Letters become outlines (holes in A, O, B… are cut out); the text stays editable: double-click it later. Click the drawing, or type X and Y, to move it." });
+        });
     });
     if do_place { place(app); }
     if cancel { app.text.open = false; app.text.edit = None; app.text.angle = 0.0; app.text.rest = [1.0, 0.0, 0.0, 1.0]; app.mode = Mode::Select; }

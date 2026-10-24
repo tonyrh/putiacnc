@@ -28,9 +28,10 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let mut close = false;
     let accent = app.theme.accent;
     egui::Window::new("About PutiaCNC").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center()).show(ctx, |ui| {
         ui.set_width(430.0);
         if crate::csd::dialog_header(ui, "About PutiaCNC", true) { close = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             ui.add_space(6.0);
@@ -65,6 +66,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         ui.add_space(4.0);
         ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui.").small().weak()).wrap(true));
         ui.add_space(6.0);
+        });
     });
     if close || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.about_open = false; }
 }

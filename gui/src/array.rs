@@ -89,6 +89,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .default_pos([650.0, 300.0]).fixed_size([360.0, 0.0]).show(ctx, |ui| {
         if crate::csd::dialog_header(ui, "Array and copy", true) { close = true; }
+        crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
@@ -122,6 +123,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(2.0);
         ui.weak(if app.array.circular { "Copies includes the original. With 360° they are spaced evenly all the way round." }
                 else { "The gap is measured between the edges of neighbouring copies." });
+        });
     });
     if apply { if let Some(msg) = app.array_selection() { app.error = Some(msg); } }
     if close { app.array.open = false; }

@@ -175,3 +175,10 @@ pub fn dialog_header(ui: &mut Ui, title: &str, closable: bool) -> bool {
 pub fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
     egui::Frame::window(&ctx.style()).inner_margin(egui::Margin::symmetric(12.0, 6.0))
 }
+
+/// The body of a dialog below its pinned header: it scrolls when the window is too short to show all of it.
+/// `reserve` is the height taken by everything else in the dialog (header, padding, any pinned footer).
+pub fn scroll<R>(ui: &mut Ui, reserve: f32, add: impl FnOnce(&mut Ui) -> R) -> R {
+    let h = (ui.ctx().screen_rect().height() - reserve).max(160.0);
+    egui::ScrollArea::vertical().max_height(h).auto_shrink([false, true]).show(ui, add).inner
+}
