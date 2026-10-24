@@ -4,10 +4,11 @@
 set -e
 VER=$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)
 cargo build --release -p putiacnc-gui
-A=target/PutiaCNC.AppDir
+T="${CARGO_TARGET_DIR:-target}"
+A="$T/PutiaCNC.AppDir"
 rm -rf "$A"
 mkdir -p "$A/usr/bin" "$A/usr/share/licenses/putiacnc" "$A/usr/share/applications" "$A/usr/share/icons/hicolor/256x256/apps"
-cp target/release/putiacnc "$A/usr/bin/putiacnc" && strip "$A/usr/bin/putiacnc"
+cp "$T/release/putiacnc" "$A/usr/bin/putiacnc" && strip "$A/usr/bin/putiacnc"
 cp LICENSE THIRD-PARTY-LICENSES.txt "$A/usr/share/licenses/putiacnc/"
 cp packaging/putiacnc.desktop "$A/putiacnc.desktop"
 cp packaging/putiacnc.desktop "$A/usr/share/applications/"
