@@ -11,11 +11,22 @@ pub fn chip(ui: &mut egui::Ui, app: &mut App) {
     if app.checks_rx.is_some() { ui.weak("checking..."); return; }
     if app.checks.is_empty() { return; }
     let n = app.checks.len();
-    let text = egui::RichText::new(format!("\u{26a0} {n} warning{}", if n == 1 { "" } else { "s" })).color(RED).strong();
+    warn_sign(ui);
+    let text = egui::RichText::new(format!("{n} warning{}", if n == 1 { "" } else { "s" })).color(RED).strong();
     if ui.add(egui::Label::new(text).sense(Sense::click())).on_hover_text("Things in the toolpath that could hurt the tool, the machine or the work. Click for the list").on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
         app.checks_open = !app.checks_open;
     }
     ui.separator();
+}
+
+/// A small red warning triangle, painted (a glyph may be missing from the system's fonts).
+pub fn warn_sign(ui: &mut egui::Ui) {
+    let (r, _) = ui.allocate_exact_size(egui::vec2(18.0, 16.0), Sense::hover());
+    let p = ui.painter();
+    let c = r.center();
+    p.add(egui::Shape::convex_polygon(vec![c + egui::vec2(0.0, -7.0), c + egui::vec2(8.0, 7.0), c + egui::vec2(-8.0, 7.0)], RED, Stroke::new(1.0_f32, RED)));
+    p.line_segment([c + egui::vec2(0.0, -2.5), c + egui::vec2(0.0, 2.0)], Stroke::new(1.6_f32, Color32::WHITE));
+    p.circle_filled(c + egui::vec2(0.0, 4.6), 1.0, Color32::WHITE);
 }
 
 /// Red ring in the 3D preview where a warning happens.
@@ -58,7 +69,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                         .inner_margin(egui::Margin::symmetric(6.0, 5.0)).rounding(4.0).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new("\u{26a0}").color(RED));
+                            warn_sign(ui);
                             ui.label(egui::RichText::new(f.kind.title()).strong().size(19.0));
                             if f.count > 1 { ui.weak(format!("({} moves)", f.count)); }
                         });

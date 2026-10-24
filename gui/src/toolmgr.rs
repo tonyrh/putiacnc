@@ -149,12 +149,12 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
             ui.add_space(4.0);
             for (i, (name, json)) in toollib::BUNDLED.iter().enumerate() {
                 let have = app.tool_libs.libs.iter().any(|l| l.name == *name);
-                let txt = format!("{name}  ({} bits){}", toollib::bundled_count(json), if have { "  \u{2713}" } else { "" });
+                let txt = format!("{name}  ({} bits){}", toollib::bundled_count(json), if have { "  \u{b7} added" } else { "" });
                 if ui.add_sized([ui.available_width(), 26.0], egui::Button::new(txt)).clicked() { pick = Some(i); }
                 ui.add_space(2.0);
             }
             ui.add_space(2.0);
-            ui.weak("A \u{2713} marks libraries you already have.");
+            ui.weak("\"added\" marks libraries you already have.");
             ui.add_space(4.0);
             ui.add(egui::Label::new(egui::RichText::new("Brand names are trademarks of their owners; PutiaCNC is not affiliated with or endorsed by them. Dimensions come from the makers' published catalogs; speeds and feeds are generic starting values, not the makers' recommendations.").small().weak()).wrap(true));
         });
