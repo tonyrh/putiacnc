@@ -327,7 +327,8 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
 
 pub fn right_panel(ui: &mut Ui, app: &mut App) {
     let theme = app.theme;
-    crate::view3d::tabs(ui, &theme, &mut app.tab, &[(RightTab::Ops, "Operations"), (RightTab::Gcode, "G-code"), (RightTab::Info, "Notes")]);
+    let n_warn = app.output.as_ref().map_or(0, |o| o.notes.iter().filter(|n| n.starts_with("⚠ ")).count());
+    crate::view3d::tabs_badged(ui, &theme, &mut app.tab, &[(RightTab::Ops, "Operations", 0), (RightTab::Gcode, "G-code", 0), (RightTab::Info, "Notes", n_warn)]);
     ui.separator();
     if app.tab == RightTab::Ops { ops_panel(ui, app); return; }
     if app.tab == RightTab::Info { notes_panel(ui, app); return; }

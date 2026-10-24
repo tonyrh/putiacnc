@@ -142,18 +142,35 @@ pub(crate) fn frame(st: &mut State, stock: &putiacnc_core::model::Stock) {
 
 /// Underlined tab row, shared by the view tabs and the right panel's tabs.
 pub fn tabs<T: PartialEq + Copy>(ui: &mut Ui, theme: &crate::theme::Theme, cur: &mut T, items: &[(T, &str)]) {
+    let plain: Vec<(T, &str, usize)> = items.iter().map(|(t, l)| (*t, *l, 0)).collect();
+    tabs_badged(ui, theme, cur, &plain);
+}
+
+/// Like `tabs`, with a small amber count after the label of any tab whose number is not zero (warnings waiting there).
+pub fn tabs_badged<T: PartialEq + Copy>(ui: &mut Ui, theme: &crate::theme::Theme, cur: &mut T, items: &[(T, &str, usize)]) {
     let (accent, strong) = (theme.accent, theme.text());
     let weak = ui.visuals().weak_text_color();
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
-        for (tab, label) in items {
+        for (tab, label, badge) in items {
             let sel = *cur == *tab;
             let font = egui::TextStyle::Body.resolve(ui.style());
             let galley = ui.painter().layout_no_wrap(label.to_string(), font, if sel { strong } else { weak });
-            let (rect, resp) = ui.allocate_exact_size(Vec2::new(galley.size().x + 28.0, 26.0), Sense::click());
+            let badge_w = if *badge > 0 { 22.0 } else { 0.0 };
+            let (rect, resp) = ui.allocate_exact_size(Vec2::new(galley.size().x + 28.0 + badge_w, 26.0), Sense::click());
+            let resp = if *badge > 0 { resp.on_hover_text(format!("{badge} warning{} in this tab", if *badge == 1 { "" } else { "s" })) } else { resp };
             if resp.hovered() && !sel { ui.painter().rect_filled(rect.shrink2(Vec2::new(0.0, 3.0)), 6.0, ui.visuals().widgets.hovered.weak_bg_fill); }
             let col = if sel || resp.hovered() { strong } else { weak };
-            ui.painter().galley(Pos2::new(rect.center().x - galley.size().x / 2.0, rect.center().y - galley.size().y / 2.0), galley, col);
+            let gw = galley.size().x;
+            let lx = rect.center().x - (gw + badge_w) / 2.0;
+            ui.painter().galley(Pos2::new(lx, rect.center().y - galley.size().y / 2.0), galley, col);
+            if *badge > 0 {
+                let amber = if theme.dark { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(210, 110, 0) };
+                let c = Pos2::new(lx + gw + 4.0 + 9.0, rect.center().y);
+                ui.painter().circle_filled(c, 9.0, amber);
+                let t = if *badge > 9 { "9+".to_string() } else { badge.to_string() };
+                ui.painter().text(c, egui::Align2::CENTER_CENTER, t, egui::FontId::proportional(11.0), Color32::from_rgb(30, 20, 0));
+            }
             if sel { ui.painter().rect_filled(Rect::from_min_max(Pos2::new(rect.left() + 8.0, rect.bottom() - 2.0), Pos2::new(rect.right() - 8.0, rect.bottom())), 1.0, accent); }
             if resp.clicked() { *cur = *tab; }
         }
