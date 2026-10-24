@@ -613,7 +613,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let text_w = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), font.clone(), Color32::WHITE).size().x);
         let stock_w = ui.available_width();
         let _ = (&text_w, sp);
-        egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
+        let stock_frame = egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
             ui.set_max_width(stock_w - 34.0);
             let fw = 62.0_f32;
             let l1 = tw(ui, "Thickness").max(tw(ui, "XY zero")).max(tw(ui, "Appearance"));
@@ -666,8 +666,10 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             ui.heading("Clamps");
             ui.weak("keep-out zones").on_hover_text("Rectangles on the table that the tool must not touch. X and Y are measured from the stock's lower-left corner; Width is the size along X, Length along Y, and Rise is how far the clamp stands above the stock top. The toolpath warnings check them");
         });
+        let clamp_inner_w = stock_frame.response.rect.width() - 22.0;
         egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
             ui.set_max_width(stock_w - 34.0);
+            ui.set_min_width(clamp_inner_w);
             let mut del = None;
             if d.clamps.is_empty() { ui.weak("None. Add one for each clamp or screw on the table."); }
             let n_clamps = d.clamps.len();
