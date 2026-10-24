@@ -29,7 +29,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let accent = app.theme.accent;
     egui::Window::new("About PutiaCNC").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "About PutiaCNC", ctx.screen_rect().center())).show(ctx, |ui| {
-        ui.set_width(430.0);
+        ui.set_width(460.0);
         if crate::csd::dialog_header(ui, "About PutiaCNC", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.add_space(10.0);
@@ -59,12 +59,12 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             }
             if ui.button("Copy version info").on_hover_text("Version, system and config folder, for a bug report").clicked() { ctx.output_mut(|o| o.copied_text = version_info()); }
         });
-        ui.add_space(10.0);
-        ui.separator();
-        ui.add_space(4.0);
-        ui.add(egui::Label::new(egui::RichText::new("Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by them; the names only say which bits the ready-made libraries match. Dimensions come from the makers' published catalogs; feeds, speeds and notes are conservative starting values, not the makers' recommendations.").small().weak()).wrap(true));
-        ui.add_space(4.0);
-        ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui.").small().weak()).wrap(true));
+        ui.add_space(8.0);
+        egui::CollapsingHeader::new(egui::RichText::new("Notices").small().weak()).default_open(false).show(ui, |ui| {
+            ui.add(egui::Label::new(egui::RichText::new("Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by them; the names only say which bits the ready-made libraries match. Dimensions come from the makers' published catalogs; feeds, speeds and notes are conservative starting values, not the makers' recommendations.").small().weak()).wrap(true));
+            ui.add_space(4.0);
+            ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui.").small().weak()).wrap(true));
+        });
         ui.add_space(6.0);
         });
     });
