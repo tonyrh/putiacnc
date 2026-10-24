@@ -507,8 +507,17 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     let mut d = t.pd / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.01 / k, 1000.0 / k, 0.05 / k, 4, "").changed() { t.pd = d * k; changed = true; }
                 });
+                cell!("Cut length", uname, ui, {
+                    let mut d = t.flute / k;
+                    if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").changed() { t.flute = (d * k).max(0.0); changed = true; }
+                });
+                cell!("Shank dia.", uname, ui, {
+                    let mut d = t.shank / k;
+                    if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.05 / k, 3, "").changed() { t.shank = (d * k).max(0.0); changed = true; }
+                });
                 if n % 2 == 1 { ui.end_row(); }
             });
+            ui.add(egui::Label::new(egui::RichText::new("Cut length is how deep the flutes reach and shank dia. the bit above them; 0 means unknown and switches those checks off for this tool.").small().weak()).wrap(true));
             if let Some(m) = &app.project.data.machine {
                 let warn = m.hold_text(&t);
                 if !warn.is_empty() {

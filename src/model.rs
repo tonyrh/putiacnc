@@ -32,6 +32,8 @@ pub struct ProjectData {
     #[serde(default)] pub loops: Vec<LoopData>,
     /// Imported drawings, listed in the left panel (shapes point to them with `grp`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")] pub groups: Vec<ShapeGroup>,
+    /// Clamps and other things on the table that the tool must keep away from.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")] pub clamps: Vec<Clamp>,
     /// A 3D model (height map) for relief operations.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub relief: Option<Relief>,
     #[serde(default)] pub gcode: String,
@@ -41,6 +43,14 @@ pub struct ProjectData {
     #[serde(default)] pub act: i64,
     #[serde(default)] pub oid: i64,
 }
+
+/// A rectangle on the table, in mm from the stock's lower-left corner, standing `height` mm above the stock top.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Clamp {
+    pub x: f64, pub y: f64, pub w: f64, pub h: f64,
+    #[serde(default = "d_clamp_h")] pub height: f64,
+}
+fn d_clamp_h() -> f64 { 20.0 }
 
 /// A file of shapes imported as one unit.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -188,6 +198,10 @@ pub struct Tool {
     #[serde(default, skip_serializing_if = "is_zero")] pub arc: f64,
     /// Arc profile bit: the edge is a concave arc (flared, like a cove) instead of a convex one (rounded, like a ball).
     #[serde(default, skip_serializing_if = "is_false")] pub concave: bool,
+    /// Cutting length (flute length) in mm: how deep the cutter can go before the shank rubs. 0 = not known.
+    #[serde(default, skip_serializing_if = "is_zero")] pub flute: f64,
+    /// Shank diameter in mm. 0 = the same as the cutter.
+    #[serde(default, skip_serializing_if = "is_zero")] pub shank: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

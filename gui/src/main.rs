@@ -26,6 +26,7 @@ mod toolmgr;
 mod update;
 mod view3d;
 mod viewcube;
+mod checkui;
 mod widgets;
 
 use app::App;
@@ -141,6 +142,7 @@ impl eframe::App for App {
         cleanup::dialog(ctx, self);
         shortcuts::window(ctx, self);
         about::window(ctx, self);
+        checkui::window(ctx, self);
         combine::dialog(ctx, self);
         array::dialog(ctx, self);
         corners::dialog(ctx, self);
@@ -153,6 +155,7 @@ impl eframe::App for App {
         let busy = ctx.input(|i| i.pointer.any_down());
         if !busy && !ctx.wants_keyboard_input() { self.hist.open = false; }
         if !busy { self.hist.classify(&self.project.data); }
+        if self.poll_checks() { ctx.request_repaint_after(std::time::Duration::from_millis(100)); }
         if self.gen_pending && !busy {
             self.regenerate();
             ctx.request_repaint();

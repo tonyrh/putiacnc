@@ -458,6 +458,15 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let mat = th.material(&d.stock.mat);
     painter.rect_filled(sr, 0.0, mat.fill);
     painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, mat.stroke));
+    // clamps: keep-out rectangles on the table
+    for (i, c) in d.clamps.iter().enumerate() {
+        let r = Rect::from_two_pos(to_s([c.x, c.y]), to_s([c.x + c.w, c.y + c.h]));
+        painter.rect_filled(r, 2.0, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 55));
+        painter.rect_stroke(r, 2.0, Stroke::new(1.5_f32, Color32::from_rgb(0xe0, 0x1b, 0x24)));
+        painter.line_segment([r.left_top(), r.right_bottom()], Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 120)));
+        painter.line_segment([r.right_top(), r.left_bottom()], Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 120)));
+        painter.text(r.center_top() + egui::vec2(0.0, -3.0), egui::Align2::CENTER_BOTTOM, format!("Clamp {}", i + 1), egui::TextStyle::Small.resolve(ui.style()), Color32::from_rgb(0xe0, 0x1b, 0x24));
+    }
     // the imported 3D model, as a shaded height map on the stock
     if let Some(rel) = &d.relief {
         let key = format!("{}|{}|{}|{}|{}", rel.name, rel.nx, rel.ny, rel.hm.len(), rel.hm.get(..48).unwrap_or("") );

@@ -138,6 +138,47 @@ impl Sim {
         }
     }
 
+    /// Radius of the cutter in this tool slot (two per operation), 0 if there is none.
+    pub fn tool_radius(&self, slot: usize) -> f64 { self.tools.get(slot).map_or(0.0, |t| t.0) }
+
+    /// How far (mm) the stock stands inside the cutter when its tip is at (x, y, z): the largest height of the
+    /// surface above the cutter's own surface, over the cutter's footprint. The outer 1.5 cells and 0.05 mm are
+    /// left out, because the walls of earlier cuts are a thin slope that reaches that far.
+    pub fn inside_cutter(&self, slot: usize, x: f64, y: f64, z: f64) -> f64 {
+        let Some((r, tab)) = self.tools.get(slot) else { return 0.0 };
+        // below the stock's bottom there is the table, not stock: the surface cannot be lower than that
+        let z = z.max(-self.t);
+        let r_in = (*r - self.cell * 1.5 - 0.05).max(0.0);
+        let step = self.cell / 2.0;
+        let mut worst = 0.0_f64;
+        self.for_cells(x, y, r_in, |rho, s| {
+            let k = ((rho / step).round() as usize).min(tab.len() - 1);
+            worst = worst.max(s as f64 - (z + tab[k] as f64));
+        });
+        worst
+    }
+
+    /// The largest height (mm) the surface has above `top` in the ring between radius `r_in` and `r_out` around (x, y).
+    pub fn above_in_ring(&self, x: f64, y: f64, r_in: f64, r_out: f64, top: f64) -> f64 {
+        let mut worst = f64::NEG_INFINITY;
+        self.for_cells(x, y, r_out, |rho, s| { if rho > r_in { worst = worst.max(s as f64 - top); } });
+        worst
+    }
+
+    /// Calls `f(distance, surface height)` for every grid point within `r` of (x, y).
+    fn for_cells(&self, x: f64, y: f64, r: f64, mut f: impl FnMut(f64, f32)) {
+        let (ix0, ix1) = ((((x - r) / self.cell).floor().max(0.0)) as usize, (((x + r) / self.cell).ceil().max(0.0) as usize).min(self.nx - 1));
+        let (iy0, iy1) = ((((y - r) / self.cell).floor().max(0.0)) as usize, (((y + r) / self.cell).ceil().max(0.0) as usize).min(self.ny - 1));
+        for iy in iy0..=iy1 {
+            let dy = iy as f64 * self.cell - y;
+            for ix in ix0..=ix1 {
+                let dx = ix as f64 * self.cell - x;
+                let rho = (dx * dx + dy * dy).sqrt();
+                if rho <= r { f(rho, self.z[iy * self.nx + ix]); }
+            }
+        }
+    }
+
     pub fn at(&self, ix: usize, iy: usize) -> f32 { self.z[iy * self.nx + ix] }
     pub fn through(&self, ix: usize, iy: usize) -> bool { self.at(ix, iy) <= -self.t as f32 + 1e-4 }
 }

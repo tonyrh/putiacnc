@@ -75,7 +75,7 @@ pub struct Entry {
 
 fn rest_eq(a: &ProjectData, b: &ProjectData) -> bool {
     a.stock == b.stock && a.job == b.job && a.machine == b.machine && a.ops == b.ops && a.tools == b.tools
-        && a.relief == b.relief && a.notes == b.notes && a.act == b.act && a.oid == b.oid
+        && a.clamps == b.clamps && a.relief == b.relief && a.notes == b.notes && a.act == b.act && a.oid == b.oid
 }
 
 /// Undo/redo as whole-project snapshots (projects are small, this is simple and robust). Each edit is
@@ -194,6 +194,13 @@ pub struct App {
     pub hist: History,
     pub modified: bool,
     pub gen_pending: bool,
+    /// Warnings about the toolpath (collisions, gouges), computed on a background thread for `checks_ver`.
+    pub checks: Vec<putiacnc_core::checks::Finding>,
+    pub checks_ver: u64,
+    pub checks_rx: Option<std::sync::mpsc::Receiver<(u64, Vec<putiacnc_core::checks::Finding>)>>,
+    pub checks_open: bool,
+    /// The warning picked in the list: drawn larger in the 3D preview.
+    pub check_sel: Option<usize>,
     pub gen_ms: f64,
     pub show_toolpath: bool,
     pub show_rapids: bool,
@@ -295,7 +302,7 @@ impl App {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None,
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
-            gen_pending: true, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
+            gen_pending: true, checks: vec![], checks_ver: 0, checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, canvas_right: 0.0, align_btn: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
@@ -741,6 +748,31 @@ impl App {
             Err(e) => { self.output = None; self.gen_error = Some(e); }
         }
         self.gen_ms = t.elapsed().as_secs_f64() * 1000.0;
+        // the warnings are worked out beside the UI: they replay the whole program
+        self.checks.clear(); self.check_sel = None;
+        self.checks_rx = None;
+        if let Some(o) = self.output.clone() {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let (data, ver) = (self.project.data.clone(), self.out_ver);
+            std::thread::spawn(move || { let f = putiacnc_core::checks::run(&data, &o); if std::env::var_os("PUTIACNC_DEBUG_CHECKS").is_some() { eprintln!("checks: {} findings, tool0 flute {:?}", f.len(), data.tools.first().map(|t| (t.flute, t.shank))); } let _ = tx.send((ver, f)); });
+            self.checks_rx = Some(rx);
+        }
+    }
+
+    /// Pick up finished warnings; true while they are still being worked out.
+    pub fn poll_checks(&mut self) -> bool {
+        let Some(rx) = &self.checks_rx else { return false };
+        match rx.try_recv() {
+            Ok((v, f)) => {
+                if v == self.out_ver { self.checks = f; self.checks_ver = v; }
+                self.checks_rx = None;
+                // testing aid: press "Show in 3D" on this warning
+                if let Some(i) = std::env::var("PUTIACNC_CHECK_SHOW").ok().and_then(|s| s.parse::<usize>().ok()) { if i < self.checks.len() { crate::checkui::show_in_3d(self, i); } }
+                false
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => true,
+            Err(_) => { self.checks_rx = None; false }
+        }
     }
 
     /// Call after any change to the project.
@@ -990,6 +1022,20 @@ mod combine_app_tests {
 #[cfg(test)]
 mod history_tests {
     use super::*;
+
+    #[test]
+    fn clamps_are_undoable_project_changes() {
+        let mut a = App::new(None);
+        a.hist.record(&a.project.data);
+        a.project.data.clamps.push(putiacnc_core::model::Clamp { x: 1.0, y: 2.0, w: 3.0, h: 4.0, height: 5.0 });
+        a.hist.classify(&a.project.data);
+        assert!(a.hist.can_undo(Scope::All));
+        assert!(!a.hist.can_undo(Scope::Drawing));
+        a.do_undo();
+        assert!(a.project.data.clamps.is_empty());
+        a.do_redo();
+        assert_eq!(a.project.data.clamps.len(), 1);
+    }
 
     #[test]
     fn toolbar_undo_only_touches_the_drawing_and_the_menu_reaches_the_rest() {

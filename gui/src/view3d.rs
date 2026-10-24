@@ -317,6 +317,10 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             run.push(b);
         }
         flush(&mut run, run_key);
+        for (i, f) in app.checks.iter().enumerate() {
+            if f.mv.is_none() { continue; }
+            if let Some(a) = cam.p([f.at[0] as f32, f.at[1] as f32, f.at[2] as f32]) { crate::checkui::marker(&painter, a, app.check_sel == Some(i)); }
+        }
         // the cutter: it glides along the move in progress, so rapids and plunges are not shown as jumps
         let st = &app.v3;
         if (done > 0 || st.t > 0.0) && done < o.moves.len() {
