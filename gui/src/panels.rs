@@ -782,6 +782,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
                 let selected = d.act == id;
+                let resp = resp.on_hover_text(if selected { "Click again to deselect: new shapes then belong to no operation" } else { "Make this the active operation: new shapes are added to it" });
                 let folded = collapsed.contains(&id);
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
@@ -811,7 +812,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
                 clip.galley(egui::pos2(rect.min.x + 60.0, top + h1), g2, sub_col);
                 if chev.clicked() { if folded { collapsed.remove(&id); } else { collapsed.insert(id); } }
-                else if resp.clicked() { d.act = id; }
+                else if resp.clicked() { d.act = if selected { 0 } else { id }; }  // a second click deselects: new shapes then belong to no operation
                 // up / down / delete sit inside the row, on its right
                 let brect = egui::Rect::from_min_size(egui::pos2(rect.max.x - btn_w - 6.0, rect.center().y - 13.0), egui::vec2(btn_w, 26.0));
                 ui.allocate_ui_at_rect(brect, |ui| {
