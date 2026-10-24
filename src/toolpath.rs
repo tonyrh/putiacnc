@@ -705,6 +705,11 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         e.g.push(format!("{} G90 G17", if imp { "G20" } else { "G21" }));
     }
 
+    let custom = |s: &Option<String>| -> Vec<String> { s.as_deref().unwrap_or("").lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect() };
+    let (start_code, end_code) = (custom(&machine.start_code), custom(&machine.end_code));
+    // the machine's own start lines go in last, below, so arc fitting never sees them; remember where
+    let start_at = e.g.len();
+
     let mut ts = ToolSt::default();
     let mut any = false;
 
@@ -1005,6 +1010,13 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let (lines, n) = crate::arcs::fit_arcs(&e.g, e.dec(), ku);
         if n > 0 { e.g = lines; notes.push(format!("{} arc{} written as G2/G3: shorter file; run an air cut first if this machine has not done arcs before.", n, if n == 1 { "" } else { "s" })); }
     }
+    if !start_code.is_empty() || !end_code.is_empty() {
+        let last = e.g.len().saturating_sub(1);
+        for (k, l) in end_code.iter().enumerate() { e.g.insert(last + k, l.clone()); }
+        for (k, l) in start_code.iter().enumerate() { e.g.insert(start_at + k, l.clone()); }
+        notes.push(format!("{}: {} start line{} and {} end line{} of your own G-code added; the time estimate does not include any moves in them.", machine.name,
+            start_code.len(), if start_code.len() == 1 { "" } else { "s" }, end_code.len(), if end_code.len() == 1 { "" } else { "s" }));
+    }
     if data.job.numbered { e.g = number_lines(e.g); }
     Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
 }
@@ -1104,6 +1116,39 @@ mod tests {
         // the setting survives a save and load
         let j = serde_json::to_string(&d).unwrap();
         assert!(serde_json::from_str::<ProjectData>(&j).unwrap().job.numbered);
+    }
+
+    #[test]
+    fn the_machines_own_start_and_end_code_is_added() {
+        let mut d = drill_project(3.0, None);
+        let plain = generate(&d, Units::Metric).unwrap();
+        let mut m = d.machine.clone().unwrap_or_default();
+        m.start_code = Some("M3 S8000\n\n  G4 P2  \n".into());
+        m.end_code = Some("G53 G0 X0 Y200".into());
+        d.machine = Some(m);
+        let o = generate(&d, Units::Metric).unwrap();
+        assert_eq!(o.lines.len(), plain.lines.len() + 3);
+        // after the setup lines, before the first tool; the end block just before the final M2
+        let i = o.lines.iter().position(|l| l == "M3 S8000").unwrap();
+        assert_eq!(o.lines[i + 1], "G4 P2");
+        assert_eq!(&o.lines[..i], &plain.lines[..i]);
+        let n = o.lines.len();
+        assert_eq!(&o.lines[n - 3..], &["G0 X0 Y0".to_string(), "G53 G0 X0 Y200".to_string(), "M2".to_string()][..]);
+        // the moves and the time do not change, and the notes say so
+        assert_eq!(o.moves.len(), plain.moves.len());
+        assert!(o.notes.iter().any(|x| x.contains("2 start lines") && x.contains("1 end line")));
+        // line numbers cover them too
+        d.job.numbered = true;
+        let nn = generate(&d, Units::Metric).unwrap();
+        assert!(nn.lines[i].ends_with("M3 S8000") && nn.lines[i].starts_with('N'));
+        // an empty box adds nothing
+        d.job.numbered = false;
+        d.machine.as_mut().unwrap().start_code = Some("  \n".into());
+        d.machine.as_mut().unwrap().end_code = None;
+        assert_eq!(generate(&d, Units::Metric).unwrap().lines, plain.lines);
+        // saved with the machine
+        let j = serde_json::to_string(d.machine.as_ref().unwrap()).unwrap();
+        assert!(!j.contains("endCode") && j.contains("startCode"));
     }
 
     #[test]

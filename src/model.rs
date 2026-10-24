@@ -147,6 +147,10 @@ pub struct Machine {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub inches: Option<bool>,
     /// Write circular runs of cutting moves as G2/G3 arcs (shorter files; the controller must support them, as Grbl does).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub arcs: Option<bool>,
+    /// Lines of G-code written after the setup lines (units, absolute mode...), before the first tool is chosen.
+    #[serde(default, rename = "startCode", skip_serializing_if = "Option::is_none")] pub start_code: Option<String>,
+    /// Lines of G-code written at the end, after the spindle stops and the tool returns to X0 Y0, just before the program ends.
+    #[serde(default, rename = "endCode", skip_serializing_if = "Option::is_none")] pub end_code: Option<String>,
 }
 
 impl Machine {
@@ -174,7 +178,7 @@ impl Machine {
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
-                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false) }
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), start_code: None, end_code: None }
     }
 }
 

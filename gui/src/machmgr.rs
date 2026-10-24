@@ -134,12 +134,16 @@ pub fn machine_manager(ctx: &egui::Context, app: &mut App) {
 
 fn body(ui: &mut Ui, app: &mut App) {
     if app.machines.get(&app.mach_sel).is_none() { app.mach_sel = app.project.data.machine.as_ref().map(|m| m.id.clone()).unwrap_or_else(|| app.machines.def.clone()); }
-    let h = 300.0;
+    // the list and the divider are as tall as the form next to it (measured last frame)
+    let fid = egui::Id::new("mach_form_h");
+    let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(300.0).max(300.0);
     ui.horizontal_top(|ui| {
         ui.allocate_ui_with_layout(egui::vec2(200.0, h), Layout::top_down(Align::LEFT), |ui| list(ui, app, h));
         let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
         ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
-        ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), h), Layout::top_down(Align::LEFT), |ui| form(ui, app));
+        let r = ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), 300.0), Layout::top_down(Align::LEFT), |ui| form(ui, app));
+        let fh = r.response.rect.height().max(300.0);
+        if (fh - h).abs() > 0.5 { ui.ctx().data_mut(|d| d.insert_temp(fid, fh)); ui.ctx().request_repaint(); }
     });
     ui.add_space(6.0);
     let (ln, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), Sense::hover());
@@ -351,6 +355,23 @@ fn form(ui: &mut Ui, app: &mut App) {
         rlabel(ui, lw, "Notes");
         changed |= ui.add(egui::TextEdit::multiline(&mut m.notes).desired_rows(3).desired_width(aw - lw - sp + 8.0)).changed(); ui.end_row();
     });
+    ui.add_space(8.0);
+    ui.weak("Your own G-code");
+    ui.add_space(4.0);
+    egui::Grid::new("mach_code").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
+        for (lab, tip, slot) in [
+            ("Start", "Written after the setup lines (units, absolute mode, work offset) and before the first tool is chosen: a warm-up, a probe, an M-code. One command per line.", &mut m.start_code),
+            ("End", "Written at the very end, after the spindle stops and the tool returns to X0 Y0, just before the program ends: park the tool, switch on a dust shoe or light. One command per line.", &mut m.end_code),
+        ] {
+            rlabel(ui, lw, lab);
+            let mut s = slot.clone().unwrap_or_default();
+            let r = ui.add(egui::TextEdit::multiline(&mut s).code_editor().desired_rows(3).desired_width(aw - lw - sp + 8.0).hint_text(if lab == "Start" { "e.g. M3 S8000" } else { "e.g. G53 G0 X0 Y200" })).on_hover_text(tip);
+            if r.changed() { *slot = if s.trim().is_empty() { None } else { Some(s) }; changed = true; }
+            ui.end_row();
+        }
+    });
+    ui.add_space(2.0);
+    ui.add(egui::Label::new(egui::RichText::new("Added as typed. The time estimate and the 3D preview ignore any moves in these lines.").small().weak()).wrap(true));
     if changed {
         if let Some(slot) = app.machines.get_mut(&app.mach_sel) { *slot = m; }
         app.mach_msg.clear();
