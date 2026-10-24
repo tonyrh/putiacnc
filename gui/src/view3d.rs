@@ -52,7 +52,7 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], total: 0.0, t: 0.0,
-            playing: false, speed_idx: 3, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
+            playing: false, speed_idx: 2, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
 
