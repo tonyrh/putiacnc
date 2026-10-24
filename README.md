@@ -86,6 +86,10 @@ development files (`libssl-dev` / `openssl-devel`) for the update check.
     cargo run --release -p putiacnc-gui
     cargo run --release -p putiacnc-gui -- path/to/project.json
 
+`packaging/install.sh` installs a source build for the current user (program in `~/.local/bin`, a menu entry
+and the icons; `--uninstall` removes them). It is worth running on Wayland (Hyprland, Sway, GNOME): there
+the window cannot carry its own icon, so taskbars and launchers find it through the menu entry.
+
 The binary is called `putiacnc`. Tool and machine libraries are stored per user:
 `~/.config/putiacnc` on Linux (or `$XDG_CONFIG_HOME/putiacnc`), `%APPDATA%\PutiaCNC` on Windows,
 `~/Library/Application Support/PutiaCNC` on macOS. Set `PUTIACNC_CONFIG_DIR` to use another folder.
