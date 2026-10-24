@@ -167,7 +167,7 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     let mut open = true;
     let mut close = false;
     egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(true)
-        .default_size([880.0, 520.0]).min_width(760.0)
+        .default_size([925.0, 540.0]).min_width(925.0).max_width(925.0).min_height(340.0)
         .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center())
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Tool library", true) { close = true; }
@@ -197,9 +197,9 @@ fn body(ui: &mut Ui, app: &mut App) {
     // the list column is as tall as the form next to it (measured last frame), so its buttons stay at the bottom
     let fid = egui::Id::new("tool_form_h");
     let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(370.0).max(370.0);
-    crate::csd::scroll(ui, 250.0, |ui| {
+    crate::csd::scroll_fill(ui, 100.0, |ui| {
         ui.horizontal_top(|ui| {
-            ui.allocate_ui_with_layout(egui::vec2(270.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
+            ui.allocate_ui_with_layout(egui::vec2(305.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
             // fixed-height divider (ui.separator() would stretch to the whole available height and make the window grow)
             let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
             ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);

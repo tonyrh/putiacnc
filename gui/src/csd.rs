@@ -182,3 +182,10 @@ pub fn scroll<R>(ui: &mut Ui, reserve: f32, add: impl FnOnce(&mut Ui) -> R) -> R
     let h = (ui.ctx().screen_rect().height() - reserve).max(160.0);
     egui::ScrollArea::vertical().max_height(h).auto_shrink([false, true]).show(ui, add).inner
 }
+
+/// Like `scroll`, but fills the dialog: the dialog's own height (which the user can drag) decides
+/// how much is shown. `footer` is the height of what is pinned below it.
+pub fn scroll_fill<R>(ui: &mut Ui, footer: f32, add: impl FnOnce(&mut Ui) -> R) -> R {
+    let h = (ui.available_height() - footer).clamp(120.0, (ui.ctx().screen_rect().height() - 140.0).max(160.0));
+    egui::ScrollArea::vertical().max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show(ui, add).inner
+}

@@ -117,7 +117,7 @@ pub fn machine_manager(ctx: &egui::Context, app: &mut App) {
     let mut open = true;
     let mut close = false;
     egui::Window::new("Machines").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(true)
-        .default_size([760.0, 430.0]).min_width(700.0)
+        .default_size([770.0, 520.0]).min_width(770.0).max_width(770.0).min_height(320.0)
         .pivot(egui::Align2::CENTER_CENTER).default_pos(ctx.screen_rect().center())
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Machines", true) { close = true; }
@@ -137,7 +137,7 @@ fn body(ui: &mut Ui, app: &mut App) {
     // the list and the divider are as tall as the form next to it (measured last frame)
     let fid = egui::Id::new("mach_form_h");
     let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(300.0).max(300.0);
-    crate::csd::scroll(ui, 250.0, |ui| {
+    crate::csd::scroll_fill(ui, 100.0, |ui| {
         ui.horizontal_top(|ui| {
             ui.allocate_ui_with_layout(egui::vec2(200.0, h), Layout::top_down(Align::LEFT), |ui| list(ui, app, h));
             let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
