@@ -381,6 +381,20 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
     }
 
+    // which operation and pass the replay is on
+    if let (Some(o), Some(sim)) = (&app.output, app.v3.sim.as_ref()) {
+        let cur = sim.done.saturating_sub(1).min(o.moves.len().saturating_sub(1));
+        if let Some(m) = o.moves.get(cur) {
+            let passes = o.moves.iter().filter(|x| x.op == m.op).map(|x| x.pass).max().unwrap_or(0);
+            let name = app.project.data.ops.get(m.op).map(|op| crate::panels::KINDS.iter().find(|(k, _)| *k == op.p.kind).map_or(op.p.kind.as_str(), |(_, n)| *n)).unwrap_or("");
+            let txt = if m.pass > 0 && passes > 0 { format!("Operation {} · {}  ·  Pass {} of {}", m.op + 1, name, m.pass, passes) } else { format!("Operation {} · {}", m.op + 1, name) };
+            let g = painter.layout_no_wrap(txt, FontId::proportional(13.0), Color32::WHITE);
+            let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 10.0), g.size() + Vec2::new(18.0, 10.0));
+            painter.rect_filled(r, 6.0, Color32::from_black_alpha(150));
+            painter.galley(r.min + Vec2::new(9.0, 5.0), g, Color32::WHITE);
+        }
+    }
+
     if app.v3.catching_up {
         let total = app.output.as_ref().map_or(1, |o| o.moves.len()).max(1);
         let pct = (app.v3.sim.as_ref().map_or(0, |s| s.done) * 100 / total).min(99);
