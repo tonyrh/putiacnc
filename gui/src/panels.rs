@@ -426,7 +426,7 @@ fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f64, f64), a
 
 /// The small round-arrow button that puts a field back to its default: a real button with the usual padding.
 fn reset_button(ui: &mut Ui, tip: &str) -> bool {
-    ui.add_sized([26.0, 24.0], egui::Button::new("↺")).on_hover_text(tip).clicked()
+    ui.add_sized([26.0, ui.spacing().interact_size.y], egui::Button::new("↺")).on_hover_text(tip).clicked()
 }
 
 /// The imported files (drawings and the 3D model) with their position and size, and what can be done with them.
