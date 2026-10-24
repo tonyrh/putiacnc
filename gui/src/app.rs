@@ -347,6 +347,7 @@ impl App {
             d.act = id;
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
+        if let Ok(v) = std::env::var("PUTIACNC_SELECT") { a.sel = v.split(',').filter_map(|s| s.parse().ok()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_SHORTCUTS").is_some() { a.shortcuts_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ABOUT").is_some() { a.about_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ARRAY").is_some() { a.array.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
