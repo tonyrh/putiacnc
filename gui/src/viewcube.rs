@@ -109,7 +109,9 @@ fn inside(q: &[Pos2; 4], p: Pos2) -> bool {
 pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let accent = app.theme.accent;
     let text = app.theme.text();
-    egui::Area::new(egui::Id::new("viewcube")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-10.0, 10.0)).show(ctx, |ui| {
+    // what the pointer is over, explained to the left of the cube (a tooltip would run over the right panel)
+    let mut tip: Option<&'static str> = None;
+    let shown = egui::Area::new(egui::Id::new("viewcube")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-10.0, 10.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(6.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
             let (area, resp) = ui.allocate_exact_size(Vec2::new(SIZE, SIZE), Sense::click_and_drag());
@@ -148,11 +150,15 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     ctx.request_repaint();
                 }
             }
-            resp.on_hover_text("Click a face, edge or corner to look from there. Drag to orbit.");
+            if resp.hovered() && !dragging { tip = Some("Click a face, an edge or a corner to look from there. Drag the cube to orbit."); }
             ui.horizontal(|ui| {
                 let label = if app.v3.ortho { "Ortho" } else { "Persp." };
-                if ui.selectable_label(app.v3.ortho, label).on_hover_text("Switch between a perspective view and an orthographic one, where parallel lines stay parallel and sizes do not shrink with distance").clicked() { app.v3.ortho = !app.v3.ortho; }
-                if ui.button("Fit").on_hover_text("Zoom to fit the stock from this angle").clicked() {
+                let r = ui.selectable_label(app.v3.ortho, label);
+                if r.hovered() { tip = Some("Perspective or orthographic: in orthographic, parallel lines stay parallel and sizes do not shrink with distance."); }
+                if r.clicked() { app.v3.ortho = !app.v3.ortho; }
+                let r = ui.button("Fit");
+                if r.hovered() { tip = Some("Zoom to fit the stock from this angle."); }
+                if r.clicked() {
                     let stk = &app.project.data.stock;
                     let asp = rect.width() / rect.height().max(1.0);
                     let dist = fit_dist(app.v3.yaw, app.v3.pitch, stk, asp, app.v3.ortho);
@@ -162,6 +168,14 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             });
         });
     });
+    if let Some(t) = tip {
+        egui::Area::new(egui::Id::new("viewcube_tip")).order(egui::Order::Tooltip).pivot(egui::Align2::RIGHT_TOP).fixed_pos(shown.response.rect.left_top() + Vec2::new(-8.0, 0.0)).interactable(false).show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 7.0)).show(ui, |ui| {
+                ui.set_max_width(210.0);
+                ui.label(t);
+            });
+        });
+    }
 }
 
 #[cfg(test)]
