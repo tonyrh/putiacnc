@@ -59,14 +59,18 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                         ui.set_width(ui.available_width());
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new("\u{26a0}").color(RED));
-                            ui.label(egui::RichText::new(f.kind.title()).strong());
+                            ui.label(egui::RichText::new(f.kind.title()).strong().size(19.0));
                             if f.count > 1 { ui.weak(format!("({} moves)", f.count)); }
                         });
+                        ui.add_space(2.0);
                         ui.add(egui::Label::new(&f.msg).wrap(true));
+                        ui.add_space(8.0);
                         ui.horizontal(|ui| {
-                            if f.mv.is_some() && ui.small_button("Show in 3D").on_hover_text("Jump the preview to the first move that does it").clicked() { show = Some(i); }
-                            if f.op.is_some() && ui.small_button("Go to operation").clicked() { goto = Some(i); }
+                            ui.spacing_mut().item_spacing.x = 8.0;
+                            if f.mv.is_some() && crate::panels::dlg_button(ui, crate::icons::Icon::Fit, "Show in 3D", None, None, false).on_hover_text("Jump the preview to the first move that does it").clicked() { show = Some(i); }
+                            if f.op.is_some() && crate::panels::dlg_button(ui, crate::icons::Icon::ChevR, "Go to operation", None, None, false).clicked() { goto = Some(i); }
                         });
+                        ui.add_space(4.0);
                     });
                 }
             });
