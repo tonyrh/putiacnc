@@ -1199,22 +1199,22 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
-    let hint = if app.node_edit.is_some() { "Drag a point to move it, click an edge to add one, drag a box to select several. Del removes the selected points, arrows nudge them. Esc or Done finishes." } else if app.tab_edit.is_some() { "Click on an outline to add a tab. Drag a tab to move it, right-click it to remove. Esc or Done finishes." } else { match app.mode {
-        Mode::Select => "Click or box-select, drag to move, drag the handles to resize (Shift keeps proportions, Alt scales from the centre). Click a selected shape again to rotate it. Double-click or N edits points. Del deletes. Drag the 3D model to move it. Middle/right-drag pans.",
-        Mode::Node => "Click a shape to edit its points.",
-        Mode::Line => "Click points. Double-click, Enter or right-click ends. Click the first point or press C to close. Esc cancels.",
-        Mode::Rect => "Drag to draw a rectangle. Hold Shift for a square.",
-        Mode::Ellipse => if app.circle_mode { "Drag from the centre: the distance is the radius. Or just type: centre X, Y and the size." } else { "Drag a bounding box. Hold Shift for a circle." },
-        Mode::Point => "Click to place a drill point, or choose Grid and drag a box for columns x rows of holes, or Bolt circle and drag from the centre: the distance sets the radius, the first hole follows the pointer (Shift = straight up). Sweep below 360° makes an arc of holes (negative = clockwise). Or type the position (grid: corner and size; bolt circle: centre, radius, angle). Assign the points to a Drill operation. Esc finishes.",
-        Mode::Polygon => "Drag from the centre: the first corner follows the pointer, the distance sets the size. Hold Shift to point it straight up. Sides, star and inner radius are set in the bar above. Or type: centre X, Y, radius and angle.",
-        Mode::Text => "Type the text in the Text window. Click the drawing where it should start, or type X and Y there.",
-        Mode::Trim => if app.trim_extend { "Click near the end of an open line: it runs on in a straight line to the first shape it meets." } else { "Click the part of a shape you want to remove: it goes up to the nearest crossing on each side (shown in red). A closed shape needs two crossings." },
+    let hint = if app.node_edit.is_some() { "Drag a point \u{b7} click an edge to add one \u{b7} Del removes" } else if app.tab_edit.is_some() { "Click an outline to add a tab \u{b7} right-click removes one" } else { match app.mode {
+        Mode::Select => "Click or box-select \u{b7} drag to move \u{b7} handles resize",
+        Mode::Node => "Click a shape to edit its points",
+        Mode::Line => "Click points \u{b7} Enter ends \u{b7} C closes \u{b7} Esc cancels",
+        Mode::Rect => "Drag to draw a rectangle \u{b7} Shift for a square",
+        Mode::Ellipse => if app.circle_mode { "Drag from the centre \u{b7} or type centre X, Y and size" } else { "Drag a bounding box \u{b7} Shift for a circle" },
+        Mode::Point => "Click to place a drill point \u{b7} Grid and Bolt circle above",
+        Mode::Polygon => "Drag from the centre \u{b7} Shift points it up \u{b7} sides above",
+        Mode::Text => "Type the text, then click where it starts",
+        Mode::Trim => if app.trim_extend { "Click near an open end to run it on to the next shape" } else { "Click the part to remove, up to the nearest crossings" },
     } };
     if app.trace.open || app.clean.open { return; } // a dialog covers that part of the canvas
-    let hint = if app.dyn_in.is_some() { "Typing values: Enter confirms, Tab moves to the next field, Esc cancels. Empty fields follow the pointer." } else { hint };
+    let hint = if app.dyn_in.is_some() { "Typing values: Enter confirms \u{b7} Tab next field \u{b7} Esc cancels" } else { hint };
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
-        ui.label(egui::RichText::new(hint).weak());
+        ui.add(egui::Label::new(egui::RichText::new(hint).weak()).truncate(true));
     });
 }
 
