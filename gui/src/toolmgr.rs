@@ -221,13 +221,29 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
     let lib = app.tool_libs.current().clone();
     let mut pick: Option<String> = None;
     let mut toggles: Vec<(String, bool)> = Vec::new();   // groups the user clicked: (key, now open)
-    egui::ScrollArea::vertical().id_source("toollist").max_height(h - 44.0).auto_shrink([false, false]).show(ui, |ui| {
+    ui.horizontal(|ui| {
+        let clear_w = if app.tool_query.is_empty() { 0.0 } else { 56.0 };
+        let r = ui.add(egui::TextEdit::singleline(&mut app.tool_query).hint_text("Search tools (name, type, size)").desired_width(ui.available_width() - clear_w - 6.0));
+        if r.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) { app.tool_query.clear(); }
+        if !app.tool_query.is_empty() && ui.button("Clear").clicked() { app.tool_query.clear(); }
+    });
+    ui.add_space(4.0);
+    let words: Vec<String> = app.tool_query.to_lowercase().replace('\u{2033}', "\"").split_whitespace().map(|s| s.to_string()).collect();
+    let searching = !words.is_empty();
+    let matches = |t: &putiacnc_core::model::Tool| -> bool {
+        if !searching { return true; }
+        let hay = format!("{} {} {} {} {} {}", t.name, shape_label(&t.shape), toollib::category(&t.shape).1, toollib::fmt_dia(t.dia, &t.sys, false), t.dia, t.notes).to_lowercase().replace('\u{2033}', "\"");
+        words.iter().all(|w| hay.contains(w.as_str()))
+    };
+    let mut shown = 0usize;
+    egui::ScrollArea::vertical().id_source("toollist").max_height(h - 44.0 - 30.0).auto_shrink([false, false]).show(ui, |ui| {
         for (sys, label) in groups {
-            let g: Vec<_> = lib.tools.iter().filter(|t| t.sys == sys).collect();
+            let g: Vec<_> = lib.tools.iter().filter(|t| t.sys == sys && matches(t)).collect();
+            shown += g.len();
             if g.is_empty() { continue; }
             // a group the user opened or closed stays that way (also after a restart); the others start open only around the selected tool
             let ukey = format!("{}|{}", lib.id, sys);
-            let unit_open = app.prefs.tool_groups.get(&ukey).copied().unwrap_or_else(|| g.iter().any(|t| t.id == app.tool_sel));
+            let unit_open = searching || app.prefs.tool_groups.get(&ukey).copied().unwrap_or_else(|| g.iter().any(|t| t.id == app.tool_sel));
             let ur = egui::CollapsingHeader::new(egui::RichText::new(format!("{label}  ({})", g.len())).strong())
                 .id_source(("tgrp", lib.id.clone(), sys)).open(Some(unit_open)).show(ui, |ui| {
             let mut kinds: Vec<(usize, &str)> = g.iter().map(|t| toollib::category(&t.shape)).collect();
@@ -236,7 +252,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
               let n = g.iter().filter(|t| toollib::category(&t.shape).0 == ko).count();
               let has_sel = g.iter().any(|t| t.id == app.tool_sel && toollib::category(&t.shape).0 == ko);
               let tkey = format!("{}|{}|{}", lib.id, sys, ko);
-              let type_open = app.prefs.tool_groups.get(&tkey).copied().unwrap_or(has_sel);
+              let type_open = searching || app.prefs.tool_groups.get(&tkey).copied().unwrap_or(has_sel);
               let tr = egui::CollapsingHeader::new(egui::RichText::new(format!("{kname}  ({n})")).small().weak())
                 .id_source(("tgrp", lib.id.clone(), sys, ko)).open(Some(type_open)).show(ui, |ui| {
                 for t in g.iter().filter(|t| toollib::category(&t.shape).0 == ko).copied() {
@@ -268,12 +284,13 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                   if resp.clicked() { pick = Some(t.id.clone()); }
                 }
               });
-              if tr.header_response.clicked() { toggles.push((tkey, !type_open)); }
+              if tr.header_response.clicked() && !searching { toggles.push((tkey, !type_open)); }
             }
             });
-            if ur.header_response.clicked() { toggles.push((ukey, !unit_open)); }
+            if ur.header_response.clicked() && !searching { toggles.push((ukey, !unit_open)); }
             ui.add_space(6.0);
         }
+        if searching && shown == 0 { ui.add_space(6.0); ui.weak("No tool in this library matches."); }
     });
     let _ = dark;
     for (k, v) in toggles { app.prefs.tool_groups.insert(k, v); }

@@ -275,6 +275,8 @@ pub struct App {
     // tool manager
     pub tool_libs: putiacnc_core::toollib::ToolLibs,
     pub tools_open: bool,
+    /// Words typed in the tool manager's search box.
+    pub tool_query: String,
     pub tool_sel: String,
     pub tool_msg: String,
     pub tool_len_in: bool,
@@ -307,7 +309,7 @@ impl App {
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
-            tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_sel: String::new(), tool_msg: String::new(),
+            tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
             tool_len_in: false, tool_speed_idx: 0, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
             mach_len_in: false, mach_speed_idx: 0, confirm_mach_del: false, machines_dirty: false,
@@ -322,6 +324,7 @@ impl App {
         if std::env::var("PUTIACNC_VIEW").map_or(false, |v| v == "3d") { a.view_tab = crate::view3d::ViewTab::Preview; }
         if let Ok(f) = std::env::var("PUTIACNC_PLAY") { a.v3.init_frac = f.parse().ok(); }
         if std::env::var_os("PUTIACNC_SHOW_TOOLS").is_some() { a.tools_open = true; }
+        if let Ok(q) = std::env::var("PUTIACNC_TOOL_QUERY") { a.tool_query = q; }
         if std::env::var_os("PUTIACNC_SHOW_MACHINES").is_some() { a.machines_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_UPDATE").is_some() { a.updater.open = true; a.updater.check(false); }
         else if a.updater.auto { a.updater.check(true); }
