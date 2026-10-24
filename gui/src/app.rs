@@ -50,6 +50,8 @@ pub enum Drag {
     Rotate { pivot: [f64; 2], a0: f64, orig: Vec<(usize, putiacnc_core::model::LoopData)>, tabs0: Vec<(usize, usize, [f64; 2])>, total: f64 },
     /// Dragging the centre of rotation.
     Pivot,
+    /// Moving clamp `idx`: where the pointer and the clamp's lower-left corner were at the start.
+    Clamp { idx: usize, start: [f64; 2], orig: [f64; 2] },
     /// Moving the imported 3D model: where the pointer and the model's lower-left corner were at the start.
     Relief { start: [f64; 2], orig: [f64; 2] },
 }

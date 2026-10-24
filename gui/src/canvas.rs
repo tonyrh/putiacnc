@@ -93,6 +93,14 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     if dx != 0.0 || dy != 0.0 { app.nudge(dx, dy); }
 }
 
+/// The clamp under `w`, unless a drawing shape is there (shapes win: their edge, or the inside of a selected one).
+fn clamp_at(app: &App, w: [f64; 2], tol: f64) -> Option<usize> {
+    let d = &app.project.data;
+    let on_shape = d.loops.iter().any(|l| shapes::dist_to_loop(l, w) <= tol) || app.sel.iter().any(|&i| d.loops.get(i).is_some_and(|l| shapes::point_in_loop(l, w)));
+    if on_shape { return None; }
+    d.clamps.iter().rposition(|c| w[0] >= c.x && w[0] <= c.x + c.w && w[1] >= c.y && w[1] <= c.y + c.h)
+}
+
 pub fn canvas(ui: &mut Ui, app: &mut App) {
     let ctx = ui.ctx().clone();
     let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
@@ -131,6 +139,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let hover_w = resp.hover_pos().map(|p| view.s2w(p));
     let shift = ctx.input(|i| i.modifiers.shift);
     let tol = 6.0 / app.scale as f64;
+    let mut clamp_hot: Option<usize> = None;
     let prim = PointerButton::Primary;
     // object snap: ten pixels of reach, never to the shapes that are being moved or edited
     app.snap_tol_mm = 10.0 / app.scale as f64;
@@ -198,6 +207,11 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                             app.drag = if app.sel_locked() { Drag::None } else { Drag::Move { start: w, anchor: [b[0], b[1]], applied: [0.0, 0.0] } };
                         }
                         // empty space over the 3D model drags the model (Shift box-selects instead)
+                        None if !shift && clamp_at(app, w, tol).is_some() => {
+                            let idx = clamp_at(app, w, tol).unwrap_or(0);
+                            let cl = &app.project.data.clamps[idx];
+                            app.drag = Drag::Clamp { idx, start: w, orig: [cl.x, cl.y] };
+                        }
                         None => {
                             let over_model = app.project.data.relief.as_ref().filter(|_| !shift).filter(|r| { let (mw, mh) = r.size(); w[0] >= r.x && w[0] <= r.x + mw && w[1] >= r.y && w[1] <= r.y + mh }).map(|r| [r.x, r.y]);
                             app.drag = match over_model { Some(orig) => Drag::Relief { start: w, orig }, None => Drag::Box { start: w } };
@@ -239,6 +253,15 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     if moved {
                         app.hist.record_once(&app.project.data);
                         if let Some(r) = app.project.data.relief.as_mut() { r.x = t[0]; r.y = t[1]; }
+                        app.touch();
+                    }
+                }
+                if let (Drag::Clamp { idx, start, orig }, Some(cur)) = (&app.drag, pointer_w) {
+                    let (idx, t) = (*idx, app.snap([orig[0] + cur[0] - start[0], orig[1] + cur[1] - start[1]]));
+                    let moved = app.project.data.clamps.get(idx).is_some_and(|c| (c.x - t[0]).abs() > 1e-9 || (c.y - t[1]).abs() > 1e-9);
+                    if moved {
+                        app.hist.record_once(&app.project.data);
+                        if let Some(c) = app.project.data.clamps.get_mut(idx) { c.x = t[0]; c.y = t[1]; }
                         app.touch();
                     }
                 }
@@ -416,6 +439,11 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
         else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot | Drag::Relief { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
+        else if let Drag::Clamp { idx, .. } = &app.drag { clamp_hot = Some(*idx); ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
+        else if matches!(app.drag, Drag::None) && resp.hovered() && hover_w.and_then(|w| clamp_at(app, w, tol)).is_some() {
+            clamp_hot = hover_w.and_then(|w| clamp_at(app, w, tol));
+            ctx.set_cursor_icon(egui::CursorIcon::Grab);
+        }
         else if matches!(app.drag, Drag::None) {
             let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
             if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.latest_pos()), sel_bb) {
@@ -462,7 +490,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     for (i, c) in d.clamps.iter().enumerate() {
         let r = Rect::from_two_pos(to_s([c.x, c.y]), to_s([c.x + c.w, c.y + c.h]));
         painter.rect_filled(r, 2.0, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 55));
-        painter.rect_stroke(r, 2.0, Stroke::new(1.5_f32, Color32::from_rgb(0xe0, 0x1b, 0x24)));
+        painter.rect_stroke(r, 2.0, Stroke::new(if clamp_hot == Some(i) { 3.0_f32 } else { 1.5_f32 }, Color32::from_rgb(0xe0, 0x1b, 0x24)));
         painter.line_segment([r.left_top(), r.right_bottom()], Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 120)));
         painter.line_segment([r.right_top(), r.left_bottom()], Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 120)));
         painter.text(r.center_top() + egui::vec2(0.0, -3.0), egui::Align2::CENTER_BOTTOM, format!("Clamp {}", i + 1), egui::TextStyle::Small.resolve(ui.style()), Color32::from_rgb(0xe0, 0x1b, 0x24));
