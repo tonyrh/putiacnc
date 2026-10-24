@@ -424,6 +424,11 @@ fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f64, f64), a
     if moved || sized { Some([x + zero.0, y + zero.1, w, h]) } else { None }
 }
 
+/// The small round-arrow button that puts a field back to its default: a real button with the usual padding.
+fn reset_button(ui: &mut Ui, tip: &str) -> bool {
+    ui.add_sized([26.0, 24.0], egui::Button::new("↺")).on_hover_text(tip).clicked()
+}
+
 /// The imported files (drawings and the 3D model) with their position and size, and what can be done with them.
 fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel: &std::collections::BTreeSet<usize>, act: &mut Option<(Option<i64>, GroupAct)>, changed: &mut bool) {
     // forget drawings whose shapes are all gone
@@ -806,7 +811,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if dv_w(ui, 48.0, &mut p.depth, 0.01, 1000.0, "") { p.d_man = true; changed = true; }
                         ui.weak("mm");
                         if p.d_man {
-                            if ui.small_button("↺").on_hover_text("Follow the model's height again").clicked() { p.d_man = false; changed = true; }
+                            if reset_button(ui, "Follow the model's height again") { p.d_man = false; changed = true; }
                             ui.weak("typed in");
                         } else {
                             match model_h {
@@ -858,7 +863,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.weak("mm");
                                 let n = ((p.depth / p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001)) - 1e-9).ceil().max(1.0) as usize;
                                 ui.weak(format!("{n} layer{}", if n == 1 { "" } else { "s" }));
-                                if p.pass_depth.is_some() && ui.small_button("↺").on_hover_text("Use the tool's pass depth").clicked() { p.pass_depth = None; changed = true; }
+                                if p.pass_depth.is_some() && reset_button(ui, "Use the tool's pass depth") { p.pass_depth = None; changed = true; }
                             });
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = sp;
@@ -866,7 +871,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 let mut v = p.r_so.or(tool_so).unwrap_or(40.0);
                                 if dv_w(ui, 48.0, &mut v, 1.0, 100.0, "") { p.r_so = Some(v); changed = true; }
                                 ui.weak("%");
-                                if p.r_so.is_some() && ui.small_button("↺").on_hover_text("Use the tool's stepover").clicked() { p.r_so = None; changed = true; }
+                                if p.r_so.is_some() && reset_button(ui, "Use the tool's stepover") { p.r_so = None; changed = true; }
                             });
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = sp;
@@ -899,7 +904,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 if dv_w(ui, 48.0, &mut v, 1.0, 100.0, "") { p.f_so = Some(v); changed = true; }
                                 ui.weak("%");
                                 ui.weak("of the tool diameter");
-                                if p.f_so.is_some() && ui.small_button("↺").on_hover_text("Use the tool's stepover").clicked() { p.f_so = None; changed = true; }
+                                if p.f_so.is_some() && reset_button(ui, "Use the tool's stepover") { p.f_so = None; changed = true; }
                             });
                         }
                     });
@@ -968,7 +973,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         // the row fills the panel: both fields share what the fixed parts leave over
-                        let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, "mm"), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 22.0);
+                        let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, "mm"), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 28.0);
                         // short fields; whatever width is left is shared out as gaps between the three groups
                         let fw = 42.0;
                         let fixed = l1 + w_pass + 2.0 * w_mm + 2.0 * fw + w_cnt + w_rst + 7.0 * sp;
@@ -986,7 +991,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.weak("mm");
                         ui.add_space(gap - sp.min(gap));
                         ui.allocate_ui_with_layout(egui::vec2(w_rst, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                            if p.pass_depth.is_some() && ui.small_button("↺").on_hover_text("Use the tool's pass depth").clicked() { p.pass_depth = None; changed = true; }
+                            if p.pass_depth.is_some() && reset_button(ui, "Use the tool's pass depth") { p.pass_depth = None; changed = true; }
                         });
                         let pd = p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001);
                         let n = ((p.depth / pd) - 1e-9).ceil().max(1.0) as usize;
