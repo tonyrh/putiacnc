@@ -225,7 +225,7 @@ fn guides_menu(ui: &mut Ui, app: &mut App) {
                 });
             });
         let outside = ui.input(|i| i.pointer.any_click()) && !resp.clicked()
-            && ui.input(|i| i.pointer.interact_pos()).map_or(false, |p| !area.response.rect.contains(p));
+            && ui.input(|i| i.pointer.interact_pos()).is_some_and(|p| !area.response.rect.contains(p));
         if outside || ui.input(|i| i.key_pressed(egui::Key::Escape)) { open_now = false; }
     }
     if open_now != open { ui.data_mut(|d| d.insert_temp(id, open_now)); ui.ctx().request_repaint(); }
@@ -238,7 +238,7 @@ pub fn dlg_button(ui: &mut Ui, icon: Icon, text: &str, fill: Option<Color32>, fg
     let galley = ui.painter().layout_no_wrap(text.to_string(), font, Color32::PLACEHOLDER);
     let size = egui::vec2(padx * 2.0 + icon_w + gap + galley.size().x, 32.0);
     let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::click());
-    let v = ui.style().interact(&resp).clone();
+    let v = *ui.style().interact(&resp);
     let (bg, stroke, col) = match (fill, fg) {
         (Some(f), Some(c)) => {
             let hot = resp.hovered() || resp.is_pointer_button_down_on();
@@ -402,7 +402,7 @@ enum GroupAct { Delete, EditText, ToOutlines }
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
 /// `zero` is the XY zero of the stock: X and Y are shown (and typed) relative to it, like the rulers.
 fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f64, f64), aspect_fixed: bool, fit: &mut bool, mut lock: Option<&mut bool>) -> Option<[f64; 4]> {
-    let locked = lock.as_ref().map_or(false, |l| **l);
+    let locked = lock.as_ref().is_some_and(|l| **l);
     let (mut x, mut y, mut w, mut h) = (b[0] - zero.0, b[1] - zero.1, b[2] - b[0], b[3] - b[1]);
     let keep_id = key.with("keep");
     let mut keep = aspect_fixed || ui.data(|d| d.get_temp::<bool>(keep_id)).unwrap_or(true);
@@ -421,7 +421,7 @@ fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f64, f64), a
     ui.add_space(8.0);
     ui.horizontal(|ui| {
         if !aspect_fixed && ui.add_enabled(!locked, egui::Checkbox::new(&mut keep, "Keep proportions")).changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
-        if let Some(l) = lock.as_mut() { ui.checkbox(*l, "Lock").on_hover_text("Stops this drawing being moved, resized, rotated or flipped by accident"); }
+        if let Some(l) = lock.as_mut() { ui.checkbox(l, "Lock").on_hover_text("Stops this drawing being moved, resized, rotated or flipped by accident"); }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
             if ui.add_enabled(!locked, egui::Button::new("Fit to stock")).on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
@@ -1021,7 +1021,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.label(if p.kind == "drill" { "Peck" } else { "Pass" });
                         let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
                         if dv_w(ui, fw, &mut v, 0.01, 1000.0, "") {
-                            p.pass_depth = if tool_pd.map_or(false, |t| (t - v).abs() < 1e-9) { None } else { Some(v) };
+                            p.pass_depth = if tool_pd.is_some_and(|t| (t - v).abs() < 1e-9) { None } else { Some(v) };
                             changed = true;
                         }
                         ui.weak("mm");

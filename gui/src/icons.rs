@@ -218,7 +218,7 @@ pub fn icon_text_button(ui: &mut Ui, icon: Icon, text: &str, tip: &str, width: O
     let content_w = icon_w + 6.0 + galley.size().x;
     let size = Vec2::new(width.unwrap_or(0.0).max(pad.x * 2.0 + content_w), ui.spacing().interact_size.y.max(galley.size().y + 2.0 * pad.y));
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-    let v = ui.style().interact(&resp).clone();
+    let v = *ui.style().interact(&resp);
     ui.painter().rect(rect, v.rounding, v.bg_fill, v.bg_stroke);
     paint_icon(ui.painter(), icon, Pos2::new(rect.center().x - content_w / 2.0 + icon_w / 2.0, rect.center().y), v.fg_stroke.color, 0.6);
     ui.painter().galley(Pos2::new(rect.center().x - content_w / 2.0 + icon_w + 6.0, rect.center().y - galley.size().y / 2.0), galley, v.fg_stroke.color);

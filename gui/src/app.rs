@@ -125,7 +125,7 @@ impl History {
         for i in drop.into_iter().rev() { self.undo.remove(i); }
     }
 
-    fn find(list: &[Entry], s: Scope) -> Option<usize> { list.iter().rposition(|e| e.kind.map_or(true, |k| k.matches(s))) }
+    fn find(list: &[Entry], s: Scope) -> Option<usize> { list.iter().rposition(|e| e.kind.is_none_or(|k| k.matches(s))) }
     pub fn can_undo(&self, s: Scope) -> bool { Self::find(&self.undo, s).is_some() }
     pub fn can_redo(&self, s: Scope) -> bool { Self::find(&self.redo, s).is_some() }
 }
@@ -321,7 +321,7 @@ impl App {
         a.modified = false;
         if let Ok(h) = std::env::var("PUTIACNC_HIDE") { a.show_left = !h.contains("left"); a.show_right = !h.contains("right"); }
         if std::env::var_os("PUTIACNC_SHOW_CONFIRM").is_some() { a.modified = true; a.pending = Some(Action::Quit); }
-        if std::env::var("PUTIACNC_VIEW").map_or(false, |v| v == "3d") { a.view_tab = crate::view3d::ViewTab::Preview; }
+        if std::env::var("PUTIACNC_VIEW").is_ok_and(|v| v == "3d") { a.view_tab = crate::view3d::ViewTab::Preview; }
         if let Ok(f) = std::env::var("PUTIACNC_PLAY") { a.v3.init_frac = f.parse().ok(); }
         if std::env::var_os("PUTIACNC_SHOW_TOOLS").is_some() { a.tools_open = true; }
         if let Ok(q) = std::env::var("PUTIACNC_TOOL_QUERY") { a.tool_query = q; }
@@ -357,11 +357,11 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_POLYGON").is_some() {
             a.poly_star = true;
-            for l in [shapes::new_polygon([50.0, 75.0], 25.0, 1.5708, 6, None, 0), shapes::new_polygon([130.0, 75.0], 30.0, 1.5708, 5, Some(0.5), 0)].into_iter().flatten() { a.add_loop(l); }
-            if std::env::var("PUTIACNC_POLYGON").map_or(false, |v| v == "ring") {
+            for l in [shapes::new_polygon([50.0, 75.0], 25.0, std::f64::consts::FRAC_PI_2, 6, None, 0), shapes::new_polygon([130.0, 75.0], 30.0, std::f64::consts::FRAC_PI_2, 5, Some(0.5), 0)].into_iter().flatten() { a.add_loop(l); }
+            if std::env::var("PUTIACNC_POLYGON").is_ok_and(|v| v == "ring") {
                 a.project.data.loops.extend(shapes::bolt_circle([100.0, 60.0], 30.0, 0.0, 5, 240.0, 0));
                 a.mode = Mode::Point; a.point_grid = true; a.project.data.loops.extend(shapes::point_grid([40.0, 30.0], [120.0, 60.0], 5, 3, 0));
-            } else if std::env::var("PUTIACNC_POLYGON").map_or(false, |v| v == "point") {
+            } else if std::env::var("PUTIACNC_POLYGON").is_ok_and(|v| v == "point") {
                 for x in [30.0, 60.0, 90.0] { a.project.data.loops.push(shapes::new_point([x, 30.0], 0)); }
                 a.mode = Mode::Point;
             } else { a.mode = Mode::Polygon; }
@@ -876,7 +876,7 @@ impl App {
     /// Replaces the selected closed shapes by their union, difference, intersection or exclusion.
     /// Returns a message when nothing could be done or something was left out.
     pub fn combine_selection(&mut self, op: shapes::BoolOp, keep: bool, swap: bool) -> Option<String> {
-        let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).map_or(false, |l| l.closed())).collect();
+        let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).is_some_and(|l| l.closed())).collect();
         let open = self.sel.len() - idx.len();
         if idx.len() < 2 { return Some("Select at least two closed shapes.".into()); }
         let result = { let refs: Vec<&putiacnc_core::model::LoopData> = idx.iter().map(|&i| &self.project.data.loops[i]).collect(); shapes::combine(&refs, op, swap) };
@@ -902,7 +902,7 @@ impl App {
     /// True when this shape belongs to a locked imported drawing.
     pub fn loop_locked(&self, i: usize) -> bool {
         let d = &self.project.data;
-        d.loops.get(i).and_then(|l| l.grp).map_or(false, |g| d.groups.iter().any(|x| x.id == g && x.locked))
+        d.loops.get(i).and_then(|l| l.grp).is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.locked))
     }
 
     pub fn nudge(&mut self, dx: f64, dy: f64) {

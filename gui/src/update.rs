@@ -138,7 +138,7 @@ fn self_update_target() -> Option<PathBuf> {
 }
 
 pub fn can_self_update(r: &Release) -> bool {
-    self_update_target().is_some() && r.asset.as_ref().map_or(false, |(n, _)| n.ends_with(".AppImage"))
+    self_update_target().is_some() && r.asset.as_ref().is_some_and(|(n, _)| n.ends_with(".AppImage"))
 }
 
 fn install(url: &str, target: &std::path::Path) -> Result<(), String> {

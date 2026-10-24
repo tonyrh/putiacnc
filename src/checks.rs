@@ -83,7 +83,7 @@ pub struct Finding {
     pub msg: String,
 }
 
-fn tool_of<'a>(d: &'a ProjectData, op: usize, alt: bool) -> Option<&'a Tool> {
+fn tool_of(d: &ProjectData, op: usize, alt: bool) -> Option<&Tool> {
     let o = d.ops.get(op)?;
     let id = if alt { o.p.tool2.as_deref()? } else { o.p.tool.as_str() };
     d.tools.iter().find(|t| t.id == id)
@@ -120,8 +120,8 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
     for (i, m) in out.moves.iter().enumerate() {
         if !m.cut { continue; }
         let z = m.from[2].min(m.to[2]);
-        if let Some(d) = deepest.get_mut(m.op) { if d.map_or(true, |(v, _)| z < v) { *d = Some((z, i)); } }
-        if lowest.map_or(true, |(v, _)| z < v) { lowest = Some((z, i)); }
+        if let Some(d) = deepest.get_mut(m.op) { if d.is_none_or(|(v, _)| z < v) { *d = Some((z, i)); } }
+        if lowest.is_none_or(|(v, _)| z < v) { lowest = Some((z, i)); }
     }
     for (op, d) in deepest.iter().enumerate() {
         let Some((z, i)) = *d else { continue };

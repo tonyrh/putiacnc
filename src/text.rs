@@ -157,7 +157,7 @@ pub fn apply_affine(ls: &mut [LoopData], a: &Affine) {
             [(q[0] * S).round() as i64, (q[1] * S).round() as i64]
         }).collect();
         if flip && l.closed() && v.len() > 2 { v.reverse(); }
-        l.pts = v.into_iter().flat_map(|p| p).collect();
+        l.pts = v.into_iter().flatten().collect();
         l.rc = None; l.el = None; l.cr = None;
     }
 }
@@ -199,7 +199,7 @@ pub fn fit_affine(src: &[LoopData], now: &[&LoopData]) -> Option<(Affine, f64)> 
         let (Some(x), Some(y)) = (solve3(row(bx)), solve3(row(by))) else { continue };
         let af = Affine { m: [x[0], x[1], y[0], y[1]], t: [x[2], y[2]] };
         let res = pairs.iter().map(|(p, q)| { let r = af.apply(*p); (r[0] - q[0]).hypot(r[1] - q[1]) }).fold(0.0_f64, f64::max);
-        if best.map_or(true, |(_, r)| res < r) { best = Some((af, res)); }
+        if best.is_none_or(|(_, r)| res < r) { best = Some((af, res)); }
     }
     best
 }

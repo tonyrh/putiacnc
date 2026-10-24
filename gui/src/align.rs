@@ -97,7 +97,7 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
     if let Some((each, k)) = pick { align_selection(app, each, k); }
     // Esc, or a click outside the panel and its button, closes it
     let (esc, clicked, pos) = ctx.input(|i| (i.key_pressed(egui::Key::Escape), i.pointer.any_pressed(), i.pointer.interact_pos()));
-    let outside = pos.map_or(false, |p| !resp.response.rect.contains(p) && !btn.contains(p));
+    let outside = pos.is_some_and(|p| !resp.response.rect.contains(p) && !btn.contains(p));
     if (clicked && outside) || (esc && !ctx.wants_keyboard_input()) { app.align_open = false; }
 }
 

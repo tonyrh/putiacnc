@@ -13,7 +13,7 @@ fn air_cut_is_per_operation() {
     p.data.ops[0].p.air = true;
     let air = generate(&p.data, Units::Metric).unwrap().gcode();
     assert!((max_z(&air) - max_z(&normal) - 10.0).abs() < 1e-6);
-    assert!(air.contains("Z-1") == false || air.contains("Z9"));
+    assert!(!air.contains("Z-1") || air.contains("Z9"));
 }
 
 #[test]

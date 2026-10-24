@@ -24,7 +24,7 @@ pub fn normalize(m: &mut Machine) {
     m.y = n(m.y, 200.0);
     m.z = n(m.z, 60.0);
     if let Some(s) = m.safe { m.safe = Some(if s.is_finite() && s > 0.0 { s.min(200.0) } else { 5.0 }); }
-    for l in [&mut m.rpm_min, &mut m.rpm_max, &mut m.feed_max, &mut m.plunge_max] { if !l.map_or(true, |v| v.is_finite() && v > 0.0) { *l = None; } }
+    for l in [&mut m.rpm_min, &mut m.rpm_max, &mut m.feed_max, &mut m.plunge_max] { if !l.is_none_or(|v| v.is_finite() && v > 0.0) { *l = None; } }
     if let (Some(a), Some(b)) = (m.rpm_min, m.rpm_max) { if a > b { m.rpm_min = Some(b); m.rpm_max = Some(a); } }
     if let Some(p) = &m.post { if p != "mach" { m.post = Some(String::new()); } }
 }

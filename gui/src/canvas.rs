@@ -208,7 +208,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             if resp.dragged_by(prim) {
                 if let (Drag::Resize { handle, start_bbox, grab, orig }, Some(cur)) = (&app.drag, pointer_w) {
                     let alt = ctx.input(|i| i.modifiers.alt);
-                    let nb = resized_bbox(&app, *handle, *start_bbox, *grab, cur, shift, alt);
+                    let nb = resized_bbox(app, *handle, *start_bbox, *grab, cur, shift, alt);
                     let (sb, orig) = (*start_bbox, orig.clone());
                     app.hist.record_once(&app.project.data);
                     for (i, l) in &orig { app.project.data.loops[*i] = l.clone(); }
@@ -235,7 +235,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 }
                 if let (Drag::Relief { start, orig }, Some(cur)) = (&app.drag, pointer_w) {
                     let t = app.snap([orig[0] + cur[0] - start[0], orig[1] + cur[1] - start[1]]);
-                    let moved = app.project.data.relief.as_ref().map_or(false, |r| (r.x - t[0]).abs() > 1e-9 || (r.y - t[1]).abs() > 1e-9);
+                    let moved = app.project.data.relief.as_ref().is_some_and(|r| (r.x - t[0]).abs() > 1e-9 || (r.y - t[1]).abs() > 1e-9);
                     if moved {
                         app.hist.record_once(&app.project.data);
                         if let Some(r) = app.project.data.relief.as_mut() { r.x = t[0]; r.y = t[1]; }
@@ -305,7 +305,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             if resp.clicked_by(prim) {
                 if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) { enter_node_edit(app, h); }
             }
-            if hover_w.map_or(false, |w| shapes::pick(&app.project.data.loops, w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
+            if hover_w.is_some_and(|w| shapes::pick(&app.project.data.loops, w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
         }
         Some(Mode::Trim) => {
             if resp.clicked_by(prim) {
@@ -421,7 +421,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.latest_pos()), sel_bb) {
                 if app.rotate_mode {
                     let pivot = app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
-                    if view.w2s(pivot).distance(ps) <= 10.0 || hit_handle(&view, b, ps).map_or(false, |h| h % 2 == 0) { ctx.set_cursor_icon(egui::CursorIcon::Grab); }
+                    if view.w2s(pivot).distance(ps) <= 10.0 || hit_handle(&view, b, ps).is_some_and(|h| h % 2 == 0) { ctx.set_cursor_icon(egui::CursorIcon::Grab); }
                 } else if let Some(h) = hit_handle(&view, b, ps) { ctx.set_cursor_icon(handle_cursor(h)); }
             }
         }
@@ -470,7 +470,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     // the imported 3D model, as a shaded height map on the stock
     if let Some(rel) = &d.relief {
         let key = format!("{}|{}|{}|{}|{}", rel.name, rel.nx, rel.ny, rel.hm.len(), rel.hm.get(..48).unwrap_or("") );
-        if app.relief_tex.as_ref().map_or(true, |(k, _)| *k != key) {
+        if app.relief_tex.as_ref().is_none_or(|(k, _)| *k != key) {
             let h = rel.heights();
             let step = (rel.nx.max(rel.ny) as f32 / 256.0).ceil().max(1.0) as usize;
             let (w, hh) = (rel.nx / step, rel.ny / step);
@@ -970,7 +970,7 @@ fn move_target(app: &App, start: [f64; 2], anchor: [f64; 2], applied: [f64; 2], 
                 if let Some(h) = app.object_snap(q) {
                     let c = [h.p[0] - q[0], h.p[1] - q[1]];
                     let d = c[0].hypot(c[1]);
-                    if best.map_or(true, |(_, bd, _)| d < bd) { best = Some((c, d, h)); }
+                    if best.is_none_or(|(_, bd, _)| d < bd) { best = Some((c, d, h)); }
                 }
             }
         }
@@ -1151,9 +1151,8 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
             crate::align::button(ui, app);
             // only offered when the selection has a corner to round (not for circles and ellipses)
-            if app.selection_has_corners() {
-                if icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.corners.open = !app.corners.open; }
-            }
+            if app.selection_has_corners()
+                && icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.corners.open = !app.corners.open; }
             // thin vertical dividers as tall as the buttons (a Separator would stretch the whole area)
             let divider = |ui: &mut Ui| {
                 let (sep, _) = ui.allocate_exact_size(Vec2::new(8.0, 36.0), egui::Sense::hover());
@@ -1206,14 +1205,14 @@ fn handle_world(b: [f64; 4], h: usize) -> [f64; 2] {
 /// Handles are drawn 4 px outside the selection box so they don't cover the shapes.
 fn handle_screen(view: &View, b: [f64; 4], h: usize) -> Pos2 {
     let p = view.w2s(handle_world(b, h));
-    let dx = match h { 0 | 6 | 7 => -4.0, 2 | 3 | 4 => 4.0, _ => 0.0 };
-    let dy = match h { 0 | 1 | 2 => -4.0, 4 | 5 | 6 => 4.0, _ => 0.0 };
+    let dx = match h { 0 | 6 | 7 => -4.0, 2..=4 => 4.0, _ => 0.0 };
+    let dy = match h { 0..=2 => -4.0, 4..=6 => 4.0, _ => 0.0 };
     p + Vec2::new(dx, dy)
 }
 
 /// Resize handles are for real shapes and never for a locked drawing; a selection of only drill points has none (a point keeps its size).
 fn handles_apply(app: &App) -> bool {
-    !app.sel_locked() && app.sel.iter().any(|&i| app.project.data.loops.get(i).map_or(false, |l| !shapes::is_point(l)))
+    !app.sel_locked() && app.sel.iter().any(|&i| app.project.data.loops.get(i).is_some_and(|l| !shapes::is_point(l)))
 }
 
 fn hit_handle(view: &View, b: [f64; 4], pos: Pos2) -> Option<usize> {
@@ -1232,8 +1231,8 @@ fn handle_cursor(h: usize) -> egui::CursorIcon {
 /// New bounding box while dragging handle `handle`. Shift keeps the aspect ratio (corners),
 /// Alt scales symmetrically about the centre; the moving edge snaps to the grid.
 fn resized_bbox(app: &App, handle: usize, sb: [f64; 4], grab: [f64; 2], cur: [f64; 2], shift: bool, alt: bool) -> [f64; 4] {
-    let (mx0, mx1) = (matches!(handle, 0 | 6 | 7), matches!(handle, 2 | 3 | 4));
-    let (my0, my1) = (matches!(handle, 4 | 5 | 6), matches!(handle, 0 | 1 | 2));
+    let (mx0, mx1) = (matches!(handle, 0 | 6 | 7), matches!(handle, 2..=4));
+    let (my0, my1) = (matches!(handle, 4..=6), matches!(handle, 0..=2));
     let p = app.snap([cur[0] + grab[0], cur[1] + grab[1]]);
     let (cx, cy) = ((sb[0] + sb[2]) / 2.0, (sb[1] + sb[3]) / 2.0);
     let (ow, oh) = (sb[2] - sb[0], sb[3] - sb[1]);
@@ -1264,73 +1263,6 @@ fn resized_bbox(app: &App, handle: usize, sb: [f64; 4], grab: [f64; 2], cur: [f6
     if ow > 1e-6 && n[2] - n[0] < 0.01 { let m = (n[0] + n[2]) / 2.0; n[0] = m - 0.005; n[2] = m + 0.005; }
     if oh > 1e-6 && n[3] - n[1] < 0.01 { let m = (n[1] + n[3]) / 2.0; n[1] = m - 0.005; n[3] = m + 0.005; }
     n
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn app() -> App { let mut a = App::new(None); a.snap_on = true; a.snap_mm = 1.0; a }
-    fn close(a: [f64; 4], b: [f64; 4]) -> bool { a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-6) }
-
-    #[test]
-    fn a_dragged_selection_snaps_its_key_points_to_other_shapes() {
-        let mut a = app();
-        a.snap_on = false;
-        a.snap_tol_mm = 1.0;
-        a.project.data.loops = vec![
-            shapes::new_rect([100.0, 100.0], [140.0, 120.0], 0.0, 0),
-            shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0), // the one being moved
-        ];
-        a.sel = [1usize].into_iter().collect();
-        a.snap_skip = vec![1];
-        // drag so that its upper-right corner (30,20) lands 0.4 mm from the other's lower-left corner (100,100)
-        let t = move_target(&a, [0.0, 0.0], [10.0, 10.0], [0.0, 0.0], [70.3, 80.4]);
-        // the box (20 x 10) must end with its upper right on (100,100): lower left at (80,90)
-        assert!((t[0] - 80.0).abs() < 1e-9 && (t[1] - 90.0).abs() < 1e-9, "{t:?}");
-        assert_eq!(a.snap_hit.get().map(|h| h.kind), Some(crate::osnap::Kind::Corner));
-        // far from everything: plain drag
-        let t = move_target(&a, [0.0, 0.0], [10.0, 10.0], [0.0, 0.0], [40.0, 30.0]);
-        assert!((t[0] - 50.0).abs() < 1e-9 && (t[1] - 40.0).abs() < 1e-9, "{t:?}");
-        assert!(a.snap_hit.get().is_none());
-    }
-
-    #[test]
-    fn drag_corner_free() {
-        let n = resized_bbox(&app(), 4, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [150.2, -19.9], false, false);
-        assert!(close(n, [0.0, -20.0, 150.0, 50.0]), "{n:?}"); // bottom-right: the bottom edge moves down
-    }
-
-    #[test]
-    fn drag_corner_proportional() {
-        let n = resized_bbox(&app(), 4, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [150.0, -30.0], true, false);
-        assert!(close(n, [0.0, -30.0, 160.0, 50.0]), "{n:?}"); // ratio 2:1 kept, larger scale wins
-        let n = resized_bbox(&app(), 0, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [-50.0, 100.0], true, false);
-        assert!(close(n, [-100.0, 0.0, 100.0, 100.0]), "{n:?}"); // top-left moves, bottom-right fixed
-    }
-
-    #[test]
-    fn drag_from_centre() {
-        let n = resized_bbox(&app(), 4, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [150.0, 70.0], false, true);
-        assert!(close(n, [-50.0, -20.0, 150.0, 70.0]), "{n:?}");
-    }
-
-    #[test]
-    fn edge_handles_move_one_axis_and_never_flip() {
-        let n = resized_bbox(&app(), 3, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [130.0, 999.0], false, false);
-        assert!(close(n, [0.0, 0.0, 130.0, 50.0]), "{n:?}");
-        let n = resized_bbox(&app(), 7, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [120.0, 0.0], false, false);
-        assert!(n[2] - n[0] >= 0.0099 && n[0] < n[2], "{n:?}");
-    }
-
-    #[test]
-    fn grab_offset_prevents_jump_and_degenerate_axes_stay() {
-        // handle sits 4 px outside the box: pressing 3 mm beyond the edge must not shift it
-        let n = resized_bbox(&app(), 3, [0.0, 0.0, 100.0, 50.0], [-3.0, 0.0], [103.0, 0.0], false, false);
-        assert!(close(n, [0.0, 0.0, 100.0, 50.0]), "{n:?}");
-        let n = resized_bbox(&app(), 4, [0.0, 10.0, 100.0, 10.0], [0.0, 0.0], [150.0, 40.0], false, false);
-        assert!(close(n, [0.0, 10.0, 150.0, 10.0]), "{n:?}"); // a horizontal line keeps its height
-    }
 }
 
 /// Position, size, corner radius and operation of the selected shapes, as a small bar over the canvas.
@@ -1491,7 +1423,7 @@ fn tab_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::Response, vi
     if app.tab_drag.is_none() {
         if let Some(w) = hover_w {
             if hovered_tab(app, op_id, w).is_some() { ctx.set_cursor_icon(egui::CursorIcon::Grab); }
-            else if nearest_outline(app, op_id, w).map_or(false, |n| n.2 * app.scale as f64 <= TAB_REACH_PX) { ctx.set_cursor_icon(egui::CursorIcon::Crosshair); }
+            else if nearest_outline(app, op_id, w).is_some_and(|n| n.2 * app.scale as f64 <= TAB_REACH_PX) { ctx.set_cursor_icon(egui::CursorIcon::Crosshair); }
         }
     }
 }
@@ -1718,4 +1650,71 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
         } else { app.node_msg = "Nothing to simplify at this tolerance.".into(); }
     }
     if done { app.node_edit = None; app.mode = Mode::Select; }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app() -> App { let mut a = App::new(None); a.snap_on = true; a.snap_mm = 1.0; a }
+    fn close(a: [f64; 4], b: [f64; 4]) -> bool { a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-6) }
+
+    #[test]
+    fn a_dragged_selection_snaps_its_key_points_to_other_shapes() {
+        let mut a = app();
+        a.snap_on = false;
+        a.snap_tol_mm = 1.0;
+        a.project.data.loops = vec![
+            shapes::new_rect([100.0, 100.0], [140.0, 120.0], 0.0, 0),
+            shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0), // the one being moved
+        ];
+        a.sel = [1usize].into_iter().collect();
+        a.snap_skip = vec![1];
+        // drag so that its upper-right corner (30,20) lands 0.4 mm from the other's lower-left corner (100,100)
+        let t = move_target(&a, [0.0, 0.0], [10.0, 10.0], [0.0, 0.0], [70.3, 80.4]);
+        // the box (20 x 10) must end with its upper right on (100,100): lower left at (80,90)
+        assert!((t[0] - 80.0).abs() < 1e-9 && (t[1] - 90.0).abs() < 1e-9, "{t:?}");
+        assert_eq!(a.snap_hit.get().map(|h| h.kind), Some(crate::osnap::Kind::Corner));
+        // far from everything: plain drag
+        let t = move_target(&a, [0.0, 0.0], [10.0, 10.0], [0.0, 0.0], [40.0, 30.0]);
+        assert!((t[0] - 50.0).abs() < 1e-9 && (t[1] - 40.0).abs() < 1e-9, "{t:?}");
+        assert!(a.snap_hit.get().is_none());
+    }
+
+    #[test]
+    fn drag_corner_free() {
+        let n = resized_bbox(&app(), 4, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [150.2, -19.9], false, false);
+        assert!(close(n, [0.0, -20.0, 150.0, 50.0]), "{n:?}"); // bottom-right: the bottom edge moves down
+    }
+
+    #[test]
+    fn drag_corner_proportional() {
+        let n = resized_bbox(&app(), 4, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [150.0, -30.0], true, false);
+        assert!(close(n, [0.0, -30.0, 160.0, 50.0]), "{n:?}"); // ratio 2:1 kept, larger scale wins
+        let n = resized_bbox(&app(), 0, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [-50.0, 100.0], true, false);
+        assert!(close(n, [-100.0, 0.0, 100.0, 100.0]), "{n:?}"); // top-left moves, bottom-right fixed
+    }
+
+    #[test]
+    fn drag_from_centre() {
+        let n = resized_bbox(&app(), 4, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [150.0, 70.0], false, true);
+        assert!(close(n, [-50.0, -20.0, 150.0, 70.0]), "{n:?}");
+    }
+
+    #[test]
+    fn edge_handles_move_one_axis_and_never_flip() {
+        let n = resized_bbox(&app(), 3, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [130.0, 999.0], false, false);
+        assert!(close(n, [0.0, 0.0, 130.0, 50.0]), "{n:?}");
+        let n = resized_bbox(&app(), 7, [0.0, 0.0, 100.0, 50.0], [0.0, 0.0], [120.0, 0.0], false, false);
+        assert!(n[2] - n[0] >= 0.0099 && n[0] < n[2], "{n:?}");
+    }
+
+    #[test]
+    fn grab_offset_prevents_jump_and_degenerate_axes_stay() {
+        // handle sits 4 px outside the box: pressing 3 mm beyond the edge must not shift it
+        let n = resized_bbox(&app(), 3, [0.0, 0.0, 100.0, 50.0], [-3.0, 0.0], [103.0, 0.0], false, false);
+        assert!(close(n, [0.0, 0.0, 100.0, 50.0]), "{n:?}");
+        let n = resized_bbox(&app(), 4, [0.0, 10.0, 100.0, 10.0], [0.0, 0.0], [150.0, 40.0], false, false);
+        assert!(close(n, [0.0, 10.0, 150.0, 10.0]), "{n:?}"); // a horizontal line keeps its height
+    }
 }

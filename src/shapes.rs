@@ -17,16 +17,18 @@ fn loop_from(pts: &[[f64; 2]], closed: bool, op: i64) -> LoopData {
 
 /// Rounded rectangle outline (same tessellation as the browser app). Returns the points and
 /// the corner radius that was actually used (clamped to half the shorter side).
+use std::f64::consts::{FRAC_PI_2, TAU};
+
 pub fn rounded_rect(a: [f64; 2], b: [f64; 2], r: f64) -> (Vec<[f64; 2]>, f64) {
     let (x0, x1) = (a[0].min(b[0]), a[0].max(b[0]));
     let (y0, y1) = (a[1].min(b[1]), a[1].max(b[1]));
     let r = r.max(0.0).min((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
     if r < 1e-6 { return (vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1]], 0.0); }
-    let n = ((r * 1.5708 / 0.2).ceil() as usize).clamp(4, 64);
+    let n = ((r * std::f64::consts::FRAC_PI_2 / 0.2).ceil() as usize).clamp(4, 64);
     let mut p = Vec::new();
-    for (cx, cy, s) in [(x1 - r, y0 + r, -1.5708), (x1 - r, y1 - r, 0.0), (x0 + r, y1 - r, 1.5708), (x0 + r, y0 + r, 3.1416)] {
+    for (cx, cy, s) in [(x1 - r, y0 + r, -FRAC_PI_2), (x1 - r, y1 - r, 0.0), (x0 + r, y1 - r, FRAC_PI_2), (x0 + r, y0 + r, PI)] {
         for i in 0..=n {
-            let t = s + 1.5708 * i as f64 / n as f64;
+            let t = s + FRAC_PI_2 * i as f64 / n as f64;
             p.push([cx + r * t.cos(), cy + r * t.sin()]);
         }
     }
@@ -46,7 +48,7 @@ pub fn new_ellipse(a: [f64; 2], b: [f64; 2], op: i64) -> LoopData {
     let per = PI * (3.0 * (rx + ry) - ((3.0 * rx + ry) * (rx + 3.0 * ry)).sqrt());
     let n = ((per / 0.2).ceil() as usize).clamp(32, 2000);
     let p: Vec<[f64; 2]> = (0..n).map(|i| {
-        let t = 6.2832 * i as f64 / n as f64;
+        let t = TAU * i as f64 / n as f64;
         [cx + rx * t.cos(), cy + ry * t.sin()]
     }).collect();
     let mut l = loop_from(&p, true, op);
@@ -118,13 +120,13 @@ pub fn new_circle(c: [f64; 2], r: f64, op: i64) -> LoopData {
 /// fewer than two distinct points remain (or fewer than three for a closed shape).
 pub fn new_poly(pts: &[[f64; 2]], closed: bool, op: i64) -> Option<LoopData> {
     let mut v: Vec<[f64; 2]> = Vec::new();
-    for p in pts { if v.last().map_or(true, |q| q != p) { v.push(*p); } }
+    for p in pts { if v.last() != Some(p) { v.push(*p); } }
     if v.len() < 2 { return None; }
     let closed = closed && v.len() > 2;
     Some(loop_from(&v, closed, op))
 }
 
-pub fn is_circle(l: &LoopData) -> bool { l.cr.map_or(false, |v| v != 0.0) }
+pub fn is_circle(l: &LoopData) -> bool { l.cr.is_some_and(|v| v != 0.0) }
 pub fn is_rect(l: &LoopData) -> bool { l.rc.is_some() }
 
 /// Bounding box `[x0, y0, x1, y1]` in mm.
@@ -172,7 +174,7 @@ fn corner_at(p: &[[f64; 2]], i: usize, closed: bool) -> Option<(f64, [f64; 2], [
     if da < 1e-6 || db < 1e-6 { return None; }
     let (ua, ub) = ([(a[0] - v[0]) / da, (a[1] - v[1]) / da], [(b[0] - v[0]) / db, (b[1] - v[1]) / db]);
     let phi = (ua[0] * ub[0] + ua[1] * ub[1]).clamp(-1.0, 1.0).acos();
-    if phi < 0.05 || phi > SHARP { return None; }
+    if !(0.05..=SHARP).contains(&phi) { return None; }
     Some((phi, ua, ub, da, db))
 }
 
@@ -198,7 +200,7 @@ pub fn round_corners_at(l: &LoopData, kind: CornerKind, size: f64, only: Option<
     let closed = l.closed();
     let p = pts_mm(l);
     let n = p.len();
-    let chosen = |i: usize| only.map_or(true, |s| s.contains(&i));
+    let chosen = |i: usize| only.is_none_or(|s| s.contains(&i));
     let sharp: Vec<bool> = (0..n).map(|i| chosen(i) && corner_at(&p, i, closed).is_some()).collect();
     let (mut done, mut limited) = (0, 0);
     let mut out: Vec<[f64; 2]> = Vec::new();
@@ -260,7 +262,7 @@ pub fn mirror_x(l: &mut LoopData, cx: f64) {
     let n = l.pts.len() / 2;
     let mut v: Vec<[i64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
     if n > 2 && l.closed() { v.reverse(); }
-    l.pts = v.into_iter().flat_map(|p| p).collect();
+    l.pts = v.into_iter().flatten().collect();
 }
 
 /// Mirror a shape top to bottom about the horizontal line y = `cy` (mm).
@@ -269,7 +271,7 @@ pub fn mirror_y(l: &mut LoopData, cy: f64) {
     let n = l.pts.len() / 2;
     let mut v: Vec<[i64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
     if n > 2 && l.closed() { v.reverse(); }
-    l.pts = v.into_iter().flat_map(|p| p).collect();
+    l.pts = v.into_iter().flatten().collect();
 }
 
 pub fn scale_about(l: &mut LoopData, ax: f64, ay: f64, sx: f64, sy: f64) {
@@ -354,7 +356,7 @@ pub fn pick(loops: &[LoopData], p: [f64; 2], tol: f64) -> Option<usize> {
     let mut best: Option<(usize, f64)> = None;
     for (i, l) in loops.iter().enumerate() {
         let d = dist_to_loop(l, p);
-        if d <= tol && best.map_or(true, |(_, bd)| d < bd) { best = Some((i, d)); }
+        if d <= tol && best.is_none_or(|(_, bd)| d < bd) { best = Some((i, d)); }
     }
     if let Some((i, _)) = best { return Some(i); }
     let mut inner: Option<(usize, f64)> = None;
@@ -362,7 +364,7 @@ pub fn pick(loops: &[LoopData], p: [f64; 2], tol: f64) -> Option<usize> {
         if point_in_loop(l, p) {
             let b = bbox(l).unwrap();
             let area = (b[2] - b[0]) * (b[3] - b[1]);
-            if inner.map_or(true, |(_, a)| area < a) { inner = Some((i, area)); }
+            if inner.is_none_or(|(_, a)| area < a) { inner = Some((i, area)); }
         }
     }
     inner.map(|(i, _)| i)
@@ -370,7 +372,7 @@ pub fn pick(loops: &[LoopData], p: [f64; 2], tol: f64) -> Option<usize> {
 
 /// Does the loop's bounding box lie fully inside the rectangle `[x0, y0, x1, y1]`?
 pub fn inside_box(l: &LoopData, r: [f64; 4]) -> bool {
-    bbox(l).map_or(false, |b| b[0] >= r[0] && b[1] >= r[1] && b[2] <= r[2] && b[3] <= r[3])
+    bbox(l).is_some_and(|b| b[0] >= r[0] && b[1] >= r[1] && b[2] <= r[2] && b[3] <= r[3])
 }
 
 pub fn seed_tools() -> Vec<Tool> { crate::toollib::seed_tools() }
@@ -389,7 +391,7 @@ pub fn nearest_on_loop(l: &LoopData, p: [f64; 2]) -> Option<([f64; 2], f64, [f64
         let t = (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2).clamp(0.0, 1.0);
         let q = [a[0] + t * dx, a[1] + t * dy];
         let d = (p[0] - q[0]).hypot(p[1] - q[1]);
-        if best.map_or(true, |bb| d < bb.1) { let len = l2.sqrt(); best = Some((q, d, [dx / len, dy / len])); }
+        if best.is_none_or(|bb| d < bb.1) { let len = l2.sqrt(); best = Some((q, d, [dx / len, dy / len])); }
     }
     best
 }
@@ -431,7 +433,7 @@ pub fn insert_point(l: &mut LoopData, p: [f64; 2], tol: f64) -> Option<usize> {
         let t = (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2).clamp(0.0, 1.0);
         let q = [a[0] + t * dx, a[1] + t * dy];
         let d = (p[0] - q[0]).hypot(p[1] - q[1]);
-        if best.map_or(true, |bb| d < bb.1) { best = Some((i, d, q)); }
+        if best.is_none_or(|bb| d < bb.1) { best = Some((i, d, q)); }
     }
     let (i, d, q) = best?;
     if d > tol { return None; }
@@ -876,7 +878,7 @@ mod tab_tests {
     #[test]
     fn auto_points_lie_on_the_outline_and_are_spread() {
         let l = new_rect([0.0, 0.0], [100.0, 50.0], 0.0, 1);
-        let pts = auto_tab_points(&[l.clone()], 1, 4);
+        let pts = auto_tab_points(std::slice::from_ref(&l), 1, 4);
         assert_eq!(pts.len(), 4);
         for p in &pts { assert!(nearest_on_loop(&l, *p).unwrap().1 < 1e-6); }
         assert!((pts[0][0] - pts[1][0]).abs() + (pts[0][1] - pts[1][1]).abs() > 10.0);

@@ -58,7 +58,7 @@ fn add_path(path: &usvg::tiny_skia_path::Path, ctx: &mut Ctx) {
     let mut closed_flag = false;
     let flush = |cur: &mut Vec<[f64; 2]>, closed: bool, loops: &mut Vec<LoopData>| {
         let mut pts: Vec<[f64; 2]> = vec![];
-        for p in cur.drain(..) { if pts.last().map_or(true, |q| dist(*q, p) > 1e-4) { pts.push(p); } }
+        for p in cur.drain(..) { if pts.last().is_none_or(|q| dist(*q, p) > 1e-4) { pts.push(p); } }
         let mut closed = closed;
         // an open path that ends where it starts is a closed shape
         if pts.len() > 2 && dist(pts[0], *pts.last().unwrap()) < 1e-3 { pts.pop(); closed = true; }

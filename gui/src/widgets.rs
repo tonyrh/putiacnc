@@ -51,7 +51,7 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
         ui.data_mut(|d| { d.insert_temp(edit_id, fmt_val(*v, dec)); d.insert_temp(id.with("first"), true); });
         ui.ctx().request_repaint();
     }
-    let vis = ui.style().interact(&resp).clone();
+    let vis = *ui.style().interact(&resp);
     ui.painter().rect(rect, vis.rounding, vis.weak_bg_fill, vis.bg_stroke);
     let font = egui::TextStyle::Button.resolve(ui.style());
     let text = format!("{}{}", fmt_val(*v, dec), suffix);

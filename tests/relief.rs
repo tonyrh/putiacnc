@@ -45,7 +45,7 @@ fn relief_is_carved_to_the_surface_without_gouging() {
         let (mut worst_gouge, mut sum, mut n) = (0.0f32, 0.0f64, 0);
         for iy in 0..s.ny { for ix in 0..s.nx {
             let (x, y) = ((ix as f64 + 0.5) * s.cell, (iy as f64 + 0.5) * s.cell);
-            if x < 12.0 || x > 28.0 || y < 12.0 || y > 28.0 { continue; }
+            if !(12.0..=28.0).contains(&x) || !(12.0..=28.0).contains(&y) { continue; }
             let (i, j) = (((x - f.ox) / f.g).round() as i64, ((y - f.oy) / f.g).round() as i64);
             let target = f.at(i, j);
             let err = s.at(ix, iy) - target;

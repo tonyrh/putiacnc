@@ -10,7 +10,7 @@ impl Default for CornerTool { fn default() -> Self { CornerTool { open: false, c
 impl App {
     /// True when something in the selection has a corner to round (circles and ellipses do not).
     pub fn selection_has_corners(&self) -> bool {
-        self.sel.iter().any(|&i| self.project.data.loops.get(i).map_or(false, shapes::has_corners))
+        self.sel.iter().any(|&i| self.project.data.loops.get(i).is_some_and(shapes::has_corners))
     }
 
     /// Rounds or bevels every sharp corner of the selected shapes. Returns a message when nothing was done
@@ -21,10 +21,10 @@ impl App {
         for &i in &self.sel {
             let Some(l) = self.project.data.loops.get(i) else { continue };
             // a plain rectangle keeps being a rectangle: only its corner radius changes
-            if kind == CornerKind::Fillet && l.rc.map_or(false, |r| r < 1e-9) {
+            if kind == CornerKind::Fillet && l.rc.is_some_and(|r| r < 1e-9) {
                 let mut r = l.clone();
                 shapes::set_corner_radius(&mut r, size);
-                if r.rc.map_or(false, |v| v < size - 1e-9) { limited += 4; }
+                if r.rc.is_some_and(|v| v < size - 1e-9) { limited += 4; }
                 corners += 4;
                 changes.push((i, r));
             } else if let Some((r, n, lim)) = shapes::round_corners(l, kind, size) {

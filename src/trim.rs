@@ -90,7 +90,7 @@ fn nearest_s(p: &[P], closed: bool, at: P) -> (f64, f64) {
 
 fn dedupe(v: Vec<P>) -> Vec<P> {
     let mut out: Vec<P> = Vec::with_capacity(v.len());
-    for q in v { if out.last().map_or(true, |l| (l[0] - q[0]).hypot(l[1] - q[1]) > 1e-7) { out.push(q); } }
+    for q in v { if out.last().is_none_or(|l| (l[0] - q[0]).hypot(l[1] - q[1]) > 1e-7) { out.push(q); } }
     out
 }
 
@@ -188,7 +188,7 @@ pub fn plan_extend(loops: &[LoopData], target: usize, at: P) -> Option<ExtendPla
             if j == target && ((at_end && k + 2 >= qn) || (!at_end && k < 1)) { continue; }
             if let Some((t, _)) = cross(tip, far, q[k], q[(k + 1) % qn]) {
                 let dist = t * 100000.0;
-                if dist > 1e-6 && best.map_or(true, |b| dist < b) { best = Some(dist); }
+                if dist > 1e-6 && best.is_none_or(|b| dist < b) { best = Some(dist); }
             }
         }
     }

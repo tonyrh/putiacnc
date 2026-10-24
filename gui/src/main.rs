@@ -1,6 +1,8 @@
 // no console window behind the app on Windows release builds
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 //! PutiaCNC desktop GUI: 2D editor, operations, G-code and time estimate.
+// Style lints that do not suit this code: geometry loops index several arrays by one counter (clearer than zips), and drawing/toolpath helpers take many plain parameters. Rewriting them would only risk changing the G-code.
+#![allow(clippy::needless_range_loop, clippy::too_many_arguments, clippy::type_complexity, clippy::field_reassign_with_default, clippy::explicit_counter_loop, clippy::manual_clamp, clippy::while_let_loop, clippy::neg_cmp_op_on_partial_ord)]
 mod about;
 mod align;
 mod app;

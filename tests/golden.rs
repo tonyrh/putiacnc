@@ -41,7 +41,7 @@ fn check(name: &str, tol_mm: f64, max_diff_frac: f64) {
         let mut line_differs = false;
         for (x, y) in ta.iter().zip(tb.iter()) {
             let motion = a.starts_with("G0") || a.starts_with("G1");
-            let axis = motion && x.chars().next().map_or(false, |c| "XYZF".contains(c));
+            let axis = motion && x.chars().next().is_some_and(|c| "XYZF".contains(c));
             if axis {
                 let (vx, vy): (f64, f64) = (x[1..].parse().unwrap(), y[1..].parse().unwrap());
                 let d = (vx - vy).abs();

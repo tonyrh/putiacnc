@@ -164,7 +164,7 @@ fn spline_pts(degree: usize, knots: &[f64], ctrl: &[P]) -> Vec<P> {
 
 enum Item { Path(Path), Circle(P, f64) }
 
-fn flip(e: &Ent) -> bool { e.f(230).map_or(false, |z| z < 0.0) }
+fn flip(e: &Ent) -> bool { e.f(230).is_some_and(|z| z < 0.0) }
 
 fn entities(ents: &[Ent], doc: &Doc, m: &M, depth: usize, out: &mut Vec<Item>, skipped: &mut BTreeMap<String, usize>) {
     let mut i = 0;
@@ -295,7 +295,7 @@ fn join(paths: Vec<Path>) -> Vec<Path> {
                 else if near(cs, ps) { add = Some(p.pts.iter().skip(1).rev().cloned().collect()); front = true; }
                 if let Some(a) = add {
                     open[k] = None;
-                    if front { let mut n = a; n.extend(chain.pts.drain(..)); chain.pts = n; } else { chain.pts.extend(a); }
+                    if front { let mut n = a; n.append(&mut chain.pts); chain.pts = n; } else { chain.pts.extend(a); }
                     grew = true;
                     break;
                 }

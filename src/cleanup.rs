@@ -83,7 +83,7 @@ fn outline_length(l: &LoopData) -> f64 {
 /// indices (in the old list) of the shapes that are gone, for fixing up references such as holding tabs.
 pub fn clean(loops: &[LoopData], scope: Option<&std::collections::BTreeSet<usize>>, o: Options) -> (Vec<LoopData>, Vec<usize>, Report) {
     let n = loops.len();
-    let in_scope = |i: usize| scope.map_or(true, |s| s.contains(&i));
+    let in_scope = |i: usize| scope.is_none_or(|s| s.contains(&i));
     let mut out: Vec<Option<LoopData>> = loops.iter().cloned().map(Some).collect();
     let mut report = Report::default();
 
@@ -97,7 +97,7 @@ pub fn clean(loops: &[LoopData], scope: Option<&std::collections::BTreeSet<usize
                 // drop points that sit on top of the previous one
                 let v = pts(l);
                 let mut keep: Vec<P> = Vec::with_capacity(v.len());
-                for q in v { if keep.last().map_or(true, |p| dist(*p, q) > 1e-6) { keep.push(q); } }
+                for q in v { if keep.last().is_none_or(|p| dist(*p, q) > 1e-6) { keep.push(q); } }
                 if l.closed() && keep.len() > 1 && dist(keep[0], *keep.last().unwrap()) <= 1e-6 { keep.pop(); }
                 if keep.len() * 2 != l.pts.len() { l.pts = keep.iter().flat_map(|q| [(q[0] * S).round() as i64, (q[1] * S).round() as i64]).collect(); }
             }
@@ -119,7 +119,7 @@ pub fn clean(loops: &[LoopData], scope: Option<&std::collections::BTreeSet<usize
 
     // join open paths whose ends meet
     if o.join {
-        let ids: Vec<usize> = (0..n).filter(|&i| in_scope(i) && out[i].as_ref().map_or(false, |l| plain(l) && is_open_path(l))).collect();
+        let ids: Vec<usize> = (0..n).filter(|&i| in_scope(i) && out[i].as_ref().is_some_and(|l| plain(l) && is_open_path(l))).collect();
         let mut paths: Vec<Option<(Vec<P>, usize)>> = ids.iter().map(|&i| Some((pts(out[i].as_ref().unwrap()), i))).collect();
         let m = paths.len();
         let mut closed_set: Vec<usize> = Vec::new();
@@ -141,7 +141,7 @@ pub fn clean(loops: &[LoopData], scope: Option<&std::collections::BTreeSet<usize
                     if closed_set.contains(jb) { continue; }
                     let (d0, d1) = (dist(tail, pb[0]), dist(tail, *pb.last().unwrap()));
                     let (d, rev) = if d0 <= d1 { (d0, false) } else { (d1, true) };
-                    if d <= o.tol && best.map_or(true, |(_, _, bd)| d < bd) { best = Some((b, rev, d)); }
+                    if d <= o.tol && best.is_none_or(|(_, _, bd)| d < bd) { best = Some((b, rev, d)); }
                 }
                 // or its own start continues it (the pieces are in the other order)
                 let Some((b, rev, _)) = best else { break };
@@ -175,7 +175,7 @@ pub fn clean(loops: &[LoopData], scope: Option<&std::collections::BTreeSet<usize
                     if closed_set.contains(jb) { continue; }
                     let (d0, d1) = (dist(tail, pb[0]), dist(tail, *pb.last().unwrap()));
                     let (d, rev) = if d0 <= d1 { (d0, false) } else { (d1, true) };
-                    if d <= o.tol && best.map_or(true, |(_, _, bd)| d < bd) { best = Some((b, rev, d)); }
+                    if d <= o.tol && best.is_none_or(|(_, _, bd)| d < bd) { best = Some((b, rev, d)); }
                 }
                 let Some((b, rev, _)) = best else { break };
                 let (mut pb, _) = paths[b].take().unwrap();

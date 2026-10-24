@@ -86,7 +86,7 @@ impl TextTool {
                 if f.style != fontdb::Style::Normal { label += " Italic"; }
                 Some(FontEntry { label, id: Some(f.id) })
             }).collect();
-            v.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
+            v.sort_by_key(|a| a.label.to_lowercase());
             v.dedup_by(|a, b| a.label == b.label);
             let _ = tx.send((Arc::new(db), v));
             ctx.request_repaint();
@@ -101,7 +101,7 @@ impl TextTool {
             self.found = Some(list.len());
             let mut all = list;
             for b in ["Ubuntu Light", "Hack"] { all.push(FontEntry { label: b.into(), id: None }); }
-            all.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
+            all.sort_by_key(|a| a.label.to_lowercase());
             self.fonts = all;
             self.db = Some(db);
             self.rx = None;

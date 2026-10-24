@@ -179,7 +179,7 @@ mod tests {
     fn a_drawn_circle_becomes_arcs() {
         let l = circle_lines(50.0, 40.0, 12.0, 120);
         let (o, n) = fit_arcs(&l, 3, 1.0);
-        assert!(n >= 2 && n <= 6, "{n} arcs");
+        assert!((2..=6).contains(&n), "{n} arcs");
         assert!(o.len() < 20, "{} lines", o.len());
         assert!(o.iter().any(|l| l.starts_with("G3 ")), "counter-clockwise");
         assert!(o.first().unwrap().starts_with("G0 ") && o.last().unwrap() == "G0 Z5" && o[1] == "G1 Z-1 F200");

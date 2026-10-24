@@ -259,7 +259,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     // hand the new heights to the GPU only when the simulation changed
     let stamp = (app.v3.gen, sim.rev as usize);
     // while catching up the copy for the GPU is made a few times a second only
-    let due = !app.v3.catching_up || app.v3.last_upload.map_or(true, |t| t.elapsed().as_millis() > 150);
+    let due = !app.v3.catching_up || app.v3.last_upload.is_none_or(|t| t.elapsed().as_millis() > 150);
     if app.v3.uploaded != Some(stamp) && due {
         *app.v3.pending.lock().unwrap() = Some((sim.nx, sim.ny, sim.z.clone()));
         app.v3.uploaded = Some(stamp);
@@ -379,7 +379,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         let col = Color32::from_rgb(0xe0, 0x1b, 0x24);
         let g = painter.layout(e.clone(), FontId::proportional(13.0), col, (rect.width() - 24.0).max(100.0));
         painter.galley(rect.left_top() + Vec2::new(12.0, 10.0), g, col);
-    } else if app.output.as_ref().map_or(true, |o| o.moves.is_empty()) {
+    } else if app.output.as_ref().is_none_or(|o| o.moves.is_empty()) {
         painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, "No toolpaths yet: add an operation to preview the cut", FontId::proportional(13.0), ui.visuals().weak_text_color());
     }
 }

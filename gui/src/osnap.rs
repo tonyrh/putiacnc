@@ -23,7 +23,7 @@ fn points_of(l: &LoopData, tol: f64, out: &mut Vec<Hit>) {
     let Some(b) = shapes::bbox(l) else { return };
     let c = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0];
     if l.pt.is_some() { out.push(Hit { p: c, kind: Kind::Centre }); return; }
-    let round = l.el.is_some() || l.cr.is_some() || l.rc.map_or(false, |r| r > 1e-9);
+    let round = l.el.is_some() || l.cr.is_some() || l.rc.is_some_and(|r| r > 1e-9);
     if round {
         out.push(Hit { p: c, kind: Kind::Centre });
         for p in [[c[0], b[1]], [c[0], b[3]], [b[0], c[1]], [b[2], c[1]]] { out.push(Hit { p, kind: Kind::Midpoint }); }

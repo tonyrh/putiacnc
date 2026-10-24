@@ -310,7 +310,7 @@ fn assign_manual_tabs(c: &OpCtx, jobs: &mut [Job], tabs: &[[f64; 2]], notes: &mu
                 if l > 0.0 {
                     let u = (((t[0] - a[0]) * dx + (t[1] - a[1]) * dy) / (l * l)).clamp(0.0, 1.0);
                     let d = (t[0] - a[0] - u * dx).hypot(t[1] - a[1] - u * dy);
-                    if best.map_or(true, |bb| d < bb.1) { best = Some((ji, d, cum + u * l)); }
+                    if best.is_none_or(|bb| d < bb.1) { best = Some((ji, d, cum + u * l)); }
                 }
                 cum += l;
             }
@@ -476,7 +476,7 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
     if !st.ids.contains(&tool.id) { st.ids.push(tool.id.clone()); }
     let tno = st.ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
     // Mach3 and some LinuxCNC setups choke on anything but plain ASCII inside a comment
-    let tname: String = tool.name.replace('″', "in").replace('"', "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect();
+    let tname: String = tool.name.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect();
     let m6 = format!("T{} M6 (Tool {}: {})", tno, tno, tname);
     let rpm = tool.rpm;
     match st.d {
@@ -597,7 +597,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
                 }
                 let mut prev: Option<[f64; 2]> = None;
                 for (a, b) in segs {
-                    let linked = prev.map_or(false, |p| (p[0] - a[0]).hypot(p[1] - a[1]) < 3.0 * rt.dia && rp.open_line(p, a, z as f32));
+                    let linked = prev.is_some_and(|p| (p[0] - a[0]).hypot(p[1] - a[1]) < 3.0 * rt.dia && rp.open_line(p, a, z as f32));
                     if linked {
                         e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + z), rt.feed);
                     } else {

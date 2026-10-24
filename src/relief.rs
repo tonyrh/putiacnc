@@ -362,7 +362,7 @@ impl Rough {
             t[cj as usize * nx + ci as usize] = m;
             min_t = min_t.min(m);
         } }
-        Rough { ox: f.x((i0 + k / 2) as i64) - if k % 2 == 0 { 0.5 * f.g } else { 0.0 }, oy: f.y((j0 + k / 2) as i64) - if k % 2 == 0 { 0.5 * f.g } else { 0.0 }, gc, nx, ny, t, min_t }
+        Rough { ox: f.x((i0 + k / 2) as i64) - if k.is_multiple_of(2) { 0.5 * f.g } else { 0.0 }, oy: f.y((j0 + k / 2) as i64) - if k.is_multiple_of(2) { 0.5 * f.g } else { 0.0 }, gc, nx, ny, t, min_t }
     }
     pub fn x(&self, ci: usize) -> f64 { self.ox + ci as f64 * self.gc }
     pub fn y(&self, cj: usize) -> f64 { self.oy + cj as f64 * self.gc }

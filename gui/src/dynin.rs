@@ -154,7 +154,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
     let title = match d.kind { Kind::Start if app.mode == Mode::Point => "Drill point", Kind::Radial if app.mode == Mode::Point => "Bolt circle", Kind::Radial => if app.poly_star { "Star" } else { "Polygon" }, Kind::Box if app.mode == Mode::Point => "Point grid", Kind::Start => "Start point", Kind::Segment => "Next point", Kind::Circle => "Circle", Kind::Box => if app.mode == Mode::Ellipse { "Ellipse" } else { "Rectangle" } };
     let labels = d.labels();
     // near where the pointer was, but wholly inside the drawing area
-    let (pw, ph) = (330.0, 80.0 + 32.0 * ((labels.len() + 1) / 2) as f32);
+    let (pw, ph) = (330.0, 80.0 + 32.0 * labels.len().div_ceil(2) as f32);
     let at = egui::pos2(d.pos.x.min(canvas.right() - pw - 6.0).max(canvas.left() + 6.0), d.pos.y.min(canvas.bottom() - ph - 48.0).max(canvas.top() + 6.0));
     egui::Area::new(egui::Id::new("dynin")).order(egui::Order::Foreground).fixed_pos(at).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 6.0)).show(ui, |ui| {
