@@ -762,7 +762,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
         // operations that own a selected shape get an outline; the list scrolls to the first one when the selection changes
-        let hi_ids: Vec<i64> = d.ops.iter().filter(|o| sel.iter().any(|&k| d.loops.get(k).map_or(false, |l| l.op == o.id))).map(|o| o.id as i64).collect();
+        let hi_ids: Vec<i64> = d.ops.iter().filter(|o| sel.iter().any(|&k| d.loops.get(k).is_some_and(|l| l.op == o.id))).map(|o| o.id).collect();
         let hi_key = egui::Id::new("op_highlight_prev");
         let hi_prev: Vec<i64> = ui.data(|x| x.get_temp(hi_key)).unwrap_or_default();
         let mut hi_scroll = hi_ids != hi_prev && !hi_ids.is_empty();
@@ -784,7 +784,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
                 ui.painter().rect_filled(rect, 6.0, fill);
-                if hi_ids.contains(&(id as i64)) {
+                if hi_ids.contains(&{ id }) {
                     ui.painter().rect_stroke(rect.expand(1.5), 7.0, egui::Stroke::new(2.5_f32, ui.visuals().text_color()));
                     if hi_scroll { ui.scroll_to_rect(rect.expand(8.0), Some(egui::Align::Center)); hi_scroll = false; }
                 }
