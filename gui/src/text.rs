@@ -140,7 +140,7 @@ impl TextTool {
     fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.size * self.letter_pct / 100.0, word_spacing_mm: self.size * self.word_pct / 100.0, kerning: self.kerning, align: self.align, flow: self.flow, radius_mm: self.radius, arc_deg: self.arc_deg, arc_in: self.arc_in, shadow: self.shadow } }
 
     fn refresh(&mut self) {
-        let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow);
+        let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}|{}|{}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow, self.arc_deg, self.arc_in);
         if key == self.key { return; }
         self.key = key;
         self.preview.clear();
@@ -155,6 +155,14 @@ impl TextTool {
                     // set at the origin, then turned and moved: the same steps the editor takes back later
                     apply_affine(&mut l, &Affine::compose(self.angle.to_radians(), self.rest, pos));
                     self.preview = l;
+                    // text longer than the circle would run into its own start
+                    if self.flow == Flow::Arc && self.err.is_none() {
+                        let flat = TextStyle { flow: Flow::Straight, align: Align::Left, shadow: [0.0, 0.0], ..self.style() };
+                        if let Some(b) = text_loops(&data, idx, &self.content, flat, [0.0, 0.0], 0).ok().and_then(|f| shapes::bbox_many(f.iter())) {
+                            let circle = std::f64::consts::TAU * self.radius.max(self.size);
+                            if b[2] - b[0] > circle { self.err = Some(format!("The text is {:.0} mm long but the circle is only {:.0} mm round: the letters will overlap. Use a bigger radius or less text.", b[2] - b[0], circle)); }
+                        }
+                    }
                 }
                 Err(e) => self.err = Some(e),
             },
@@ -637,6 +645,27 @@ mod tests {
         a.do_redo();
         assert_eq!(letters(&a), long);
         assert_eq!(a.sel.len(), long, "and so is the long one again");
+    }
+
+    #[test]
+    fn arc_text_warns_when_longer_than_the_circle_and_follows_the_angle() {
+        let mut a = App::new(None);
+        a.text.content = "HELLO WORLD".into();
+        a.text.pos = Some([50.0, 50.0]);
+        a.text.size = 10.0;
+        a.text.flow = Flow::Arc;
+        a.text.radius = 10.0;
+        a.text.refresh();
+        assert!(a.text.err.as_deref().is_some_and(|e| e.contains("overlap")), "{:?}", a.text.err);
+        a.text.radius = 80.0;
+        a.text.refresh();
+        assert!(a.text.err.is_none());
+        let top = shapes::bbox_many(a.text.preview.iter()).unwrap();
+        a.text.arc_deg = 270.0;
+        a.text.arc_in = true;
+        a.text.refresh();
+        let bottom = shapes::bbox_many(a.text.preview.iter()).unwrap();
+        assert!(top != bottom, "moving the text round the circle changes the preview");
     }
 
     #[test]

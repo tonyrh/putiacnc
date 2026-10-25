@@ -17,7 +17,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Text: automatic kerning (font `kern` / `GPOS` pairs), letter / word spacing in % (done); fit to width still open.
 - [ ] Text: manual kerning handles on the canvas.
 - [x] Text along an arc at any angle (done).
-- [ ] Text arc: warn when the text is longer than the circle.
+- [x] Text arc: warn when the text is longer than the circle (done).
 - [ ] Maybe, only if asked: text along any picked path (rigid letters first, warped later; placed once, not live-linked). Decided not worth the cost for now.
 - [ ] Rest machining: clear only what the previous, larger tool left (pockets first, then relief).
 - [ ] Bezier and arc node editing (0.4.0).
