@@ -196,8 +196,13 @@ fn body(ui: &mut Ui, app: &mut App) {
 
     // the list column is as tall as the form next to it (measured last frame), so its buttons stay at the bottom
     // each side scrolls on its own: the list inside tool_list, the form in its own scroll area, so wheeling over one never moves the other
-    let room = (ui.available_height() - 100.0).clamp(120.0, (ui.ctx().screen_rect().height() - 140.0).max(160.0));
+    // The panes take what the window leaves after the footer. The footer's real height is measured (last frame's), because a guess that is
+    // too small makes the window taller every frame: it grows to fit the content and the panes then grow to fill the window.
+    let fkey = egui::Id::new("toolmgr_footer_h");
+    let footer = ui.ctx().data(|d| d.get_temp::<f32>(fkey)).unwrap_or(110.0);
+    let room = (ui.available_height() - footer).clamp(120.0, (ui.ctx().screen_rect().height() - 140.0).max(160.0));
     let h = room.max(120.0);
+    let y_start = ui.min_rect().max.y;
     ui.horizontal_top(|ui| {
         ui.allocate_ui_with_layout(egui::vec2(305.0, h), Layout::top_down(Align::LEFT), |ui| tool_list(ui, app, h));
         // fixed-height divider (ui.separator() would stretch to the whole available height and make the window grow)
@@ -215,6 +220,9 @@ fn body(ui: &mut Ui, app: &mut App) {
     lib_row(ui, app);
     ui.add_space(8.0);
     ui.weak(if app.tool_msg.is_empty() { "Libraries are saved automatically." } else { app.tool_msg.as_str() });
+    // everything below the nominal pane height: the footer, and any overshoot of the panes' own rows
+    let foot = ui.min_rect().max.y - y_start - h;
+    if (foot - footer).abs() > 0.5 { ui.ctx().data_mut(|d| d.insert_temp(fkey, foot)); ui.ctx().request_repaint(); }
 }
 
 fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
