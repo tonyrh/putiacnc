@@ -157,8 +157,9 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 if r.hovered() { tip = Some("Perspective or orthographic: in orthographic, parallel lines stay parallel and sizes do not shrink with distance."); }
                 if r.clicked() { app.v3.ortho = !app.v3.ortho; }
                 let r = ui.button("Fit");
-                if r.hovered() { tip = Some("Zoom to fit the stock from this angle."); }
-                if r.clicked() {
+                if r.hovered() { tip = Some("Zoom to fit the stock from this angle (F)."); }
+                let key_fit = ui.ctx().input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ui.ctx().wants_keyboard_input();
+                if r.clicked() || std::mem::take(&mut app.fit3d_pending) || key_fit {
                     let stk = &app.project.data.stock;
                     let asp = rect.width() / rect.height().max(1.0);
                     let dist = fit_dist(app.v3.yaw, app.v3.pitch, stk, asp, app.v3.ortho);

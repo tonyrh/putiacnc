@@ -129,7 +129,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.style_mut().wrap = Some(false);
             // wide enough for the longest checkbox, so the shortcut of the action row sits at the real right edge
             ui.set_min_width(236.0);
-            if item(ui, "Fit to stock", "F", true) { app.fit_pending = true; }
+            if item(ui, "Fit to stock", "F", true) { if app.view_tab == crate::view3d::ViewTab::Preview { app.fit3d_pending = true; } else { app.fit_pending = true; } }
             ui.separator();
             ui.checkbox(&mut app.show_toolpath, "Toolpaths");
             ui.checkbox(&mut app.show_rapids, "Rapid moves");
