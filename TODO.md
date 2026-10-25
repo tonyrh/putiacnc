@@ -14,7 +14,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] Text dialog can run off a short window; the tool palette overflows in very small windows.
 
 ## Bigger
-- [x] Text: automatic kerning (font `kern` / `GPOS` pairs), letter / word spacing in % (done); fit to width still open.
+- [x] Text: automatic kerning (font `kern` / `GPOS` pairs), letter / word spacing in % (done); fit to width done.
 - [ ] Text: manual kerning handles on the canvas.
 - [x] Text along an arc at any angle (done).
 - [x] Text arc: warn when the text is longer than the circle (done).

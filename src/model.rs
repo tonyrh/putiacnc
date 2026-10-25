@@ -84,6 +84,8 @@ pub struct TextSpec {
     #[serde(default)] pub radius: f64,
     #[serde(default = "ninety")] pub arc_deg: f64,
     #[serde(default)] pub arc_in: bool,
+    /// Width (mm) the text was fitted to, 0 when its height was set by hand.
+    #[serde(default)] pub fit_width: f64,
     #[serde(default)] pub shadow: [f64; 2],
 }
 
