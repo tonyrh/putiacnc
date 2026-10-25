@@ -321,7 +321,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let editing = app.text.edit.is_some();
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Text", egui::pos2(700.0, 150.0))).show(ctx, |ui| {
-        ui.set_width(300.0);
+        ui.set_width(376.0);
         if crate::csd::dialog_header(ui, if editing { "Edit text" } else { "Text" }, true) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.text;
