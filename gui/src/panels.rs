@@ -744,8 +744,13 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         // ---- clamps ------------------------------------------------------------------
         ui.add_space(6.0);
         ui.horizontal(|ui| {
+            // the small text sits on the heading's baseline instead of floating at its middle
+            let hg = ui.fonts(|f| f.row_height(&egui::TextStyle::Heading.resolve(ui.style())));
             ui.heading("Clamps");
-            ui.weak("keep-out zones").on_hover_text("Rectangles on the table that the tool must not touch. X and Y are measured from the stock's lower-left corner; Width is the size along X, Length along Y, and Rise is how far the clamp stands above the stock top. The toolpath warnings check them");
+            let g = ui.painter().layout_no_wrap("keep-out zones".to_string(), egui::TextStyle::Body.resolve(ui.style()), ui.visuals().weak_text_color());
+            let (r, resp) = ui.allocate_exact_size(egui::vec2(g.size().x, hg), egui::Sense::hover());
+            ui.painter().galley(egui::pos2(r.min.x, r.max.y - g.size().y), g, ui.visuals().weak_text_color());
+            resp.on_hover_text("Rectangles on the table that the tool must not touch. X and Y are measured from the stock's lower-left corner; Width is the size along X, Length along Y, and Rise is how far the clamp stands above the stock top. The toolpath warnings check them");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let tip = if *show_clamps { "Clamps are drawn in the drawing and the 3D preview. Click to hide them (the toolpath warnings still check them)" } else { "Clamps are hidden in the drawing and the 3D preview. Click to show them" };
                 if small_icon_button(ui, if *show_clamps { Icon::Eye } else { Icon::EyeOff }, true, tip).clicked() { *show_clamps = !*show_clamps; }
