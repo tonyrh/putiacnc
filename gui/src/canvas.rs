@@ -559,7 +559,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     }
     // the number of the operation on the shapes that belong to one, so the link does not rest on colour alone. Shapes of one operation
     // that lie close together (the letters of a text, a hole in its outline) share a single badge; huge drawings get none
-    if d.loops.len() <= 600 {
+    if app.show_badges && d.loops.len() <= 600 {
         let boxes: Vec<Option<(usize, Rect)>> = d.loops.iter().map(|l| {
             let k = d.ops.iter().position(|o| o.id == l.op)?;
             let b = shapes::bbox(l)?;

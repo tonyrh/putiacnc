@@ -137,6 +137,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.checkbox(&mut app.show_machine_area, "Machine work area");
             ui.checkbox(&mut app.show_rulers, "Rulers");
             ui.checkbox(&mut app.show_axes, "Axes");
+            ui.checkbox(&mut app.show_badges, "Operation badges on shapes");
             ui.separator();
             ui.checkbox(&mut app.show_left, "Project panel");
             ui.checkbox(&mut app.show_right, "Operations / G-code panel");

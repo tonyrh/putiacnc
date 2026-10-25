@@ -31,6 +31,7 @@ pub struct Settings {
     pub show_machine_area: Option<bool>,
     pub show_rulers: Option<bool>,
     pub show_axes: Option<bool>,
+    pub show_badges: Option<bool>,
     pub tool_len_in: Option<bool>,
     pub tool_speed_idx: Option<usize>,
     pub mach_len_in: Option<bool>,
