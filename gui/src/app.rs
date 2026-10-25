@@ -802,10 +802,21 @@ impl App {
         let e = list.remove(i);
         let kind = e.kind.unwrap_or(Kind::Both);
         let before = self.project.data.clone();
+        // a placed text is selected as a whole, but its letters may be more or fewer after the step: follow the text, not the indices
+        let is_text = |d: &ProjectData, g: i64| d.groups.iter().any(|x| x.id == g && x.text.is_some());
+        let mut texts: Vec<i64> = self.sel.iter().filter_map(|&i| before.loops.get(i).and_then(|l| l.grp)).filter(|&g| is_text(&before, g)).collect();
+        texts.sort_unstable();
+        texts.dedup();
+        let others: std::collections::BTreeSet<usize> = self.sel.iter().copied().filter(|&i| !before.loops.get(i).and_then(|l| l.grp).is_some_and(|g| texts.contains(&g))).collect();
         restore(&mut self.project.data, e.snap, kind);
         let other = if undo { &mut self.hist.redo } else { &mut self.hist.undo };
         other.push(Entry { snap: before, kind: Some(kind) });
+        self.sel = others;
         self.after_history();
+        let d = &self.project.data;
+        for g in texts.into_iter().filter(|&g| is_text(d, g)) {
+            self.sel.extend(d.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(g)).map(|(k, _)| k));
+        }
     }
 
     fn after_history(&mut self) {

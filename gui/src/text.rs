@@ -514,4 +514,25 @@ mod tests {
         let a = placed("Hi");
         assert_eq!(a.text_siblings(0).len(), a.project.data.loops.len());
     }
+
+    #[test]
+    fn undo_and_redo_of_a_text_edit_keep_the_whole_text_selected() {
+        let mut a = placed("Hi");
+        let gid = a.project.data.groups[0].id;
+        let letters = |a: &App| a.project.data.loops.iter().filter(|l| l.grp == Some(gid)).count();
+        let short = letters(&a);
+        // edit it to a longer text
+        assert!(begin_edit(&mut a, gid));
+        a.text.content = "Hello there".into();
+        place(&mut a);
+        let long = letters(&a);
+        assert!(long > short);
+        assert_eq!(a.sel.len(), long);
+        a.do_undo();
+        assert_eq!(letters(&a), short);
+        assert_eq!(a.sel.len(), short, "the short text is selected as a whole");
+        a.do_redo();
+        assert_eq!(letters(&a), long);
+        assert_eq!(a.sel.len(), long, "and so is the long one again");
+    }
 }
