@@ -342,6 +342,7 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_CONFIRM").is_some() { a.modified = true; a.pending = Some(Action::Quit); }
         if std::env::var("PUTIACNC_VIEW").is_ok_and(|v| v == "3d") { a.view_tab = crate::view3d::ViewTab::Preview; }
         if let Ok(f) = std::env::var("PUTIACNC_PLAY") { a.v3.init_frac = f.parse().ok(); }
+        if let Some(i) = std::env::var("PUTIACNC_SPEED").ok().and_then(|v| v.parse::<usize>().ok()) { a.v3.speed_idx = i.min(crate::view3d::SPEEDS.len() - 1); }
         if std::env::var_os("PUTIACNC_SHOW_TOOLS").is_some() { a.tools_open = true; }
         if let Ok(q) = std::env::var("PUTIACNC_TOOL_QUERY") { a.tool_query = q; }
         if std::env::var_os("PUTIACNC_SHOW_MACHINES").is_some() { a.machines_open = true; }

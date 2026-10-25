@@ -64,6 +64,9 @@ pub struct TextTool {
     bytes: Option<(Vec<u8>, u32)>,
 }
 
+/// Width (points) a font name may take in the Font menu; longer names are drawn smaller to fit.
+const NAME_W: f64 = 280.0;
+
 fn builtin(name: &str) -> Option<Vec<u8>> {
     egui::FontDefinitions::default().font_data.get(name).map(|d| d.font.to_vec())
 }
@@ -137,7 +140,7 @@ impl TextTool {
         if let Some(p) = self.previews.get(&i) { return p.clone(); }
         let e = self.fonts.get(i)?.clone();
         let ppp = ctx.pixels_per_point() as f64;
-        let draw = |data: &[u8], idx: u32| putiacnc_core::text::name_bitmap(data, idx, &e.label, 17.0 * ppp, (300.0 * ppp) as usize, (30.0 * ppp) as usize);
+        let draw = |data: &[u8], idx: u32| putiacnc_core::text::name_bitmap(data, idx, &e.label, 17.0 * ppp, 11.0 * ppp, (NAME_W * ppp) as usize, (30.0 * ppp) as usize);
         let bmp = match e.id {
             Some(id) => self.db.as_ref().and_then(|d| d.with_face_data(id, |data, idx| draw(data, idx)).flatten()),
             None => builtin(if e.label == "Hack" { "Hack" } else { "Ubuntu-Light" }).and_then(|b| draw(&b, 0)),
@@ -445,7 +448,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             let mut keep = false;
             egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
                 let mut picked = false;
-                ui.set_min_width(250.0);
+                ui.set_min_width(NAME_W as f32 + 40.0);
                 ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text("Search fonts").desired_width(f32::INFINITY));
                 ui.add_space(2.0);
                 let q = t.filter.to_lowercase();

@@ -219,13 +219,17 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
 
 /// A small grey-scale picture of `text` set in the font, for showing a font's name in its own letters. Returns (width, height,
 /// coverage 0..255 per pixel, row by row from the top), or None when the font cannot draw most of the letters. The letters are
-/// `px` pixels per em unless the font's line is so tall that it would not fit in `max_h` pixels, then they are smaller.
-pub fn name_bitmap(font: &[u8], face_index: u32, text: &str, px: f64, max_w: usize, max_h: usize) -> Option<(usize, usize, Vec<u8>)> {
+/// `px` pixels per em unless the font's line is so tall that it would not fit in `max_h` pixels, or the name so long that it would not
+/// fit in `max_w`: then they are smaller, down to `min_px`, below which None is returned (nothing is cut off).
+pub fn name_bitmap(font: &[u8], face_index: u32, text: &str, px: f64, min_px: f64, max_w: usize, max_h: usize) -> Option<(usize, usize, Vec<u8>)> {
     let face = Face::parse(font, face_index).ok()?;
     let upm = face.units_per_em() as f64;
     let (asc, desc) = (face.ascender() as f64, face.descender() as f64);
     let line = (asc - desc).max(upm * 0.5);
-    let scale = (px / upm).min((max_h as f64 - 2.0) / line);
+    let mut scale = (px / upm).min((max_h as f64 - 2.0) / line);
+    let total: f64 = text.chars().map(|ch| face.glyph_index(ch).and_then(|g| face.glyph_hor_advance(g)).map(|a| a as f64).unwrap_or(upm * 0.5)).sum();
+    if total * scale > max_w as f64 - 2.0 { scale = (max_w as f64 - 2.0) / total; }
+    if scale * upm < min_px { return None; }
     let h = ((line * scale).ceil() as usize + 2).min(max_h);
     let base = h as f64 - 1.0 + desc * scale; // baseline, from the top of the picture
     let mut x = 1.0;
@@ -483,13 +487,19 @@ mod tests {
     #[test]
     fn a_font_name_can_be_drawn_in_its_own_letters() {
         let Some(f) = font() else { return };
-        let (w, h, px) = name_bitmap(&f, 0, "Hello", 20.0, 300, 30).unwrap();
+        let (w, h, px) = name_bitmap(&f, 0, "Hello", 20.0, 8.0, 300, 30).unwrap();
         assert_eq!(px.len(), w * h);
         assert!(w > 30 && w < 120 && h <= 30, "{w}x{h}");
         let ink = px.iter().filter(|&&v| v > 128).count();
         assert!(ink > 100 && ink < w * h / 2, "{ink}");
         assert!(px.iter().any(|&v| v > 0 && v < 255), "edges are smooth");
-        assert!(name_bitmap(&f, 0, "\u{4e2d}\u{6587}", 20.0, 300, 30).is_none(), "letters the font lacks are not faked");
+        // a long name is made smaller to fit, never cut off; when that would make it too small there is no picture
+        let long = "DejaVu Serif Bold Condensed Italic Extra";
+        let (w, _, px) = name_bitmap(&f, 0, long, 20.0, 8.0, 200, 30).unwrap();
+        assert!(w <= 200, "{w}");
+        assert!(px[..].chunks(w).all(|r| r[w - 1] == 0), "the last column is empty: nothing runs off the edge");
+        assert!(name_bitmap(&f, 0, long, 20.0, 18.0, 200, 30).is_none(), "too small to read: no picture");
+        assert!(name_bitmap(&f, 0, "\u{4e2d}\u{6587}", 20.0, 8.0, 300, 30).is_none(), "letters the font lacks are not faked");
     }
 
     #[test]

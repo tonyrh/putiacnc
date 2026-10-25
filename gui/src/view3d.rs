@@ -117,7 +117,13 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = st.total * f; } }
         if !st.framed { frame(st, &app.project.data.stock); }
     }
-    if st.playing {
+    // for recording the demo: the replay time (minutes) is read from a file, so every frame is exact whatever the machine's frame rate
+    if let Some(v) = std::env::var_os("PUTIACNC_T_FILE").and_then(|p| std::fs::read_to_string(p).ok()).and_then(|t| t.trim().parse::<f64>().ok()) {
+        st.t = v.clamp(0.0, st.total);
+        st.playing = true; // only so the play button shows as playing; the time is set from the file every frame
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+    }
+    if st.playing && std::env::var_os("PUTIACNC_T_FILE").is_none() {
         let dt = ctx.input(|i| i.stable_dt).min(0.1) as f64;
         st.t += dt * SPEEDS[st.speed_idx].0 / 60.0;
         if st.t >= st.total { st.t = st.total; st.playing = false; }
