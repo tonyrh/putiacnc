@@ -13,7 +13,7 @@ pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", 
 const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside", "Inside"), ("online", "On")];
 const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
 const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
-const MATERIALS: &[(&str, &str)] = &[("wood", "Wood"), ("darkwood", "Dark wood"), ("metal", "Metal"), ("foam", "Foam")];
+const MATERIALS: &[(&str, &str)] = &[("wood", "Light wood"), ("darkwood", "Dark wood"), ("metal", "Metal"), ("foam", "Foam")];
 const ZMODES: &[(&str, &str)] = &[("top", "Stock top"), ("h", "Height")];
 
 pub fn label_of(opts: &[(&str, &str)], v: &str) -> String {

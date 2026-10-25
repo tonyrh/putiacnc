@@ -97,7 +97,7 @@ impl Theme {
             ("darkwood", false) => Material { fill: c(0xb9, 0x9a, 0x7e), stroke: c(0x5e, 0x40, 0x2a), top: c(112, 76, 52), side: c(78, 52, 34), grain: 0.0, rings: 1.0, brush: 0.0 },
             ("darkwood", true) => Material { fill: c(0x2e, 0x21, 0x19), stroke: c(0x9a, 0x76, 0x56), top: c(112, 76, 52), side: c(78, 52, 34), grain: 0.0, rings: 1.0, brush: 0.0 },
             (_, false) => Material { fill: c(0xe9, 0xdb, 0xc3), stroke: c(0xa0, 0x7c, 0x45), top: c(226, 190, 142), side: c(190, 150, 104), grain: 0.0, rings: 1.0, brush: 0.0 },
-            (_, true) => Material { fill: c(0x3a, 0x30, 0x24), stroke: c(0xa0, 0x84, 0x5c), top: c(196, 158, 112), side: c(150, 116, 78), grain: 0.0, rings: 1.0, brush: 0.0 },
+            (_, true) => Material { fill: c(0x5c, 0x4b, 0x36), stroke: c(0xb4, 0x96, 0x6c), top: c(196, 158, 112), side: c(150, 116, 78), grain: 0.0, rings: 1.0, brush: 0.0 },
         }
     }
     pub fn shape_idle(&self) -> Color32 { if self.dark { Color32::from_gray(150) } else { Color32::from_gray(100) } }
