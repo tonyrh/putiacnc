@@ -621,6 +621,39 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     let mut mach_pick: Option<String> = None;
     let mut open_machines = false;
     let mut group_act: Option<(Option<i64>, GroupAct)> = None;
+    // the buttons that add operations stay put above the list; only the list scrolls
+    let mut add_kind: Option<&str> = None;
+    if ops {
+        let d = &app.project.data;
+        let sel = &app.sel;
+        let collapsed = &mut app.collapsed;
+        // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
+        // an operation is made for the shapes that are selected, so the buttons wait for a selection
+        let has_sel = sel.iter().any(|&k| k < d.loops.len());
+        ui.horizontal(|ui| {
+            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
+                let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, icon, label, &format!("Add a {label} operation for the selected shapes"), None)).inner;
+                if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some(kind); }
+            }
+            if !d.ops.is_empty() {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
+                    let (icon, tip) = if all_folded { (Icon::Unfold, "Expand all operations") } else { (Icon::Fold, "Collapse all operations") };
+                    if small_icon_button(ui, icon, true, tip).clicked() {
+                        if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
+                    }
+                });
+            }
+        });
+        ui.horizontal(|ui| {
+            let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None)).inner;
+            if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some("inlay"); }
+            let has_model = d.relief.is_some();
+            let r = ui.add_enabled_ui(has_model, |ui| icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model: roughing, then a finishing pass that follows the surface", None)).inner;
+            if !has_model { r.on_disabled_hover_text("Import a 3D model first (File > Import 3D Model)"); } else if r.clicked() { add_kind = Some("relief"); }
+        });
+        ui.separator();
+    }
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         let App { project, sel, collapsed, tab_edit, .. } = app;
         if !ops {
@@ -751,32 +784,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         // ---- operations --------------------------------------------------------------
         // the operation list, its buttons row and the editor frame all share this width
         let lw = ui.available_width();
-        // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
-        let mut add_kind: Option<&str> = None;
-        // an operation is made for the shapes that are selected, so the buttons wait for a selection
-        let has_sel = sel.iter().any(|&k| k < d.loops.len());
-        ui.horizontal(|ui| {
-            for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
-                let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, icon, label, &format!("Add a {label} operation for the selected shapes"), None)).inner;
-                if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some(kind); }
-            }
-            if !d.ops.is_empty() {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
-                    let (icon, tip) = if all_folded { (Icon::Unfold, "Expand all operations") } else { (Icon::Fold, "Collapse all operations") };
-                    if small_icon_button(ui, icon, true, tip).clicked() {
-                        if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
-                    }
-                });
-            }
-        });
-        ui.horizontal(|ui| {
-            let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None)).inner;
-            if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some("inlay"); }
-            let has_model = d.relief.is_some();
-            let r = ui.add_enabled_ui(has_model, |ui| icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model: roughing, then a finishing pass that follows the surface", None)).inner;
-            if !has_model { r.on_disabled_hover_text("Import a 3D model first (File > Import 3D Model)"); } else if r.clicked() { add_kind = Some("relief"); }
-        });
         if let Some(kind) = add_kind {
             if kind == "inlay" {
                 add_inlay(d, sel);
