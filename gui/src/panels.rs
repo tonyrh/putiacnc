@@ -331,6 +331,7 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
         }
         ui.separator();
         ui.label(format!("{} shapes, {} selected", app.project.data.loops.len(), app.sel.len()));
+        if let Some(msg) = app.note.take() { let now = ui.input(|i| i.time); ui.ctx().data_mut(|x| x.insert_temp(egui::Id::new("status_note"), (msg, now))); }
         let note: Option<(String, f64)> = ui.ctx().data(|x| x.get_temp(egui::Id::new("status_note")));
         if let Some((msg, t0)) = note {
             let age = ui.input(|i| i.time) - t0;
