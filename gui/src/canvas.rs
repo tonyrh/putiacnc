@@ -6,7 +6,7 @@ use eframe::egui::{self, Color32, Key, Modifiers, PointerButton, Pos2, Rect, Sen
 use putiacnc_core::shapes;
 
 fn finish_poly(app: &mut App, close: bool) {
-    let op = app.project.data.act;
+    let op = 0;
     let pts = std::mem::take(&mut app.poly);
     if let Some(l) = shapes::new_poly(&pts, close, op) { app.add_loop(l); }
 }
@@ -356,7 +356,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 }
                 if resp.drag_stopped_by(prim) {
                     if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
-                        let op = app.project.data.act;
+                        let op = 0;
                         let v = ring_from_drag(app, *start, app.snap(cur), shift, op);
                         if !v.is_empty() {
                             app.hist.record(&app.project.data);
@@ -371,7 +371,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 if let Some(w) = hover_w {
                     // points stay in the tool, so a row of holes is a row of clicks
                     let p = app.snap(w);
-                    let op = app.project.data.act;
+                    let op = 0;
                     app.hist.record(&app.project.data);
                     app.project.data.loops.push(shapes::new_point(p, op));
                     app.sel.clear();
@@ -387,7 +387,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             }
             if resp.drag_stopped_by(prim) {
                 if let (Drag::Draw { start }, Some(cur)) = (&app.drag, pointer_w) {
-                    let op = app.project.data.act;
+                    let op = 0;
                     if let Some(l) = poly_from_drag(app, *start, app.snap(cur), shift, op) { app.add_loop(l); }
                 }
                 app.drag = Drag::None;
@@ -406,9 +406,9 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                         // a circle: the drag starts at its centre
                         let c = app.snap(cur);
                         let r = (c[0] - a[0]).hypot(c[1] - a[1]);
-                        if r > 0.01 { let op = app.project.data.act; app.add_loop(shapes::new_circle(a, r, op)); }
+                        if r > 0.01 { let op = 0; app.add_loop(shapes::new_circle(a, r, op)); }
                     } else if (b[0] - a[0]).abs() > 0.01 && (b[1] - a[1]).abs() > 0.01 {
-                        let op = app.project.data.act;
+                        let op = 0;
                         let l = if app.mode == Mode::Rect { shapes::new_rect(a, b, app.rect_radius, op) } else { shapes::new_ellipse(a, b, op) };
                         app.add_loop(l);
                     }
@@ -1241,35 +1241,6 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     app.palette_extra = (pal.response.rect.height() - 46.0).max(0.0);
     tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
-    // which operation new shapes go to
-    {
-        let (d, dark) = (&app.project.data, app.theme.dark);
-        let act_idx = d.ops.iter().position(|o| o.id == d.act);
-        let (txt, col) = match act_idx.and_then(|k| d.ops.get(k).map(|o| (k, o))) {
-            Some((k, o)) => (format!("New shapes go to  {}. {}", k + 1, crate::panels::KINDS.iter().find(|(kk, _)| *kk == o.p.kind).map_or(o.p.kind.as_str(), |(_, n)| *n)), Some((k, op_color(k, dark)))),
-            None => ("New shapes go to no operation".to_string(), None),
-        };
-        // beside the palette when there is room; a small numbered dot (the words in its tooltip) when there is less; nothing when there is none
-        let room = rect.right() - 14.0 - (pal.response.rect.right() + 10.0);
-        let full = txt.chars().count() as f32 * 6.2 + 44.0;
-        let dot_only = room < full;
-        if if col.is_some() { room >= 30.0 } else { room >= full } {
-        egui::Area::new(egui::Id::new("act_chip")).order(egui::Order::Middle).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-14.0, 12.0)).interactable(dot_only).show(ctx, |ui| {
-            egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).rounding(14.0).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 6.0;
-                    if let Some((k, c)) = col {
-                        let (r, _) = ui.allocate_exact_size(Vec2::splat(16.0), Sense::hover());
-                        let lum = 0.299 * c.r() as f32 + 0.587 * c.g() as f32 + 0.114 * c.b() as f32;
-                        ui.painter().circle_filled(r.center(), 8.0, c);
-                        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, format!("{}", k + 1), egui::FontId::proportional(10.0), if lum > 150.0 { Color32::from_rgb(0x1e, 0x1e, 0x1e) } else { Color32::WHITE });
-                    }
-                    if !dot_only { ui.label(egui::RichText::new(&txt).small()); }
-                });
-            }).response.on_hover_text(&txt);
-        });
-        }
-    }
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point \u{b7} click an edge to add one \u{b7} Del removes" } else if app.tab_edit.is_some() { "Click an outline to add a tab \u{b7} right-click removes one" } else { match app.mode {
         Mode::Select => "Click or box-select \u{b7} drag to move \u{b7} handles resize",

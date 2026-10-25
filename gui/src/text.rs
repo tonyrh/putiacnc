@@ -155,7 +155,7 @@ impl TextTool {
     }
 }
 
-/// Adds the previewed text to the drawing, in the active operation, and selects it. The shapes form a group that
+/// Adds the previewed text to the drawing, in no operation, and selects it. The shapes form a group that
 /// remembers the settings, so the text can be edited later; when a text is being edited its letters are replaced.
 pub fn place(app: &mut App) {
     app.text.key.clear();
@@ -172,7 +172,7 @@ pub fn place(app: &mut App) {
     if let Some(gid) = app.text.edit {
         let d = &mut app.project.data;
         let old: Vec<usize> = d.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(gid)).map(|(i, _)| i).collect();
-        let first_op = old.first().map(|&i| d.loops[i].op).unwrap_or(d.act);
+        let first_op = old.first().map(|&i| d.loops[i].op).unwrap_or(0);
         let same = old.len() == loops.len();
         for (k, l) in loops.iter_mut().enumerate() {
             l.grp = Some(gid);
@@ -191,7 +191,7 @@ pub fn place(app: &mut App) {
         }
         if let Some(g) = d.groups.iter_mut().find(|g| g.id == gid) { g.text = Some(spec); g.name = name; }
     } else {
-        let op = app.project.data.act;
+        let op = 0;
         let gid = app.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         app.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name, locked: false, text: Some(spec) });
         for l in &mut loops { l.op = op; l.grp = Some(gid); }

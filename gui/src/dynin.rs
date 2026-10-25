@@ -181,7 +181,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
         let res = hover.and_then(|h| evaluate(&d, app.poly.last().copied(), h, zero));
         match res {
             Some(Out::Point(p)) if app.mode == Mode::Point => {
-                let op = app.project.data.act;
+                let op = 0;
                 add_points(app, vec![shapes::new_point(p, op)]);
                 app.dyn_in = None;
             }
@@ -190,7 +190,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
                 app.dyn_in = None;
             }
             Some(Out::Radial(c, r, ang)) => {
-                let op = app.project.data.act;
+                let op = 0;
                 if app.mode == Mode::Polygon {
                     let inner = if app.poly_star { Some(app.poly_inner / 100.0) } else { None };
                     if let Some(l) = shapes::new_polygon(c, r, ang, app.poly_sides.round() as usize, inner, op) { app.add_loop(l); }
@@ -200,17 +200,17 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
                 app.dyn_in = None;
             }
             Some(Out::Box(a, b)) if app.mode == Mode::Point => {
-                let op = app.project.data.act;
+                let op = 0;
                 add_points(app, shapes::point_grid(a, b, app.grid_cols.round() as usize, app.grid_rows.round() as usize, op));
                 app.dyn_in = None;
             }
             Some(Out::Circle(c, r)) => {
-                let op = app.project.data.act;
+                let op = 0;
                 app.add_loop(shapes::new_circle(c, r, op));
                 app.dyn_in = None;
             }
             Some(Out::Box(a, b)) => {
-                let op = app.project.data.act;
+                let op = 0;
                 let l = if app.mode == Mode::Ellipse { shapes::new_ellipse(a, b, op) } else { shapes::new_rect(a, b, app.rect_radius, op) };
                 app.add_loop(l);
                 app.dyn_in = None;

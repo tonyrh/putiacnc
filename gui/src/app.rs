@@ -677,8 +677,8 @@ impl App {
     }
 
     /// Import an SVG or DXF file into the current project. The drawing is centred on the stock when it
-    /// fits, otherwise its lower-left corner is put at the stock origin. New shapes join the
-    /// active operation and become the selection.
+    /// fits, otherwise its lower-left corner is put at the stock origin. New shapes are put
+    /// in no operation and become the selection.
     pub fn import_file(&mut self, path: &str) {
         let dxf = path.to_lowercase().ends_with(".dxf");
         let imp = match std::fs::read(path).map_err(|e| e.to_string()).and_then(|b| if dxf { putiacnc_core::dxf::import(&b) } else { putiacnc_core::svg::import(&b) }) {
@@ -690,7 +690,7 @@ impl App {
     }
 
     /// Put imported shapes on the stock as one drawing: centred when it fits, otherwise its lower-left corner
-    /// at the stock origin. The shapes join the active operation and become the selection.
+    /// at the stock origin. The shapes are in no operation and become the selection.
     pub fn place_import(&mut self, imp: putiacnc_core::svg::Imported, gname: String) {
         if imp.loops.is_empty() { self.error = Some(imp.warnings.join(" ")); return; }
         let Some(b) = shapes::bbox_many(imp.loops.iter()) else { return };
@@ -707,7 +707,7 @@ impl App {
             note.push(format!("The drawing ({:.1} x {:.1} mm) is larger than the stock; resize it with Width/Height in the Selection panel.", bw, bh));
         }
         self.hist.record(&self.project.data);
-        let op = self.project.data.act;
+        let op = 0;
         let start = self.project.data.loops.len();
         let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname, locked: false, text: None });
