@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold }
+pub enum Icon { Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -145,6 +145,14 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
         }
         Icon::ChevR => line(vec![p(-3.0, -6.0), p(3.5, 0.0), p(-3.0, 6.0)]),
         Icon::ChevD => line(vec![p(-6.0, -3.0), p(0.0, 3.5), p(6.0, -3.0)]),
+        Icon::Eye | Icon::EyeOff => {
+            // an eye: two arcs meeting at the corners, and the pupil; struck through when hidden
+            let top: Vec<Pos2> = (0..=8).map(|k| { let t = k as f32 / 8.0; p(-9.0 + 18.0 * t, -7.0 * (1.0 - (2.0 * t - 1.0).powi(2))) }).collect();
+            let bot: Vec<Pos2> = (0..=8).map(|k| { let t = k as f32 / 8.0; p(-9.0 + 18.0 * t, 7.0 * (1.0 - (2.0 * t - 1.0).powi(2))) }).collect();
+            line(top); line(bot);
+            painter.circle_stroke(p(0.0, 0.0), 2.6 * s, st);
+            if matches!(icon, Icon::EyeOff) { line(vec![p(-8.0, 9.0), p(8.0, -9.0)]); }
+        }
         Icon::Fold => {
             line(vec![p(-6.0, -8.0), p(0.0, -2.5), p(6.0, -8.0)]);
             line(vec![p(-6.0, 8.0), p(0.0, 2.5), p(6.0, 8.0)]);

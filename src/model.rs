@@ -42,6 +42,8 @@ pub struct ProjectData {
     /// Active operation id and last-used operation id (browser app bookkeeping).
     #[serde(default)] pub act: i64,
     #[serde(default)] pub oid: i64,
+    /// Operations (by id) left out of the 3D preview; the G-code still has them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")] pub hidden_ops: Vec<i64>,
 }
 
 /// A rectangle on the table, in mm from the stock's lower-left corner, standing `height` mm above the stock top.

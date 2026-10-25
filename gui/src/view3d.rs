@@ -34,6 +34,8 @@ pub struct State {
     pub anim: Option<crate::viewcube::Anim>,
     /// End time (minutes) of every move, and the total.
     pub cum: Vec<f64>,
+    /// Per operation: left out of the preview (what the sim was built with).
+    pub hid: Vec<bool>,
     pub total: f64,
     pub t: f64,
     pub playing: bool,
@@ -51,7 +53,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], total: 0.0, t: 0.0,
+        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
             playing: false, speed_idx: 2, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
@@ -94,17 +96,23 @@ fn fmt_time(min: f64) -> String {
 fn sync(app: &mut App, ctx: &egui::Context) {
     let moves: &[Move] = app.output.as_ref().map(|o| &o.moves[..]).unwrap_or(&[]);
     let st = &mut app.v3;
-    if st.sim.is_none() || st.ver != app.out_ver {
+    let hid: Vec<bool> = app.project.data.ops.iter().map(|o| app.project.data.hidden_ops.contains(&o.id)).collect();
+    let only_hid = st.sim.is_some() && st.ver == app.out_ver && st.hid != hid;
+    if st.sim.is_none() || st.ver != app.out_ver || only_hid {
         let was_end = st.t >= st.total - 1e-9;
+        let frac = if st.total > 0.0 { st.t / st.total } else { 0.0 };
         let stk = &app.project.data.stock;
         // the height texture is at most 4096 texels wide
         let cap = (stk.w * stk.h / (stk.w.max(stk.h) / 4000.0).powi(2)).min(MAX_CELLS as f64) as usize;
-        st.sim = Some(Sim::new(&app.project.data, cap));
+        let mut sim = Sim::new(&app.project.data, cap);
+        sim.skip = hid.clone();
+        st.sim = Some(sim);
+        st.hid = hid.clone();
         st.gen += 1;
         let mut acc = 0.0;
-        st.cum = moves.iter().map(|m| { acc += m.dt; acc }).collect();
+        st.cum = moves.iter().map(|m| { if !hid.get(m.op).copied().unwrap_or(false) { acc += m.dt; } acc }).collect();
         st.total = acc;
-        st.t = if was_end { st.total } else { st.t.min(st.total) };
+        st.t = if was_end { st.total } else if only_hid { st.total * frac } else { st.t.min(st.total) };
         st.ver = app.out_ver;
         if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = st.total * f; } }
         if !st.framed { frame(st, &app.project.data.stock); }
@@ -337,6 +345,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             run.clear();
         };
         for (i, m) in o.moves.iter().enumerate() {
+            if sim.skip.get(m.op).copied().unwrap_or(false) { flush(&mut run, run_key); run_key = None; continue; }
             let executed = i < done;
             if !m.cut {
                 flush(&mut run, run_key); run_key = None;
@@ -356,7 +365,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
         flush(&mut run, run_key);
         for (i, f) in app.checks.iter().enumerate() {
-            if f.mv.is_none() { continue; }
+            if f.mv.is_none() || f.op.is_some_and(|o| sim.skip.get(o).copied().unwrap_or(false)) { continue; }
             if let Some(a) = cam.p([f.at[0] as f32, f.at[1] as f32, f.at[2] as f32]) { crate::checkui::marker(&painter, a, app.check_sel == Some(i)); }
         }
         // the cutter: it glides along the move in progress, so rapids and plunges are not shown as jumps
@@ -384,7 +393,8 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     // which operation and pass the replay is on. Retracts and rapids carry no pass, so the last real pass is kept; and at high
     // speed the label changes at most a few times a second and its box keeps one width, so it does not flicker
     if let (Some(o), Some(sim)) = (&app.output, app.v3.sim.as_ref()) {
-        let cur = sim.done.saturating_sub(1).min(o.moves.len().saturating_sub(1));
+        let mut cur = sim.done.saturating_sub(1).min(o.moves.len().saturating_sub(1));
+        while cur > 0 && sim.skip.get(o.moves[cur].op).copied().unwrap_or(false) { cur -= 1; }
         if let Some(m) = o.moves.get(cur) {
             let pass = o.moves[..=cur].iter().rev().take_while(|x| x.op == m.op).find(|x| x.pass > 0).map_or(0, |x| x.pass);
             let passes = o.moves.iter().filter(|x| x.op == m.op).map(|x| x.pass).max().unwrap_or(0);
@@ -429,6 +439,17 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
     }
 
+    // a reminder that part of the job is left out of the picture, with a way back
+    let n_hid = app.v3.hid.iter().filter(|&&h| h).count();
+    if n_hid > 0 {
+        let text = format!("{n_hid} operation{} hidden · Show all", if n_hid == 1 { "" } else { "s" });
+        let g = painter.layout_no_wrap(text, FontId::proportional(12.5), Color32::WHITE);
+        let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 50.0), g.size() + Vec2::new(18.0, 8.0));
+        let resp = ui.interact(r, ui.id().with("v3_show_all"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+        painter.rect_filled(r, 6.0, Color32::from_black_alpha(if resp.hovered() { 200 } else { 150 }));
+        painter.galley(r.min + Vec2::new(9.0, 4.0), g, Color32::WHITE);
+        if resp.clicked() { app.project.data.hidden_ops.clear(); app.touch(); }
+    }
     if app.v3.catching_up {
         let total = app.output.as_ref().map_or(1, |o| o.moves.len()).max(1);
         let pct = (app.v3.sim.as_ref().map_or(0, |s| s.done) * 100 / total).min(99);

@@ -837,6 +837,9 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let machine_now = d.machine.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
+        // the eye: Some((id, only)) toggles that operation in the 3D preview; with Alt it is shown alone
+        let mut act_eye: Option<(i64, bool)> = None;
+        let hidden_now = d.hidden_ops.clone();
         // operations that own a selected shape get an outline; the list scrolls to the first one when the selection changes
         let hi_ids: Vec<i64> = d.ops.iter().filter(|o| sel.iter().any(|&k| d.loops.get(k).is_some_and(|l| l.op == o.id))).map(|o| o.id).collect();
         let hi_key = egui::Id::new("op_highlight_prev");
@@ -860,6 +863,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let folded = collapsed.contains(&id);
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
+                let fill = if hidden_now.contains(&id) { fill.gamma_multiply(0.55) } else { fill };
                 ui.painter().rect_filled(rect, 6.0, fill);
                 // the operations that own the shapes selected in the drawing are brighter and outlined
                 if selected {
@@ -881,7 +885,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let g1 = ui.painter().layout_no_wrap(text, body, col);
                 let g2 = ui.painter().layout_no_wrap(sub, small, sub_col);
                 let top = rect.center().y - (g1.size().y + g2.size().y) / 2.0;
-                let btn_w = 3.0 * 26.0 + 2.0 * 2.0;
+                let btn_w = 4.0 * 26.0 + 3.0 * 2.0;
                 let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - btn_w - 8.0, rect.max.y)));
                 let h1 = g1.size().y;
                 clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
@@ -893,6 +897,9 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 ui.allocate_ui_at_rect(brect, |ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
                     ui.horizontal(|ui| {
+                        let off = hidden_now.contains(&id);
+                        let tip = if off { "Hidden in the 3D preview. Click to show it (Alt-click: show only this one)" } else { "Shown in the 3D preview. Click to hide it (Alt-click: show only this one)" };
+                        if small_icon_button(ui, if off { Icon::EyeOff } else { Icon::Eye }, true, tip).clicked() { act_eye = Some((id, ui.input(|x| x.modifiers.alt))); }
                         if small_icon_button(ui, Icon::Up, i > 0, "Move up (runs earlier)").clicked() { act_move = Some((i, -1)); }
                         if small_icon_button(ui, Icon::Down, i + 1 < n_ops, "Move down (runs later)").clicked() { act_move = Some((i, 1)); }
                         if small_icon_button(ui, Icon::Trash, true, "Delete operation").clicked() { act_remove = Some(i); }
@@ -1226,8 +1233,17 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let j = i as i32 + dir;
             if j >= 0 && (j as usize) < d.ops.len() { d.ops.swap(i, j as usize); changed = true; }
         }
+        if let Some((id, only)) = act_eye {
+            if only {
+                let others: Vec<i64> = d.ops.iter().map(|o| o.id).filter(|&x| x != id).collect();
+                // Alt on the only visible operation brings everything back
+                d.hidden_ops = if others.iter().all(|x| d.hidden_ops.contains(x)) { vec![] } else { others };
+            } else if let Some(k) = d.hidden_ops.iter().position(|&x| x == id) { d.hidden_ops.remove(k); } else { d.hidden_ops.push(id); }
+            changed = true;
+        }
         if let Some(i) = act_remove {
             let id = d.ops[i].id;
+            d.hidden_ops.retain(|&x| x != id);
             for l in d.loops.iter_mut() { if l.op == id { l.op = 0; } }
             d.ops.remove(i);
             if d.act == id { d.act = d.ops.get(i.saturating_sub(1)).map(|o| o.id).unwrap_or(0); }

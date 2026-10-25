@@ -25,6 +25,8 @@ pub struct Sim {
     pub rev: u64,
     /// How far into the move at `done` the cutter has been stamped (0..1), see `advance_into`.
     part: f64,
+    /// Per operation: its moves are left out of the replay.
+    pub skip: Vec<bool>,
 }
 
 impl Sim {
@@ -52,7 +54,7 @@ impl Sim {
                 None => (0.0, vec![0.0]),
             }
         }).collect();
-        Sim { nx, ny, cell, w: st.w, h: st.h, t: st.t, z: vec![0.0; nx * ny], done: 0, tools, tip: [0.0, 0.0, 10.0], rev: 0, part: 0.0 }
+        Sim { nx, ny, cell, w: st.w, h: st.h, t: st.t, z: vec![0.0; nx * ny], done: 0, tools, tip: [0.0, 0.0, 10.0], rev: 0, part: 0.0, skip: vec![] }
     }
 
     pub fn reset(&mut self) { self.z.iter_mut().for_each(|v| *v = 0.0); self.done = 0; self.part = 0.0; self.rev += 1; }
@@ -111,7 +113,7 @@ impl Sim {
 
     /// Cuts the part of a move between fractions `f0` and `f1` of its length.
     fn stamp_move(&mut self, m: &Move, f0: f64, f1: f64) {
-        if !m.cut || f1 <= f0 { return; }
+        if !m.cut || f1 <= f0 || self.skip.get(m.op).copied().unwrap_or(false) { return; }
         let d = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt() * (f1 - f0);
         let n = ((d / (self.cell * 0.7)).ceil() as usize).max(1);
         for i in 0..=n {
@@ -368,5 +370,31 @@ mod tests {
             }
             assert!(g.z_full > 0.0 && (g.r_at(g.z_full) - g.r).abs() < 1e-6);
         }
+    }
+}
+
+#[cfg(test)]
+mod skip_tests {
+    use super::*;
+    use crate::{generate, shapes, Units};
+
+    #[test]
+    fn a_skipped_operation_leaves_the_stock_uncut() {
+        let mut f = shapes::blank_project();
+        let d = &mut f.data;
+        d.stock.w = 60.0; d.stock.h = 40.0; d.stock.t = 12.0;
+        d.ops.push(crate::model::Operation { id: 1, p: shapes::default_op_params(&d.tools[0].id) });
+        d.ops[0].p.kind = "pocket".into();
+        d.ops[0].p.depth = 3.0;
+        d.oid = 1; d.act = 1;
+        d.loops.push(shapes::new_rect([15.0, 10.0], [45.0, 30.0], 0.0, 1));
+        let o = generate(d, Units::Metric).unwrap();
+        let mut a = Sim::new(d, 20000);
+        a.advance(&o.moves, o.moves.len());
+        assert!(a.z.iter().any(|&z| z < -1.0), "the pocket is cut");
+        let mut b = Sim::new(d, 20000);
+        b.skip = vec![true];
+        b.advance(&o.moves, o.moves.len());
+        assert!(b.z.iter().all(|&z| z == 0.0), "a hidden operation cuts nothing");
     }
 }
