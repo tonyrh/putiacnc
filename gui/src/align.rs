@@ -8,40 +8,57 @@ use putiacnc_core::shapes;
 /// Aligns the selection. `each` = false: to the stock (0 left, 1 centre horizontally, 2 right, 3 top, 4 centre
 /// vertically, 5 bottom, 6 centre on both). `each` = true: to each other (0..5 the same edges), 6 and 7 distribute
 /// horizontally and vertically (three shapes or more).
+/// The selection as things that move as one: a placed text is a single thing (its letters keep their places), anything else
+/// is one shape per entry.
+pub fn units(app: &App) -> Vec<Vec<usize>> {
+    let d = &app.project.data;
+    let mut out: Vec<Vec<usize>> = Vec::new();
+    let mut seen: Vec<i64> = Vec::new();
+    for i in app.sel.iter().copied().filter(|&i| i < d.loops.len()) {
+        match d.loops[i].grp.filter(|g| d.groups.iter().any(|x| x.id == *g && x.text.is_some())) {
+            Some(g) => { if !seen.contains(&g) { seen.push(g); out.push(d.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(g)).map(|(k, _)| k).collect()); } }
+            None => out.push(vec![i]),
+        }
+    }
+    out
+}
+
 pub fn align_selection(app: &mut App, each: bool, k: u8) {
     if app.sel.is_empty() || app.sel_locked() { return; }
-    let ids: Vec<usize> = app.sel.iter().copied().filter(|&i| i < app.project.data.loops.len()).collect();
-    let Some(b) = shapes::bbox_many(ids.iter().map(|&i| &app.project.data.loops[i])) else { return };
-    if each && ids.len() < 2 { return; }
-    if each && k >= 6 && ids.len() < 3 { return; }
+    let units = units(app);
+    let ubox = |d: &putiacnc_core::model::ProjectData, u: &[usize]| shapes::bbox_many(u.iter().map(|&i| &d.loops[i]));
+    let Some(b) = shapes::bbox_many(units.iter().flatten().map(|&i| &app.project.data.loops[i])) else { return };
+    if each && units.len() < 2 { return; }
+    if each && k >= 6 && units.len() < 3 { return; }
     app.hist.record(&app.project.data);
     let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let d = &mut app.project.data;
+    let mv = |d: &mut putiacnc_core::model::ProjectData, u: &[usize], dx: f64, dy: f64| for &i in u { shapes::translate(&mut d.loops[i], dx, dy); };
     if !each {
         let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
         let dx = match k { 0 => -b[0], 1 | 6 => sw / 2.0 - cx, 2 => sw - b[2], _ => 0.0 };
         let dy = match k { 3 => sh - b[3], 4 | 6 => sh / 2.0 - cy, 5 => -b[1], _ => 0.0 };
-        for &i in &ids { shapes::translate(&mut d.loops[i], dx, dy); }
+        for u in &units { mv(d, u, dx, dy); }
     } else if k < 6 {
-        for &i in &ids {
-            let Some(lb) = shapes::bbox(&d.loops[i]) else { continue };
+        for u in &units {
+            let Some(lb) = ubox(d, u) else { continue };
             let dx = match k { 0 => b[0] - lb[0], 1 => (b[0] + b[2]) / 2.0 - (lb[0] + lb[2]) / 2.0, 2 => b[2] - lb[2], _ => 0.0 };
             let dy = match k { 3 => b[3] - lb[3], 4 => (b[1] + b[3]) / 2.0 - (lb[1] + lb[3]) / 2.0, 5 => b[1] - lb[1], _ => 0.0 };
-            shapes::translate(&mut d.loops[i], dx, dy);
+            mv(d, u, dx, dy);
         }
     } else {
         // equal gaps between the shapes, keeping the outermost two where they are
         let horiz = k == 6;
         let ax = |bb: [f64; 4]| if horiz { (bb[0], bb[2]) } else { (bb[1], bb[3]) };
-        let mut items: Vec<(usize, f64, f64)> = ids.iter().filter_map(|&i| shapes::bbox(&d.loops[i]).map(|bb| { let (lo, hi) = ax(bb); (i, lo, hi) })).collect();
+        let mut items: Vec<(usize, f64, f64)> = units.iter().enumerate().filter_map(|(n, u)| ubox(d, u).map(|bb| { let (lo, hi) = ax(bb); (n, lo, hi) })).collect();
         items.sort_by(|p, q| (p.1 + p.2).partial_cmp(&(q.1 + q.2)).unwrap());
         let (lo, hi) = ax(b);
         let total: f64 = items.iter().map(|t| t.2 - t.1).sum();
         let gap = (hi - lo - total) / (items.len() - 1) as f64;
         let mut pos = lo;
-        for (i, l0, l1) in items {
+        for (n, l0, l1) in items {
             let delta = pos - l0;
-            if horiz { shapes::translate(&mut d.loops[i], delta, 0.0); } else { shapes::translate(&mut d.loops[i], 0.0, delta); }
+            if horiz { mv(d, &units[n], delta, 0.0); } else { mv(d, &units[n], 0.0, delta); }
             pos += (l1 - l0) + gap;
         }
     }
@@ -62,7 +79,7 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
     if app.sel.is_empty() || app.sel_locked() { app.align_open = false; }
     if !app.align_open { return; }
     let Some(btn) = app.align_btn else { return };
-    let n = app.sel.len();
+    let n = units(app).len();
     let mut pick: Option<(bool, u8)> = None;
     let resp = egui::Area::new(egui::Id::new("align_pop")).order(egui::Order::Foreground).fixed_pos(egui::pos2(btn.left().min(app.canvas_right - 445.0).max(4.0), btn.bottom() + 4.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 6.0)).show(ui, |ui| {
@@ -150,5 +167,28 @@ mod tests {
         a.sel.clear();
         align_selection(&mut a, false, 6);
         assert_eq!(boxes(&a)[0], [10.0, 10.0, 30.0, 20.0]);
+    }
+
+    #[test]
+    fn a_placed_text_aligns_and_distributes_as_one_thing() {
+        use putiacnc_core::model::{ShapeGroup, TextSpec};
+        use putiacnc_core::text::{Align, Flow};
+        let mut a = app3();
+        // loops 0 and 1 are two letters of one text; loop 2 is a separate shape
+        for i in [0, 1] { a.project.data.loops[i].grp = Some(1); }
+        a.project.data.groups.push(ShapeGroup { id: 1, name: "Text: AB".into(), locked: false, text: Some(TextSpec {
+            content: "AB".into(), font: "Hack".into(), size: 10.0, spacing: 0.0, align: Align::Left, flow: Flow::Straight, radius: 0.0, shadow: [0.0, 0.0] }) });
+        a.sel = (0..3).collect();
+        assert_eq!(units(&a).len(), 2, "the two letters count as one");
+        let before = boxes(&a);
+        align_selection(&mut a, true, 4);
+        let after = boxes(&a);
+        // the letters kept their positions relative to each other
+        assert!(((after[1][0] - after[0][0]) - (before[1][0] - before[0][0])).abs() < 1e-9);
+        assert!(((after[1][1] - after[0][1]) - (before[1][1] - before[0][1])).abs() < 1e-9);
+        // two things cannot be distributed
+        let moved = boxes(&a);
+        align_selection(&mut a, true, 6);
+        assert_eq!(boxes(&a), moved);
     }
 }
