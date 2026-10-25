@@ -755,13 +755,20 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let n_clamps = d.clamps.len();
             let fw = 62.0_f32;
             let (lc1, lc2) = (tw(ui, "Width").max(tw(ui, "Rise")).max(tw(ui, "X")), tw(ui, "Length").max(tw(ui, "Y")));
+            // which clamps are folded away (a view setting: kept for the session, not in the project)
+            let fold_key = egui::Id::new("clamp_folded");
+            let mut folded: Vec<bool> = ui.data(|x| x.get_temp(fold_key)).unwrap_or_default();
+            folded.resize(n_clamps, false);
             for (i, c) in d.clamps.iter_mut().enumerate() {
                 ui.horizontal(|ui| {
+                    if small_icon_button(ui, if folded[i] { Icon::ChevR } else { Icon::ChevD }, true, if folded[i] { "Show this clamp's settings" } else { "Hide this clamp's settings" }).clicked() { folded[i] = !folded[i]; }
                     ui.label(egui::RichText::new(format!("Clamp {}", i + 1)).strong());
+                    if folded[i] { ui.weak(format!("X {} · Y {} · {} × {} · rise {}", fnum(c.x), fnum(c.y), fnum(c.w), fnum(c.h), fnum(c.height))); }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if small_icon_button(ui, Icon::Trash, true, "Remove this clamp").clicked() { del = Some(i); }
                     });
                 });
+                if !folded[i] {
                 egui::Grid::new(("clamp_grid", i)).num_columns(6).spacing([8.0, 8.0]).show(ui, |ui| {
                     rlabel(ui, lc1, "X"); changed |= dv_w(ui, fw, &mut c.x, -10000.0, 10000.0, ""); ui.weak("mm");
                     rlabel(ui, lc2, "Y"); changed |= dv_w(ui, fw, &mut c.y, -10000.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
@@ -770,8 +777,11 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     rlabel(ui, lc1, "Rise"); changed |= dv_w(ui, fw, &mut c.height, 0.1, 10000.0, ""); ui.weak("mm");
                     ui.end_row();
                 });
+                }
                 if i + 1 < n_clamps { ui.add_space(4.0); ui.separator(); ui.add_space(4.0); }
             }
+            if let Some(i) = del { if i < folded.len() { folded.remove(i); } }
+            ui.data_mut(|x| x.insert_temp(fold_key, folded));
             ui.add_space(if n_clamps > 0 { 8.0 } else { 4.0 });
             if let Some(i) = del { d.clamps.remove(i); changed = true; }
             ui.horizontal(|ui| {
@@ -1366,6 +1376,9 @@ fn icon_close(ui: &mut Ui) -> egui::Response {
     paint_icon(ui.painter(), Icon::Close, r.center(), ui.visuals().text_color(), 0.55);
     resp.on_hover_text("Dismiss")
 }
+
+/// A number for a one-line summary: no trailing zeros.
+fn fnum(v: f64) -> String { let t = format!("{:.1}", v); t.trim_end_matches('0').trim_end_matches('.').to_string() }
 
 #[cfg(test)]
 mod inlay_tests {
