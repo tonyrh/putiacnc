@@ -34,10 +34,22 @@ impl App {
         }
         if changes.is_empty() { return Some("There are no sharp corners in the selection.".into()); }
         self.hist.record(&self.project.data);
-        for (i, r) in changes { self.project.data.loops[i] = r; }
+        // rounded letters are no longer what the font draws: a changed text becomes plain outlines
+        let d = &mut self.project.data;
+        let mut texts: Vec<i64> = changes.iter().filter_map(|(i, _)| d.loops[*i].grp).filter(|g| d.groups.iter().any(|x| x.id == *g && x.text.is_some())).collect();
+        texts.sort_unstable();
+        texts.dedup();
+        for (i, r) in changes { d.loops[i] = r; }
+        for g in &texts {
+            for l in d.loops.iter_mut().filter(|l| l.grp == Some(*g)) { l.grp = None; }
+            d.groups.retain(|x| x.id != *g);
+        }
         self.touch();
         let _ = corners;
-        if limited > 0 { Some(format!("{limited} corner{} too tight for that size and got the largest that fits.", if limited == 1 { " was" } else { "s were" })) } else { None }
+        let mut note = String::new();
+        if limited > 0 { note = format!("{limited} corner{} too tight for that size and got the largest that fits.", if limited == 1 { " was" } else { "s were" }); }
+        if !texts.is_empty() { if !note.is_empty() { note.push(' '); } note.push_str("The text is now plain outlines, so it can no longer be edited as text."); }
+        if note.is_empty() { None } else { Some(note) }
     }
 }
 
@@ -113,5 +125,19 @@ mod tests {
         assert!(a.corner_selection(CornerKind::Chamfer, 2.0).is_none());
         assert!(a.project.data.loops[1].rc.is_none());
         assert_eq!(a.project.data.loops[1].pts.len() / 2, 8);
+    }
+
+    #[test]
+    fn rounding_the_corners_of_text_turns_it_into_outlines() {
+        use putiacnc_core::model::{ShapeGroup, TextSpec};
+        use putiacnc_core::text::{Align, Flow};
+        let mut r = shapes::new_rect([0.0, 0.0], [20.0, 10.0], 0.0, 1);
+        r.grp = Some(1);
+        let mut a = app_with(vec![r]);
+        a.project.data.groups.push(ShapeGroup { id: 1, name: "Text: A".into(), locked: false, text: Some(TextSpec {
+            content: "A".into(), font: "Hack".into(), size: 10.0, spacing: 0.0, align: Align::Left, flow: Flow::Straight, radius: 0.0, shadow: [0.0, 0.0] }) });
+        let msg = a.corner_selection(CornerKind::Fillet, 1.0).expect("a note about the text");
+        assert!(msg.contains("plain outlines"), "{msg}");
+        assert!(a.project.data.groups.is_empty() && a.project.data.loops[0].grp.is_none());
     }
 }
