@@ -18,6 +18,10 @@ pub struct TextStyle {
     pub size_mm: f64,
     /// Extra space added after every letter, in mm.
     pub spacing_mm: f64,
+    /// Extra space added after every space character, in mm (on top of the letter spacing).
+    pub word_spacing_mm: f64,
+    /// Move pairs of letters (AV, To...) together or apart as the font says.
+    pub kerning: bool,
     pub align: Align,
     pub flow: Flow,
     /// Radius of the circle the baseline follows, mm (arc flows only).
@@ -27,7 +31,7 @@ pub struct TextStyle {
 }
 
 impl TextStyle {
-    pub fn plain(size_mm: f64, spacing_mm: f64, align: Align) -> Self { TextStyle { size_mm, spacing_mm, align, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] } }
+    pub fn plain(size_mm: f64, spacing_mm: f64, align: Align) -> Self { TextStyle { size_mm, spacing_mm, word_spacing_mm: 0.0, kerning: false, align, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] } }
 }
 
 struct Builder {
@@ -78,6 +82,46 @@ impl OutlineBuilder for Builder {
     fn close(&mut self) { self.finish(); }
 }
 
+/// How far the font moves `right` towards (negative) or away from (positive) `left`, in font units: the pair adjustments of the
+/// `kern` feature of the GPOS table when there are any, else the old `kern` table.
+pub fn pair_kerning(face: &Face, left: ttf_parser::GlyphId, right: ttf_parser::GlyphId) -> f64 {
+    use ttf_parser::gpos::{PairAdjustment, PositioningSubtable};
+    let tables = face.tables();
+    if let Some(gpos) = tables.gpos {
+        let mut lookups: Vec<u16> = Vec::new();
+        for i in 0..gpos.features.len() {
+            let Some(feat) = gpos.features.get(i) else { continue };
+            if feat.tag != ttf_parser::Tag::from_bytes(b"kern") { continue; }
+            for l in feat.lookup_indices { if !lookups.contains(&l) { lookups.push(l); } }
+        }
+        if !lookups.is_empty() {
+            let mut total = 0.0;
+            for li in lookups {
+                let Some(lookup) = gpos.lookups.get(li) else { continue };
+                // the first subtable of a lookup that knows the pair decides
+                for st in lookup.subtables.into_iter::<PositioningSubtable>() {
+                    let PositioningSubtable::Pair(pa) = st else { continue };
+                    let value = match pa {
+                        PairAdjustment::Format1 { coverage, sets } => coverage.get(left).and_then(|i| sets.get(i)).and_then(|set| set.get(right)),
+                        PairAdjustment::Format2 { coverage, classes, matrix } => {
+                            if coverage.contains(left) { matrix.get((classes.0.get(left), classes.1.get(right))) } else { None }
+                        }
+                    };
+                    if let Some((v1, _)) = value { total += v1.x_advance as f64; break; }
+                }
+            }
+            return total;
+        }
+    }
+    let mut total = 0.0;
+    if let Some(kern) = tables.kern {
+        for st in kern.subtables {
+            if st.horizontal && !st.variable { if let Some(k) = st.glyphs_kerning(left, right) { total += k as f64; } }
+        }
+    }
+    total
+}
+
 /// Joins contours that overlap. Many fonts (variable fonts, scripts, letters that touch their neighbours)
 /// draw a glyph from overlapping parts; with the even-odd rule used for holes the overlap would show up
 /// as a hole. Outer outlines and holes run in opposite directions in a font, so filling by the non-zero
@@ -102,7 +146,12 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
     let line_h = (face.ascender() as f64 - face.descender() as f64 + face.line_gap() as f64) * scale;
     let advance = |ch: char| -> f64 {
         let g = face.glyph_index(ch);
-        g.and_then(|g| face.glyph_hor_advance(g)).map(|a| a as f64).unwrap_or(upm * 0.5) * scale + style.spacing_mm
+        g.and_then(|g| face.glyph_hor_advance(g)).map(|a| a as f64).unwrap_or(upm * 0.5) * scale + style.spacing_mm + if ch == ' ' { style.word_spacing_mm } else { 0.0 }
+    };
+    // the font's adjustment for a pair of letters, mm (0 when kerning is off or the font has none)
+    let kern = |a: char, b: char| -> f64 {
+        if !style.kerning { return 0.0; }
+        match (face.glyph_index(a), face.glyph_index(b)) { (Some(ga), Some(gb)) => pair_kerning(&face, ga, gb) * scale, _ => 0.0 }
     };
     let mk = |c: &[[i64; 2]]| LoopData {
         c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
@@ -133,13 +182,19 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
     } else {
         for (li, line) in text.lines().enumerate() {
             let mut contours: Vec<crate::clip::Path> = Vec::new();
-            let width: f64 = line.chars().map(&advance).sum::<f64>() - if line.is_empty() { 0.0 } else { style.spacing_mm };
-            let mut x = origin[0] - match style.align { Align::Left => 0.0, Align::Center => width / 2.0, Align::Right => width };
-            let y = origin[1] - li as f64 * line_h;
-            for ch in line.chars() {
-                glyph(ch, x, y, &mut contours);
-                x += advance(ch);
+            // where each letter starts along the baseline, with the font's pair adjustments
+            let chars: Vec<char> = line.chars().collect();
+            let mut xs: Vec<f64> = Vec::with_capacity(chars.len());
+            let mut run = 0.0;
+            for (i, &ch) in chars.iter().enumerate() {
+                xs.push(run);
+                run += advance(ch);
+                if let Some(&next) = chars.get(i + 1) { run += kern(ch, next); }
             }
+            let width: f64 = run - if chars.is_empty() { 0.0 } else { style.spacing_mm };
+            let x0 = origin[0] - match style.align { Align::Left => 0.0, Align::Center => width / 2.0, Align::Right => width };
+            let y = origin[1] - li as f64 * line_h;
+            for (i, &ch) in chars.iter().enumerate() { glyph(ch, x0 + xs[i], y, &mut contours); }
             let merged = merge_overlaps(contours);
             if matches!(style.flow, Flow::ArcTop | Flow::ArcBottom) {
                 let r = style.radius_mm.max(style.size_mm);
@@ -276,7 +331,7 @@ mod tests {
     fn font() -> Option<Vec<u8>> {
         ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/Library/Fonts/Arial.ttf", "C:\\Windows\\Fonts\\arial.ttf"].iter().find_map(|p| std::fs::read(p).ok())
     }
-    const ST: TextStyle = TextStyle { size_mm: 10.0, spacing_mm: 0.0, align: Align::Left, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] };
+    const ST: TextStyle = TextStyle { size_mm: 10.0, spacing_mm: 0.0, word_spacing_mm: 0.0, kerning: false, align: Align::Left, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] };
 
     #[test]
     fn letters_have_the_right_size_and_holes() {
@@ -400,5 +455,28 @@ mod tests {
         let (a, b) = (shapes::bbox_many(sh[..plain.len()].iter()).unwrap(), shapes::bbox_many(plain.iter()).unwrap());
         assert!((a[0] - b[0] - 1.5).abs() < 0.01 && (a[1] - b[1] + 2.0).abs() < 0.01);
         assert_eq!(shapes::bbox_many(sh[plain.len()..].iter()).unwrap(), b);
+    }
+
+    /// The width of the ink of `text` in mm.
+    fn ink_width(f: &[u8], text: &str, st: TextStyle) -> f64 {
+        let l = text_loops(f, 0, text, st, [0.0, 0.0], 1).unwrap();
+        let b = shapes::bbox_many(l.iter()).unwrap();
+        b[2] - b[0]
+    }
+
+    #[test]
+    fn kerning_pulls_a_pair_like_av_together_and_leaves_plain_pairs_alone() {
+        let Some(f) = font() else { return };
+        let on = TextStyle { kerning: true, ..ST };
+        assert!(ink_width(&f, "AV", on) < ink_width(&f, "AV", ST) - 0.3, "AV is kerned");
+        assert!((ink_width(&f, "HH", on) - ink_width(&f, "HH", ST)).abs() < 0.2, "HH is not");
+    }
+
+    #[test]
+    fn word_spacing_widens_only_the_gaps_between_words() {
+        let Some(f) = font() else { return };
+        let wide = TextStyle { word_spacing_mm: 4.0, ..ST };
+        assert!((ink_width(&f, "A B", wide) - ink_width(&f, "A B", ST) - 4.0).abs() < 0.05);
+        assert!((ink_width(&f, "AB", wide) - ink_width(&f, "AB", ST)).abs() < 1e-6);
     }
 }

@@ -20,7 +20,10 @@ pub struct TextTool {
     pub pos: Option<[f64; 2]>,
     pub content: String,
     pub size: f64,
-    pub spacing: f64,
+    /// Space between letters and extra space at word gaps, as a percentage of the height; and whether the font's kerning pairs apply.
+    pub letter_pct: f64,
+    pub word_pct: f64,
+    pub kerning: bool,
     pub align: Align,
     pub flow: Flow,
     /// Radius of the circle for the arc layouts, mm.
@@ -61,7 +64,7 @@ impl Default for TextTool {
     fn default() -> Self {
         let fonts = vec![FontEntry { label: "Hack".into(), id: None }, FontEntry { label: "Ubuntu Light".into(), id: None }];
         TextTool {
-            open: false, focus: false, pos: None, content: String::new(), size: 10.0, spacing: 0.0, align: Align::Left, flow: Flow::Straight, radius: 60.0, shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
+            open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
             fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None,
         }
     }
@@ -132,10 +135,10 @@ impl TextTool {
         self.bytes.clone()
     }
 
-    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.spacing, align: self.align, flow: self.flow, radius_mm: self.radius, shadow: self.shadow } }
+    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.size * self.letter_pct / 100.0, word_spacing_mm: self.size * self.word_pct / 100.0, kerning: self.kerning, align: self.align, flow: self.flow, radius_mm: self.radius, shadow: self.shadow } }
 
     fn refresh(&mut self) {
-        let key = format!("{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}", self.content, self.sel, self.size, self.spacing, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow);
+        let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow);
         if key == self.key { return; }
         self.key = key;
         self.preview.clear();
@@ -166,7 +169,7 @@ pub fn place(app: &mut App) {
     if loops.is_empty() { return; }
     let t = &app.text;
     let spec = putiacnc_core::model::TextSpec {
-        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.spacing, align: t.align, flow: t.flow, radius: t.radius, shadow: t.shadow,
+        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.size * t.letter_pct / 100.0, word_spacing: t.size * t.word_pct / 100.0, kerning: t.kerning, align: t.align, flow: t.flow, radius: t.radius, shadow: t.shadow,
     };
     let first = t.content.lines().find(|l| !l.trim().is_empty()).unwrap_or("").trim().chars().take(24).collect::<String>();
     let name = format!("Text: {first}");
@@ -274,7 +277,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     app.text.sel = idx;
     app.text.picked = true;
     app.text.bytes_for = None;
-    let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, align: spec.align, flow: spec.flow, radius_mm: spec.radius, shadow: spec.shadow };
+    let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, word_spacing_mm: spec.word_spacing, kerning: spec.kerning, align: spec.align, flow: spec.flow, radius_mm: spec.radius, shadow: spec.shadow };
     let g0 = app.text.font_bytes().and_then(|(data, face)| text_loops(&data, face, &spec.content, style, [0.0, 0.0], 0).ok()).unwrap_or_default();
     let now: Vec<&LoopData> = app.project.data.loops.iter().filter(|l| l.grp == Some(gid)).collect();
     let fit = fit_affine(&g0, &now).filter(|(_, res)| *res < 0.02);
@@ -290,7 +293,9 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     let t = &mut app.text;
     t.content = spec.content;
     t.size = spec.size * s;
-    t.spacing = spec.spacing * s;
+    t.letter_pct = if spec.size > 0.0 { spec.spacing / spec.size * 100.0 } else { 0.0 };
+    t.word_pct = if spec.size > 0.0 { spec.word_spacing / spec.size * 100.0 } else { 0.0 };
+    t.kerning = spec.kerning;
     t.align = spec.align;
     t.flow = spec.flow;
     t.radius = spec.radius * s;
@@ -417,11 +422,16 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
 
         // the rest folds away; each header says in grey what it is set to, and stays open or shut as the user left it
         let grid = |id: &'static str| egui::Grid::new(id).num_columns(2).spacing([10.0, 8.0]);
-        let sum_spacing = format!("letters {} mm", crate::panels::fmt_num(t.spacing));
+        let sum_spacing = format!("kerning {} · letters {} · words {}", if t.kerning { "on" } else { "off" }, crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct));
         section(ui, &mut t.sections, "spacing", "Spacing", &sum_spacing, |ui| {
+            ui.checkbox(&mut t.kerning, "Kerning").on_hover_text("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
+            ui.add_space(4.0);
             grid("text_spacing").show(ui, |ui| {
                 ui.label("Letters");
-                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.spacing, -5.0, 50.0, 0.05, 2, ""); ui.weak("mm between letters"); });
+                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.letter_pct, -30.0, 300.0, 0.5, 1, ""); ui.weak("% of the height"); });
+                ui.end_row();
+                ui.label("Words");
+                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.word_pct, -100.0, 500.0, 1.0, 1, ""); ui.weak("% of the height, at the gaps"); });
                 ui.end_row();
             });
         });
@@ -608,5 +618,31 @@ mod tests {
         a.do_redo();
         assert_eq!(letters(&a), long);
         assert_eq!(a.sel.len(), long, "and so is the long one again");
+    }
+
+    #[test]
+    fn kerning_and_spacing_are_remembered_and_the_text_stays_editable() {
+        let mut a = App::new(None);
+        a.text.content = "AV To".into();
+        a.text.sel = a.text.fonts.iter().position(|f| f.label == "Ubuntu Light").unwrap();
+        a.text.pos = Some([10.0, 20.0]);
+        a.text.size = 12.0;
+        a.text.kerning = true;
+        a.text.letter_pct = 5.0;
+        a.text.word_pct = 40.0;
+        place(&mut a);
+        let spec = a.project.data.groups[0].text.clone().unwrap();
+        assert!(spec.kerning && (spec.spacing - 0.6).abs() < 1e-9 && (spec.word_spacing - 4.8).abs() < 1e-9);
+        let gid = a.project.data.groups[0].id;
+        a.edit_text(gid);
+        assert!(begin_edit(&mut a, gid));
+        assert_eq!(a.text.edit, Some(gid), "still text, not outlines");
+        assert!(a.text.kerning && (a.text.letter_pct - 5.0).abs() < 1e-6 && (a.text.word_pct - 40.0).abs() < 1e-6);
+        // the same text without kerning is wider (AV and To are pulled together with it)
+        let w_on = { a.text.refresh(); let b = shapes::bbox_many(a.text.preview.iter()).unwrap(); b[2] - b[0] };
+        a.text.kerning = false;
+        a.text.refresh();
+        let w_off = { let b = shapes::bbox_many(a.text.preview.iter()).unwrap(); b[2] - b[0] };
+        assert!(w_on < w_off, "kerning tightens the text: {w_on} vs {w_off}");
     }
 }

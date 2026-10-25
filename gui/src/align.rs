@@ -177,7 +177,7 @@ mod tests {
         // loops 0 and 1 are two letters of one text; loop 2 is a separate shape
         for i in [0, 1] { a.project.data.loops[i].grp = Some(1); }
         a.project.data.groups.push(ShapeGroup { id: 1, name: "Text: AB".into(), locked: false, text: Some(TextSpec {
-            content: "AB".into(), font: "Hack".into(), size: 10.0, spacing: 0.0, align: Align::Left, flow: Flow::Straight, radius: 0.0, shadow: [0.0, 0.0] }) });
+            content: "AB".into(), font: "Hack".into(), size: 10.0, spacing: 0.0, word_spacing: 0.0, kerning: false, align: Align::Left, flow: Flow::Straight, radius: 0.0, shadow: [0.0, 0.0] }) });
         a.sel = (0..3).collect();
         assert_eq!(units(&a).len(), 2, "the two letters count as one");
         let before = boxes(&a);

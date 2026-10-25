@@ -76,6 +76,9 @@ pub struct TextSpec {
     /// Height of capital letters and extra space between letters, in mm.
     pub size: f64,
     pub spacing: f64,
+    /// Extra space after each space character, mm; and whether the font's pair kerning is applied (texts made before it existed have it off).
+    #[serde(default)] pub word_spacing: f64,
+    #[serde(default)] pub kerning: bool,
     pub align: crate::text::Align,
     #[serde(default)] pub flow: crate::text::Flow,
     #[serde(default)] pub radius: f64,

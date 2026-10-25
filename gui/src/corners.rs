@@ -146,7 +146,7 @@ mod tests {
         r.grp = Some(1);
         let mut a = app_with(vec![r]);
         a.project.data.groups.push(ShapeGroup { id: 1, name: "Text: A".into(), locked: false, text: Some(TextSpec {
-            content: "A".into(), font: "Hack".into(), size: 10.0, spacing: 0.0, align: Align::Left, flow: Flow::Straight, radius: 0.0, shadow: [0.0, 0.0] }) });
+            content: "A".into(), font: "Hack".into(), size: 10.0, spacing: 0.0, word_spacing: 0.0, kerning: false, align: Align::Left, flow: Flow::Straight, radius: 0.0, shadow: [0.0, 0.0] }) });
         let msg = a.corner_selection(CornerKind::Fillet, 1.0).expect("a note about the text");
         assert!(msg.contains("plain outlines"), "{msg}");
         assert!(a.project.data.groups.is_empty() && a.project.data.loops[0].grp.is_none());
