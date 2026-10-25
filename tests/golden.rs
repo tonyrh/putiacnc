@@ -152,3 +152,17 @@ fn vcarve_with_flat_tool_is_an_error() {
     assert!(lap.iter().all(|m| m.pass == last && m.cut && m.from[2] == m.to[2]), "the lap is flat and belongs to the last pass");
     assert!(out.moves.iter().filter(|m| m.pass < last).all(|m| !m.lap));
 }
+
+/// The tool starts at the XY zero, wherever it is: a centre zero must not start the first rapid from the stock's corner.
+#[test] fn the_first_rapid_starts_from_the_xy_zero() {
+    let mut proj = load_project(&fs::read_to_string(data("outside_ramp.project.json")).unwrap()).unwrap();
+    proj.data.stock.zr = "c".into();
+    let (w, h) = (proj.data.stock.w, proj.data.stock.h);
+    let out = generate(&proj.data, Units::Metric).unwrap();
+    let first = out.moves.iter().find(|m| m.from[0] != m.to[0] || m.from[1] != m.to[1]).unwrap();
+    assert!((first.from[0] - w / 2.0).abs() < 1e-9 && (first.from[1] - h / 2.0).abs() < 1e-9, "{:?}", first.from);
+    proj.data.stock.zr = "ll".into();
+    let out = generate(&proj.data, Units::Metric).unwrap();
+    let first = out.moves.iter().find(|m| m.from[0] != m.to[0] || m.from[1] != m.to[1]).unwrap();
+    assert_eq!([first.from[0], first.from[1]], [0.0, 0.0]);
+}
