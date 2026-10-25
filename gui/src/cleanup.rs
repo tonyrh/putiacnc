@@ -49,7 +49,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Clean up drawing").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Clean up drawing", crate::csd::anchor(app))).show(ctx, |ui| {
-        ui.set_width(340.0);
+        ui.set_width(376.0);
         if crate::csd::dialog_header(ui, "Clean up drawing", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(match n { Some(n) => format!("Working on the {n} selected shape{}.", if n == 1 { "" } else { "s" }), None => "Working on the whole drawing (select shapes to limit it).".to_string() });

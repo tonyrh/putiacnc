@@ -15,7 +15,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let mut close = false;
     egui::Window::new("Offset").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Offset", crate::csd::anchor(app))).show(ctx, |ui| {
-        ui.set_width(320.0);
+        ui.set_width(376.0);
         if crate::csd::dialog_header(ui, "Offset", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });

@@ -15,7 +15,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Combine shapes", crate::csd::anchor(app))).show(ctx, |ui| {
-        ui.set_width(340.0);
+        ui.set_width(376.0);
         if crate::csd::dialog_header(ui, "Combine shapes", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n < 2 { "Select two or more closed shapes first.".to_string() } else { format!("{n} shapes selected.") });
