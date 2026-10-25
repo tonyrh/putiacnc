@@ -32,7 +32,7 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
     let cid = egui::Id::new(id);
     let (qid, oid) = (cid.with("q"), cid.with("opened"));
     let mut picked: Option<Picked> = None;
-    let out = egui::ComboBox::from_id_source(cid).width(width).selected_text(shown).show_ui(ui, |ui| {
+    let out = egui::ComboBox::from_id_source(cid).width(width).height(460.0).selected_text(shown).show_ui(ui, |ui| {
         ui.set_min_width(width.max(280.0));
         let first = !ui.data(|d| d.get_temp::<bool>(oid)).unwrap_or(false);
         let mut q: String = ui.data(|d| d.get_temp(qid)).unwrap_or_default();
@@ -61,22 +61,34 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
                     ui.separator();
                 }
             }
+            // the groups fold; what the user opens or closes stays that way. They open by themselves while searching, and around the
+            // tool in use (unless it is already listed under "In this job")
+            let searching = !w.is_empty();
             for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
                 let g: Vec<&&Tool> = list.iter().filter(|t| t.sys == sys).collect();
                 if g.is_empty() { continue; }
-                ui.label(egui::RichText::new(format!("{label}  ({})", g.len())).strong());
-                let mut kinds: Vec<(usize, &str)> = g.iter().map(|t| toollib::category(&t.shape)).collect();
-                kinds.sort();
-                kinds.dedup();
-                for (ko, kname) in kinds {
-                    ui.label(egui::RichText::new(kname).small().weak());
-                    for t in g.iter().filter(|t| toollib::category(&t.shape).0 == ko) {
-                        let sel = current == Some(t.id.as_str());
-                        let r = ui.selectable_label(sel, tool_line(t));
-                        if sel && first && q.is_empty() && !job_shown { r.scroll_to_me(Some(egui::Align::Center)); }
-                        if r.clicked() { picked = Some(Picked::Tool(t.id.clone())); }
+                let sys_cur = g.iter().any(|t| current == Some(t.id.as_str()));
+                let mut h = egui::CollapsingHeader::new(egui::RichText::new(format!("{label}  ({})", g.len())).strong()).id_source(("toolpick_sys", sys)).default_open(sys_cur);
+                if searching || (first && sys_cur && !job_shown) { h = h.open(Some(true)); }
+                h.show(ui, |ui| {
+                    let mut kinds: Vec<(usize, &str)> = g.iter().map(|t| toollib::category(&t.shape)).collect();
+                    kinds.sort();
+                    kinds.dedup();
+                    for (ko, kname) in kinds {
+                        let in_kind: Vec<&&&Tool> = g.iter().filter(|t| toollib::category(&t.shape).0 == ko).collect();
+                        let kind_cur = in_kind.iter().any(|t| current == Some(t.id.as_str()));
+                        let mut kh = egui::CollapsingHeader::new(egui::RichText::new(format!("{kname}  ({})", in_kind.len())).small().weak()).id_source(("toolpick_kind", sys, ko)).default_open(kind_cur);
+                        if searching || (first && kind_cur && !job_shown) { kh = kh.open(Some(true)); }
+                        kh.show(ui, |ui| {
+                            for t in in_kind {
+                                let sel = current == Some(t.id.as_str());
+                                let r = ui.selectable_label(sel, tool_line(t));
+                                if sel && first && !searching && !job_shown { r.scroll_to_me(Some(egui::Align::Center)); }
+                                if r.clicked() { picked = Some(Picked::Tool(t.id.clone())); }
+                            }
+                        });
                     }
-                }
+                });
             }
         });
         ui.separator();
