@@ -325,6 +325,18 @@ mod tests {
     }
 
     #[test]
+    fn a_vcarve_over_a_clamp_is_found() {
+        let mut d = proj("vcarve", 3.0);
+        let v = d.tools.iter().position(|t| t.shape == "v" || t.shape == "vbit" || t.name.to_lowercase().contains("v-bit") || t.name.contains("V")).expect("a V-bit in the default tools");
+        let id = d.tools[v].id.clone();
+        d.ops[0].p.tool = id;
+        d.clamps.push(crate::model::Clamp { x: 10.0, y: 5.0, w: 10.0, h: 10.0, height: 20.0 });
+        let o = generate(&d, Units::Metric).unwrap();
+        assert!(o.moves.iter().any(|m| m.cut), "the v-carve cuts something");
+        assert!(run(&d, &o).iter().any(|f| f.kind == Kind::Clamp), "a V-carve through a clamp is reported");
+    }
+
+    #[test]
     fn a_rapid_through_the_stock_is_found() {
         let d = proj("pocket", 3.0);
         let mut o = generate(&d, Units::Metric).unwrap();
