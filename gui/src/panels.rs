@@ -611,6 +611,22 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             name_changed = ui.add(egui::TextEdit::singleline(&mut project.name).font(egui::TextStyle::Heading).desired_width(w)).changed();
         });
         }
+        if !ops {
+        // ---- machine -----------------------------------------------------------------
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.heading("Machine");
+            let mw = (ui.available_width() - 6.0).max(80.0);
+            egui::ComboBox::from_id_source("project_machine").width(mw).selected_text(elide(ui, &mach_name, mw - 30.0)).show_ui(ui, |ui| {
+                for (id, name) in &mach_names {
+                    if ui.selectable_label(*id == mach_cur, name).clicked() && *id != mach_cur { mach_pick = Some(id.clone()); }
+                }
+                ui.separator();
+                if ui.selectable_label(false, "Manage machines…").on_hover_text("Create and edit machines").clicked() { open_machines = true; ui.close_menu(); }
+            });
+        });
+        ui.weak(&mach_area);
+        }
         let d = &mut project.data;
 
         if !ops {
@@ -1185,20 +1201,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
 
         }
         if !ops {
-        // ---- machine -----------------------------------------------------------------
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.heading("Machine");
-            let mw = (ui.available_width() - 6.0).max(80.0);
-            egui::ComboBox::from_id_source("project_machine").width(mw).selected_text(elide(ui, &mach_name, mw - 30.0)).show_ui(ui, |ui| {
-                for (id, name) in &mach_names {
-                    if ui.selectable_label(*id == mach_cur, name).clicked() && *id != mach_cur { mach_pick = Some(id.clone()); }
-                }
-                ui.separator();
-                if ui.selectable_label(false, "Manage machines…").on_hover_text("Create and edit machines").clicked() { open_machines = true; ui.close_menu(); }
-            });
-        });
-        ui.weak(&mach_area);
         imports_section(ui, d, sel, &mut group_act, &mut changed);
         }
     });
