@@ -10,7 +10,7 @@ pub enum Align { Left, Center, Right }
 /// How the letters are laid out: along a straight baseline, around a circle (outside it, reading clockwise over the top,
 /// or inside the bottom, reading left to right under it), or stacked top to bottom.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub enum Flow { #[default] Straight, ArcTop, ArcBottom, Vertical }
+pub enum Flow { #[default] Straight, ArcTop, ArcBottom, Vertical, Arc }
 
 #[derive(Clone, Copy, Debug)]
 pub struct TextStyle {
@@ -26,12 +26,15 @@ pub struct TextStyle {
     pub flow: Flow,
     /// Radius of the circle the baseline follows, mm (arc flows only).
     pub radius_mm: f64,
+    /// Flow::Arc: where on the circle the text sits (degrees, 90 = top, 270 = bottom), and whether the letters stand towards the centre.
+    pub arc_deg: f64,
+    pub arc_in: bool,
     /// A second copy of the letters, moved by this much (mm); [0, 0] means none.
     pub shadow: [f64; 2],
 }
 
 impl TextStyle {
-    pub fn plain(size_mm: f64, spacing_mm: f64, align: Align) -> Self { TextStyle { size_mm, spacing_mm, word_spacing_mm: 0.0, kerning: false, align, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] } }
+    pub fn plain(size_mm: f64, spacing_mm: f64, align: Align) -> Self { TextStyle { size_mm, spacing_mm, word_spacing_mm: 0.0, kerning: false, align, flow: Flow::Straight, radius_mm: 0.0, arc_deg: 90.0, arc_in: false, shadow: [0.0, 0.0] } }
 }
 
 struct Builder {
@@ -196,9 +199,10 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
             let y = origin[1] - li as f64 * line_h;
             for (i, &ch) in chars.iter().enumerate() { glyph(ch, x0 + xs[i], y, &mut contours); }
             let merged = merge_overlaps(contours);
-            if matches!(style.flow, Flow::ArcTop | Flow::ArcBottom) {
+            if matches!(style.flow, Flow::ArcTop | Flow::ArcBottom | Flow::Arc) {
                 let r = style.radius_mm.max(style.size_mm);
-                out.extend(merged.iter().map(|c| mk(&bend(c, origin, r, style.flow == Flow::ArcTop))));
+                let (deg, inside) = match style.flow { Flow::ArcTop => (90.0, false), Flow::ArcBottom => (270.0, true), _ => (style.arc_deg, style.arc_in) };
+                out.extend(merged.iter().map(|c| mk(&bend(c, origin, r, deg.to_radians(), inside))));
             } else {
                 out.extend(merged.iter().map(|c| mk(c)));
             }
@@ -213,10 +217,11 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
     Ok(out)
 }
 
-/// Wraps a straight-set outline round a circle of radius `r` mm: `origin` is where the baseline touches the circle (the top
-/// for `top`, the bottom otherwise), x along the baseline becomes distance along the circle and height above the baseline
-/// becomes distance from it (outwards on top, towards the centre underneath). Long edges are cut first so they bend too.
-fn bend(c: &[[i64; 2]], origin: [f64; 2], r: f64, top: bool) -> Vec<[i64; 2]> {
+/// Wraps a straight-set outline round a circle of radius `r` mm. `origin` is where the baseline touches the circle, at
+/// angle `phi` (radians, 0 = right, counter-clockwise, so pi/2 is the top). x along the baseline becomes distance along the
+/// circle and height above the baseline becomes distance from it: outwards (reading clockwise) or, with `inside`, towards the
+/// centre (reading counter-clockwise). Long edges are cut first so they bend too.
+fn bend(c: &[[i64; 2]], origin: [f64; 2], r: f64, phi: f64, inside: bool) -> Vec<[i64; 2]> {
     let pts: Vec<[f64; 2]> = c.iter().map(|p| [p[0] as f64 / S, p[1] as f64 / S]).collect();
     let mut dense: Vec<[f64; 2]> = Vec::with_capacity(pts.len());
     for i in 0..pts.len() {
@@ -224,10 +229,11 @@ fn bend(c: &[[i64; 2]], origin: [f64; 2], r: f64, top: bool) -> Vec<[i64; 2]> {
         let n = ((b[0] - a[0]).hypot(b[1] - a[1]) / 0.3).ceil().max(1.0) as usize;
         for k in 0..n { let t = k as f64 / n as f64; dense.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
     }
-    let centre = if top { [origin[0], origin[1] - r] } else { [origin[0], origin[1] + r] };
+    let centre = [origin[0] - r * phi.cos(), origin[1] - r * phi.sin()];
     dense.iter().map(|p| {
-        let (th, h) = ((p[0] - origin[0]) / r, p[1] - origin[1]);
-        let q = if top { [centre[0] + (r + h) * th.sin(), centre[1] + (r + h) * th.cos()] } else { [centre[0] + (r - h) * th.sin(), centre[1] - (r - h) * th.cos()] };
+        let (s, h) = (p[0] - origin[0], p[1] - origin[1]);
+        let (th, rad) = if inside { (phi + s / r, r - h) } else { (phi - s / r, r + h) };
+        let q = [centre[0] + rad * th.cos(), centre[1] + rad * th.sin()];
         [(q[0] * S).round() as i64, (q[1] * S).round() as i64]
     }).collect()
 }
@@ -331,7 +337,7 @@ mod tests {
     fn font() -> Option<Vec<u8>> {
         ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/Library/Fonts/Arial.ttf", "C:\\Windows\\Fonts\\arial.ttf"].iter().find_map(|p| std::fs::read(p).ok())
     }
-    const ST: TextStyle = TextStyle { size_mm: 10.0, spacing_mm: 0.0, word_spacing_mm: 0.0, kerning: false, align: Align::Left, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] };
+    const ST: TextStyle = TextStyle { size_mm: 10.0, spacing_mm: 0.0, word_spacing_mm: 0.0, kerning: false, align: Align::Left, flow: Flow::Straight, radius_mm: 0.0, arc_deg: 90.0, arc_in: false, shadow: [0.0, 0.0] };
 
     #[test]
     fn letters_have_the_right_size_and_holes() {
@@ -440,6 +446,13 @@ mod tests {
         for l in &bot { for p in l.pts.chunks(2) {
             let d = (p[0] as f64 / S - c[0]).hypot(p[1] as f64 / S - c[1]);
             assert!(d < r + 0.3 && d > r - 10.5, "{d}");
+        } }
+        // a quarter turn round: at 0 degrees (the right) the letters stand outwards, so they lie right of the circle's centre
+        let side = text_loops(&f, 0, "HI", TextStyle { flow: Flow::Arc, radius_mm: r, arc_deg: 0.0, align: Align::Center, ..ST }, [0.0, 0.0], 1).unwrap();
+        let c = [-r, 0.0];
+        for l in &side { for p in l.pts.chunks(2) {
+            let d = (p[0] as f64 / S - c[0]).hypot(p[1] as f64 / S - c[1]);
+            assert!(d > r - 0.3 && d < r + 10.5, "{d}");
         } }
         let v = text_loops(&f, 0, "ABC", TextStyle { flow: Flow::Vertical, ..ST }, [0.0, 0.0], 1).unwrap();
         let b = shapes::bbox_many(v.iter()).unwrap();

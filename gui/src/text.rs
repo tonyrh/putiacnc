@@ -28,6 +28,8 @@ pub struct TextTool {
     pub flow: Flow,
     /// Radius of the circle for the arc layouts, mm.
     pub radius: f64,
+    pub arc_deg: f64,
+    pub arc_in: bool,
     /// Offset of the shadow copy, mm; 0 and 0 means no shadow.
     pub shadow: [f64; 2],
     /// Which sections of the dialog are open (kept in the settings).
@@ -64,7 +66,7 @@ impl Default for TextTool {
     fn default() -> Self {
         let fonts = vec![FontEntry { label: "Hack".into(), id: None }, FontEntry { label: "Ubuntu Light".into(), id: None }];
         TextTool {
-            open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
+            open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, arc_deg: 90.0, arc_in: false, shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
             fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None,
         }
     }
@@ -135,7 +137,7 @@ impl TextTool {
         self.bytes.clone()
     }
 
-    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.size * self.letter_pct / 100.0, word_spacing_mm: self.size * self.word_pct / 100.0, kerning: self.kerning, align: self.align, flow: self.flow, radius_mm: self.radius, shadow: self.shadow } }
+    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.size * self.letter_pct / 100.0, word_spacing_mm: self.size * self.word_pct / 100.0, kerning: self.kerning, align: self.align, flow: self.flow, radius_mm: self.radius, arc_deg: self.arc_deg, arc_in: self.arc_in, shadow: self.shadow } }
 
     fn refresh(&mut self) {
         let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow);
@@ -169,7 +171,7 @@ pub fn place(app: &mut App) {
     if loops.is_empty() { return; }
     let t = &app.text;
     let spec = putiacnc_core::model::TextSpec {
-        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.size * t.letter_pct / 100.0, word_spacing: t.size * t.word_pct / 100.0, kerning: t.kerning, align: t.align, flow: t.flow, radius: t.radius, shadow: t.shadow,
+        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.size * t.letter_pct / 100.0, word_spacing: t.size * t.word_pct / 100.0, kerning: t.kerning, align: t.align, flow: t.flow, radius: t.radius, arc_deg: t.arc_deg, arc_in: t.arc_in, shadow: t.shadow,
     };
     let first = t.content.lines().find(|l| !l.trim().is_empty()).unwrap_or("").trim().chars().take(24).collect::<String>();
     let name = format!("Text: {first}");
@@ -277,7 +279,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     app.text.sel = idx;
     app.text.picked = true;
     app.text.bytes_for = None;
-    let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, word_spacing_mm: spec.word_spacing, kerning: spec.kerning, align: spec.align, flow: spec.flow, radius_mm: spec.radius, shadow: spec.shadow };
+    let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, word_spacing_mm: spec.word_spacing, kerning: spec.kerning, align: spec.align, flow: spec.flow, radius_mm: spec.radius, arc_deg: spec.arc_deg, arc_in: spec.arc_in, shadow: spec.shadow };
     let g0 = app.text.font_bytes().and_then(|(data, face)| text_loops(&data, face, &spec.content, style, [0.0, 0.0], 0).ok()).unwrap_or_default();
     let now: Vec<&LoopData> = app.project.data.loops.iter().filter(|l| l.grp == Some(gid)).collect();
     let fit = fit_affine(&g0, &now).filter(|(_, res)| *res < 0.02);
@@ -297,7 +299,8 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     t.word_pct = if spec.size > 0.0 { spec.word_spacing / spec.size * 100.0 } else { 0.0 };
     t.kerning = spec.kerning;
     t.align = spec.align;
-    t.flow = spec.flow;
+    // the two old circle choices are just arcs at the top and at the bottom
+    (t.flow, t.arc_deg, t.arc_in) = match spec.flow { Flow::ArcTop => (Flow::Arc, 90.0, false), Flow::ArcBottom => (Flow::Arc, 270.0, true), f => (f, spec.arc_deg, spec.arc_in) };
     t.radius = spec.radius * s;
     t.shadow = [spec.shadow[0] * s, spec.shadow[1] * s];
     t.angle = turn.to_degrees();
@@ -435,22 +438,38 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             });
         });
-        let sum_layout = match t.flow { Flow::Straight => "straight", Flow::ArcTop => "round a circle, on top", Flow::ArcBottom => "round a circle, underneath", Flow::Vertical => "stacked" };
-        section(ui, &mut t.sections, "layout", "Layout", sum_layout, |ui| {
+        let sum_layout = match t.flow {
+            Flow::Straight => "straight".to_string(),
+            Flow::Vertical => "stacked".to_string(),
+            _ => format!("arc, r {} · {}°", crate::panels::fmt_num(t.radius), crate::panels::fmt_num(t.arc_deg)),
+        };
+        section(ui, &mut t.sections, "layout", "Layout", &sum_layout, |ui| {
             grid("text_layout").show(ui, |ui| {
                 ui.label("Layout");
-                egui::ComboBox::from_id_source("text_flow").width(190.0).selected_text(match t.flow {
-                    Flow::Straight => "Straight", Flow::ArcTop => "Round a circle, on top", Flow::ArcBottom => "Round a circle, underneath", Flow::Vertical => "Stacked, top to bottom",
+                let flow_resp = egui::ComboBox::from_id_source("text_flow").width(190.0).selected_text(match t.flow {
+                    Flow::Straight => "Straight", Flow::Vertical => "Stacked, top to bottom", _ => "Along an arc",
                 }).show_ui(ui, |ui| {
                     ui.selectable_value(&mut t.flow, Flow::Straight, "Straight");
-                    ui.selectable_value(&mut t.flow, Flow::ArcTop, "Round a circle, on top");
-                    ui.selectable_value(&mut t.flow, Flow::ArcBottom, "Round a circle, underneath");
+                    ui.selectable_value(&mut t.flow, Flow::Arc, "Along an arc");
                     ui.selectable_value(&mut t.flow, Flow::Vertical, "Stacked, top to bottom");
-                }).response.on_hover_text("Round a circle: Start is where the baseline touches the circle (its top, or its bottom), and Align says which part of the text sits there");
+                }).response;
+                if !ui.memory(|m| m.any_popup_open()) { flow_resp.on_hover_text("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there"); }
                 ui.end_row();
-                if matches!(t.flow, Flow::ArcTop | Flow::ArcBottom) {
+                if t.flow == Flow::Arc {
                     ui.label("Radius");
                     ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak("mm, of the baseline"); });
+                    ui.end_row();
+                    ui.label("Position");
+                    ui.horizontal(|ui| {
+                        crate::widgets::num(ui, [60.0, 24.0], &mut t.arc_deg, -360.0, 720.0, 1.0, 1, "");
+                        ui.weak("° (90 top, 270 bottom)");
+                    }).response.on_hover_text("Where the text sits round the circle: 0 is the right, 90 the top, 180 the left, 270 the bottom");
+                    ui.end_row();
+                    ui.label("Letters");
+                    ui.horizontal(|ui| {
+                        ui.selectable_value(&mut t.arc_in, false, "Face outwards");
+                        ui.selectable_value(&mut t.arc_in, true, "Face the centre");
+                    });
                     ui.end_row();
                 }
             });

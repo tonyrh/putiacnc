@@ -82,6 +82,8 @@ pub struct TextSpec {
     pub align: crate::text::Align,
     #[serde(default)] pub flow: crate::text::Flow,
     #[serde(default)] pub radius: f64,
+    #[serde(default = "ninety")] pub arc_deg: f64,
+    #[serde(default)] pub arc_in: bool,
     #[serde(default)] pub shadow: [f64; 2],
 }
 
@@ -300,3 +302,5 @@ pub const _UNUSED: f64 = 1.0;
 
 fn is_false(b: &bool) -> bool { !*b }
 fn is_zero(v: &f64) -> bool { *v == 0.0 }
+
+fn ninety() -> f64 { 90.0 }
