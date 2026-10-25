@@ -1342,7 +1342,7 @@ fn resized_bbox(app: &App, handle: usize, sb: [f64; 4], grab: [f64; 2], cur: [f6
     n
 }
 
-/// Position, size, corner radius and operation of the selected shapes, as a small bar over the canvas.
+/// Position and size of the selected shapes, as a small bar over the canvas.
 fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let n = app.sel.len();
     app.sel.retain(|&i| i < app.project.data.loops.len());
@@ -1358,9 +1358,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let (mut x, mut y, mut w, mut h) = (b[0] - zx, b[1] - zy, b[2] - b[0], b[3] - b[1]);
     let mut changed = false;
     let mut geom = false;
-    let single_rect = if sel.len() == 1 { d.loops[*sel.iter().next().unwrap()].rc } else { None };
-    let mut radius = single_rect.unwrap_or(0.0);
-    let mut radius_changed = false;
     let _ = n;
     // shapes of a locked drawing cannot be moved, resized or aligned
     let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
@@ -1382,10 +1379,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.add_space(10.0);
                 geom |= field(ui, "H", &mut h, 0.01, 100000.0);
                 ui.weak("mm");
-                if single_rect.is_some() {
-                    ui.add_space(6.0);
-                    radius_changed |= field(ui, "Radius", &mut radius, 0.0, 100000.0);
-                }
             });
             if text_gid.is_some() {
                 ui.horizontal(|ui| {
@@ -1397,14 +1390,11 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             }
         });
     });
-    if locked { geom = false; radius_changed = false; }
+    if locked { geom = false; }
     if geom {
         let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().enumerate().filter(|(i, _)| sel.contains(i)).map(|(_, l)| l).collect();
         shapes::fit_to_bbox(&mut refs, b, [x + zx, y + zy, x + zx + w.max(0.01), y + zy + h.max(0.01)]);
         changed = true;
-    }
-    if radius_changed {
-        if let Some(&i) = sel.iter().next() { shapes::set_corner_radius(&mut d.loops[i], radius); changed = true; }
     }
     if changed {
         if !app.hist.open {
