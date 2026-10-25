@@ -8,7 +8,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Combine shapes", egui::pos2(650.0, 300.0))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Combine shapes", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(340.0);
         if crate::csd::dialog_header(ui, "Combine shapes", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {

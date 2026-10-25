@@ -205,6 +205,13 @@ pub fn scroll_fill<R>(ui: &mut Ui, footer: f32, add: impl FnOnce(&mut Ui) -> R) 
 
 fn dialog_key(layer: egui::LayerId) -> egui::Id { egui::Id::new(("dialog_offset", layer)) }
 
+/// Where the tool dialogs (array, combine, text, fillet, offset, clean up) open: at the top left of the drawing, under the palette and
+/// the option bar that is showing, where the tools' own options appear.
+pub fn anchor(app: &crate::app::App) -> Pos2 {
+    if app.bars_bottom <= 0.0 { return Pos2::new(650.0, 300.0); }
+    Pos2::new(app.canvas_left + 10.0, app.bars_bottom + 8.0)
+}
+
 /// Where a dialog goes: its starting spot plus however far the user has dragged it by the header
 /// (kept so the dialog's anchor point stays inside the window).
 pub fn spot(ctx: &egui::Context, title: &str, base: Pos2) -> Pos2 {

@@ -1136,7 +1136,7 @@ fn trim_click(app: &mut App, w: [f64; 2], tol: f64) {
 
 fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if !matches!(app.mode, Mode::Point | Mode::Polygon | Mode::Rect | Mode::Ellipse | Mode::Trim) || app.tab_edit.is_some() || app.node_edit.is_some() { return; }
-    egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 62.0 + app.palette_extra)).show(ctx, |ui| {
+    let _bar = egui::Area::new(egui::Id::new("tool_options")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 62.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
           ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 0.0);
@@ -1206,12 +1206,14 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
           });
         });
     });
+    app.bars_bottom = app.bars_bottom.max(_bar.response.rect.bottom());
 }
 
 // ------------------------------------------------------------------- overlays
 
 fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     app.canvas_right = rect.right();
+    app.canvas_left = rect.left();
     // tool palette
     let pal = egui::Area::new(egui::Id::new("palette")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 10.0)).show(ctx, |ui| {
         // a narrow canvas wraps the palette onto a second row instead of running under the side panel
@@ -1245,6 +1247,8 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     });
     // the bars under the palette move down when it wraps (46 px is one row)
     app.palette_extra = (pal.response.rect.height() - 46.0).max(0.0);
+    // where the tool dialogs open: under the palette and whatever option bar is showing, at the same left edge
+    app.bars_bottom = pal.response.rect.bottom();
     tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
@@ -1361,7 +1365,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let _ = n;
     // shapes of a locked drawing cannot be moved, resized or aligned
     let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
-    egui::Area::new(egui::Id::new("selbar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
+    let _bar = egui::Area::new(egui::Id::new("selbar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 5.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 4.0;
             ui.horizontal(|ui| {
@@ -1390,6 +1394,7 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             }
         });
     });
+    app.bars_bottom = app.bars_bottom.max(_bar.response.rect.bottom());
     if locked { geom = false; }
     if geom {
         let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().enumerate().filter(|(i, _)| sel.contains(i)).map(|(_, l)| l).collect();
@@ -1492,7 +1497,7 @@ fn tab_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let n = app.project.data.ops.iter().find(|o| o.id == id).and_then(|o| o.p.tab_pts.as_ref()).map_or(0, |v| v.len());
     let k = app.project.data.ops.iter().position(|o| o.id == id).map_or(0, |k| k + 1);
     let mut done = false;
-    egui::Area::new(egui::Id::new("tabbar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
+    let _bar = egui::Area::new(egui::Id::new("tabbar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 6.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("Placing tabs for operation {k} · {n} tab{}", if n == 1 { "" } else { "s" }));
@@ -1501,6 +1506,7 @@ fn tab_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             });
         });
     });
+    app.bars_bottom = app.bars_bottom.max(_bar.response.rect.bottom());
     if done { app.tab_edit = None; }
 }
 
@@ -1654,7 +1660,7 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let (mut done, mut simplify, mut corner) = (false, false, false);
     let mut tol = app.node_tol;
     let (mut cham, mut csize, nsel) = (app.corners.chamfer, app.corners.size, app.node_sel.len());
-    egui::Area::new(egui::Id::new("nodebar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
+    let _bar = egui::Area::new(egui::Id::new("nodebar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 6.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("Editing points · {n} point{}", if n == 1 { "" } else { "s" }));
@@ -1680,6 +1686,7 @@ fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if !app.node_msg.is_empty() { ui.weak(app.node_msg.as_str()); }
         });
     });
+    app.bars_bottom = app.bars_bottom.max(_bar.response.rect.bottom());
     app.node_tol = tol;
     app.corners.chamfer = cham;
     app.corners.size = csize;

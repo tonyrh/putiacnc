@@ -81,7 +81,7 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
     let Some(btn) = app.align_btn else { return };
     let n = units(app).len();
     let mut pick: Option<(bool, u8)> = None;
-    let resp = egui::Area::new(egui::Id::new("align_pop")).order(egui::Order::Foreground).fixed_pos(egui::pos2(btn.left().min(app.canvas_right - 445.0).max(4.0), btn.bottom() + 4.0)).show(ctx, |ui| {
+    let resp = egui::Area::new(egui::Id::new("align_pop")).order(egui::Order::Foreground).fixed_pos({ let a = crate::csd::anchor(app); egui::pos2(a.x.min(app.canvas_right - 445.0).max(4.0), a.y.max(btn.bottom() + 4.0)) }).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 4.0);
             let row = |ui: &mut egui::Ui, title: &str, items: &[(u8, Icon, &str, bool)], each: bool, pick: &mut Option<(bool, u8)>| {
