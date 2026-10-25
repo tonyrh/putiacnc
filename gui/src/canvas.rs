@@ -12,6 +12,10 @@ fn finish_poly(app: &mut App, close: bool) {
 }
 
 pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
+    // a right-click on the drawing counts as Esc: it is fed in as the key, so every place that listens for Esc answers it
+    if std::mem::take(&mut app.esc_request) {
+        ctx.input_mut(|i| i.events.push(egui::Event::Key { key: Key::Escape, physical_key: Some(Key::Escape), pressed: true, repeat: false, modifiers: Modifiers::NONE }));
+    }
     if ctx.wants_keyboard_input() { return; }
     let (save_as, save, redo, redo2, undo, all, dup, new, open, export, quit, import) = ctx.input_mut(|i| {
         let save_as = i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::S);
@@ -166,6 +170,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let interaction_mode = if editing_tabs.is_some() || editing_nodes.is_some() { None } else { Some(app.mode) };
     if let Some(op_id) = editing_tabs { tab_interaction(&ctx, app, &resp, &view, op_id, hover_w); }
     if let Some(li) = editing_nodes { node_interaction(&ctx, app, &resp, &view, li, hover_w, pointer_w, tol); }
+    // a right-click (not a right-drag, which pans) is Esc; the line tool and tab placement have their own use of it, handled where they are
+    if resp.clicked_by(PointerButton::Secondary) && editing_tabs.is_none() && app.mode != Mode::Line { app.esc_request = true; }
     match interaction_mode {
         None => {}
         Some(Mode::Select) => {
@@ -432,7 +438,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 }
             }
             if resp.clicked_by(PointerButton::Secondary) {
-                if app.poly.len() >= 2 { finish_poly(app, false); } else { app.poly.clear(); }
+                if app.poly.len() >= 2 { finish_poly(app, false); } else if !app.poly.is_empty() { app.poly.clear(); } else { app.esc_request = true; }
             }
         }
     }
@@ -1478,6 +1484,8 @@ fn tab_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::Response, vi
             app.hist.record(&app.project.data);
             if let Some(v) = app.project.data.ops.iter_mut().find(|o| o.id == op_id).and_then(|o| o.p.tab_pts.as_mut()) { if i < v.len() { v.remove(i); } }
             app.touch();
+        } else {
+            app.esc_request = true; // not on a tab: leave the mode, as Esc does
         }
     }
     if app.tab_drag.is_none() {

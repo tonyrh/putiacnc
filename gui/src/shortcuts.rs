@@ -15,7 +15,7 @@ const LEFT: &[Section] = &[
         ("P", "Polygon or star (Shift: point straight up)"),
         ("T", "Text"),
         ("X", "Trim and extend"),
-        ("Esc", "Cancel, deselect, back to Select"),
+        ("Esc or right-click", "Cancel, deselect, back to Select"),
     ]),
     ("Project", &[
         ("Ctrl+N", "New project"),
