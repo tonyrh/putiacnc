@@ -14,9 +14,11 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] Text dialog can run off a short window; the tool palette overflows in very small windows.
 
 ## Bigger
-- [ ] Text: automatic kerning (font `kern` / `GPOS` pairs), letter / word spacing in %, fit to width.
+- [x] Text: automatic kerning (font `kern` / `GPOS` pairs), letter / word spacing in % (done); fit to width still open.
 - [ ] Text: manual kerning handles on the canvas.
-- [ ] Text along any picked path (circle layouts become presets of the same engine); rigid letters first, warped letters later.
+- [x] Text along an arc at any angle (done).
+- [ ] Text arc: warn when the text is longer than the circle.
+- [ ] Maybe, only if asked: text along any picked path (rigid letters first, warped later; placed once, not live-linked). Decided not worth the cost for now.
 - [ ] Rest machining: clear only what the previous, larger tool left (pockets first, then relief).
 - [ ] Bezier and arc node editing (0.4.0).
 - [ ] Other ideas from the feature comparison: G-code sender, more post-processors, dogbone corners, helical entry, nesting.
