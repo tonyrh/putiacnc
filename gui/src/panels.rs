@@ -824,18 +824,14 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
                 ui.painter().rect_filled(rect, 6.0, fill);
-                if hi_ids.contains(&{ id }) {
+                // one ring for both: the active operation, and the operations of the shapes selected on the canvas
+                if selected || hi_ids.contains(&{ id }) {
                     ui.painter().rect_stroke(rect.expand(1.5), 7.0, egui::Stroke::new(2.5_f32, ui.visuals().text_color()));
-                    if hi_scroll { ui.scroll_to_rect(rect.expand(8.0), Some(egui::Align::Center)); hi_scroll = false; }
+                    if hi_scroll && hi_ids.contains(&{ id }) { ui.scroll_to_rect(rect.expand(8.0), Some(egui::Align::Center)); hi_scroll = false; }
                 }
                 // white text on dark colours, near-black on light ones
                 let lum = 0.299 * base.r() as f32 + 0.587 * base.g() as f32 + 0.114 * base.b() as f32;
                 let ink = if lum > 150.0 { Color32::from_rgb(0x1e, 0x1e, 0x1e) } else { Color32::WHITE };
-                // the active operation does not rest on colour: a frame inside the row and a thick bar on its left edge
-                if selected {
-                    ui.painter().rect_stroke(rect.shrink(1.5), 5.0, egui::Stroke::new(2.0_f32, ink));
-                    ui.painter().rect_filled(egui::Rect::from_min_size(rect.min + egui::vec2(3.0, 7.0), egui::vec2(4.0, rect.height() - 14.0)), 2.0, ink);
-                }
                 let col = ink;
                 let sub_col = ink.gamma_multiply(0.8);
                 let body = egui::TextStyle::Body.resolve(ui.style());
