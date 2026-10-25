@@ -785,6 +785,9 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             }
         }
         let tools = d.tools.clone();
+        // the tools the operations use, in order of first use: the tool pickers offer them first
+        let mut job_tools: Vec<String> = Vec::new();
+        for o in &d.ops { for t in std::iter::once(&o.p.tool).chain(o.p.tool2.iter()) { if !t.is_empty() && !job_tools.contains(t) { job_tools.push(t.clone()); } } }
         let machine_now = d.machine.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
@@ -1004,18 +1007,8 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         rlabel(ui, l1, if p.kind == "relief" { "Finish" } else { "Tool" });
                         let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                         let cur = elide(ui, &cur, tool_w - 30.0);
-                        egui::ComboBox::from_id_source(("optool", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
-                            for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
-                                if !tools.iter().any(|t| t.sys == sys) { continue; }
-                                ui.weak(label);
-                                for t in tools.iter().filter(|t| t.sys == sys) {
-                                    let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
-                                    if ui.selectable_label(p.tool == t.id, format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool = t.id.clone(); changed = true; }
-                                }
-                            }
-                            ui.separator();
-                            if ui.selectable_label(false, "Manage tools…").on_hover_text("Open the tool library").clicked() { open_tools = true; ui.close_menu(); }
-                        });
+                        let (_, pk) = crate::toolpick::picker(ui, ("optool", id), tool_w, cur, Some(p.tool.as_str()), &job_tools, &tools, |_| true);
+                        match pk { Some(crate::toolpick::Picked::Tool(t)) => { p.tool = t; changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
                         if has_ramp {
                             let rest = ui.available_width() - ramp_w;
                             if rest > 0.0 { ui.add_space(rest); }
@@ -1030,12 +1023,9 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             rlabel(ui, l1, if p.kind == "relief" { "Rough" } else { "Flat" });
                             let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                             let cur = elide(ui, &cur, tool_w - 30.0);
-                            egui::ComboBox::from_id_source(("optool2", id)).width(tool_w).height(420.0).selected_text(cur).show_ui(ui, |ui| {
-                                for t in tools.iter().filter(|t| t.shape == "flat") {
-                                    let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
-                                    if ui.selectable_label(p.tool2.as_deref() == Some(t.id.as_str()), format!("{}  ({})", clean(&t.name), dia)).clicked() { p.tool2 = Some(t.id.clone()); changed = true; }
-                                }
-                            }).response.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
+                            let (r2, pk2) = crate::toolpick::picker(ui, ("optool2", id), tool_w, cur, p.tool2.as_deref(), &job_tools, &tools, |t| t.shape == "flat");
+                            match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.tool2 = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
+                            r2.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
                         });
                         if p.kind == "plug" {
                             ui.add_space(2.0);

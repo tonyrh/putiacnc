@@ -25,6 +25,7 @@ mod theme;
 mod model3d;
 mod trace;
 mod toolmgr;
+mod toolpick;
 mod update;
 mod view3d;
 mod viewcube;
