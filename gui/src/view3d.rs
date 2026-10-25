@@ -366,7 +366,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         flush(&mut run, run_key);
         for (i, f) in app.checks.iter().enumerate() {
             if f.mv.is_none() || f.op.is_some_and(|o| sim.skip.get(o).copied().unwrap_or(false)) { continue; }
-            if let Some(a) = cam.p([f.at[0] as f32, f.at[1] as f32, f.at[2] as f32]) { crate::checkui::marker(&painter, a, app.check_sel == Some(i)); }
+            if let Some(a) = cam.p([f.at[0] as f32, f.at[1] as f32, f.at[2] as f32]) { crate::checkui::marker(&painter, a, app.check_sel == Some(i), f.kind.title()); }
         }
         // the cutter: it glides along the move in progress, so rapids and plunges are not shown as jumps
         let st = &app.v3;

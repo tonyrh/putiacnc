@@ -33,12 +33,30 @@ pub fn warn_sign_col(ui: &mut egui::Ui, col: Color32) {
     p.circle_filled(c + egui::vec2(0.0, 4.6), 1.0, Color32::from_black_alpha(200));
 }
 
-/// Red ring in the 3D preview where a warning happens.
-pub fn marker(painter: &egui::Painter, at: Pos2, selected: bool) {
-    let r = if selected { 13.0 } else { 8.0 };
-    painter.circle_stroke(at, r + 1.5, Stroke::new(3.0_f32, Color32::WHITE));
-    painter.circle_stroke(at, r, Stroke::new(2.5_f32, RED));
-    if selected { painter.circle_filled(at, 3.0, RED); }
+/// A warning sign in the 3D preview: a small dot on the exact spot, and a red triangle with a "!" standing over it. The picked
+/// warning is larger and says what it is.
+pub fn marker(painter: &egui::Painter, at: Pos2, selected: bool, what: &str) {
+    let (w, h) = if selected { (30.0_f32, 26.0_f32) } else { (21.0_f32, 18.0_f32) };
+    let base = at + egui::vec2(0.0, -4.0);
+    let top = base + egui::vec2(0.0, -h);
+    let (l, r) = (base + egui::vec2(-w / 2.0, 0.0), base + egui::vec2(w / 2.0, 0.0));
+    painter.line_segment([at, base], Stroke::new(2.0_f32, Color32::WHITE));
+    painter.circle_filled(at, 3.5, Color32::WHITE);
+    painter.circle_filled(at, 2.2, RED);
+    // a white rim first, so the sign reads on wood, shadow and the dark background alike
+    let grow = |p: Pos2, dir: egui::Vec2| p + dir * 2.2;
+    painter.add(egui::Shape::convex_polygon(vec![grow(top, egui::vec2(0.0, -1.0)), grow(r, egui::vec2(1.0, 0.6)), grow(l, egui::vec2(-1.0, 0.6))], Color32::WHITE, Stroke::NONE));
+    painter.add(egui::Shape::convex_polygon(vec![top, r, l], RED, Stroke::new(1.0_f32, RED)));
+    let c = base + egui::vec2(0.0, -h * 0.38);
+    let k = h / 18.0;
+    painter.line_segment([c + egui::vec2(0.0, -4.5 * k), c + egui::vec2(0.0, 1.2 * k)], Stroke::new(1.8_f32 * k.max(1.0), Color32::WHITE));
+    painter.circle_filled(c + egui::vec2(0.0, 4.2 * k), 1.1 * k.max(1.0), Color32::WHITE);
+    if selected && !what.is_empty() {
+        let g = painter.layout_no_wrap(what.to_string(), egui::FontId::proportional(13.0), Color32::WHITE);
+        let rect = egui::Rect::from_min_size(Pos2::new(r.x + 8.0, base.y - h * 0.5 - g.size().y / 2.0 - 3.0), g.size() + egui::vec2(12.0, 6.0));
+        painter.rect_filled(rect, 5.0, Color32::from_black_alpha(190));
+        painter.galley(rect.min + egui::vec2(6.0, 3.0), g, Color32::WHITE);
+    }
 }
 
 pub fn show_in_3d(app: &mut App, i: usize) {
