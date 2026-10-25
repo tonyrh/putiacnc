@@ -1197,7 +1197,7 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 if ui.selectable_label(app.trim_extend, "Extend").on_hover_text("Run the end of an open line on to the next shape").clicked() { app.trim_extend = true; }
             }
             if app.mode == Mode::Rect {
-                ui.label("Radius");
+                ui.label("Corner radius");
                 ui.add_space(6.0);
                 crate::widgets::num(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 2, "");
                 ui.add_space(2.0);
