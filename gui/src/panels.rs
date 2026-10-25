@@ -800,8 +800,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let machine_now = d.machine.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
-        // 0 select, 1 add the selection, 2 take the selection out
-        let mut shape_act: Option<(i64, u8)> = None;
         // Some(None): select them; Some(Some(op)): put them all in that operation
         let mut loose_act: Option<Option<i64>> = None;
         // operations that own a selected shape get an outline; the list scrolls to the first one when the selection changes
@@ -844,16 +842,16 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             {
                 let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
-                let selected = d.act == id;
-                let resp = resp.on_hover_text(if selected { "Click again to clear the mark" } else { "Mark this operation: a new operation starts with its settings" });
+                let selected = hi_ids.contains(&id);
+                let resp = resp.on_hover_text(if sel.is_empty() { "Select this operation's shapes in the drawing" } else if selected && d.loops.iter().enumerate().all(|(k, l)| !sel.contains(&k) || l.op == id) { "Click to take the selected shapes out of this operation" } else { "Click to put the selected shapes in this operation" });
                 let folded = collapsed.contains(&id);
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
                 ui.painter().rect_filled(rect, 6.0, fill);
-                // one ring for both: the active operation, and the operations of the shapes selected on the canvas
-                if selected || hi_ids.contains(&{ id }) {
+                // the operations that own the shapes selected in the drawing are brighter and outlined
+                if selected {
                     ui.painter().rect_stroke(rect.expand(1.5), 7.0, egui::Stroke::new(2.5_f32, ui.visuals().text_color()));
-                    if hi_scroll && hi_ids.contains(&{ id }) { ui.scroll_to_rect(rect.expand(8.0), Some(egui::Align::Center)); hi_scroll = false; }
+                    if hi_scroll { ui.scroll_to_rect(rect.expand(8.0), Some(egui::Align::Center)); hi_scroll = false; }
                 }
                 // white text on dark colours, near-black on light ones
                 let lum = 0.299 * base.r() as f32 + 0.587 * base.g() as f32 + 0.114 * base.b() as f32;
@@ -876,7 +874,17 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
                 clip.galley(egui::pos2(rect.min.x + 60.0, top + h1), g2, sub_col);
                 if chev.clicked() { if folded { collapsed.remove(&id); } else { collapsed.insert(id); } }
-                else if resp.clicked() { d.act = if selected { 0 } else { id }; }
+                else if resp.clicked() {
+                    d.act = id;
+                    if sel.is_empty() {
+                        *sel = d.loops.iter().enumerate().filter(|(_, l)| l.op == id).map(|(k, _)| k).collect(); ui.ctx().request_repaint();
+                    } else {
+                        // the selected shapes join this operation; when they are all in it already, they leave it
+                        let all_in = sel.iter().all(|&k| d.loops.get(k).is_none_or(|l| l.op == id));
+                        for &k in sel.iter() { if let Some(l) = d.loops.get_mut(k) { l.op = if all_in { 0 } else { id }; } }
+                        changed = true; ui.ctx().request_repaint();
+                    }
+                }
                 // up / down / delete sit inside the row, on its right
                 let brect = egui::Rect::from_min_size(egui::pos2(rect.max.x - btn_w - 6.0, rect.center().y - 13.0), egui::vec2(btn_w, 26.0));
                 ui.allocate_ui_at_rect(brect, |ui| {
@@ -901,20 +909,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let o = &mut d.ops[i];
             egui::Frame::group(ui.style()).show(ui, |ui| {
                 ui.set_width(lw - 14.0);
-                // which shapes this operation covers, and how to change it
-                {
-                    let n_in = loops.iter().filter(|l| l.op == id).count();
-                    let n_sel_in = sel.iter().filter(|&&k| loops.get(k).is_some_and(|l| l.op == id)).count();
-                    let n_sel_out = sel.iter().filter(|&&k| loops.get(k).is_some_and(|l| l.op != id)).count();
-                    ui.horizontal_wrapped(|ui| {
-                        ui.spacing_mut().item_spacing.x = 4.0;
-                        ui.label(format!("Shapes: {n_in}"));
-                        if ui.add_enabled(n_in > 0, egui::Button::new("Select")).on_hover_text("Select this operation's shapes in the drawing").clicked() { shape_act = Some((id, 0)); }
-                        if ui.add_enabled(n_sel_out > 0, egui::Button::new(if n_sel_out > 0 { format!("Add ({n_sel_out})") } else { "Add".to_string() })).on_hover_text("Put the shapes selected in the drawing into this operation (they leave the one they were in)").clicked() { shape_act = Some((id, 1)); }
-                        if ui.add_enabled(n_sel_in > 0, egui::Button::new(if n_sel_in > 0 { format!("Remove ({n_sel_in})") } else { "Remove".to_string() })).on_hover_text("Take the selected shapes out of this operation: they are then in no operation and are not cut").clicked() { shape_act = Some((id, 2)); }
-                    });
-                    ui.add_space(4.0);
-                }
                 let p = &mut o.p;
                 let sp = ui.spacing().item_spacing.x;
                 let bf = egui::TextStyle::Body.resolve(ui.style());
@@ -1228,13 +1222,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         if let Some((i, dir)) = act_move {
             let j = i as i32 + dir;
             if j >= 0 && (j as usize) < d.ops.len() { d.ops.swap(i, j as usize); changed = true; }
-        }
-        if let Some((id, a)) = shape_act {
-            match a {
-                0 => { *sel = d.loops.iter().enumerate().filter(|(_, l)| l.op == id).map(|(k, _)| k).collect(); }
-                1 => { for &k in sel.iter() { if let Some(l) = d.loops.get_mut(k) { l.op = id; } } changed = true; }
-                _ => { for &k in sel.iter() { if let Some(l) = d.loops.get_mut(k) { if l.op == id { l.op = 0; } } } changed = true; }
-            }
         }
         if let Some(t) = loose_act {
             let ids: Vec<i64> = d.ops.iter().map(|o| o.id).collect();
