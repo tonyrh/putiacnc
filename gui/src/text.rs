@@ -59,6 +59,8 @@ pub struct TextTool {
     loading: bool,
     key: String,
     bytes_for: Option<usize>,
+    /// Each font's name drawn in its own letters, made when its row first scrolls into view (None: the font cannot draw its name).
+    previews: std::collections::HashMap<usize, Option<egui::TextureHandle>>,
     bytes: Option<(Vec<u8>, u32)>,
 }
 
@@ -71,7 +73,7 @@ impl Default for TextTool {
         let fonts = vec![FontEntry { label: "Hack".into(), id: None }, FontEntry { label: "Ubuntu Light".into(), id: None }];
         TextTool {
             open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, arc_deg: 90.0, arc_in: false, fit_on: false, fit_w: 100.0, fit_key: String::new(), shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
-            fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None,
+            fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None, previews: Default::default(),
         }
     }
 }
@@ -126,7 +128,28 @@ impl TextTool {
             self.sel = want.and_then(|w| self.fonts.iter().position(|f| f.label == w)).unwrap_or(0);
             self.key.clear();
             self.bytes_for = None;
+            self.previews.clear();
         }
+    }
+
+    /// The font's name in its own letters as a white-on-clear texture, made once per font.
+    fn name_preview(&mut self, ctx: &egui::Context, i: usize) -> Option<egui::TextureHandle> {
+        if let Some(p) = self.previews.get(&i) { return p.clone(); }
+        let e = self.fonts.get(i)?.clone();
+        let ppp = ctx.pixels_per_point() as f64;
+        let draw = |data: &[u8], idx: u32| putiacnc_core::text::name_bitmap(data, idx, &e.label, 17.0 * ppp, (300.0 * ppp) as usize, (30.0 * ppp) as usize);
+        let bmp = match e.id {
+            Some(id) => self.db.as_ref().and_then(|d| d.with_face_data(id, |data, idx| draw(data, idx)).flatten()),
+            None => builtin(if e.label == "Hack" { "Hack" } else { "Ubuntu-Light" }).and_then(|b| draw(&b, 0)),
+        };
+        let tex = bmp.map(|(w, h, a)| {
+            // egui blends in gamma space, which makes thin strokes look heavy; thin the coverage a little to compensate
+            let rgba: Vec<u8> = a.iter().flat_map(|&v| [255, 255, 255, (255.0 * (v as f32 / 255.0).powf(1.5)) as u8]).collect();
+            ctx.load_texture(format!("font_name_{i}"), egui::ColorImage::from_rgba_unmultiplied([w, h], &rgba), egui::TextureOptions::LINEAR)
+        });
+        // fonts still loading must not be remembered as failures
+        if self.db.is_some() { self.previews.insert(i, tex.clone()); }
+        tex
     }
 
     fn font_bytes(&mut self) -> Option<(Vec<u8>, u32)> {
@@ -422,6 +445,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             let mut keep = false;
             egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
                 let mut picked = false;
+                ui.set_min_width(250.0);
                 ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text("Search fonts").desired_width(f32::INFINITY));
                 ui.add_space(2.0);
                 let q = t.filter.to_lowercase();
@@ -431,7 +455,24 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                         if !q.is_empty() && !t.fonts[i].label.to_lowercase().contains(&q) { continue; }
                         any = true;
                         let label = t.fonts[i].label.clone();
-                        if ui.selectable_label(t.sel == i, label).clicked() { t.sel = i; t.picked = true; picked = true; }
+                        // a row as tall as the preview: the name in the font's own letters, or in the plain one when it cannot draw it
+                        let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 30.0), egui::Sense::click());
+                        if ui.is_rect_visible(rect) {
+                            let v = ui.style().interact_selectable(&resp, t.sel == i);
+                            if t.sel == i || resp.hovered() { ui.painter().rect(rect, v.rounding, if t.sel == i { ui.visuals().selection.bg_fill } else { v.weak_bg_fill }, egui::Stroke::NONE); }
+                            let col = if t.sel == i { ui.visuals().selection.stroke.color } else { ui.visuals().text_color() };
+                            match t.name_preview(ui.ctx(), i) {
+                                Some(tex) => {
+                                    let ppp = ui.ctx().pixels_per_point();
+                                    let sz = tex.size_vec2() / ppp;
+                                    let r = egui::Rect::from_min_size(egui::pos2(rect.min.x + 6.0, rect.center().y - sz.y / 2.0), sz);
+                                    ui.painter().image(tex.id(), r, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), col);
+                                }
+                                None => { ui.painter().text(egui::pos2(rect.min.x + 6.0, rect.center().y), egui::Align2::LEFT_CENTER, &label, egui::TextStyle::Button.resolve(ui.style()), col); }
+                            }
+                        }
+                        if resp.clicked() { t.sel = i; t.picked = true; picked = true; }
+                        resp.on_hover_text(&label);
                     }
                     if !any { ui.weak("No font matches."); }
                 });

@@ -217,6 +217,58 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
     Ok(out)
 }
 
+/// A small grey-scale picture of `text` set in the font, for showing a font's name in its own letters. Returns (width, height,
+/// coverage 0..255 per pixel, row by row from the top), or None when the font cannot draw most of the letters. The letters are
+/// `px` pixels per em unless the font's line is so tall that it would not fit in `max_h` pixels, then they are smaller.
+pub fn name_bitmap(font: &[u8], face_index: u32, text: &str, px: f64, max_w: usize, max_h: usize) -> Option<(usize, usize, Vec<u8>)> {
+    let face = Face::parse(font, face_index).ok()?;
+    let upm = face.units_per_em() as f64;
+    let (asc, desc) = (face.ascender() as f64, face.descender() as f64);
+    let line = (asc - desc).max(upm * 0.5);
+    let scale = (px / upm).min((max_h as f64 - 2.0) / line);
+    let h = ((line * scale).ceil() as usize + 2).min(max_h);
+    let base = h as f64 - 1.0 + desc * scale; // baseline, from the top of the picture
+    let mut x = 1.0;
+    let mut contours: Vec<Vec<[f64; 2]>> = Vec::new();
+    let (mut drawn, mut missing) = (0, 0);
+    for ch in text.chars() {
+        let g = face.glyph_index(ch);
+        if ch != ' ' { if g.is_some() { drawn += 1 } else { missing += 1 } }
+        if let Some(g) = g {
+            let mut b = Builder { scale, ox: x, oy: 0.0, cur: vec![], contours: vec![] };
+            if face.outline_glyph(g, &mut b).is_some() { b.finish(); }
+            // outlines are y up from the baseline; the picture is y down
+            contours.extend(b.contours.into_iter().map(|c| c.into_iter().map(|p| [p[0], base - p[1]]).collect::<Vec<_>>()));
+        }
+        x += g.and_then(|g| face.glyph_hor_advance(g)).map(|a| a as f64).unwrap_or(upm * 0.5) * scale;
+    }
+    if drawn == 0 || missing > drawn { return None; }
+    let w = ((x + 1.0).ceil() as usize).min(max_w).max(2);
+    const SS: usize = 4;
+    let mut acc = vec![0u16; w * h];
+    for sy in 0..h * SS {
+        let y = (sy as f64 + 0.5) / SS as f64;
+        let mut cross: Vec<(f64, i32)> = Vec::new();
+        for c in &contours {
+            for i in 0..c.len() {
+                let (p, q) = (c[i], c[(i + 1) % c.len()]);
+                if (p[1] <= y) == (q[1] <= y) { continue; }
+                cross.push((p[0] + (y - p[1]) / (q[1] - p[1]) * (q[0] - p[0]), if q[1] > p[1] { 1 } else { -1 }));
+            }
+        }
+        cross.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut wind = 0;
+        for k in 0..cross.len().saturating_sub(1) {
+            wind += cross[k].1;
+            if wind == 0 { continue; }
+            let from = ((cross[k].0 * SS as f64 - 0.5).ceil().max(0.0)) as usize;
+            let to = ((cross[k + 1].0 * SS as f64 - 0.5).ceil().max(0.0) as usize).min(w * SS);
+            for sx in from..to { acc[(sy / SS) * w + sx / SS] += 1; }
+        }
+    }
+    Some((w, h, acc.into_iter().map(|a| ((a as u32 * 255 / (SS * SS) as u32).min(255)) as u8).collect()))
+}
+
 /// Wraps a straight-set outline round a circle of radius `r` mm. `origin` is where the baseline touches the circle, at
 /// angle `phi` (radians, 0 = right, counter-clockwise, so pi/2 is the top). x along the baseline becomes distance along the
 /// circle and height above the baseline becomes distance from it: outwards (reading clockwise) or, with `inside`, towards the
@@ -426,6 +478,18 @@ mod tests {
         now[1].pts[2] += 2000; // one corner pulled out by 2 mm
         let refs: Vec<&LoopData> = now.iter().collect();
         assert!(fit_affine(&src, &refs).unwrap().1 > 0.1);
+    }
+
+    #[test]
+    fn a_font_name_can_be_drawn_in_its_own_letters() {
+        let Some(f) = font() else { return };
+        let (w, h, px) = name_bitmap(&f, 0, "Hello", 20.0, 300, 30).unwrap();
+        assert_eq!(px.len(), w * h);
+        assert!(w > 30 && w < 120 && h <= 30, "{w}x{h}");
+        let ink = px.iter().filter(|&&v| v > 128).count();
+        assert!(ink > 100 && ink < w * h / 2, "{ink}");
+        assert!(px.iter().any(|&v| v > 0 && v < 255), "edges are smooth");
+        assert!(name_bitmap(&f, 0, "\u{4e2d}\u{6587}", 20.0, 300, 30).is_none(), "letters the font lacks are not faked");
     }
 
     #[test]
