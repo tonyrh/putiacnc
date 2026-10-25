@@ -127,7 +127,8 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
         });
         ui.menu_button("View", |ui| {
             ui.style_mut().wrap = Some(false);
-            ui.set_min_width(200.0);
+            // wide enough for the longest checkbox, so the shortcut of the action row sits at the real right edge
+            ui.set_min_width(236.0);
             if item(ui, "Fit to stock", "F", true) { app.fit_pending = true; }
             ui.separator();
             ui.checkbox(&mut app.show_toolpath, "Toolpaths");
