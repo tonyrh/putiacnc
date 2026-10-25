@@ -3,7 +3,13 @@ use crate::app::App;
 use eframe::egui;
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.offset_open { return; }
+    if !app.offset_open { app.ghost.clear_if("offset"); return; }
+    {
+        let d = if app.offset_inward { -app.offset_mm } else { app.offset_mm };
+        let keep = app.offset_keep;
+        app.preview("offset", &[app.offset_inward as u64, crate::preview::bits(app.offset_mm), keep as u64], move |a| a.offset_selection(d, keep));
+    }
+    let pnote = app.ghost.note_of("offset").map(String::from);
     let n = app.sel.len();
     let mut apply = false;
     let mut close = false;
@@ -30,6 +36,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(4.0);
         ui.checkbox(&mut app.offset_keep, "Keep the original shapes");
+        ui.add_space(4.0);
+        ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
+        if let Some(n) = &pnote { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n > 0, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -42,6 +51,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if apply {
         let d = if app.offset_inward { -app.offset_mm } else { app.offset_mm };
         let keep = app.offset_keep;
+        app.ghost.clear();
         if let Some(msg) = app.offset_selection(d, keep) { app.error = Some(msg); }
     }
     if close { app.offset_open = false; }

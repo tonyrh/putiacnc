@@ -18,6 +18,7 @@ mod machmgr;
 mod offset;
 mod osnap;
 mod panels;
+mod preview;
 mod prefs;
 mod text;
 mod shortcuts;

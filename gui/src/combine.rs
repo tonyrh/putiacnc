@@ -4,7 +4,13 @@ use eframe::egui;
 use putiacnc_core::shapes::BoolOp;
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.combine_open { return; }
+    if !app.combine_open { app.ghost.clear_if("combine"); return; }
+    {
+        let (op, keep, swap) = (app.combine_op, app.combine_keep, app.combine_swap);
+        let code = match op { BoolOp::Union => 0, BoolOp::Subtract => 1, BoolOp::Intersect => 2, BoolOp::Exclude => 3 };
+        app.preview("combine", &[code, keep as u64, swap as u64], move |a| a.combine_selection(op, keep, swap));
+    }
+    let pnote = app.ghost.note_of("combine").map(String::from);
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
@@ -31,6 +37,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(6.0);
         ui.checkbox(&mut app.combine_keep, "Keep the original shapes");
+        ui.add_space(4.0);
+        ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
+        if let Some(n) = &pnote { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n >= 2, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -42,6 +51,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     });
     if apply {
         let (op, keep, swap) = (app.combine_op, app.combine_keep, app.combine_swap);
+        app.ghost.clear();
         if let Some(msg) = app.combine_selection(op, keep, swap) { app.error = Some(msg); }
     }
     if close { app.combine_open = false; }

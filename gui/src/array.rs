@@ -79,11 +79,17 @@ impl App {
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.array.open { return; }
+    if !app.array.open { app.ghost.clear_if("array"); return; }
     if !app.array.centre_set {
         let s = &app.project.data.stock;
         (app.array.cx, app.array.cy, app.array.centre_set) = (s.w / 2.0, s.h / 2.0, true);
     }
+    {
+        let a = &app.array;
+        let params = [a.circular as u64, a.cols.to_bits(), a.rows.to_bits(), a.gap_x.to_bits(), a.gap_y.to_bits(), a.count.to_bits(), a.cx.to_bits(), a.cy.to_bits(), a.angle.to_bits(), a.rotate as u64];
+        app.preview("array", &params, |x| x.array_selection());
+    }
+    let pnote = app.ghost.note_of("array").map(String::from);
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
@@ -116,6 +122,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.add_space(4.0);
             ui.checkbox(&mut a.rotate, "Turn the copies").on_hover_text("Off: the copies keep their orientation and only move round the circle");
         }
+        ui.add_space(4.0);
+        ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the copies in the drawing while you change the values");
+        if let Some(n) = &pnote { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n > 0, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -126,7 +135,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 else { "The gap is measured between the edges of neighbouring copies." });
         });
     });
-    if apply { if let Some(msg) = app.array_selection() { app.error = Some(msg); } }
+    if apply { app.ghost.clear(); if let Some(msg) = app.array_selection() { app.error = Some(msg); } }
     if close { app.array.open = false; }
 }
 

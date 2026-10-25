@@ -542,6 +542,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         let opi = d.ops.iter().position(|o| o.id == l.op);
         let selected = app.sel.contains(&i);
         let col = if selected { th.shape_selected() } else { opi.map(|k| op_color(k, dark)).unwrap_or(th.shape_idle()) };
+        let col = if app.ghost.hide.contains(&i) { col.gamma_multiply(0.3) } else { col };
         if shapes::is_point(l) {
             if let Some(b) = shapes::bbox(l) {
                 let s = to_s([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
@@ -589,6 +590,13 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             painter.circle_filled(c, 7.0, col);
             painter.text(c, egui::Align2::CENTER_CENTER, format!("{}", k + 1), egui::FontId::proportional(10.0), ink);
         }
+    }
+    // the preview of the tool whose dialog is open: what it would add or change
+    for l in &app.ghost.loops {
+        if shapes::is_point(l) { continue; }
+        let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
+        if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
+        painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, th.accent)));
     }
     if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))).filter(|_| editing_nodes.is_none()) {
         let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(4.0);

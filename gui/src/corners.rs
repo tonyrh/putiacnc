@@ -54,7 +54,13 @@ impl App {
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.corners.open { return; }
+    if !app.corners.open { app.ghost.clear_if("corners"); return; }
+    {
+        let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
+        let size = app.corners.size;
+        app.preview("corners", &[app.corners.chamfer as u64, crate::preview::bits(size)], move |a| a.corner_selection(kind, size));
+    }
+    let pnote = app.ghost.note_of("corners").map(String::from);
     let n = app.sel.len();
     let has = app.selection_has_corners();
     let (mut apply, mut close) = (false, false);
@@ -79,6 +85,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
             ui.end_row();
         });
+        ui.add_space(4.0);
+        ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
+        if let Some(n) = &pnote { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(has, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -91,6 +100,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if apply {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
+        app.ghost.clear();
         if let Some(msg) = app.corner_selection(kind, size) { app.error = Some(msg); }
     }
     if close { app.corners.open = false; }
