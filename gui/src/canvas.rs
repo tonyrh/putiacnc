@@ -550,6 +550,40 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
         painter.add(egui::Shape::line(pts, Stroke::new(if editing_nodes == Some(i) { 3.0_f32 } else if selected { 2.5_f32 } else { 1.8_f32 }, if editing_nodes == Some(i) { th.accent } else { col })));
     }
+    // the number of the operation on the shapes that belong to one, so the link does not rest on colour alone. Shapes of one operation
+    // that lie close together (the letters of a text, a hole in its outline) share a single badge; huge drawings get none
+    if d.loops.len() <= 600 {
+        let boxes: Vec<Option<(usize, Rect)>> = d.loops.iter().map(|l| {
+            let k = d.ops.iter().position(|o| o.id == l.op)?;
+            let b = shapes::bbox(l)?;
+            Some((k, Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]]))))
+        }).collect();
+        let mut root: Vec<usize> = (0..boxes.len()).collect();
+        fn find(r: &mut [usize], i: usize) -> usize { let mut i = i; while r[i] != i { r[i] = r[r[i]]; i = r[i]; } i }
+        for i in 0..boxes.len() {
+            let Some((ki, ri)) = &boxes[i] else { continue };
+            for j in 0..i {
+                let Some((kj, rj)) = &boxes[j] else { continue };
+                if ki == kj && ri.expand(10.0).intersects(*rj) { let (a, b) = (find(&mut root, i), find(&mut root, j)); root[a] = b; }
+            }
+        }
+        let mut clusters: std::collections::BTreeMap<usize, (usize, Rect)> = Default::default();
+        for i in 0..boxes.len() {
+            let Some((k, r)) = &boxes[i] else { continue };
+            let rt = find(&mut root, i);
+            clusters.entry(rt).and_modify(|(_, u)| *u = u.union(*r)).or_insert((*k, *r));
+        }
+        for (k, r) in clusters.values() {
+            if !painter.clip_rect().intersects(*r) || r.width() < 14.0 || r.height() < 14.0 { continue; }
+            let col = op_color(*k, dark);
+            let lum = 0.299 * col.r() as f32 + 0.587 * col.g() as f32 + 0.114 * col.b() as f32;
+            let ink = if lum > 150.0 { Color32::from_rgb(0x1e, 0x1e, 0x1e) } else { Color32::WHITE };
+            let c = r.left_top() + Vec2::new(-2.0, -2.0);
+            painter.circle_filled(c, 8.5, th.view());
+            painter.circle_filled(c, 7.0, col);
+            painter.text(c, egui::Align2::CENTER_CENTER, format!("{}", k + 1), egui::FontId::proportional(10.0), ink);
+        }
+    }
     if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))).filter(|_| editing_nodes.is_none()) {
         let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(4.0);
         painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.3)));
@@ -1207,6 +1241,35 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     app.palette_extra = (pal.response.rect.height() - 46.0).max(0.0);
     tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
+    // which operation new shapes go to
+    {
+        let (d, dark) = (&app.project.data, app.theme.dark);
+        let act_idx = d.ops.iter().position(|o| o.id == d.act);
+        let (txt, col) = match act_idx.and_then(|k| d.ops.get(k).map(|o| (k, o))) {
+            Some((k, o)) => (format!("New shapes go to  {}. {}", k + 1, crate::panels::KINDS.iter().find(|(kk, _)| *kk == o.p.kind).map_or(o.p.kind.as_str(), |(_, n)| *n)), Some((k, op_color(k, dark)))),
+            None => ("New shapes go to no operation".to_string(), None),
+        };
+        // beside the palette when there is room; a small numbered dot (the words in its tooltip) when there is less; nothing when there is none
+        let room = rect.right() - 14.0 - (pal.response.rect.right() + 10.0);
+        let full = txt.chars().count() as f32 * 6.2 + 44.0;
+        let dot_only = room < full;
+        if if col.is_some() { room >= 30.0 } else { room >= full } {
+        egui::Area::new(egui::Id::new("act_chip")).order(egui::Order::Middle).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-14.0, 12.0)).interactable(dot_only).show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).rounding(14.0).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0;
+                    if let Some((k, c)) = col {
+                        let (r, _) = ui.allocate_exact_size(Vec2::splat(16.0), Sense::hover());
+                        let lum = 0.299 * c.r() as f32 + 0.587 * c.g() as f32 + 0.114 * c.b() as f32;
+                        ui.painter().circle_filled(r.center(), 8.0, c);
+                        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, format!("{}", k + 1), egui::FontId::proportional(10.0), if lum > 150.0 { Color32::from_rgb(0x1e, 0x1e, 0x1e) } else { Color32::WHITE });
+                    }
+                    if !dot_only { ui.label(egui::RichText::new(&txt).small()); }
+                });
+            }).response.on_hover_text(&txt);
+        });
+        }
+    }
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point \u{b7} click an edge to add one \u{b7} Del removes" } else if app.tab_edit.is_some() { "Click an outline to add a tab \u{b7} right-click removes one" } else { match app.mode {
         Mode::Select => "Click or box-select \u{b7} drag to move \u{b7} handles resize",
