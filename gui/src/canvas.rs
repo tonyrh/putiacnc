@@ -826,6 +826,7 @@ fn rotate_popup(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let live = if let Drag::Rotate { total, .. } = &app.drag { Some(*total) } else { None };
     let mut v = live.unwrap_or(0.0);
     let mut delta: Option<f64> = None;
+    let mut typed = false;
     let pos = Pos2::new((top.x - 62.0).clamp(rect.min.x + RULER + 4.0, (rect.max.x - 130.0).max(rect.min.x + RULER + 4.0)), (top.y - 52.0).max(rect.min.y + RULER + 4.0));
     egui::Area::new(egui::Id::new("rotate_popup")).order(egui::Order::Middle).fixed_pos(pos).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
@@ -835,7 +836,7 @@ fn rotate_popup(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.add_space(4.0); // as far from its field as the labels in the selection bar
                 let r = crate::widgets::num(ui, [54.0, 24.0], &mut v, -360.0, 360.0, 0.5, 1, "")
                     .on_hover_text("Turn the selection by this many degrees about the centre mark (counter-clockwise is positive). Drag a corner handle to turn it with the mouse; Shift snaps to 15°.");
-                if r.changed() && live.is_none() && v != 0.0 { delta = Some(v); }
+                if r.changed() && live.is_none() && v != 0.0 { delta = Some(v); typed = !r.dragged(); }
                 ui.weak("°");
             });
         });
@@ -850,6 +851,8 @@ fn rotate_popup(ctx: &egui::Context, app: &mut App, rect: Rect) {
         app.rot_pivot = Some(pivot);
         if !app.hist.open { app.hist.push(before); app.hist.open = true; }
         app.touch();
+        // a typed angle finishes the turn (Enter), like a dialog's OK: back to the normal handles. Dragging the number keeps going.
+        if typed { app.rotate_mode = false; app.rot_pivot = None; }
     }
 }
 
