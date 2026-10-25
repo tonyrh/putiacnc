@@ -350,7 +350,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.end_row();
             ui.label("Font");
             let cur = t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default();
+            let mut keep = false;
             egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
+                let mut picked = false;
                 ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text("Search fonts").desired_width(f32::INFINITY));
                 ui.add_space(2.0);
                 let q = t.filter.to_lowercase();
@@ -360,11 +362,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                         if !q.is_empty() && !t.fonts[i].label.to_lowercase().contains(&q) { continue; }
                         any = true;
                         let label = t.fonts[i].label.clone();
-                        if ui.selectable_label(t.sel == i, label).clicked() { t.sel = i; t.picked = true; }
+                        if ui.selectable_label(t.sel == i, label).clicked() { t.sel = i; t.picked = true; picked = true; }
                     }
                     if !any { ui.weak("No font matches."); }
                 });
+                if picked { ui.close_menu(); }
+                // a click on the search box or beside the list leaves the menu open
+                else if crate::widgets::click_inside_popup(ui) { keep = true; }
             });
+            if keep { crate::widgets::reopen_combo(ui, "text_font"); }
             ui.end_row();
             ui.label("Height");
             ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.size, 0.5, 500.0, 0.1, 2, ""); ui.weak("mm, capital letters"); });

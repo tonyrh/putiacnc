@@ -994,7 +994,8 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let name = tools_ref.iter().find(|t| t.id == cur).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                         let name = elide(ui, &name, w - 30.0);
                         let mut got = None;
-                        egui::ComboBox::from_id_source(src).width(w).height(420.0).selected_text(name).show_ui(ui, |ui| {
+                        let mut keep = false;
+                        let combo = egui::ComboBox::from_id_source(src).width(w).height(420.0).selected_text(name).show_ui(ui, |ui| {
                             for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
                                 if !tools_ref.iter().any(|t| t.sys == sys && (!flat_only || t.shape == "flat")) { continue; }
                                 ui.weak(label);
@@ -1003,7 +1004,10 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     if ui.selectable_label(cur == t.id, format!("{}  ({})", clean(&t.name), dia)).clicked() { got = Some(t.id.clone()); }
                                 }
                             }
-                        }).response.on_hover_text(tip);
+                            if got.is_some() { ui.close_menu(); } else if crate::widgets::click_inside_popup(ui) { keep = true; } // a click on "Metric" / "Imperial" leaves it open
+                        });
+                        if keep { crate::widgets::reopen_combo(ui, src); }
+                        combo.response.on_hover_text(tip);
                         got
                     };
                     let lw2 = tw_of(ui, "Stepover").max(tw_of(ui, "Pass")).max(tw_of(ui, "Leave")).max(tw_of(ui, "Tool"));

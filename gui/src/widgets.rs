@@ -59,3 +59,15 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
     ui.painter().galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, vis.fg_stroke.color);
     resp
 }
+
+/// egui closes a combo box popup on any click inside it. A click that does not pick anything (a search box, a heading) should leave it
+/// open: call this inside the popup, and when it says so, `reopen_combo` right after the combo box.
+pub fn click_inside_popup(ui: &Ui) -> bool {
+    ui.input(|i| i.pointer.any_click() && i.pointer.interact_pos().is_some_and(|p| ui.min_rect().expand(8.0).contains(p)))
+}
+
+/// Open the popup of the combo box made with `ComboBox::from_id_source(id)` again.
+pub fn reopen_combo(ui: &Ui, id: impl std::hash::Hash) {
+    let pid = ui.make_persistent_id(egui::Id::new(id)).with("popup");
+    ui.memory_mut(|m| m.open_popup(pid));
+}
