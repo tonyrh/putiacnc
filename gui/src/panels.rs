@@ -131,9 +131,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Fit to stock", "F", true) { app.fit_pending = true; }
             ui.separator();
             ui.checkbox(&mut app.grid_on, "Grid");
-            ui.checkbox(&mut app.snap_on, "Snap to grid");
             ui.checkbox(&mut app.show_open_ends, "Loose ends of open contours");
-            ui.checkbox(&mut app.osnap_on, "Snap to shapes");
             ui.checkbox(&mut app.show_toolpath, "Toolpaths");
             ui.checkbox(&mut app.show_rapids, "Rapid moves");
             ui.checkbox(&mut app.show_machine_area, "Machine work area");
@@ -177,7 +175,11 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.checkbox(&mut app.grid_on, "Grid");
         crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, " mm").on_hover_text("Grid size (also the snap step)");
-        ui.checkbox(&mut app.snap_on, "Snap").on_hover_text("Snap to the grid (snapping to shapes is in the Guides menu)");
+        dropup(ui, app, "snap_menu", "Snap", |ui, app| {
+            ui.set_width(170.0);
+            ui.checkbox(&mut app.snap_on, "To the grid").on_hover_text("The pointer jumps to the grid; the grid size is the snap step");
+            ui.checkbox(&mut app.osnap_on, "To shapes").on_hover_text("The pointer jumps to the corners, midpoints, centres and crossings of shapes, and to the stock");
+        });
         // view toggles on the right (right-to-left, so listed in reverse)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             guides_menu(ui, app);
@@ -189,18 +191,30 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
 
 /// The "Guides" drop-up in the bottom bar: a button with a painted arrow (a text arrow is a box in some fonts) whose panel opens upwards
 /// and stays open while the toggles are clicked.
-fn guides_size(ui: &Ui) -> egui::Vec2 {
+fn dropup_size(ui: &Ui, label: &str) -> egui::Vec2 {
     let font = egui::TextStyle::Button.resolve(ui.style());
-    let w = ui.painter().layout_no_wrap("Guides".to_string(), font, Color32::PLACEHOLDER).size().x;
+    let w = ui.painter().layout_no_wrap(label.to_string(), font, Color32::PLACEHOLDER).size().x;
     egui::vec2(w + 36.0, ui.spacing().interact_size.y)
 }
 
+fn guides_size(ui: &Ui) -> egui::Vec2 { dropup_size(ui, "Guides") }
+
 fn guides_menu(ui: &mut Ui, app: &mut App) {
-    let id = ui.id().with("guides_menu");
+    dropup(ui, app, "guides_menu", "Guides", |ui, app| {
+        ui.set_width(190.0); // a fixed width: the separator would otherwise stretch the menu across the screen
+        ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
+        ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
+        ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
+    });
+}
+
+/// A button with a painted arrow whose panel opens upwards and stays open while its toggles are clicked.
+fn dropup(ui: &mut Ui, app: &mut App, name: &str, label: &str, contents: impl FnOnce(&mut Ui, &mut App)) {
+    let id = ui.id().with(name);
     let open = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     let font = egui::TextStyle::Button.resolve(ui.style());
-    let galley = ui.painter().layout_no_wrap("Guides".to_string(), font, Color32::PLACEHOLDER);
-    let size = guides_size(ui);
+    let galley = ui.painter().layout_no_wrap(label.to_string(), font, Color32::PLACEHOLDER);
+    let size = dropup_size(ui, label);
     let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::click());
     let v = ui.style().interact_selectable(&resp, open);
     ui.painter().rect(rect.expand(v.expansion), v.rounding, v.bg_fill, v.bg_stroke);
@@ -216,12 +230,7 @@ fn guides_menu(ui: &mut Ui, app: &mut App) {
             .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.style_mut().wrap = Some(false);
-                    ui.set_width(190.0); // a fixed width: the separator would otherwise stretch the menu across the screen
-                    ui.checkbox(&mut app.osnap_on, "Snap to shapes").on_hover_text("Snap to the corners, midpoints, centres and crossings of shapes, and to the stock");
-                    ui.separator();
-                    ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
-                    ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
-                    ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
+                    contents(ui, app);
                 });
             });
         let outside = ui.input(|i| i.pointer.any_click()) && !resp.clicked()

@@ -381,15 +381,28 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
     }
 
-    // which operation and pass the replay is on
+    // which operation and pass the replay is on. Retracts and rapids carry no pass, so the last real pass is kept; and at high
+    // speed the label changes at most a few times a second and its box keeps one width, so it does not flicker
     if let (Some(o), Some(sim)) = (&app.output, app.v3.sim.as_ref()) {
         let cur = sim.done.saturating_sub(1).min(o.moves.len().saturating_sub(1));
         if let Some(m) = o.moves.get(cur) {
+            let pass = o.moves[..=cur].iter().rev().take_while(|x| x.op == m.op).find(|x| x.pass > 0).map_or(0, |x| x.pass);
             let passes = o.moves.iter().filter(|x| x.op == m.op).map(|x| x.pass).max().unwrap_or(0);
             let name = app.project.data.ops.get(m.op).map(|op| crate::panels::KINDS.iter().find(|(k, _)| *k == op.p.kind).map_or(op.p.kind.as_str(), |(_, n)| *n)).unwrap_or("");
-            let txt = if m.pass > 0 && passes > 0 { format!("Operation {} · {}  ·  Pass {} of {}", m.op + 1, name, m.pass, passes) } else { format!("Operation {} · {}", m.op + 1, name) };
-            let g = painter.layout_no_wrap(txt, FontId::proportional(13.0), Color32::WHITE);
-            let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 10.0), g.size() + Vec2::new(18.0, 10.0));
+            let fmt = |op: usize, pass: usize| if pass > 0 && passes > 0 { format!("Operation {} · {}  ·  Pass {} of {}", op + 1, name, pass, passes) } else { format!("Operation {} · {}", op + 1, name) };
+            let hid = egui::Id::new("v3_label");
+            let now = ui.input(|i| i.time);
+            let (mut shown, since): ((usize, usize), f64) = ui.data(|d| d.get_temp(hid)).unwrap_or(((m.op, pass), -1.0));
+            let mut since = since;
+            if shown != (m.op, pass) {
+                if now - since > 0.3 || shown.0 != m.op && now - since > 0.1 { shown = (m.op, pass); since = now; }
+                else { ui.ctx().request_repaint_after(std::time::Duration::from_millis(100)); }
+            }
+            ui.data_mut(|d| d.insert_temp(hid, (shown, since)));
+            let widest = fmt(m.op, passes.max(1)).replace(&format!("Pass {} of", passes.max(1)), &format!("Pass {} of", "8".repeat(passes.max(1).to_string().len())));
+            let wg = painter.layout_no_wrap(widest, FontId::proportional(13.0), Color32::WHITE);
+            let g = painter.layout_no_wrap(fmt(shown.0, shown.1), FontId::proportional(13.0), Color32::WHITE);
+            let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 10.0), Vec2::new(wg.size().x.max(g.size().x), g.size().y) + Vec2::new(18.0, 10.0));
             painter.rect_filled(r, 6.0, Color32::from_black_alpha(150));
             painter.galley(r.min + Vec2::new(9.0, 5.0), g, Color32::WHITE);
         }

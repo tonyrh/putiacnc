@@ -20,11 +20,11 @@ fn tool_line(t: &Tool) -> String {
 pub fn matches(t: &Tool, words: &[String]) -> bool {
     if words.is_empty() { return true; }
     let hay = format!("{} {} {} {} {} {}", t.name, toollib::shape_label(&t.shape), toollib::category(&t.shape).1, toollib::fmt_dia(t.dia, &t.sys, false), t.dia, t.notes)
-        .to_lowercase().replace('\u{2033}', "\"").replace('″', "\"");
+        .to_lowercase().replace(['\u{2033}', '″'], "\"");
     words.iter().all(|w| hay.contains(w.as_str()))
 }
 
-fn words(q: &str) -> Vec<String> { q.to_lowercase().replace('\u{2033}', "\"").replace('″', "\"").split_whitespace().map(String::from).collect() }
+fn words(q: &str) -> Vec<String> { q.to_lowercase().replace(['\u{2033}', '″'], "\"").split_whitespace().map(String::from).collect() }
 
 /// The selector. `current` is the id of the tool in use; `used` are the tools the job's operations already use (offered first while
 /// nothing is typed); `only` limits which tools are offered (for example flat end mills).
@@ -32,6 +32,7 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
     let cid = egui::Id::new(id);
     let (qid, oid) = (cid.with("q"), cid.with("opened"));
     let mut picked: Option<Picked> = None;
+    let mut keep = false;
     let out = egui::ComboBox::from_id_source(cid).width(width).height(460.0).selected_text(shown).show_ui(ui, |ui| {
         ui.set_min_width(width.max(280.0));
         let first = !ui.data(|d| d.get_temp::<bool>(oid)).unwrap_or(false);
@@ -95,7 +96,11 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
         if ui.selectable_label(false, "Manage tools…").on_hover_text("Open the tool library").clicked() { picked = Some(Picked::Manage); }
         if picked.is_some() { ui.close_menu(); }
         ui.data_mut(|d| d.insert_temp(qid, q));
+        // egui closes a combo popup on any click inside it; a click on a group header or the search box should leave it open
+        let inside = ui.input(|i| i.pointer.any_click() && i.pointer.interact_pos().is_some_and(|p| ui.min_rect().expand(8.0).contains(p)));
+        if inside && picked.is_none() { keep = true; }
     });
+    if keep { let pid = ui.make_persistent_id(egui::Id::new(cid)).with("popup"); ui.memory_mut(|m| m.open_popup(pid)); }
     if out.inner.is_none() { ui.data_mut(|d| { d.remove::<String>(qid); d.remove::<bool>(oid); }); }
     (out.response, picked)
 }
