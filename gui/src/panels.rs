@@ -624,6 +624,8 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     let mut group_act: Option<(Option<i64>, GroupAct)> = None;
     // the buttons that add operations stay put above the list; only the list scrolls
     let mut add_kind: Option<&str> = None;
+    // the eye only changes the 3D preview, so it is only there while that tab is open
+    let in3d = app.view_tab == crate::view3d::ViewTab::Preview;
     if ops {
         let d = &app.project.data;
         let sel = &app.sel;
@@ -863,7 +865,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let folded = collapsed.contains(&id);
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
-                let fill = if hidden_now.contains(&id) { fill.gamma_multiply(0.55) } else { fill };
+                let fill = if in3d && hidden_now.contains(&id) { fill.gamma_multiply(0.55) } else { fill };
                 ui.painter().rect_filled(rect, 6.0, fill);
                 // the operations that own the shapes selected in the drawing are brighter and outlined
                 if selected {
@@ -885,7 +887,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let g1 = ui.painter().layout_no_wrap(text, body, col);
                 let g2 = ui.painter().layout_no_wrap(sub, small, sub_col);
                 let top = rect.center().y - (g1.size().y + g2.size().y) / 2.0;
-                let btn_w = 4.0 * 26.0 + 3.0 * 2.0;
+                let btn_w = if in3d { 4.0 * 26.0 + 3.0 * 2.0 } else { 3.0 * 26.0 + 2.0 * 2.0 };
                 let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - btn_w - 8.0, rect.max.y)));
                 let h1 = g1.size().y;
                 clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
@@ -898,8 +900,10 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.spacing_mut().item_spacing.x = 2.0;
                     ui.horizontal(|ui| {
                         let off = hidden_now.contains(&id);
+                        if in3d {
                         let tip = if off { "Hidden in the 3D preview. Click to show it (Alt-click: show only this one)" } else { "Shown in the 3D preview. Click to hide it (Alt-click: show only this one)" };
                         if small_icon_button(ui, if off { Icon::EyeOff } else { Icon::Eye }, true, tip).clicked() { act_eye = Some((id, ui.input(|x| x.modifiers.alt))); }
+                        }
                         if small_icon_button(ui, Icon::Up, i > 0, "Move up (runs earlier)").clicked() { act_move = Some((i, -1)); }
                         if small_icon_button(ui, Icon::Down, i + 1 < n_ops, "Move down (runs later)").clicked() { act_move = Some((i, 1)); }
                         if small_icon_button(ui, Icon::Trash, true, "Delete operation").clicked() { act_remove = Some(i); }
