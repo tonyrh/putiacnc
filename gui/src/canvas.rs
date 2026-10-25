@@ -1355,13 +1355,8 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let single_rect = if sel.len() == 1 { d.loops[*sel.iter().next().unwrap()].rc } else { None };
     let mut radius = single_rect.unwrap_or(0.0);
     let mut radius_changed = false;
-    let ops: Vec<(i64, String)> = d.ops.iter().enumerate().map(|(i, o)| (o.id, format!("{}. {}", i + 1, crate::panels::label_of(crate::panels::KINDS, &o.p.kind)))).collect();
-    let first_op = d.loops[*sel.iter().next().unwrap()].op;
-    let same = sel.iter().all(|&i| d.loops[i].op == first_op);
-    let cur = if !same { "Mixed".to_string() } else { ops.iter().find(|(id, _)| *id == first_op).map(|(_, s)| s.clone()).unwrap_or_else(|| "No operation".into()) };
-    let mut pick: Option<i64> = None;
     let _ = n;
-    // shapes of a locked drawing can be assigned to operations but not moved, resized or aligned
+    // shapes of a locked drawing cannot be moved, resized or aligned
     let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
     egui::Area::new(egui::Id::new("selbar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 5.0)).show(ui, |ui| {
@@ -1385,11 +1380,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     ui.add_space(6.0);
                     radius_changed |= field(ui, "Radius", &mut radius, 0.0, 100000.0);
                 }
-                ui.add_space(6.0);
-                egui::ComboBox::from_id_source("selop").width(130.0).selected_text(cur.clone()).show_ui(ui, |ui| {
-                    for (id, s) in &ops { if ui.selectable_label(same && first_op == *id, s).clicked() { pick = Some(*id); } }
-                    if ui.selectable_label(same && first_op == 0, "No operation").clicked() { pick = Some(0); }
-                }).response.on_hover_text("Operation applied to the selected shapes");
             });
             if text_gid.is_some() {
                 ui.horizontal(|ui| {
@@ -1410,7 +1400,6 @@ fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if radius_changed {
         if let Some(&i) = sel.iter().next() { shapes::set_corner_radius(&mut d.loops[i], radius); changed = true; }
     }
-    if let Some(id) = pick { for &i in sel.iter() { d.loops[i].op = id; } changed = true; }
     if changed {
         if !app.hist.open {
             app.hist.push(before);

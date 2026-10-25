@@ -331,6 +331,15 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
         }
         ui.separator();
         ui.label(format!("{} shapes, {} selected", app.project.data.loops.len(), app.sel.len()));
+        let note: Option<(String, f64)> = ui.ctx().data(|x| x.get_temp(egui::Id::new("status_note")));
+        if let Some((msg, t0)) = note {
+            let age = ui.input(|i| i.time) - t0;
+            if age < 6.0 {
+                ui.separator();
+                ui.label(egui::RichText::new(msg).strong());
+                ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
+            }
+        }
     });
 }
 
@@ -743,9 +752,12 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let lw = ui.available_width();
         // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
         let mut add_kind: Option<&str> = None;
+        // an operation is made for the shapes that are selected, so the buttons wait for a selection
+        let has_sel = sel.iter().any(|&k| k < d.loops.len());
         ui.horizontal(|ui| {
             for (kind, label, icon) in [("outside", "Profile", Icon::Profile), ("pocket", "Pocket", Icon::Pocket), ("vcarve", "V-carve", Icon::VCarve), ("drill", "Drill", Icon::Drill)] {
-                if icon_text_button(ui, icon, label, &format!("Add a {label} operation"), None).clicked() { add_kind = Some(kind); }
+                let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, icon, label, &format!("Add a {label} operation for the selected shapes"), None)).inner;
+                if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some(kind); }
             }
             if !d.ops.is_empty() {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -758,15 +770,18 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             }
         });
         ui.horizontal(|ui| {
-            if icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None).clicked() { add_kind = Some("inlay"); }
-            if icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model (File > Import 3D Model): roughing, then a finishing pass that follows the surface", None).clicked() { add_kind = Some("relief"); }
+            let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None)).inner;
+            if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some("inlay"); }
+            let has_model = d.relief.is_some();
+            let r = ui.add_enabled_ui(has_model, |ui| icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model: roughing, then a finishing pass that follows the surface", None)).inner;
+            if !has_model { r.on_disabled_hover_text("Import a 3D model first (File > Import 3D Model)"); } else if r.clicked() { add_kind = Some("relief"); }
         });
         if let Some(kind) = add_kind {
             if kind == "inlay" {
                 add_inlay(d, sel);
                 changed = true;
             } else {
-                let base = d.ops.iter().find(|o| o.id == d.act).map(|o| o.p.clone());
+                let base = d.ops.last().map(|o| o.p.clone());
                 let mut p = base.unwrap_or_else(|| shapes::default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
                 p.kind = match kind {
                     "relief" => "relief".into(),
@@ -788,7 +803,20 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 d.oid = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
                 let id = d.oid;
                 d.ops.push(Operation { id, p });
-                for &i in sel.iter() { d.loops[i].op = id; }
+                if kind != "relief" {
+                    // shapes that were in another operation move to this one, and the status bar says so
+                    let from: Vec<i64> = sel.iter().filter_map(|&i| d.loops.get(i)).map(|l| l.op).filter(|&o| o != 0 && o != id).collect();
+                    if !from.is_empty() {
+                        let name = |oid: i64| d.ops.iter().position(|o| o.id == oid).map(|k| format!("{}. {}", k + 1, label_of(KINDS, &d.ops[k].p.kind)));
+                        let first = from[0];
+                        let same = from.iter().all(|&o| o == first);
+                        let from_txt = if same { name(first).unwrap_or_else(|| "another operation".into()) } else { "other operations".into() };
+                        let msg = format!("{} shape{} moved from {}", from.len(), if from.len() == 1 { "" } else { "s" }, from_txt);
+                        let now = ui.input(|i| i.time);
+                        ui.ctx().data_mut(|x| x.insert_temp(egui::Id::new("status_note"), (msg, now)));
+                    }
+                    for &i in sel.iter() { if let Some(l) = d.loops.get_mut(i) { l.op = id; } }
+                }
                 d.act = id;
                 changed = true;
             }
@@ -800,36 +828,12 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let machine_now = d.machine.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
-        // Some(None): select them; Some(Some(op)): put them all in that operation
-        let mut loose_act: Option<Option<i64>> = None;
         // operations that own a selected shape get an outline; the list scrolls to the first one when the selection changes
         let hi_ids: Vec<i64> = d.ops.iter().filter(|o| sel.iter().any(|&k| d.loops.get(k).is_some_and(|l| l.op == o.id))).map(|o| o.id).collect();
         let hi_key = egui::Id::new("op_highlight_prev");
         let hi_prev: Vec<i64> = ui.data(|x| x.get_temp(hi_key)).unwrap_or_default();
         let mut hi_scroll = hi_ids != hi_prev && !hi_ids.is_empty();
         ui.data_mut(|x| x.insert_temp(hi_key, hi_ids.clone()));
-        // shapes that belong to no operation are not cut: say so, and offer the two things one wants to do about it
-        let loose = d.loops.iter().filter(|l| l.op == 0 || !d.ops.iter().any(|o| o.id == l.op)).count();
-        if loose > 0 {
-            egui::Frame::group(ui.style()).show(ui, |ui| {
-                ui.set_width(lw - 14.0);
-                ui.horizontal_wrapped(|ui| {
-                    ui.label(egui::RichText::new(format!("{loose} shape{} in no operation", if loose == 1 { "" } else { "s" })).strong());
-                    ui.weak("not cut");
-                });
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button("Select them").on_hover_text("Select the shapes that are in no operation").clicked() { loose_act = Some(None); }
-                    ui.add_enabled_ui(!d.ops.is_empty(), |ui| {
-                        ui.menu_button("Put them in…", |ui| {
-                            for (k, o) in d.ops.iter().enumerate() {
-                                if ui.button(format!("{}. {}", k + 1, label_of(KINDS, &o.p.kind))).clicked() { loose_act = Some(Some(o.id)); ui.close_menu(); }
-                            }
-                        }).response.on_hover_text("Put all of them in an operation");
-                    });
-                });
-            });
-            ui.add_space(4.0);
-        }
         for i in 0..d.ops.len() {
             let o = &d.ops[i];
             let n = d.loops.iter().filter(|l| l.op == o.id).count();
@@ -843,7 +847,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
                 let selected = hi_ids.contains(&id);
-                let resp = resp.on_hover_text(if sel.is_empty() { "Select this operation's shapes in the drawing" } else if selected && d.loops.iter().enumerate().all(|(k, l)| !sel.contains(&k) || l.op == id) { "Click to take the selected shapes out of this operation" } else { "Click to put the selected shapes in this operation" });
+                let resp = resp.on_hover_text("Select this operation's shapes in the drawing");
                 let folded = collapsed.contains(&id);
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
@@ -874,17 +878,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
                 clip.galley(egui::pos2(rect.min.x + 60.0, top + h1), g2, sub_col);
                 if chev.clicked() { if folded { collapsed.remove(&id); } else { collapsed.insert(id); } }
-                else if resp.clicked() {
-                    d.act = id;
-                    if sel.is_empty() {
-                        *sel = d.loops.iter().enumerate().filter(|(_, l)| l.op == id).map(|(k, _)| k).collect(); ui.ctx().request_repaint();
-                    } else {
-                        // the selected shapes join this operation; when they are all in it already, they leave it
-                        let all_in = sel.iter().all(|&k| d.loops.get(k).is_none_or(|l| l.op == id));
-                        for &k in sel.iter() { if let Some(l) = d.loops.get_mut(k) { l.op = if all_in { 0 } else { id }; } }
-                        changed = true; ui.ctx().request_repaint();
-                    }
-                }
+                else if resp.clicked() { *sel = d.loops.iter().enumerate().filter(|(_, l)| l.op == id).map(|(k, _)| k).collect(); }
                 // up / down / delete sit inside the row, on its right
                 let brect = egui::Rect::from_min_size(egui::pos2(rect.max.x - btn_w - 6.0, rect.center().y - 13.0), egui::vec2(btn_w, 26.0));
                 ui.allocate_ui_at_rect(brect, |ui| {
@@ -1223,14 +1217,6 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let j = i as i32 + dir;
             if j >= 0 && (j as usize) < d.ops.len() { d.ops.swap(i, j as usize); changed = true; }
         }
-        if let Some(t) = loose_act {
-            let ids: Vec<i64> = d.ops.iter().map(|o| o.id).collect();
-            let idx: Vec<usize> = d.loops.iter().enumerate().filter(|(_, l)| l.op == 0 || !ids.contains(&l.op)).map(|(k, _)| k).collect();
-            match t {
-                None => { *sel = idx.into_iter().collect(); }
-                Some(op) => { for k in idx { d.loops[k].op = op; } changed = true; }
-            }
-        }
         if let Some(i) = act_remove {
             let id = d.ops[i].id;
             for l in d.loops.iter_mut() { if l.op == id { l.op = 0; } }
@@ -1238,7 +1224,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             if d.act == id { d.act = d.ops.get(i.saturating_sub(1)).map(|o| o.id).unwrap_or(0); }
             changed = true;
         }
-        if d.ops.is_empty() { ui.weak("Draw shapes, then add an operation: it takes the shapes that are selected."); }
+        if d.ops.is_empty() { ui.weak("Select the shapes, then add an operation for them."); }
 
 
         }
