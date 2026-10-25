@@ -309,7 +309,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let sim = app.v3.sim.as_ref().unwrap();
 
     // clamps: translucent red boxes from the table to their top
-    for c in &app.project.data.clamps {
+    for c in app.project.data.clamps.iter().filter(|_| app.show_clamps) {
         let (z0, z1) = (-(app.project.data.stock.t as f32), c.height as f32);
         let (x0, y0, x1, y1) = (c.x as f32, c.y as f32, (c.x + c.w) as f32, (c.y + c.h) as f32);
         let corner = |i: usize, z: f32| cam.p([if i == 1 || i == 2 { x1 } else { x0 }, if i >= 2 { y1 } else { y0 }, z]);

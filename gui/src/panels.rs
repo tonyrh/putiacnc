@@ -138,6 +138,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.checkbox(&mut app.show_rulers, "Rulers");
             ui.checkbox(&mut app.show_axes, "Axes");
             ui.checkbox(&mut app.show_badges, "Operation badges on shapes");
+            ui.checkbox(&mut app.show_clamps, "Clamps");
             ui.separator();
             ui.checkbox(&mut app.show_left, "Project panel");
             ui.checkbox(&mut app.show_right, "Operations / G-code panel");
@@ -658,7 +659,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         ui.separator();
     }
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-        let App { project, sel, collapsed, tab_edit, .. } = app;
+        let App { project, sel, collapsed, tab_edit, show_clamps, .. } = app;
         if !ops {
         ui.horizontal(|ui| {
             ui.heading("Project");
@@ -745,6 +746,10 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         ui.horizontal(|ui| {
             ui.heading("Clamps");
             ui.weak("keep-out zones").on_hover_text("Rectangles on the table that the tool must not touch. X and Y are measured from the stock's lower-left corner; Width is the size along X, Length along Y, and Rise is how far the clamp stands above the stock top. The toolpath warnings check them");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let tip = if *show_clamps { "Clamps are drawn in the drawing and the 3D preview. Click to hide them (the toolpath warnings still check them)" } else { "Clamps are hidden in the drawing and the 3D preview. Click to show them" };
+                if small_icon_button(ui, if *show_clamps { Icon::Eye } else { Icon::EyeOff }, true, tip).clicked() { *show_clamps = !*show_clamps; }
+            });
         });
         let clamp_inner_w = stock_frame.response.rect.width() - 22.0;
         egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {

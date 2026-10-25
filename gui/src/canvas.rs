@@ -106,6 +106,7 @@ fn clamp_at(app: &App, w: [f64; 2], tol: f64) -> Option<usize> {
     let d = &app.project.data;
     let on_shape = d.loops.iter().any(|l| shapes::dist_to_loop(l, w) <= tol) || app.sel.iter().any(|&i| d.loops.get(i).is_some_and(|l| shapes::point_in_loop(l, w)));
     if on_shape { return None; }
+    if !app.show_clamps { return None; }
     d.clamps.iter().rposition(|c| w[0] >= c.x && w[0] <= c.x + c.w && w[1] >= c.y && w[1] <= c.y + c.h)
 }
 
@@ -503,7 +504,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     painter.rect_filled(sr, 0.0, mat.fill);
     painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, mat.stroke));
     // clamps: keep-out rectangles on the table
-    for (i, c) in d.clamps.iter().enumerate() {
+    for (i, c) in d.clamps.iter().enumerate().filter(|_| app.show_clamps) {
         let r = Rect::from_two_pos(to_s([c.x, c.y]), to_s([c.x + c.w, c.y + c.h]));
         painter.rect_filled(r, 2.0, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 55));
         painter.rect_stroke(r, 2.0, Stroke::new(if clamp_hot == Some(i) { 3.0_f32 } else { 1.5_f32 }, Color32::from_rgb(0xe0, 0x1b, 0x24)));
