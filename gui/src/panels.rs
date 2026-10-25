@@ -130,15 +130,17 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.set_min_width(200.0);
             if item(ui, "Fit to stock", "F", true) { app.fit_pending = true; }
             ui.separator();
-            ui.checkbox(&mut app.grid_on, "Grid");
-            ui.checkbox(&mut app.show_open_ends, "Loose ends of open contours");
             ui.checkbox(&mut app.show_toolpath, "Toolpaths");
             ui.checkbox(&mut app.show_rapids, "Rapid moves");
+            ui.checkbox(&mut app.show_badges, "Operation badges on shapes");
+            ui.separator();
             ui.checkbox(&mut app.show_machine_area, "Machine work area");
+            ui.checkbox(&mut app.show_clamps, "Clamps");
+            ui.separator();
+            ui.checkbox(&mut app.grid_on, "Grid");
             ui.checkbox(&mut app.show_rulers, "Rulers");
             ui.checkbox(&mut app.show_axes, "Axes");
-            ui.checkbox(&mut app.show_badges, "Operation badges on shapes");
-            ui.checkbox(&mut app.show_clamps, "Clamps");
+            ui.checkbox(&mut app.show_open_ends, "Loose ends of open contours");
             ui.separator();
             ui.checkbox(&mut app.show_left, "Project panel");
             ui.checkbox(&mut app.show_right, "Operations / G-code panel");
