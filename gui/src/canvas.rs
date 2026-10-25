@@ -85,7 +85,11 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         else if c { finish_poly(app, true); }
     }
     if esc {
-        if !app.poly.is_empty() { app.poly.clear(); }
+        // an open tool dialog (fillet, offset, array, combine, clean up) is closed first; the selection stays for the next press
+        if app.corners.open || app.offset_open || app.combine_open || app.array.open || app.clean.open {
+            app.corners.open = false; app.offset_open = false; app.combine_open = false; app.array.open = false; app.clean.open = false;
+        }
+        else if !app.poly.is_empty() { app.poly.clear(); }
         else if !matches!(app.drag, Drag::None) { app.drag = Drag::None; }
         else if app.rotate_mode { app.rotate_mode = false; app.rot_pivot = None; } // leaves rotate handles, keeps the selection
         else if !app.sel.is_empty() { app.sel.clear(); }
