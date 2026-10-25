@@ -85,7 +85,7 @@ impl Theme {
     pub fn border(&self) -> Color32 { if self.dark { rgb(0x44, 0x44, 0x44) } else { rgb(0xd5, 0xd5, 0xd5) } }
     pub fn text(&self) -> Color32 { if self.dark { rgb(0xff, 0xff, 0xff) } else { rgb(0x2e, 0x2e, 0x32) } }
     pub fn grid(&self) -> Color32 { if self.dark { rgb(0x2a, 0x2a, 0x2a) } else { rgb(0xec, 0xec, 0xec) } }
-    /// Colours of the stock for a material ("wood", "metal" or "foam"; anything else reads as wood):
+    /// Colours of the stock for a material ("wood", "darkwood", "metal" or "foam"; anything else reads as wood):
     /// 2D fill and outline, and the top and side faces in the 3D view.
     pub fn material(&self, mat: &str) -> Material {
         let c = |r, g, b| rgb(r, g, b);
@@ -94,6 +94,8 @@ impl Theme {
             ("metal", true) => Material { fill: c(0x3a, 0x3e, 0x44), stroke: c(0x8c, 0x93, 0x9c), top: c(170, 176, 186), side: c(120, 126, 136), grain: 0.0, rings: 0.0, brush: 1.0 },
             ("foam", false) => Material { fill: c(0x3a, 0x3b, 0x3f), stroke: c(0x1c, 0x1c, 0x1e), top: c(78, 79, 84), side: c(54, 55, 59), grain: 1.0, rings: 0.0, brush: 0.0 },
             ("foam", true) => Material { fill: c(0x46, 0x47, 0x4b), stroke: c(0x84, 0x85, 0x8a), top: c(88, 89, 94), side: c(62, 63, 68), grain: 1.0, rings: 0.0, brush: 0.0 },
+            ("darkwood", false) => Material { fill: c(0xb9, 0x9a, 0x7e), stroke: c(0x5e, 0x40, 0x2a), top: c(112, 76, 52), side: c(78, 52, 34), grain: 0.0, rings: 1.0, brush: 0.0 },
+            ("darkwood", true) => Material { fill: c(0x2e, 0x21, 0x19), stroke: c(0x9a, 0x76, 0x56), top: c(112, 76, 52), side: c(78, 52, 34), grain: 0.0, rings: 1.0, brush: 0.0 },
             (_, false) => Material { fill: c(0xe9, 0xdb, 0xc3), stroke: c(0xa0, 0x7c, 0x45), top: c(226, 190, 142), side: c(190, 150, 104), grain: 0.0, rings: 1.0, brush: 0.0 },
             (_, true) => Material { fill: c(0x3a, 0x30, 0x24), stroke: c(0xa0, 0x84, 0x5c), top: c(196, 158, 112), side: c(150, 116, 78), grain: 0.0, rings: 1.0, brush: 0.0 },
         }
