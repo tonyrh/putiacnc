@@ -25,7 +25,7 @@ fn main() {
     op(d, 2, "pocket", 6.0, &small);
     op(d, 3, "inside", 12.0, &big);
     d.loops.push(shapes::new_rect([20.0, 10.0], [140.0, 90.0], 10.0, 1));
-    let mut t = text::text_loops(&font, 0, "PutiaCNC", text::TextStyle { size_mm: 17.0, spacing_mm: 1.0, align: text::Align::Center }, [80.0, 44.0], 2).unwrap();
+    let mut t = text::text_loops(&font, 0, "PutiaCNC", text::TextStyle::plain(17.0, 1.0, text::Align::Center), [80.0, 44.0], 2).unwrap();
     d.loops.append(&mut t);
     for [x, y] in [[30.0, 20.0], [130.0, 20.0], [30.0, 80.0], [130.0, 80.0]] { d.loops.push(shapes::new_circle([x, y], 3.0, 3)); }
     std::fs::write("/tmp/sign.project.json", save_project(&f).unwrap()).unwrap();

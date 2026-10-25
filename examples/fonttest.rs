@@ -3,7 +3,7 @@ use putiacnc_core::text::{text_loops, Align, TextStyle};
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     let f = std::fs::read(&a[0]).unwrap();
-    let st = TextStyle { size_mm: 20.0, spacing_mm: 0.0, align: Align::Left };
+    let st = TextStyle::plain(20.0, 0.0, Align::Left);
     let r = text_loops(&f, 0, "PutiaCNC Rag", st, [2.0, 8.0], 1).unwrap();
     let mut d = String::new();
     for l in &r {

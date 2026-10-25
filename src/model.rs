@@ -75,6 +75,9 @@ pub struct TextSpec {
     pub size: f64,
     pub spacing: f64,
     pub align: crate::text::Align,
+    #[serde(default)] pub flow: crate::text::Flow,
+    #[serde(default)] pub radius: f64,
+    #[serde(default)] pub shadow: [f64; 2],
 }
 
 /// A 3D model reduced to a height map (seen from above), carved by relief operations.

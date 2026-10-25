@@ -3,7 +3,7 @@ use crate::app::{App, Mode};
 use eframe::egui;
 use putiacnc_core::model::LoopData;
 use putiacnc_core::shapes;
-use putiacnc_core::text::{apply_affine, fit_affine, text_loops, Affine, Align, TextStyle};
+use putiacnc_core::text::{apply_affine, fit_affine, text_loops, Affine, Align, Flow, TextStyle};
 use std::sync::{mpsc, Arc};
 
 #[derive(Clone)]
@@ -22,6 +22,11 @@ pub struct TextTool {
     pub size: f64,
     pub spacing: f64,
     pub align: Align,
+    pub flow: Flow,
+    /// Radius of the circle for the arc layouts, mm.
+    pub radius: f64,
+    /// Offset of the shadow copy, mm; 0 and 0 means no shadow.
+    pub shadow: [f64; 2],
     /// The turn of the text, degrees counter-clockwise about its start point.
     pub angle: f64,
     /// What remains of the transform of text being edited after the turn and the size (a stretch or a flip); the identity for new text.
@@ -54,7 +59,7 @@ impl Default for TextTool {
     fn default() -> Self {
         let fonts = vec![FontEntry { label: "Hack".into(), id: None }, FontEntry { label: "Ubuntu Light".into(), id: None }];
         TextTool {
-            open: false, focus: false, pos: None, content: String::new(), size: 10.0, spacing: 0.0, align: Align::Left, angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
+            open: false, focus: false, pos: None, content: String::new(), size: 10.0, spacing: 0.0, align: Align::Left, flow: Flow::Straight, radius: 60.0, shadow: [0.0, 0.0], angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
             fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None,
         }
     }
@@ -125,10 +130,10 @@ impl TextTool {
         self.bytes.clone()
     }
 
-    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.spacing, align: self.align } }
+    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.spacing, align: self.align, flow: self.flow, radius_mm: self.radius, shadow: self.shadow } }
 
     fn refresh(&mut self) {
-        let key = format!("{}|{}|{}|{}|{:?}|{:?}|{}|{:?}", self.content, self.sel, self.size, self.spacing, self.align, self.pos, self.angle, self.rest);
+        let key = format!("{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}", self.content, self.sel, self.size, self.spacing, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow);
         if key == self.key { return; }
         self.key = key;
         self.preview.clear();
@@ -159,7 +164,7 @@ pub fn place(app: &mut App) {
     if loops.is_empty() { return; }
     let t = &app.text;
     let spec = putiacnc_core::model::TextSpec {
-        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.spacing, align: t.align,
+        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.spacing, align: t.align, flow: t.flow, radius: t.radius, shadow: t.shadow,
     };
     let first = t.content.lines().find(|l| !l.trim().is_empty()).unwrap_or("").trim().chars().take(24).collect::<String>();
     let name = format!("Text: {first}");
@@ -267,7 +272,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     app.text.sel = idx;
     app.text.picked = true;
     app.text.bytes_for = None;
-    let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, align: spec.align };
+    let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, align: spec.align, flow: spec.flow, radius_mm: spec.radius, shadow: spec.shadow };
     let g0 = app.text.font_bytes().and_then(|(data, face)| text_loops(&data, face, &spec.content, style, [0.0, 0.0], 0).ok()).unwrap_or_default();
     let now: Vec<&LoopData> = app.project.data.loops.iter().filter(|l| l.grp == Some(gid)).collect();
     let fit = fit_affine(&g0, &now).filter(|(_, res)| *res < 0.02);
@@ -285,6 +290,9 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     t.size = spec.size * s;
     t.spacing = spec.spacing * s;
     t.align = spec.align;
+    t.flow = spec.flow;
+    t.radius = spec.radius * s;
+    t.shadow = [spec.shadow[0] * s, spec.shadow[1] * s];
     t.angle = turn.to_degrees();
     t.rest = rest;
     t.pos = Some(af.t);
@@ -312,7 +320,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut do_place, mut cancel) = (false, false);
     let editing = app.text.edit.is_some();
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Text", egui::pos2(700.0, 150.0))).fixed_size([300.0, 0.0]).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Text", egui::pos2(700.0, 150.0))).show(ctx, |ui| {
+        ui.set_width(300.0);
         if crate::csd::dialog_header(ui, if editing { "Edit text" } else { "Text" }, true) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.text;
@@ -369,6 +378,31 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     if ui.selectable_label(t.align == a, n).clicked() { t.align = a; }
                 }
             });
+            ui.end_row();
+            ui.label("Layout");
+            egui::ComboBox::from_id_source("text_flow").width(190.0).selected_text(match t.flow {
+                Flow::Straight => "Straight", Flow::ArcTop => "Round a circle, on top", Flow::ArcBottom => "Round a circle, underneath", Flow::Vertical => "Stacked, top to bottom",
+            }).show_ui(ui, |ui| {
+                ui.selectable_value(&mut t.flow, Flow::Straight, "Straight");
+                ui.selectable_value(&mut t.flow, Flow::ArcTop, "Round a circle, on top");
+                ui.selectable_value(&mut t.flow, Flow::ArcBottom, "Round a circle, underneath");
+                ui.selectable_value(&mut t.flow, Flow::Vertical, "Stacked, top to bottom");
+            }).response.on_hover_text("Round a circle: Start is where the baseline touches the circle (its top, or its bottom), and Align says which part of the text sits there");
+            ui.end_row();
+            if matches!(t.flow, Flow::ArcTop | Flow::ArcBottom) {
+                ui.label("Radius");
+                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak("mm, of the baseline"); });
+                ui.end_row();
+            }
+            ui.label("Shadow");
+            ui.horizontal(|ui| {
+                ui.label("X");
+                crate::widgets::num(ui, [50.0, 24.0], &mut t.shadow[0], -100.0, 100.0, 0.1, 2, "");
+                ui.add_space(4.0);
+                ui.label("Y");
+                crate::widgets::num(ui, [50.0, 24.0], &mut t.shadow[1], -100.0, 100.0, 0.1, 2, "");
+                ui.weak("mm; 0 and 0 = none");
+            }).response.on_hover_text("A second copy of the letters, moved by this much. Give it an operation of its own (for example a shallower V-carve) to cut a drop shadow");
             ui.end_row();
         });
         ui.add_space(2.0);

@@ -47,7 +47,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let has = app.selection_has_corners();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Fillet and chamfer").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", egui::pos2(650.0, 300.0))).fixed_size([320.0, 0.0]).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", egui::pos2(650.0, 300.0))).show(ctx, |ui| {
+        ui.set_width(320.0);
         if crate::csd::dialog_header(ui, "Fillet and chamfer", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });

@@ -188,7 +188,12 @@ pub fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
 /// `reserve` is the height taken by everything else in the dialog (header, padding, any pinned footer).
 pub fn scroll<R>(ui: &mut Ui, reserve: f32, add: impl FnOnce(&mut Ui) -> R) -> R {
     let h = (ui.ctx().screen_rect().height() - reserve).max(160.0);
-    egui::ScrollArea::vertical().max_height(h).auto_shrink([false, true]).show(ui, add).inner
+    // A window starts out 420 points tall and only grows to what its content asked for, and a scroll area asks for no more
+    // than it is offered, so it would stay stuck at 420. Giving it its own room of `h` lets it take exactly what the content
+    // needs, up to the window's height, and scroll only beyond that.
+    ui.allocate_ui(egui::vec2(ui.available_width(), h), |ui| {
+        egui::ScrollArea::vertical().max_height(h).auto_shrink([false, true]).show(ui, add).inner
+    }).inner
 }
 
 /// Like `scroll`, but fills the dialog: the dialog's own height (which the user can drag) decides

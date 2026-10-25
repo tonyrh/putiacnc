@@ -7,6 +7,11 @@ use ttf_parser::{Face, OutlineBuilder};
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Align { Left, Center, Right }
 
+/// How the letters are laid out: along a straight baseline, around a circle (outside it, reading clockwise over the top,
+/// or inside the bottom, reading left to right under it), or stacked top to bottom.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub enum Flow { #[default] Straight, ArcTop, ArcBottom, Vertical }
+
 #[derive(Clone, Copy, Debug)]
 pub struct TextStyle {
     /// Height of capital letters, in mm.
@@ -14,6 +19,15 @@ pub struct TextStyle {
     /// Extra space added after every letter, in mm.
     pub spacing_mm: f64,
     pub align: Align,
+    pub flow: Flow,
+    /// Radius of the circle the baseline follows, mm (arc flows only).
+    pub radius_mm: f64,
+    /// A second copy of the letters, moved by this much (mm); [0, 0] means none.
+    pub shadow: [f64; 2],
+}
+
+impl TextStyle {
+    pub fn plain(size_mm: f64, spacing_mm: f64, align: Align) -> Self { TextStyle { size_mm, spacing_mm, align, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] } }
 }
 
 struct Builder {
@@ -90,27 +104,77 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
         let g = face.glyph_index(ch);
         g.and_then(|g| face.glyph_hor_advance(g)).map(|a| a as f64).unwrap_or(upm * 0.5) * scale + style.spacing_mm
     };
-    let mut out = Vec::new();
-    for (li, line) in text.lines().enumerate() {
-        let mut contours: Vec<crate::clip::Path> = Vec::new();
-        let width: f64 = line.chars().map(&advance).sum::<f64>() - if line.is_empty() { 0.0 } else { style.spacing_mm };
-        let mut x = origin[0] - match style.align { Align::Left => 0.0, Align::Center => width / 2.0, Align::Right => width };
-        let y = origin[1] - li as f64 * line_h;
-        for ch in line.chars() {
-            if let Some(g) = face.glyph_index(ch) {
-                let mut b = Builder { scale, ox: x, oy: y, cur: vec![], contours: vec![] };
-                if face.outline_glyph(g, &mut b).is_some() { b.finish(); }
-                for c in b.contours {
-                    contours.push(c.iter().map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect());
-                }
+    let mk = |c: &[[i64; 2]]| LoopData {
+        c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
+    };
+    let glyph = |ch: char, x: f64, y: f64, contours: &mut Vec<crate::clip::Path>| {
+        if let Some(g) = face.glyph_index(ch) {
+            let mut b = Builder { scale, ox: x, oy: y, cur: vec![], contours: vec![] };
+            if face.outline_glyph(g, &mut b).is_some() { b.finish(); }
+            for c in b.contours {
+                contours.push(c.iter().map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect());
             }
-            x += advance(ch);
         }
-        out.extend(merge_overlaps(contours).into_iter().map(|c| LoopData {
-            c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
-        }));
+    };
+    let mut out: Vec<LoopData> = Vec::new();
+    if style.flow == Flow::Vertical {
+        // one column per line of text, the letters centred on the column and stacked downwards
+        let step = style.size_mm * 1.25 + style.spacing_mm;
+        let col_w = text.lines().flat_map(|l| l.chars()).map(|c| advance(c) - style.spacing_mm).fold(0.0_f64, f64::max) + style.size_mm * 0.4;
+        for (ci, line) in text.lines().enumerate() {
+            let mut contours: Vec<crate::clip::Path> = Vec::new();
+            let cx = origin[0] + ci as f64 * col_w;
+            for (k, ch) in line.chars().enumerate() {
+                if ch == ' ' { continue; }
+                glyph(ch, cx - (advance(ch) - style.spacing_mm) / 2.0, origin[1] - k as f64 * step, &mut contours);
+            }
+            out.extend(merge_overlaps(contours).iter().map(|c| mk(c)));
+        }
+    } else {
+        for (li, line) in text.lines().enumerate() {
+            let mut contours: Vec<crate::clip::Path> = Vec::new();
+            let width: f64 = line.chars().map(&advance).sum::<f64>() - if line.is_empty() { 0.0 } else { style.spacing_mm };
+            let mut x = origin[0] - match style.align { Align::Left => 0.0, Align::Center => width / 2.0, Align::Right => width };
+            let y = origin[1] - li as f64 * line_h;
+            for ch in line.chars() {
+                glyph(ch, x, y, &mut contours);
+                x += advance(ch);
+            }
+            let merged = merge_overlaps(contours);
+            if matches!(style.flow, Flow::ArcTop | Flow::ArcBottom) {
+                let r = style.radius_mm.max(style.size_mm);
+                out.extend(merged.iter().map(|c| mk(&bend(c, origin, r, style.flow == Flow::ArcTop))));
+            } else {
+                out.extend(merged.iter().map(|c| mk(c)));
+            }
+        }
+    }
+    if style.shadow != [0.0, 0.0] {
+        let (dx, dy) = ((style.shadow[0] * S).round() as i64, (style.shadow[1] * S).round() as i64);
+        let mut sh: Vec<LoopData> = out.iter().map(|l| LoopData { pts: l.pts.chunks(2).flat_map(|p| [p[0] + dx, p[1] + dy]).collect(), ..l.clone() }).collect();
+        sh.extend(out);
+        out = sh;
     }
     Ok(out)
+}
+
+/// Wraps a straight-set outline round a circle of radius `r` mm: `origin` is where the baseline touches the circle (the top
+/// for `top`, the bottom otherwise), x along the baseline becomes distance along the circle and height above the baseline
+/// becomes distance from it (outwards on top, towards the centre underneath). Long edges are cut first so they bend too.
+fn bend(c: &[[i64; 2]], origin: [f64; 2], r: f64, top: bool) -> Vec<[i64; 2]> {
+    let pts: Vec<[f64; 2]> = c.iter().map(|p| [p[0] as f64 / S, p[1] as f64 / S]).collect();
+    let mut dense: Vec<[f64; 2]> = Vec::with_capacity(pts.len());
+    for i in 0..pts.len() {
+        let (a, b) = (pts[i], pts[(i + 1) % pts.len()]);
+        let n = ((b[0] - a[0]).hypot(b[1] - a[1]) / 0.3).ceil().max(1.0) as usize;
+        for k in 0..n { let t = k as f64 / n as f64; dense.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+    }
+    let centre = if top { [origin[0], origin[1] - r] } else { [origin[0], origin[1] + r] };
+    dense.iter().map(|p| {
+        let (th, h) = ((p[0] - origin[0]) / r, p[1] - origin[1]);
+        let q = if top { [centre[0] + (r + h) * th.sin(), centre[1] + (r + h) * th.cos()] } else { [centre[0] + (r - h) * th.sin(), centre[1] - (r - h) * th.cos()] };
+        [(q[0] * S).round() as i64, (q[1] * S).round() as i64]
+    }).collect()
 }
 
 /// A flat map of the plane: `x' = m[0] x + m[1] y + t[0]`, `y' = m[2] x + m[3] y + t[1]`.
@@ -212,7 +276,7 @@ mod tests {
     fn font() -> Option<Vec<u8>> {
         ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/Library/Fonts/Arial.ttf", "C:\\Windows\\Fonts\\arial.ttf"].iter().find_map(|p| std::fs::read(p).ok())
     }
-    const ST: TextStyle = TextStyle { size_mm: 10.0, spacing_mm: 0.0, align: Align::Left };
+    const ST: TextStyle = TextStyle { size_mm: 10.0, spacing_mm: 0.0, align: Align::Left, flow: Flow::Straight, radius_mm: 0.0, shadow: [0.0, 0.0] };
 
     #[test]
     fn letters_have_the_right_size_and_holes() {
@@ -301,5 +365,40 @@ mod tests {
         now[1].pts[2] += 2000; // one corner pulled out by 2 mm
         let refs: Vec<&LoopData> = now.iter().collect();
         assert!(fit_affine(&src, &refs).unwrap().1 > 0.1);
+    }
+
+    #[test]
+    fn arc_text_follows_the_circle_and_vertical_text_stacks() {
+        let Some(f) = font() else { return };
+        // on top: the baseline touches the circle at the origin, the letters stand outwards, so every point lies
+        // between the baseline circle and one text height outside it
+        let r = 50.0;
+        let top = text_loops(&f, 0, "HELLO", TextStyle { flow: Flow::ArcTop, radius_mm: r, align: Align::Center, ..ST }, [0.0, 0.0], 1).unwrap();
+        let c = [0.0, -r];
+        for l in &top { for p in l.pts.chunks(2) {
+            let d = (p[0] as f64 / S - c[0]).hypot(p[1] as f64 / S - c[1]);
+            assert!(d > r - 0.3 && d < r + 10.5, "{d}");
+        } }
+        // underneath: the letters stand towards the centre
+        let bot = text_loops(&f, 0, "HELLO", TextStyle { flow: Flow::ArcBottom, radius_mm: r, align: Align::Center, ..ST }, [0.0, 0.0], 1).unwrap();
+        let c = [0.0, r];
+        for l in &bot { for p in l.pts.chunks(2) {
+            let d = (p[0] as f64 / S - c[0]).hypot(p[1] as f64 / S - c[1]);
+            assert!(d < r + 0.3 && d > r - 10.5, "{d}");
+        } }
+        let v = text_loops(&f, 0, "ABC", TextStyle { flow: Flow::Vertical, ..ST }, [0.0, 0.0], 1).unwrap();
+        let b = shapes::bbox_many(v.iter()).unwrap();
+        assert!(b[3] - b[1] > 2.0 * (b[2] - b[0]), "three stacked letters are taller than wide: {b:?}");
+    }
+
+    #[test]
+    fn shadow_is_a_moved_copy() {
+        let Some(f) = font() else { return };
+        let plain = text_loops(&f, 0, "AB", ST, [0.0, 0.0], 1).unwrap();
+        let sh = text_loops(&f, 0, "AB", TextStyle { shadow: [1.5, -2.0], ..ST }, [0.0, 0.0], 1).unwrap();
+        assert_eq!(sh.len(), plain.len() * 2);
+        let (a, b) = (shapes::bbox_many(sh[..plain.len()].iter()).unwrap(), shapes::bbox_many(plain.iter()).unwrap());
+        assert!((a[0] - b[0] - 1.5).abs() < 0.01 && (a[1] - b[1] + 2.0).abs() < 0.01);
+        assert_eq!(shapes::bbox_many(sh[plain.len()..].iter()).unwrap(), b);
     }
 }
