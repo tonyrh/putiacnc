@@ -456,6 +456,22 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
                     if small_icon_button(ui, Icon::Trash, true, if g.text.is_some() { "Delete this text" } else { "Delete this drawing (all its shapes)" }).clicked() { *act = Some((Some(g.id), GroupAct::Delete)); }
                 });
             });
+            if g.text.is_some() {
+                // a placed text: its place and size are in the selection bar, turning is the rotate handles; only what is not
+                // available elsewhere is here
+                let mut lock_now = g.locked;
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
+                    if ui.add_enabled(!lock_now, egui::Button::new("Edit text")).on_hover_text("Change the words, font, size or place (double-click the text does the same)").clicked() { *act = Some((Some(g.id), GroupAct::EditText)); }
+                    if ui.add_enabled(!lock_now, egui::Button::new("To outlines")).on_hover_text("The letters become ordinary shapes you can edit point by point").clicked() { *act = Some((Some(g.id), GroupAct::ToOutlines)); }
+                    ui.checkbox(&mut lock_now, "Lock").on_hover_text("Stops this text being moved, resized, rotated or flipped by accident");
+                });
+                if lock_now != g.locked {
+                    if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
+                }
+                return;
+            }
             let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
             let mut fit = false;
             let mut lock_now = g.locked;
@@ -476,14 +492,6 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
             }
             if lock_now != g.locked {
                 if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
-            }
-            if g.text.is_some() {
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
-                    if ui.add_enabled(!lock_now, egui::Button::new("Edit text")).on_hover_text("Change the words, font, size or place (double-click the text does the same)").clicked() { *act = Some((Some(g.id), GroupAct::EditText)); }
-                    if ui.add_enabled(!lock_now, egui::Button::new("To outlines")).on_hover_text("The letters become ordinary shapes you can edit point by point").clicked() { *act = Some((Some(g.id), GroupAct::ToOutlines)); }
-                });
             }
             // turn and flip about the drawing's centre
             let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
