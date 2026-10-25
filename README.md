@@ -7,11 +7,11 @@ A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC output too), writ
 (profile, pocket, V-carve, drill, inlay), preview the result in 2D and in a simulated 3D view of the machined
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
-![2D design: shapes assigned to a profile and a pocket operation](docs/screenshot-2d.png)
+![2D design: a rounded plate with a pocketed name and four drilled holes](docs/screenshot-2d.png)
 *2D design: draw or import shapes, assign them to profile, pocket, V-carve or drill operations, and set depth, tabs and tools.*
 
-![3D preview: the simulated cut in wood](docs/screenshot-3d.png)
-*3D preview: the toolpath is replayed on the stock, so you can check the result before sending the G-code to the machine.*
+![3D preview: the finished cut in light wood](docs/screenshot-3d.png)
+*3D preview: the toolpath is replayed on the stock (shown here once every operation has run), so you can check the result before sending the G-code to the machine.*
 
 
 

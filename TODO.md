@@ -24,7 +24,8 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] Other ideas from the feature comparison: G-code sender, more post-processors, dogbone corners, helical entry, nesting.
 
 ## Release 0.3.2
-- [ ] Refresh the README and docs screenshots (`docs/screenshot-*.png`, `docs/demo.gif`, `docs/demo.mp4`): panel order, dialog positions, badges, Preview, warning signs.
+- [x] README screenshots refreshed (`docs/screenshot-2d.png`, `docs/screenshot-3d.png`; project built by `examples/docproject.rs`).
+- [ ] Refresh `docs/demo.gif` and `docs/demo.mp4` to match.
 - [ ] Maintainer tags and publishes.
 
 ## Later
