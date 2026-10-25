@@ -590,11 +590,12 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             clusters.entry(rt).and_modify(|(_, u)| *u = u.union(*r)).or_insert((*k, *r));
         }
         for (k, r) in clusters.values() {
-            if !painter.clip_rect().intersects(*r) || r.width() < 14.0 || r.height() < 14.0 { continue; }
+            // only specks too small to tell apart go without; the badge sits clear of the shape, so it does not hide a small one
+            if !painter.clip_rect().intersects(*r) || (r.width() < 6.0 && r.height() < 6.0) { continue; }
             let col = op_color(*k, dark);
             let lum = 0.299 * col.r() as f32 + 0.587 * col.g() as f32 + 0.114 * col.b() as f32;
             let ink = if lum > 150.0 { Color32::from_rgb(0x1e, 0x1e, 0x1e) } else { Color32::WHITE };
-            let c = r.left_top() + Vec2::new(-2.0, -2.0);
+            let c = r.left_top() + Vec2::new(-12.0, -12.0);
             painter.circle_filled(c, 8.5, th.view());
             painter.circle_filled(c, 7.0, col);
             painter.text(c, egui::Align2::CENTER_CENTER, format!("{}", k + 1), egui::FontId::proportional(10.0), ink);
