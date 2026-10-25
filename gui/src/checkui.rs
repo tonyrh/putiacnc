@@ -15,6 +15,8 @@ pub fn chip(ui: &mut egui::Ui, app: &mut App) {
     let text = egui::RichText::new(format!("{n} warning{}", if n == 1 { "" } else { "s" })).color(RED).strong();
     if ui.add(egui::Label::new(text).sense(Sense::click())).on_hover_text("Things in the toolpath that could hurt the tool, the machine or the work. Click for the list").on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
         app.checks_open = !app.checks_open;
+        // a list that opens fresh: the highlight is only for the warning just sent to the 3D view
+        if app.checks_open { app.check_sel = None; }
     }
     ui.separator();
 }
