@@ -389,7 +389,22 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let pass = o.moves[..=cur].iter().rev().take_while(|x| x.op == m.op).find(|x| x.pass > 0).map_or(0, |x| x.pass);
             let passes = o.moves.iter().filter(|x| x.op == m.op).map(|x| x.pass).max().unwrap_or(0);
             let name = app.project.data.ops.get(m.op).map(|op| crate::panels::KINDS.iter().find(|(k, _)| *k == op.p.kind).map_or(op.p.kind.as_str(), |(_, n)| *n)).unwrap_or("");
-            let fmt = |op: usize, pass: usize| if pass > 0 && passes > 0 { format!("Operation {} · {}  ·  Pass {} of {}", op + 1, name, pass, passes) } else { format!("Operation {} · {}", op + 1, name) };
+            // the Z the pass cuts down to, as the G-code writes it (a ramp reaches it by the end of the pass)
+            let imp = app.imperial;
+            let zfmt = |z: f64| if imp { format!("{:.4} in", z / 25.4) } else { format!("{:.3} mm", z) };
+            // lowest Z of each pass of this operation, worked out once per output
+            let cid = egui::Id::new(("v3_pass_z", m.op, app.v3.gen));
+            let lows: std::sync::Arc<Vec<f64>> = ui.data(|d| d.get_temp(cid)).unwrap_or_else(|| {
+                let mut v = vec![f64::INFINITY; passes + 1];
+                for x in o.moves.iter().filter(|x| x.op == m.op && x.cut && x.pass > 0 && x.pass <= passes) { v[x.pass] = v[x.pass].min(x.from[2]).min(x.to[2]); }
+                let v = std::sync::Arc::new(v);
+                ui.data_mut(|d| d.insert_temp(cid, v.clone()));
+                v
+            });
+            let zof = |_op: usize, pass: usize| -> Option<f64> { lows.get(pass).copied().filter(|z| z.is_finite()) };
+            let fmt = |op: usize, pass: usize| if pass > 0 && passes > 0 {
+                match zof(op, pass) { Some(z) => format!("Operation {} · {}  ·  Pass {} of {}  ·  to Z {}", op + 1, name, pass, passes, zfmt(z)), None => format!("Operation {} · {}  ·  Pass {} of {}", op + 1, name, pass, passes) }
+            } else { format!("Operation {} · {}", op + 1, name) };
             let hid = egui::Id::new("v3_label");
             let now = ui.input(|i| i.time);
             let (mut shown, since): ((usize, usize), f64) = ui.data(|d| d.get_temp(hid)).unwrap_or(((m.op, pass), -1.0));
@@ -399,7 +414,11 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
                 else { ui.ctx().request_repaint_after(std::time::Duration::from_millis(100)); }
             }
             ui.data_mut(|d| d.insert_temp(hid, (shown, since)));
-            let widest = fmt(m.op, passes.max(1)).replace(&format!("Pass {} of", passes.max(1)), &format!("Pass {} of", "8".repeat(passes.max(1).to_string().len())));
+            let widest = {
+                let low = (1..=passes).filter_map(|p| zof(m.op, p)).fold(f64::INFINITY, f64::min);
+                let zs = if low.is_finite() { format!("  ·  to Z {}", zfmt(low).replace(|c: char| c.is_ascii_digit(), "8")) } else { String::new() };
+                format!("Operation {} · {}  ·  Pass {} of {}{}", m.op + 1, name, "8".repeat(passes.max(1).to_string().len()), passes, zs)
+            };
             let wg = painter.layout_no_wrap(widest, FontId::proportional(13.0), Color32::WHITE);
             let g = painter.layout_no_wrap(fmt(shown.0, shown.1), FontId::proportional(13.0), Color32::WHITE);
             let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 10.0), Vec2::new(wg.size().x.max(g.size().x), g.size().y) + Vec2::new(18.0, 10.0));
