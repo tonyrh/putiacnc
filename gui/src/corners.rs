@@ -85,13 +85,14 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
             ui.end_row();
         });
-        ui.add_space(4.0);
-        ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
         if let Some(n) = &pnote { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(has, egui::Button::new("Apply")).clicked() { apply = true; }
             if ui.button("Close").clicked() { close = true; }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
+            });
         });
         ui.add_space(2.0);
         ui.weak(if app.corners.chamfer { "The distance is measured along each edge from the corner." } else { "Smooth curves, circles and ellipses are left alone." });
