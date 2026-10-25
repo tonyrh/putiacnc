@@ -402,15 +402,17 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
                 v
             });
             let zof = |_op: usize, pass: usize| -> Option<f64> { lows.get(pass).copied().filter(|z| z.is_finite()) };
-            let fmt = |op: usize, pass: usize| if pass > 0 && passes > 0 {
-                match zof(op, pass) { Some(z) => format!("Operation {} · {}  ·  Pass {} of {}  ·  to Z {}", op + 1, name, pass, passes, zfmt(z)), None => format!("Operation {} · {}  ·  Pass {} of {}", op + 1, name, pass, passes) }
+            let fmt = |op: usize, pass: usize, lap: bool| if pass > 0 && passes > 0 {
+                let what = if lap { "Levelling lap".to_string() } else { format!("Pass {} of {}", pass, passes) };
+                match zof(op, pass) { Some(z) => format!("Operation {} · {}  ·  {}  ·  to Z {}", op + 1, name, what, zfmt(z)), None => format!("Operation {} · {}  ·  {}", op + 1, name, what) }
             } else { format!("Operation {} · {}", op + 1, name) };
+            let lap = m.lap && m.cut;
             let hid = egui::Id::new("v3_label");
             let now = ui.input(|i| i.time);
-            let (mut shown, since): ((usize, usize), f64) = ui.data(|d| d.get_temp(hid)).unwrap_or(((m.op, pass), -1.0));
+            let (mut shown, since): ((usize, usize, bool), f64) = ui.data(|d| d.get_temp(hid)).unwrap_or(((m.op, pass, lap), -1.0));
             let mut since = since;
-            if shown != (m.op, pass) {
-                if now - since > 0.3 || shown.0 != m.op && now - since > 0.1 { shown = (m.op, pass); since = now; }
+            if shown != (m.op, pass, lap) {
+                if now - since > 0.3 || shown.0 != m.op && now - since > 0.1 { shown = (m.op, pass, lap); since = now; }
                 else { ui.ctx().request_repaint_after(std::time::Duration::from_millis(100)); }
             }
             ui.data_mut(|d| d.insert_temp(hid, (shown, since)));
@@ -420,7 +422,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
                 format!("Operation {} · {}  ·  Pass {} of {}{}", m.op + 1, name, "8".repeat(passes.max(1).to_string().len()), passes, zs)
             };
             let wg = painter.layout_no_wrap(widest, FontId::proportional(13.0), Color32::WHITE);
-            let g = painter.layout_no_wrap(fmt(shown.0, shown.1), FontId::proportional(13.0), Color32::WHITE);
+            let g = painter.layout_no_wrap(fmt(shown.0, shown.1, shown.2), FontId::proportional(13.0), Color32::WHITE);
             let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 10.0), Vec2::new(wg.size().x.max(g.size().x), g.size().y) + Vec2::new(18.0, 10.0));
             painter.rect_filled(r, 6.0, Color32::from_black_alpha(150));
             painter.galley(r.min + Vec2::new(9.0, 5.0), g, Color32::WHITE);

@@ -141,3 +141,14 @@ fn vcarve_with_flat_tool_is_an_error() {
     for t in proj.data.tools.iter_mut() { t.shape = "flat".into(); }
     assert!(generate(&proj.data, Units::Metric).unwrap_err().contains("V-carve needs"));
 }
+
+/// The flat lap that levels the floor of a ramped profile is flagged, shares the last pass number, and only the last pass has one.
+#[test] fn ramp_levelling_lap_is_flagged() {
+    let proj = load_project(&fs::read_to_string(data("outside_ramp.project.json")).unwrap()).unwrap();
+    let out = generate(&proj.data, Units::Metric).unwrap();
+    let last = out.moves.iter().map(|m| m.pass).max().unwrap();
+    let lap: Vec<_> = out.moves.iter().filter(|m| m.lap).collect();
+    assert!(!lap.is_empty(), "a ramped profile has a levelling lap");
+    assert!(lap.iter().all(|m| m.pass == last && m.cut && m.from[2] == m.to[2]), "the lap is flat and belongs to the last pass");
+    assert!(out.moves.iter().filter(|m| m.pass < last).all(|m| !m.lap));
+}

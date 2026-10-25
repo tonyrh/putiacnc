@@ -17,6 +17,8 @@ pub struct Move {
     pub op: usize,
     /// Made with the operation's second tool (inlay operations use a V-bit and a flat end mill).
     pub alt: bool,
+    /// The flat lap that levels the floor after the ramped passes: part of the last pass, not a pass of its own.
+    pub lap: bool,
 }
 
 /// Where the generated toolpath leaves a holding tab uncut: the middle of the tab on the toolpath
@@ -152,7 +154,7 @@ impl ToolGeo {
 
 // ---------- emitter ----------
 struct Em {
-    g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize,
+    g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool,
     moves: Vec<Move>, alt: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
 }
 
@@ -175,7 +177,7 @@ impl Em {
         self.g.push(s);
         let dist = ((x - self.cur[0]).powi(2) + (y - self.cur[1]).powi(2) + (z - self.cur[2]).powi(2)).sqrt();
         let dt = dist / (if is_cut { fd } else { self.rap }) * self.tsc;
-        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, pass: self.pn, op: self.oi, alt: self.alt });
+        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, pass: self.pn, op: self.oi, alt: self.alt, lap: self.lap });
         self.time += dt;
         if is_cut { self.tc += dt; }
         self.cur = [x, y, z];
@@ -444,7 +446,11 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
             for (i, q) in pts.iter().enumerate() { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + pz + (z - pz) * lc[i] / t), c.feed); }
             // the sloped lap leaves a sloped floor, but the next lap ramps down from there and cuts deeper everywhere, so
             // only the last depth needs a flat lap to level the floor: 3 depth passes are 3 ramps and one flat lap, not 6 laps
-            if zl.last() == Some(&z) { for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
+            if zl.last() == Some(&z) {
+                e.lap = true;
+                for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
+                e.lap = false;
+            }
         } else {
             e.go("G1", None, None, Some(c.z0 + z), c.plunge);
             for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
@@ -684,7 +690,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
+    let mut e = Em { g: vec![], cur: [0.0, 0.0, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
