@@ -460,6 +460,7 @@ impl App {
         if let Some(v) = p.show_axes { self.show_axes = v; }
         if let Some(v) = p.show_badges { self.show_badges = v; }
         if let Some(v) = p.show_clamps { self.show_clamps = v; }
+        if let Some(v) = &p.text_sections { self.text.sections = v.iter().cloned().collect(); }
         if let Some(v) = p.tool_len_in { self.tool_len_in = v; }
         if let Some(v) = p.tool_speed_idx { self.tool_speed_idx = v; }
         if let Some(v) = p.mach_len_in { self.mach_len_in = v; }
@@ -486,6 +487,7 @@ impl App {
         s.show_axes = Some(self.show_axes);
         s.show_badges = Some(self.show_badges);
         s.show_clamps = Some(self.show_clamps);
+        s.text_sections = Some(self.text.sections.iter().cloned().collect());
         s.tool_len_in = Some(self.tool_len_in);
         s.tool_speed_idx = Some(self.tool_speed_idx);
         s.mach_len_in = Some(self.mach_len_in);

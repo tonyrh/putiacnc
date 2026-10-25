@@ -1364,7 +1364,7 @@ fn xy_picker(ui: &mut Ui, val: &mut String) -> bool {
     changed
 }
 
-fn fmt_num(v: f64) -> String {
+pub fn fmt_num(v: f64) -> String {
     let s = format!("{:.2}", v);
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
