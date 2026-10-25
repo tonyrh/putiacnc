@@ -571,7 +571,11 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             let Some((ki, ri)) = &boxes[i] else { continue };
             for j in 0..i {
                 let Some((kj, rj)) = &boxes[j] else { continue };
-                if ki == kj && ri.expand(10.0).intersects(*rj) { let (a, b) = (find(&mut root, i), find(&mut root, j)); root[a] = b; }
+                // the letters of one text always share a badge; other shapes of an operation do when they lie close together compared with
+                // their own size (so the grouping does not fall apart when the view is zoomed in)
+                let same_group = d.loops[i].grp.is_some() && d.loops[i].grp == d.loops[j].grp;
+                let reach = (0.4 * ri.width().max(ri.height()).min(rj.width().max(rj.height()))).max(10.0);
+                if ki == kj && (same_group || ri.expand(reach).intersects(*rj)) { let (a, b) = (find(&mut root, i), find(&mut root, j)); root[a] = b; }
             }
         }
         let mut clusters: std::collections::BTreeMap<usize, (usize, Rect)> = Default::default();
