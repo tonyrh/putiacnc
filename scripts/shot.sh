@@ -11,6 +11,8 @@
 #   -e VAR=VAL  an extra PUTIACNC_* setting, e.g. -e PUTIACNC_VIEW=3d (can be repeated; see docs/testing.md)
 #   -b BINARY   the program (default $CARGO_TARGET_DIR/debug/putiacnc, else target/debug/putiacnc)
 #
+# It always uses its own virtual X11 screen (:99, or $SHOT_DISPLAY), so it works the same under Wayland.
+#
 # Examples:
 #   scripts/shot.sh -e PUTIACNC_VIEW=3d -e PUTIACNC_PLAY=0.6 -o 3d.png tests/data/outside_holes.project.json
 #   scripts/shot.sh -t dark -w 1354x800 -c 396,600,534,200 -o bars.png my.project.json
@@ -29,12 +31,13 @@ proj=${1:-}
 [ -x "$bin" ] || { echo "No program at $bin. Build it first: cargo build -p putiacnc-gui" >&2; exit 1; }
 command -v import >/dev/null || { echo "ImageMagick's 'import' is missing." >&2; exit 1; }
 
-# a virtual screen, started once and left running
-export DISPLAY=${DISPLAY:-:99}
-if ! xdpyinfo >/dev/null 2>&1; then
-  command -v Xvfb >/dev/null || { echo "Xvfb is missing." >&2; exit 1; }
-  rm -f "/tmp/.X${DISPLAY#:}-lock" "/tmp/.X11-unix/X${DISPLAY#:}"
-  nohup Xvfb "$DISPLAY" -screen 0 1920x1080x24 >/dev/null 2>&1 &
+# its own virtual screen (X11), started once and left running. The desktop's DISPLAY and WAYLAND_DISPLAY are ignored on
+# purpose: on Wayland the app would otherwise open on your real desktop, and a screenshot of an X11 root shows nothing.
+vd=${SHOT_DISPLAY:-:99}
+if [ ! -S "/tmp/.X11-unix/X${vd#:}" ] || ! DISPLAY=$vd xdpyinfo >/dev/null 2>&1; then
+  command -v Xvfb >/dev/null || { echo "Xvfb is missing (on Arch: sudo pacman -S xorg-server-xvfb)." >&2; exit 1; }
+  rm -f "/tmp/.X${vd#:}-lock" "/tmp/.X11-unix/X${vd#:}"
+  nohup Xvfb "$vd" -screen 0 1920x1080x24 >/dev/null 2>&1 &
   sleep 3
 fi
 
@@ -43,16 +46,16 @@ cfg=${PUTIACNC_CONFIG_DIR:-$(mktemp -d)}
 [ -n "$PUTIACNC_CONFIG_DIR" ] || trap 'rm -rf "$cfg"' EXIT
 
 # shellcheck disable=SC2086
-env PUTIACNC_CONFIG_DIR="$cfg" PUTIACNC_THEME="$theme" PUTIACNC_WIN="$win" $envs "$bin" $proj >/dev/null 2>&1 &
+env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$vd" WINIT_UNIX_BACKEND=x11 PUTIACNC_CONFIG_DIR="$cfg" PUTIACNC_THEME="$theme" PUTIACNC_WIN="$win" $envs "$bin" $proj >/dev/null 2>&1 &
 pid=$!
 sleep "$wait"
 if [ -n "$crop" ]; then
   IFS=, read -r x y w h <<EOF
 $crop
 EOF
-  import -window root -crop "${w}x${h}+${x}+${y}" +repage "$out"
+  DISPLAY=$vd import -window root -crop "${w}x${h}+${x}+${y}" +repage "$out"
 else
-  import -window root "$out"
+  DISPLAY=$vd import -window root "$out"
 fi
 kill $pid 2>/dev/null || true
 wait $pid 2>/dev/null || true
