@@ -29,7 +29,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 ## Interface consistency (audit of 2026-10-26)
 Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. Still open:
 - [x] Spelling: British "Centre" is the choice for the app's texts (decided by the maintainer; nothing to change).
-- [ ] Button names: "Clean" in Clean up drawing should be "Clean up"; the G-code panel says "Export…" while the menu says "Export G-code…".
+- [ ] Button names: "Clean" in Clean up drawing should be "Clean up". (The G-code panel button is now "Export G-code…", like the menu.)
 - [ ] Messages: the red banner mixes errors with plain information ("Imported …", "Scaled down to …", "These letters were edited as shapes …"). Keep the banner for errors and warnings; move the rest to the status bar or drop it.
 - [ ] The result messages of Combine, Array, Offset and Corners stay until dismissed; they should go on the next edit.
 - [ ] Align, Array, Offset and Corners: check what they show with an empty selection (no leftover preview, Apply disabled, a clear line saying what to select).

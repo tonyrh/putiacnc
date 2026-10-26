@@ -93,7 +93,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
                     if ui.button("Copy").on_hover_text("Copy the G-code to the clipboard").clicked() { copy = Some(o.gcode()); }
-                    if ui.button("Export…").on_hover_text("Save the G-code to a file (Ctrl+E)").clicked() { export = true; }
+                    if ui.button("Export G-code…").on_hover_text("Save the G-code to a file (Ctrl+E)").clicked() { export = true; }
                 });
                 ui.add_space(6.0);
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
