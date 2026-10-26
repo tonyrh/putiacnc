@@ -477,7 +477,10 @@ fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::ProjectData, _sel:
     if alive.len() != d.groups.len() { d.groups.retain(|g| alive.contains(&g.id)); }
     if d.groups.is_empty() && d.relief.is_none() { return; }
     ui.separator();
-    ui.heading(if d.groups.iter().all(|g| g.text.is_some()) { "Text" } else if d.groups.iter().all(|g| g.text.is_none()) { "Imported" } else { "Imported and text" });
+    // a 3D model counts as imported (with only a model and no drawings, "all groups are text" would be true of nothing and say Text)
+    let has_text = d.groups.iter().any(|g| g.text.is_some());
+    let has_import = d.relief.is_some() || d.groups.iter().any(|g| g.text.is_none());
+    ui.heading(match (has_text, has_import) { (true, false) => "Text", (true, true) => "Imported and text", _ => "Imported" });
     let (sw, sh) = (d.stock.w, d.stock.h);
     let zero = (match d.stock.zr.as_str() { "lr" | "ur" => sw, "c" => sw / 2.0, _ => 0.0 }, match d.stock.zr.as_str() { "ul" | "ur" => sh, "c" => sh / 2.0, _ => 0.0 });
     let groups = d.groups.clone();

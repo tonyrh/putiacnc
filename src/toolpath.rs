@@ -49,6 +49,21 @@ impl Output {
 // ---------- number formatting identical to JavaScript's +n.toFixed(d) and String(n) ----------
 pub fn to_fixed(v: f64, dec: usize) -> f64 {
     if !v.is_finite() { return v; }
+    // Rust's own rounding is exact, and differs from JavaScript's only on an exact tie (half up there, half to even here). A tie needs
+    // v * 2^(dec+1) to be a whole number, a test that is exact in floating point; everything else takes the short way, which is much
+    // faster than writing 40 decimals (it matters for the hundreds of thousands of numbers of a 3D relief).
+    if dec <= 15 && v.abs() < 1e15 && (v * 2f64.powi(dec as i32 + 1)).fract() != 0.0 {
+        let s = format!("{:.*}", dec, v.abs());
+        if let Ok(n) = s.replace('.', "").parse::<u128>() {
+            let r = n as f64 / 10f64.powi(dec as i32);
+            return if v < 0.0 { -r } else { r };
+        }
+    }
+    to_fixed_exact(v, dec)
+}
+
+/// `to_fixed` the long way: the exact decimal expansion, rounded half up.
+fn to_fixed_exact(v: f64, dec: usize) -> f64 {
     let neg = v < 0.0;
     let s = format!("{:.40}", v.abs());
     let (ip, fp) = s.split_once('.').unwrap();
@@ -1027,6 +1042,29 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     }
     if data.job.numbered { e.g = number_lines(e.g); }
     Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
+}
+
+#[cfg(test)]
+mod to_fixed_tests {
+    use super::*;
+    #[test]
+    fn the_short_way_matches_the_long_way() {
+        let mut seed: u64 = 0x9e37_79b9_7f4a_7c15;
+        let mut next = move || { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; seed };
+        let mut vals: Vec<f64> = vec![0.125, 0.375, 2.5, -2.5, 1.005, 0.0005, 123.4565, -0.0049999, 0.0, -0.0, 1e14, 299.9995, 0.3, 4.35];
+        for _ in 0..50_000 {
+            let r = next();
+            let mag = 10f64.powi((r % 9) as i32 - 3);
+            let v = ((next() >> 11) as f64 / (1u64 << 53) as f64 - 0.5) * 2.0 * mag;
+            vals.push(v);
+            // values on a grid of halves of the last kept digit, where the ties live
+            vals.push(((next() % 2_000_000) as f64 - 1_000_000.0) / 2000.0);
+        }
+        for &v in &vals { for dec in 0..=5 {
+            let (a, b) = (to_fixed(v, dec), to_fixed_exact(v, dec));
+            assert!(a == b || (a == 0.0 && b == 0.0), "{v} to {dec} places: {a} vs {b}");
+        } }
+    }
 }
 
 #[cfg(test)]

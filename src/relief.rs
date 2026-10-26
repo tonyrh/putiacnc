@@ -306,17 +306,20 @@ fn simplify(pts: &[(f64, f32)], tol: f32) -> Vec<usize> {
 pub fn finish_lines(f: &Field, fp: &Footprint, margin: usize, step_cells: usize, tol: f32) -> Vec<Vec<[f64; 3]>> {
     let (i0, i1) = (f.pad as i64 - margin as i64, (f.nx - f.pad + margin) as i64 - 1);
     let (j0, j1) = (f.pad as i64 - margin as i64, (f.ny - f.pad + margin) as i64 - 1);
-    let mut lines = Vec::new();
+    // the rows first (always ending exactly on the last one), then each row's line on whichever core is free; the lines come back in order
+    let mut rows = Vec::new();
     let mut j = j0;
     while j <= j1 {
-        let prof: Vec<(f64, f32)> = (i0..=i1).map(|i| (f.x(i), f.tip(i, j, fp, 0.0))).collect();
-        let keep = simplify(&prof, tol);
-        lines.push(keep.iter().map(|&k| [prof[k].0, f.y(j), prof[k].1 as f64]).collect());
-        // always end exactly on the last row
+        rows.push(j);
         if j == j1 { break; }
         j = (j + step_cells.max(1) as i64).min(j1);
     }
-    lines
+    use rayon::prelude::*;
+    rows.par_iter().map(|&j| {
+        let prof: Vec<(f64, f32)> = (i0..=i1).map(|i| (f.x(i), f.tip(i, j, fp, 0.0))).collect();
+        let keep = simplify(&prof, tol);
+        keep.iter().map(|&k| [prof[k].0, f.y(j), prof[k].1 as f64]).collect()
+    }).collect()
 }
 
 /// Roughing plan: the lowest height the roughing tool may reach at each cell of a coarser grid.
@@ -350,18 +353,24 @@ impl Rough {
             let rho = gc * ((di * di + dj * dj) as f64).sqrt();
             if rho <= r + 0.7 * gc + 1e-9 { fp.push((di, dj, rise(rho.min(r)) as f32)); }
         } }
+        // each row of the plan on whichever core is free
+        use rayon::prelude::*;
+        let floor = f.base + allow - rise(0.0) as f32;
         let mut t = vec![f32::MIN; nx * ny];
-        let mut min_t = f32::MAX;
-        for cj in 0..ny as i32 { for ci in 0..nx as i32 {
-            let mut m = f.base + allow - rise(0.0) as f32;
-            for &(di, dj, rs) in &fp {
-                let (a, b) = (ci + di, cj + dj);
-                let v = if a < 0 || b < 0 || a >= nx as i32 || b >= ny as i32 { f.base + allow } else { s[b as usize * nx + a as usize] };
-                m = m.max(v - rs);
+        t.par_chunks_mut(nx).enumerate().for_each(|(cj, row)| {
+            let cj = cj as i32;
+            for (ci, out) in row.iter_mut().enumerate() {
+                let ci = ci as i32;
+                let mut m = floor;
+                for &(di, dj, rs) in &fp {
+                    let (a, b) = (ci + di, cj + dj);
+                    let v = if a < 0 || b < 0 || a >= nx as i32 || b >= ny as i32 { f.base + allow } else { s[b as usize * nx + a as usize] };
+                    m = m.max(v - rs);
+                }
+                *out = m;
             }
-            t[cj as usize * nx + ci as usize] = m;
-            min_t = min_t.min(m);
-        } }
+        });
+        let min_t = t.iter().copied().fold(f32::MAX, f32::min);
         Rough { ox: f.x((i0 + k / 2) as i64) - if k.is_multiple_of(2) { 0.5 * f.g } else { 0.0 }, oy: f.y((j0 + k / 2) as i64) - if k.is_multiple_of(2) { 0.5 * f.g } else { 0.0 }, gc, nx, ny, t, min_t }
     }
     pub fn x(&self, ci: usize) -> f64 { self.ox + ci as f64 * self.gc }
