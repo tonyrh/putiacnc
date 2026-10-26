@@ -1292,45 +1292,75 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
 
 // ------------------------------------------------------------------- overlays
 
+/// A thin vertical divider as tall as the buttons (a Separator would stretch the whole area).
+fn palette_divider(ui: &mut Ui) {
+    let (sep, _) = ui.allocate_exact_size(Vec2::new(8.0, 36.0), egui::Sense::hover());
+    ui.painter().line_segment([sep.center_top() + Vec2::new(0.0, 6.0), sep.center_bottom() - Vec2::new(0.0, 6.0)], ui.visuals().widgets.noninteractive.bg_stroke);
+}
+
+/// One group of palette buttons: 0 Select and Edit points, 1 the drawing tools, 2 modify the selection, 3 undo and redo.
+fn palette_group(ui: &mut Ui, app: &mut App, g: usize, fillet: bool) {
+    let tools: &[(Mode, Icon, &str)] = match g {
+        0 => &[(Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)")],
+        1 => &[(Mode::Line, Icon::Line, "Line / polyline (L)"), (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Point, Icon::Point, "Drill point (D): click to place, use with a Drill operation"), (Mode::Text, Icon::Text, "Text (T)"), (Mode::Trim, Icon::Trim, "Trim and extend (X): click the part of a line to remove, or switch to Extend to run a line out to the next shape")],
+        _ => &[],
+    };
+    for &(m, icon, tip) in tools {
+        if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
+    }
+    if g == 2 {
+        if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
+        crate::align::button(ui, app);
+        // only offered when the selection has a corner to round (not for circles and ellipses)
+        if fillet && icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.corners.open = !app.corners.open; }
+        if icon_button(ui, Icon::Offset, app.offset_open, !app.sel.is_empty(), "Offset: a copy of the selection grown or shrunk by a distance").clicked() { app.offset_open = !app.offset_open; }
+        if icon_button(ui, Icon::Array, app.array.open, !app.sel.is_empty(), "Array and copy: rows and columns, a circle of copies, or a spacing along a line").clicked() { app.array.open = !app.array.open; }
+    }
+    if g == 3 {
+        if icon_button(ui, Icon::Undo, false, app.hist.can_undo(crate::app::Scope::Drawing), "Undo drawing change (Edit menu: undo anything)").clicked() { app.do_undo_drawing(); }
+        if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Edit menu: redo anything)").clicked() { app.do_redo_drawing(); }
+    }
+}
+
 fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac: f32) {
     app.canvas_right = rect.right();
     app.canvas_left = rect.left();
     // tool palette
     let pal = egui::Area::new(egui::Id::new("palette")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 10.0)).show(ctx, |ui| {
         // a narrow canvas wraps the palette onto a second row instead of running under the side panel
-        ui.set_max_width((rect.width() - 28.0).max(240.0));
+        ui.set_max_width((rect.width() - 28.0 - crate::zoomcard::CARD_W - 12.0).max(240.0));
         egui::Frame::popup(ui.style()).inner_margin(4.0).show(ui, |ui| {
-          ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing = Vec2::new(2.0, 2.0);
-            for (m, icon, tip) in [
-                (Mode::Select, Icon::Select, "Select / move (V)"), (Mode::Node, Icon::Node, "Edit points (N)"), (Mode::Line, Icon::Line, "Line / polyline (L)"),
-                (Mode::Rect, Icon::Rect, "Rectangle (R, Shift = square)"), (Mode::Ellipse, Icon::Ellipse, "Ellipse / circle (E, Shift = circle)"), (Mode::Polygon, Icon::Polygon, "Polygon or star (P)"), (Mode::Point, Icon::Point, "Drill point (D): click to place, use with a Drill operation"), (Mode::Text, Icon::Text, "Text (T)"), (Mode::Trim, Icon::Trim, "Trim and extend (X): click the part of a line to remove, or switch to Extend to run a line out to the next shape"),
-            ] {
-                if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
-            }
-            if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
-            crate::align::button(ui, app);
-            // only offered when the selection has a corner to round (not for circles and ellipses)
-            if app.selection_has_corners()
-                && icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.corners.open = !app.corners.open; }
-            // thin vertical dividers as tall as the buttons (a Separator would stretch the whole area)
-            let divider = |ui: &mut Ui| {
-                let (sep, _) = ui.allocate_exact_size(Vec2::new(8.0, 36.0), egui::Sense::hover());
-                ui.painter().line_segment([sep.center_top() + Vec2::new(0.0, 6.0), sep.center_bottom() - Vec2::new(0.0, 6.0)], ui.visuals().widgets.noninteractive.bg_stroke);
-            };
-            divider(ui);
-            if icon_button(ui, Icon::Undo, false, app.hist.can_undo(crate::app::Scope::Drawing), "Undo drawing change (Edit menu: undo anything)").clicked() { app.do_undo_drawing(); }
-            if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Edit menu: redo anything)").clicked() { app.do_redo_drawing(); }
-          });
+          ui.spacing_mut().item_spacing = Vec2::new(2.0, 2.0);
+          // groups: Select and Edit points | the drawing tools | modify the selection | undo and redo. A row breaks only between groups.
+          let avail = ui.available_width();
+          let fillet = app.selection_has_corners();
+          let n_mod = if fillet { 5.0 } else { 4.0 };
+          let widths = [2.0 * 36.0 + 2.0, 7.0 * 36.0 + 12.0, n_mod * 36.0 + (n_mod - 1.0) * 2.0, 2.0 * 30.0 + 2.0];
+          let mut rows: Vec<Vec<usize>> = vec![vec![]];
+          let mut used = 0.0_f32;
+          for (g, w) in widths.iter().enumerate() {
+              let first = rows.last().is_some_and(|r| r.is_empty());
+              let need = *w + if first { 0.0 } else { 12.0 };
+              if !first && used + need > avail { rows.push(vec![]); used = 0.0; }
+              used += if rows.last().is_some_and(|r| r.is_empty()) { *w } else { need };
+              if let Some(r) = rows.last_mut() { r.push(g); }
+          }
+          for row in rows {
+              ui.horizontal(|ui| {
+                  for (i, g) in row.into_iter().enumerate() {
+                      if i > 0 { palette_divider(ui); }
+                      palette_group(ui, app, g, fillet);
+                  }
+              });
+          }
         });
     });
     // the bars under the palette move down when it wraps (46 px is one row)
     app.palette_extra = (pal.response.rect.height() - 46.0).max(0.0);
     // where the tool dialogs open: under the palette and whatever option bar is showing, at the same left edge
     app.bars_bottom = pal.response.rect.bottom();
-    // the zoom card: at the right end of the palette's row when there is room for both, else just below that row
-    let room = pal.response.rect.right() + 12.0 + crate::zoomcard::CARD_W + 10.0 <= rect.right();
-    let card_y = if room { rect.top() + 10.0 } else { pal.response.rect.bottom() + 8.0 };
+    // the zoom card never moves: top right, level with the first palette row (the palette leaves room for it)
+    let card_y = rect.top() + 10.0;
     let (zact, _) = crate::zoomcard::show(ctx, "zoomcard2d", egui::Order::Middle, Pos2::new(rect.right() - 10.0, card_y), zoom_frac);
     if zact.is_some() { app.zoom_act = zact; }
     tool_options_bar(ctx, app, rect);

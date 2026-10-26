@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Minus, Persp, Ortho }
+pub enum Icon { Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Minus, Persp, Ortho, Offset, Array }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -21,6 +21,18 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
             for (q, filled) in [(a, false), (b, true), (d, false)] {
                 let r = Rect::from_center_size(q, Vec2::splat(5.0 * s));
                 if filled { painter.rect_filled(r, 0.5, fg); } else { painter.rect_stroke(r, 0.5, st); }
+            }
+        }
+        Icon::Offset => {
+            // a shape and a copy of it, grown by a distance (dimmer)
+            painter.rect_stroke(Rect::from_min_max(p(-5.0, -4.0), p(5.0, 4.0)), 1.0, st);
+            painter.rect_stroke(Rect::from_min_max(p(-10.0, -9.0), p(10.0, 9.0)), 3.0, Stroke::new(st.width, fg.gamma_multiply(0.5)));
+        }
+        Icon::Array => {
+            // a grid of copies
+            for (x, y) in [(-9.0, -9.0), (1.0, -9.0), (-9.0, 1.0), (1.0, 1.0)] {
+                let r = Rect::from_min_max(p(x, y), p(x + 8.0, y + 8.0));
+                if x < 0.0 && y < 0.0 { painter.rect_stroke(r, 0.5, st); } else { painter.rect_stroke(r, 0.5, Stroke::new(st.width, fg.gamma_multiply(0.55))); }
             }
         }
         Icon::Fillet => {
