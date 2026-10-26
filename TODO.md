@@ -26,6 +26,17 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] Bezier and arc node editing (0.4.0).
 - [ ] Other ideas from the feature comparison: G-code sender, more post-processors, dogbone corners, helical entry, nesting.
 
+## Interface consistency (audit of 2026-10-26)
+Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. Still open:
+- [ ] Spelling: the app says "Centre" (British); decide whether to switch to "Center" (about 30 strings).
+- [ ] Button names: "Clean" in Clean up drawing should be "Clean up"; the G-code panel says "Export…" while the menu says "Export G-code…".
+- [ ] Messages: the red banner mixes errors with plain information ("Imported …", "Scaled down to …", "These letters were edited as shapes …"). Keep the banner for errors and warnings; move the rest to the status bar or drop it.
+- [ ] The result messages of Combine, Array, Offset and Corners stay until dismissed; they should go on the next edit.
+- [ ] Align, Array, Offset and Corners: check what they show with an empty selection (no leftover preview, Apply disabled, a clear line saying what to select).
+- [ ] The diagnostics text of "Copy version info" still uses "x" in sizes (kept plain on purpose for bug reports).
+- [ ] Try the controls converted to segmented switches that have no screenshot hook: Ellipse / Circle, Radius / Diameter, Polygon / Star, Trim / Extend, Face outwards / Face the centre.
+- [ ] Mac: how the all-scroll (four-way) move cursor looks.
+
 ## Release 0.3.2
 - [x] README screenshots refreshed (`docs/screenshot-2d.png`, `docs/screenshot-3d.png`; project built by `examples/docproject.rs`).
 - [ ] Refresh `docs/demo.gif` and `docs/demo.mp4` to match.

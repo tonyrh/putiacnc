@@ -832,7 +832,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             if app.point_grid {
                 painter.rect_stroke(Rect::from_two_pos(to_s(a), to_s(app.snap(cur))), 0.0, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
                 let to = app.snap(cur);
-                hud = Some(format!("{} holes, {:.2} x {:.2} mm", v.len(), (to[0] - a[0]).abs(), (to[1] - a[1]).abs()));
+                hud = Some(format!("{} holes, {:.2} × {:.2} mm", v.len(), (to[0] - a[0]).abs(), (to[1] - a[1]).abs()));
             } else {
                 painter.circle_stroke(to_s(a), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt() as f32 * app.scale, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
                 hud = Some(format!("{} holes, radius {:.2} mm", v.len(), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
@@ -853,7 +853,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
         hud = Some(if circle {
             if app.circle_diam { format!("diameter {:.2} mm", cr * 2.0) } else { format!("radius {:.2} mm", cr) }
-        } else { format!("{:.2} x {:.2} mm", (b[0] - a[0]).abs(), (b[1] - a[1]).abs()) });
+        } else { format!("{:.2} × {:.2} mm", (b[0] - a[0]).abs(), (b[1] - a[1]).abs()) });
         if circle { let s = to_s(a); let st = Stroke::new(1.0_f32, prev_col); painter.line_segment([s - Vec2::new(6.0, 0.0), s + Vec2::new(6.0, 0.0)], st); painter.line_segment([s - Vec2::new(0.0, 6.0), s + Vec2::new(0.0, 6.0)], st); }
         }
     }

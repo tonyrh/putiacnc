@@ -472,7 +472,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         let a = ui.input(|i| i.time) as f32 * 6.0;
         let pts: Vec<Pos2> = (0..=18).map(|k| { let t = a + k as f32 * 0.2; c + Vec2::new(t.cos(), t.sin()) * 9.0 }).collect();
         painter.add(Shape::line(pts, Stroke::new(2.5_f32, Color32::WHITE)));
-        painter.text(c + Vec2::new(24.0, 0.0), egui::Align2::LEFT_CENTER, format!("Preparing 3D preview... {pct}%"), FontId::proportional(13.0), Color32::WHITE);
+        painter.text(c + Vec2::new(24.0, 0.0), egui::Align2::LEFT_CENTER, format!("Preparing 3D preview… {pct}%"), FontId::proportional(13.0), Color32::WHITE);
     }
     if let Some(e) = &app.gen_error {
         let col = Color32::from_rgb(0xe0, 0x1b, 0x24);

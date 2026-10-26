@@ -72,7 +72,7 @@ fn main() -> eframe::Result<()> {
     };
     eframe::run_native("PutiaCNC", opts, Box::new(move |cc| {
         let mut app = App::new(arg);
-        if std::env::var_os("PUTIACNC_SHOW_ERR").is_some() { app.error = Some("The imported drawing (420 x 310 mm) is larger than the machine work area (300 x 200 mm).".into()); }
+        if std::env::var_os("PUTIACNC_SHOW_ERR").is_some() { app.error = Some("The imported drawing (420 × 310 mm) is larger than the machine work area (300 × 200 mm).".into()); }
         // PUTIACNC_OP=n: operation n (by position) is the active one with its shapes selected, and every other operation is folded
         if let Some(n) = std::env::var("PUTIACNC_OP").ok().and_then(|v| v.parse::<usize>().ok()) {
             if let Some(id) = app.project.data.ops.get(n.saturating_sub(1)).map(|o| o.id) {

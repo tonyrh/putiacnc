@@ -23,7 +23,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if item(ui, "New project", "Ctrl+N", true) { app.request(Action::New); }
-            if item(ui, "Open project...", "Ctrl+O", true) { app.open_dialog(); }
+            if item(ui, "Open project…", "Ctrl+O", true) { app.open_dialog(); }
             let recent: Vec<String> = app.prefs.recent.iter().filter(|p| std::path::Path::new(p.as_str()).is_file()).cloned().collect();
             ui.add_enabled_ui(!recent.is_empty(), |ui| {
                 ui.menu_button("Open recent", |ui| {
@@ -38,14 +38,14 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                     if ui.button("Clear list").clicked() { app.prefs.recent.clear(); ui.close_menu(); }
                 });
             });
-            if item(ui, "Import Vectors...", "Ctrl+I", true) { app.import_dialog(); }
-            if item(ui, "Import Bitmap...", "", true) { app.import_bitmap_dialog(); }
-            if item(ui, "Import 3D Model...", "", true) { app.import_model_dialog(); }
+            if item(ui, "Import vectors…", "Ctrl+I", true) { app.import_dialog(); }
+            if item(ui, "Import bitmap…", "", true) { app.import_bitmap_dialog(); }
+            if item(ui, "Import 3D model…", "", true) { app.import_model_dialog(); }
             ui.separator();
             if item(ui, "Save", "Ctrl+S", true) { app.save(); }
-            if item(ui, "Save as...", "Ctrl+Shift+S", true) { app.save_as_dialog(); }
+            if item(ui, "Save as…", "Ctrl+Shift+S", true) { app.save_as_dialog(); }
             ui.separator();
-            if item(ui, "Export G-code...", "Ctrl+E", app.output.is_some()) { app.export_gcode_dialog(); }
+            if item(ui, "Export G-code…", "Ctrl+E", app.output.is_some()) { app.export_gcode_dialog(); }
             ui.separator();
             if item(ui, "Quit", "Ctrl+Q", true) { app.request(Action::Quit); }
         });
@@ -64,11 +64,11 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Group", "Ctrl+G", can_group) { app.group_selection(); }
             if item(ui, "Ungroup", "Ctrl+Shift+G", app.sel_in_group()) { app.ungroup_selection(); }
             ui.separator();
-            if item(ui, "Offset...", "", !app.sel.is_empty()) { app.offset_open = true; }
-            if item(ui, "Array and copy...", "", !app.sel.is_empty()) { app.array.open = true; }
-            if item(ui, "Fillet and chamfer...", "", app.selection_has_corners()) { app.corners.open = true; }
-            if item(ui, "Combine shapes...", "", app.sel.len() >= 2) { app.combine_open = true; }
-            if item(ui, "Clean up drawing...", "", !app.project.data.loops.is_empty()) { app.clean.open = true; app.clean.msg.clear(); }
+            if item(ui, "Offset…", "", !app.sel.is_empty()) { app.offset_open = true; }
+            if item(ui, "Array and copy…", "", !app.sel.is_empty()) { app.array.open = true; }
+            if item(ui, "Fillet and chamfer…", "", app.selection_has_corners()) { app.corners.open = true; }
+            if item(ui, "Combine shapes…", "", app.sel.len() >= 2) { app.combine_open = true; }
+            if item(ui, "Clean up drawing…", "", !app.project.data.loops.is_empty()) { app.clean.open = true; app.clean.msg.clear(); }
         });
         ui.menu_button("View", |ui| {
             ui.style_mut().wrap = Some(false);
@@ -94,15 +94,15 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
         ui.menu_button("Libraries", |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
-            if ui.button("Tool library...").clicked() { app.tools_open = true; ui.close_menu(); }
-            if ui.button("Machines...").clicked() { app.machines_open = true; ui.close_menu(); }
+            if ui.button("Tool library…").clicked() { app.tools_open = true; ui.close_menu(); }
+            if ui.button("Machines…").clicked() { app.machines_open = true; ui.close_menu(); }
         });
         ui.menu_button("Help", |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if ui.add(egui::Button::new("Keyboard shortcuts").shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }
             ui.separator();
-            if ui.button("About PutiaCNC...").clicked() { app.about_open = true; ui.close_menu(); }
+            if ui.button("About PutiaCNC…").clicked() { app.about_open = true; ui.close_menu(); }
         });
     });
 }

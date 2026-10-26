@@ -156,11 +156,11 @@ impl App {
         let mut rel = rel;
         self.hist.record(&self.project.data);
         let (mw, mh) = rel.size();
-        let mut note = vec![format!("Imported {}: {:.1} x {:.1} x {:.1} mm.", rel.name, mw, mh, rel.zmax)];
+        let mut note = vec![format!("Imported {}: {:.1} × {:.1} × {:.1} mm.", rel.name, mw, mh, rel.zmax)];
         let st = &self.project.data.stock;
         if mw > st.w || mh > st.h {
             rel.scale = (st.w / mw).min(st.h / mh);
-            note.push(format!("Scaled down to {:.0}% to fit the stock ({:.1} x {:.1} mm); change the size with Width in the Imported section.", rel.scale * 100.0, rel.size().0, rel.size().1));
+            note.push(format!("Scaled down to {:.0}% to fit the stock ({:.1} × {:.1} mm); change the size with Width in the Imported section.", rel.scale * 100.0, rel.size().0, rel.size().1));
         }
         let (mw, mh) = rel.size();
         rel.x = (st.w - mw) / 2.0;
@@ -207,7 +207,7 @@ impl App {
             self.show_open_ends = true;
         }
         if bw > st.w || bh > st.h {
-            note.push(format!("The drawing ({:.1} x {:.1} mm) is larger than the stock; resize it with Width/Height in the Selection panel.", bw, bh));
+            note.push(format!("The drawing ({:.1} × {:.1} mm) is larger than the stock; resize it with Width/Height in the Selection panel.", bw, bh));
             sentences.push((super::NoteUntil::Fits(gid), note.last().cloned().unwrap_or_default()));
         }
         self.hist.record(&self.project.data);

@@ -8,7 +8,7 @@ pub const RED: Color32 = Color32::from_rgb(0xe0, 0x1b, 0x24);
 /// The chip at the right of the status bar: how many warnings, or that they are still being worked out.
 pub fn chip(ui: &mut egui::Ui, app: &mut App) {
     if app.output.is_none() { return; }
-    if app.checks_rx.is_some() { ui.weak("checking..."); return; }
+    if app.checks_rx.is_some() { ui.weak("checking…"); return; }
     if app.checks.is_empty() { return; }
     let n = app.checks.len();
     warn_sign(ui);

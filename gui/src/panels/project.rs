@@ -205,7 +205,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some("inlay"); }
             let has_model = d.relief.is_some();
             let r = ui.add_enabled_ui(has_model, |ui| icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model: roughing, then a finishing pass that follows the surface", None)).inner;
-            if !has_model { r.on_disabled_hover_text("Import a 3D model first (File > Import 3D Model)"); } else if r.clicked() { add_kind = Some("relief"); }
+            if !has_model { r.on_disabled_hover_text("Import a 3D model first (File > Import 3D model)"); } else if r.clicked() { add_kind = Some("relief"); }
         });
         ui.separator();
     }

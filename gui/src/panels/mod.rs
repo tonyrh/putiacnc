@@ -93,7 +93,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
                     if ui.button("Copy").on_hover_text("Copy the G-code to the clipboard").clicked() { copy = Some(o.gcode()); }
-                    if ui.button("Export...").on_hover_text("Save the G-code to a file (Ctrl+E)").clicked() { export = true; }
+                    if ui.button("Export…").on_hover_text("Save the G-code to a file (Ctrl+E)").clicked() { export = true; }
                 });
                 ui.add_space(6.0);
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
@@ -122,7 +122,7 @@ pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
     let rows = (((ui.available_height() - reserve - 12.0) / row_h).floor() as usize).max(4);
     let before = app.project.data.clone();
     let mut notes = std::mem::take(&mut app.project.data.notes);
-    let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text("Material, fixtures, jobs to remember..."));
+    let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text("Material, fixtures, jobs to remember…"));
     app.project.data.notes = notes;
     if r.changed() {
         // one undo step per editing session; while the field has focus, Ctrl+Z undoes the typing itself
