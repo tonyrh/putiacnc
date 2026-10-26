@@ -73,6 +73,14 @@ fn main() -> eframe::Result<()> {
     eframe::run_native("PutiaCNC", opts, Box::new(move |cc| {
         let mut app = App::new(arg);
         if std::env::var_os("PUTIACNC_SHOW_ERR").is_some() { app.error = Some("The imported drawing (420 x 310 mm) is larger than the machine work area (300 x 200 mm).".into()); }
+        // PUTIACNC_OP=n: operation n (by position) is the active one with its shapes selected, and every other operation is folded
+        if let Some(n) = std::env::var("PUTIACNC_OP").ok().and_then(|v| v.parse::<usize>().ok()) {
+            if let Some(id) = app.project.data.ops.get(n.saturating_sub(1)).map(|o| o.id) {
+                app.project.data.act = id;
+                app.sel = app.project.data.loops.iter().enumerate().filter(|(_, l)| l.op == id).map(|(i, _)| i).collect();
+                app.collapsed = app.project.data.ops.iter().map(|o| o.id).filter(|&o| o != id).collect();
+            }
+        }
         if let Ok(v) = std::env::var("PUTIACNC_COLLAPSE") { for n in v.split(',').filter_map(|s| s.parse::<usize>().ok()) { if let Some(o) = app.project.data.ops.get(n.saturating_sub(1)) { app.collapsed.insert(o.id); } } }
         theme::apply_fonts(&cc.egui_ctx);
         theme::apply_style(&cc.egui_ctx, &app.theme);

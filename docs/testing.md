@@ -50,6 +50,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_SELECT=1,4,7` / `PUTIACNC_SELECT_ALL` | Selects shapes by index (no expansion to their group). |
 | `PUTIACNC_SHOW_*` (`ABOUT`, `ALIGN`, `ARRAY`, `CHECKS`, `CLEAN`, `COMBINE`, `CONFIRM`, `CORNERS`, `ERR`, `MACHINES`, `OFFSET`, `SHORTCUTS`, `TEXT`, `TOOLS`, `UPDATE`) | Opens that dialog or popover. |
 | `PUTIACNC_TAB_GCODE`, `PUTIACNC_TAB_NOTES`, `PUTIACNC_COLLAPSE=1,2` | Right panel tab; folds operations by number. |
+| `PUTIACNC_OP=n` | Operation n (by position) is active with its shapes selected; all the others are folded. |
 | `PUTIACNC_NODE_EDIT=i`, `PUTIACNC_TAB_EDIT`, `PUTIACNC_ROTATE` | Starts point editing, tab placing or rotate mode. |
 | `PUTIACNC_PLACE_TEXT=..`, `PUTIACNC_EDIT_TEXT`, `PUTIACNC_POLYGON=ring\|point`, `PUTIACNC_DYN=..`, `PUTIACNC_IMPORT2=file`, `PUTIACNC_RELIEF`, `PUTIACNC_TOOL_QUERY=..` | Sets up a tool mid-use. |
 | `PUTIACNC_CHECK_SHOW=n`, `PUTIACNC_DEBUG_CHECKS` | Shows check result `n` in the 3D view; prints a summary of the checks. |
