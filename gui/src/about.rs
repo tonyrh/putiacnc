@@ -78,14 +78,13 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     if !app.about_open { return; }
     if app.about_icon.is_none() { app.about_icon = icon_texture(ctx); }
     let mut close = false;
-    let accent = app.theme.accent;
     egui::Window::new("About PutiaCNC").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "About PutiaCNC", ctx.screen_rect().center())).show(ctx, |ui| {
-        ui.set_width(460.0);
+        ui.set_width(500.0);
         if crate::csd::dialog_header(ui, "About PutiaCNC", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.add_space(10.0);
-        ui.horizontal(|ui| {
+        let head = ui.horizontal(|ui| {
             ui.add_space(6.0);
             if let Some(t) = &app.about_icon { ui.image((t.id(), egui::vec2(64.0, 64.0))); }
             ui.add_space(8.0);
@@ -94,22 +93,21 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 ui.label(format!("Version {}", crate::update::CURRENT));
                 ui.weak("A CNC toolpath studio for GRBL and Mach3 / LinuxCNC machines.");
             });
-        });
+        }).response;
+        // the whole top block is a link to the project page
+        let link = ui.interact(head.rect, egui::Id::new("about_head"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(REPO_URL);
+        if link.clicked() { let _ = open::that(REPO_URL); }
         ui.add_space(10.0);
         ui.add(egui::Label::new("Draw or import shapes, add operations, preview the cut in 3D and write the G-code. Free software under the GNU General Public License, version 3 or later: you may use, study, share and change it.").wrap(true));
         ui.add_space(10.0);
-        ui.horizontal_wrapped(|ui| {
-            if dlg_button(ui, Icon::Export, "Source and releases", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text(REPO_URL).clicked() { let _ = open::that(REPO_URL); }
+        ui.horizontal(|ui| {
             if dlg_button(ui, Icon::Import, "Check for updates", None, None, false).on_hover_text("Asks GitHub for the latest release; nothing is contacted unless you ask").clicked() {
                 app.updater.open = true; app.updater.check(false); close = true;
             }
-        });
-        ui.add_space(6.0);
-        ui.horizontal_wrapped(|ui| {
             if ui.button("Open config folder").on_hover_text("Where your tool libraries, machines and settings are saved").clicked() {
                 if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that(d); }
             }
-            if ui.button("Copy version info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); } }
+            if ui.button("Copy version info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); }
         });
         ui.add_space(8.0);
         egui::CollapsingHeader::new(egui::RichText::new("Notices").small().weak()).default_open(false).show(ui, |ui| {
