@@ -355,10 +355,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let o = &mut d.ops[i];
             // one card with the header: the same colour all round, flat where the two meet
             let card_col = if card_hdr.1 { card_hdr.2 } else { card_hdr.2.gamma_multiply(0.66) };
-            let body_card = egui::Frame::none().inner_margin(egui::Margin::same(6.0)).stroke(egui::Stroke::new(1.5_f32, card_col))
-                .rounding(egui::Rounding { nw: 0.0, ne: 0.0, sw: 6.0, se: 6.0 }).show(ui, |ui| {
+            let body_card = egui::Frame::none().inner_margin(egui::Margin::same(7.5)).show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = sy;
-                ui.set_width(lw - 12.0);
+                ui.set_width(lw - 15.0);
                 let p = &mut o.p;
                 // an operation without shapes keeps its settings; the selected shapes can be put into it (a relief works on the model)
                 if p.kind != "relief" {
@@ -683,10 +682,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     }
                 }
             });
-            // the operation that owns the selected shapes: outline the whole card, header and settings
-            if card_hdr.1 {
-                let whole = card_hdr.0.union(body_card.response.rect);
-                ui.painter().rect_stroke(whole.expand(1.5), 7.0, egui::Stroke::new(2.5_f32, ui.visuals().text_color()));
+            // the border is painted on the header's own width, so the two always match; the operation that owns the
+            // selected shapes gets a stronger one in the text colour in its place
+            {
+                let card = egui::Rect::from_min_max(card_hdr.0.min, egui::pos2(card_hdr.0.max.x, body_card.response.rect.max.y));
+                let round = egui::Rounding { nw: 0.0, ne: 0.0, sw: 6.0, se: 6.0 };
+                ui.painter().rect_stroke(card.shrink(0.75), round, egui::Stroke::new(1.5_f32, card_col));
+                if card_hdr.1 { ui.painter().rect_stroke(card.shrink(1.0), 6.0, egui::Stroke::new(2.0_f32, ui.visuals().text_color())); }
             }
             ui.spacing_mut().item_spacing.y = sy;
         }
