@@ -342,7 +342,9 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     let Some(spec) = app.project.data.groups.iter().find(|g| g.id == gid).and_then(|g| g.text.clone()) else { return true };
     let Some(idx) = app.text.fonts.iter().position(|f| f.label == spec.font) else {
         if app.text.found.is_none() { return false; }
-        app.error = Some(format!("The font \"{}\" is not on this computer, so this text cannot be edited here. You can still convert it to outlines.", spec.font));
+        let msg = format!("The font \"{}\" is not on this computer, so this text cannot be edited here. You can still convert it to outlines.", spec.font);
+        app.notes.push((crate::app::NoteUntil::NotText(gid), msg.clone()));
+        app.error = Some(msg);
         app.text.open = false;
         app.mode = Mode::Select;
         return true;

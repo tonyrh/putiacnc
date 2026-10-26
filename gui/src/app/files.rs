@@ -198,20 +198,21 @@ impl App {
         let st = &self.project.data.stock;
         let (ox, oy) = if bw <= st.w && bh <= st.h { ((st.w - bw) / 2.0 - b[0], (st.h - bh) / 2.0 - b[1]) } else { (-b[0], -b[1]) };
         let mut note = imp.warnings.clone();
-        let mut oversize_note = None;
+        let mut sentences: Vec<(super::NoteUntil, String)> = Vec::new();
+        let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         let open = putiacnc_core::cleanup::open_count(&imp.loops);
         if open > 0 {
             note.push(format!("{open} open contour{} (loose ends are marked): Edit > Clean up drawing can join them.", if open == 1 { "" } else { "s" }));
+            sentences.push((super::NoteUntil::Closed(gid), note.last().cloned().unwrap_or_default()));
             self.show_open_ends = true;
         }
         if bw > st.w || bh > st.h {
             note.push(format!("The drawing ({:.1} x {:.1} mm) is larger than the stock; resize it with Width/Height in the Selection panel.", bw, bh));
-            oversize_note = note.last().cloned();
+            sentences.push((super::NoteUntil::Fits(gid), note.last().cloned().unwrap_or_default()));
         }
         self.hist.record(&self.project.data);
         let op = 0;
         let start = self.project.data.loops.len();
-        let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname, locked: false, text: None });
         for mut l in imp.loops {
             shapes::translate(&mut l, ox, oy);
@@ -222,7 +223,7 @@ impl App {
         self.sel = (start..self.project.data.loops.len()).collect();
         self.mode = Mode::Select;
         self.error = if note.is_empty() { None } else { Some(note.join(" ")) };
-        self.oversize = oversize_note.map(|n| (gid as u32, n));
+        self.notes = sentences;
         self.touch();
     }
 

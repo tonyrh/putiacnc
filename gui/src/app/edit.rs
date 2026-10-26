@@ -4,25 +4,31 @@ use super::*;
 impl App {
     /// Call after any change to the project.
     pub fn touch(&mut self) {
-        self.clear_oversize_note();
+        self.clear_fixed_notes();
         self.note_empty_ops();
         self.modified = true;
         self.gen_pending = true;
     }
 
-    /// Once the imported drawing has been resized to fit the stock (or is gone), its "too large" sentence leaves the banner.
-    fn clear_oversize_note(&mut self) {
-        let Some((gid, frag)) = self.oversize.clone() else { return };
+    /// Drops the banner sentences whose problem has been fixed (the drawing fits, the contours are joined, the text is outlines).
+    fn clear_fixed_notes(&mut self) {
+        if self.notes.is_empty() { return; }
+        if self.error.is_none() { self.notes.clear(); return; }
         let d = &self.project.data;
-        let fits = match shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(gid as _))) {
-            Some(b) => (b[2] - b[0]) <= d.stock.w + 1e-6 && (b[3] - b[1]) <= d.stock.h + 1e-6,
-            None => true,
-        };
-        if !fits { return; }
-        self.oversize = None;
-        if let Some(e) = self.error.take() {
-            let rest = e.replacen(&frag, "", 1).trim().to_string();
-            if !rest.is_empty() { self.error = Some(rest); }
+        let done: Vec<String> = self.notes.iter().filter(|(until, _)| match *until {
+            NoteUntil::Fits(g) => match shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g))) {
+                Some(b) => (b[2] - b[0]) <= d.stock.w + 1e-6 && (b[3] - b[1]) <= d.stock.h + 1e-6,
+                None => true,
+            },
+            NoteUntil::Closed(g) => !d.loops.iter().any(|l| l.grp == Some(g) && putiacnc_core::cleanup::is_open_path(l)),
+            NoteUntil::NotText(g) => !d.groups.iter().any(|x| x.id == g && x.text.is_some()),
+        }).map(|(_, s)| s.clone()).collect();
+        if done.is_empty() { return; }
+        self.notes.retain(|(_, s)| !done.contains(s));
+        if let Some(mut e) = self.error.take() {
+            for s in &done { e = e.replacen(s.as_str(), "", 1); }
+            let e = e.split_whitespace().collect::<Vec<_>>().join(" ");
+            if !e.is_empty() { self.error = Some(e); }
         }
     }
 

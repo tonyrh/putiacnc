@@ -12,7 +12,7 @@ fn dist(a: P, b: P) -> f64 { (a[0] - b[0]).hypot(a[1] - b[1]) }
 fn plain(l: &LoopData) -> bool { l.pt.is_none() && l.rc.is_none() && l.cr.is_none() && l.el.is_none() }
 
 /// Open paths (with at least two points) that are not drill points.
-fn is_open_path(l: &LoopData) -> bool { l.pt.is_none() && !l.closed() && l.pts.len() >= 4 }
+pub fn is_open_path(l: &LoopData) -> bool { l.pt.is_none() && !l.closed() && l.pts.len() >= 4 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct Report {
