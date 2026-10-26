@@ -120,7 +120,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(6.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
             ui.set_min_width(crate::zoomcard::ROW3_W);
-            let (area, resp) = ui.horizontal(|ui| { ui.add_space((crate::zoomcard::ROW3_W - SIZE) / 2.0 - 4.0); ui.allocate_exact_size(Vec2::new(SIZE, SIZE), Sense::click_and_drag()) }).inner;
+            let (area, resp) = ui.horizontal(|ui| { ui.add_space((crate::zoomcard::ROW3_W - SIZE) / 2.0); ui.allocate_exact_size(Vec2::new(SIZE, SIZE), Sense::click_and_drag()) }).inner;
             let (yaw, pitch) = (app.v3.yaw, app.v3.pitch);
             let list = cells(area.center(), SIZE * 0.5 / 1.85, yaw, pitch);
             let hover = resp.hover_pos().and_then(|p| list.iter().filter(|c| c.dir[2] >= 0).find(|c| inside(&c.quad, p)).map(|c| c.dir));
