@@ -882,6 +882,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let machine_now = d.machine.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
+        let mut act_use: Option<i64> = None;
         // the eye: Some((id, only)) toggles that operation in the 3D preview; with Alt it is shown alone
         let mut act_eye: Option<(i64, bool)> = None;
         let hidden_now = d.hidden_ops.clone();
@@ -956,6 +957,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             ui.add_space(2.0);
             if !collapsed.contains(&id) {
             let loops = &d.loops;
+            let d_act = d.act;
             let stock_t = d.stock.t;
             // a relief follows the model's height until a depth is typed in
             if d.ops[i].p.kind == "relief" && !d.ops[i].p.d_man {
@@ -967,6 +969,19 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             egui::Frame::group(ui.style()).show(ui, |ui| {
                 ui.set_width(lw - 14.0);
                 let p = &mut o.p;
+                // an operation without shapes keeps its settings; the selected shapes can be put into it (a relief works on the model)
+                if p.kind != "relief" {
+                    let mine = loops.iter().filter(|l| l.op == id).count();
+                    let to_move = sel.iter().filter(|&&k| loops.get(k).is_some_and(|l| l.op != id)).count();
+                    if mine == 0 || (to_move > 0 && d_act == id) {
+                        ui.horizontal(|ui| {
+                            if mine == 0 { ui.weak("No shapes yet"); }
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.add_enabled(to_move > 0, egui::Button::new("Use selected shapes")).on_hover_text("Put the shapes selected in the drawing into this operation").clicked() { act_use = Some(id); }
+                            });
+                        });
+                    }
+                }
                 let sp = ui.spacing().item_spacing.x;
                 let bf = egui::TextStyle::Body.resolve(ui.style());
                 let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
@@ -1291,6 +1306,9 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 d.hidden_ops = if others.iter().all(|x| d.hidden_ops.contains(x)) { vec![] } else { others };
             } else if let Some(k) = d.hidden_ops.iter().position(|&x| x == id) { d.hidden_ops.remove(k); } else { d.hidden_ops.push(id); }
             changed = true;
+        }
+        if let Some(id) = act_use {
+            if shapes::assign_to_op(&mut d.loops, sel, id) > 0 { d.act = id; changed = true; }
         }
         if let Some(i) = act_remove {
             let id = d.ops[i].id;

@@ -9,8 +9,8 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 ## Small
 - [x] Mark clamp collisions on the 2D drawing too (a clamp the toolpath runs into turns solid red with the same warning sign as the 3D preview).
 - [ ] Count the tool holder in the clamp check: Holder dia. in the machine settings, Stickout in the tool manager (0 = unknown, check off).
-- [ ] A way to move a shape into or out of an existing operation (for example a right-click menu "Operation ▸ …"). Wait until the current flow has been used for a while.
-- [ ] Deleting a shape to redraw it loses the operation's settings if it was the last shape; think about a way to keep them.
+- [x] Move shapes into an existing operation: "Use selected shapes" (shown in the active operation, and in any operation without shapes). Maybe later: a right-click menu.
+- [x] An operation that loses its last shape stays with its settings; "Use selected shapes" in the operation puts shapes (also from other operations) into it. This also covers moving shapes between operations.
 - [ ] Text dialog can run off a short window; the tool palette overflows in very small windows.
 
 ## Bigger

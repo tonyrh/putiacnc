@@ -1064,6 +1064,13 @@ mod offset_tests {
 }
 
 
+/// Puts the shapes in `sel` into operation `op` (the shapes already there stay). Returns how many moved.
+pub fn assign_to_op(loops: &mut [LoopData], sel: &std::collections::BTreeSet<usize>, op: i64) -> usize {
+    let mut n = 0;
+    for &k in sel { if let Some(l) = loops.get_mut(k) { if l.op != op { l.op = op; n += 1; } } }
+    n
+}
+
 /// Hands out group numbers for copies of grouped shapes: all copies made from one group in one go share a new group,
 /// so a copy of a group is a group of its own and never joins the original.
 pub struct GroupCopies { next: i64, map: std::collections::HashMap<i64, i64> }
@@ -1085,6 +1092,19 @@ impl GroupCopies {
 #[cfg(test)]
 mod group_copy_tests {
     use super::*;
+    #[test]
+    fn selected_shapes_move_into_an_operation() {
+        let mut a = new_rect([0.0, 0.0], [5.0, 5.0], 0.0, 4);
+        let b = new_rect([10.0, 0.0], [15.0, 5.0], 0.0, 0);
+        a.op = 4;
+        let mut v = vec![a, b];
+        let sel: std::collections::BTreeSet<usize> = [0, 1].into_iter().collect();
+        assert_eq!(assign_to_op(&mut v, &sel, 7), 2);
+        assert!(v.iter().all(|l| l.op == 7));
+        assert_eq!(assign_to_op(&mut v, &sel, 7), 0, "nothing left to move");
+        assert_eq!(assign_to_op(&mut v, &[9].into_iter().collect(), 7), 0, "an index past the end is ignored");
+    }
+
     #[test]
     fn copies_of_a_group_make_a_new_group_each_time() {
         let mut a = new_rect([0.0, 0.0], [5.0, 5.0], 0.0, 0); a.ug = Some(3);

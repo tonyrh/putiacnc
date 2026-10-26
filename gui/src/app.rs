@@ -194,6 +194,8 @@ pub struct App {
     pub about_open: bool,
     /// The OpenGL renderer and version, read once from the first frame (for Help > About > Copy version info).
     pub gl_info: String,
+    /// The operations that had no shapes after the last change (so the status bar mentions each one only once).
+    pub empty_ops: Vec<i64>,
     pub about_icon: Option<eframe::egui::TextureHandle>,
     pub combine_op: shapes::BoolOp,
     pub combine_keep: bool,
@@ -328,7 +330,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None, note: None, esc_request: false,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, gl_info: String::new(), about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, gl_info: String::new(), empty_ops: vec![], about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_rx: None, gen_started: None, checks: vec![], checks_ver: 0, checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, fit_extra: 0.0, view_touched: false, canvas_right: 0.0, canvas_left: 0.0, ghost: Default::default(), preview_on: true, bars_bottom: 0.0, align_btn: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, fit3d_pending: false, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
@@ -879,28 +881,27 @@ impl App {
 
     /// Call after any change to the project.
     pub fn touch(&mut self) {
-        self.prune_empty_ops();
+        self.note_empty_ops();
         self.modified = true;
         self.gen_pending = true;
     }
 
-    /// An operation that has lost its last shape is removed: nothing can put shapes back into it, so it could only sit there empty.
-    /// The status bar says so, and undo brings it back. A 3D relief works on the model, not on shapes, so it stays.
-    fn prune_empty_ops(&mut self) {
-        let d = &mut self.project.data;
-        let gone: Vec<(usize, i64)> = d.ops.iter().enumerate().filter(|(_, o)| o.p.kind != "relief" && !d.loops.iter().any(|l| l.op == o.id)).map(|(i, o)| (i, o.id)).collect();
-        if gone.is_empty() { return; }
-        let msg = if gone.len() == 1 {
-            let (i, _) = gone[0];
-            format!("Operation {} ({}) removed: it had no shapes left. Ctrl+Z brings it back", i + 1, crate::panels::label_of(crate::panels::KINDS, &d.ops[i].p.kind))
-        } else {
-            format!("{} operations removed: they had no shapes left. Ctrl+Z brings them back", gone.len())
-        };
-        for &(_, id) in gone.iter().rev() {
-            if let Some(i) = d.ops.iter().position(|o| o.id == id) { d.ops.remove(i); }
-            if d.act == id { d.act = d.ops.last().map(|o| o.id).unwrap_or(0); }
+    /// An operation that has lost its last shape stays, with all its settings, so the shapes can be redrawn and put back with
+    /// "Use selected shapes" in the operation. The status bar says so once, when it happens; the trash icon removes the operation.
+    /// A 3D relief works on the model, not on shapes, so it is never counted.
+    fn note_empty_ops(&mut self) {
+        let d = &self.project.data;
+        let empty: Vec<i64> = d.ops.iter().filter(|o| o.p.kind != "relief" && !d.loops.iter().any(|l| l.op == o.id)).map(|o| o.id).collect();
+        let fresh: Vec<i64> = empty.iter().copied().filter(|id| !self.empty_ops.contains(id)).collect();
+        if !fresh.is_empty() {
+            let name = |id: i64| d.ops.iter().position(|o| o.id == id).map(|k| format!("{} ({})", k + 1, crate::panels::label_of(crate::panels::KINDS, &d.ops[k].p.kind))).unwrap_or_default();
+            self.note = Some(if fresh.len() == 1 {
+                format!("Operation {} has no shapes now but keeps its settings: select shapes and press \"Use selected shapes\" in it", name(fresh[0]))
+            } else {
+                format!("{} operations have no shapes now but keep their settings", fresh.len())
+            });
         }
-        self.note = Some(msg);
+        self.empty_ops = empty;
     }
 
     /// Undo the last change of any kind (Edit menu, Ctrl+Z).
@@ -1105,7 +1106,7 @@ mod offset_tests {
     }
 
     #[test]
-    fn an_operation_that_loses_its_last_shape_is_removed_and_undo_brings_it_back() {
+    fn an_operation_that_loses_its_last_shape_stays_empty_and_undo_brings_the_shape_back() {
         let mut a = App::new(None);
         a.project.data.loops.clear();
         a.project.data.loops.push(shapes::new_rect([0.0, 0.0], [20.0, 10.0], 0.0, 1));
@@ -1121,11 +1122,12 @@ mod offset_tests {
         assert!(a.note.is_none());
         a.sel = [0].into_iter().collect();
         a.delete_selection();
-        assert!(a.project.data.ops.is_empty(), "no shape is left: the operation goes");
-        assert!(a.note.as_deref().is_some_and(|n| n.contains("removed")));
+        assert_eq!(a.project.data.ops.len(), 1, "no shape is left: the operation stays, with its settings");
+        assert!(a.note.as_deref().is_some_and(|n| n.contains("keeps its settings")));
         a.do_undo();
         assert_eq!(a.project.data.ops.len(), 1);
         assert_eq!(a.project.data.loops.len(), 1);
+        assert!(a.empty_ops.is_empty(), "it has a shape again");
     }
 
     #[test]
@@ -1316,6 +1318,32 @@ mod gen_tests {
             std::thread::sleep(std::time::Duration::from_millis(2));
         }
         panic!("the toolpath never settled");
+    }
+
+    #[test]
+    fn an_operation_keeps_its_settings_when_its_last_shape_is_deleted() {
+        let mut a = app_with_job();
+        a.project.data.ops[0].p.depth = 7.5;
+        a.sel = [0].into_iter().collect();
+        a.delete_selection();
+        assert_eq!(a.project.data.ops.len(), 1, "the operation stays");
+        assert_eq!(a.project.data.ops[0].p.depth, 7.5);
+        assert!(a.note.as_deref().is_some_and(|n| n.contains("keeps its settings")), "{:?}", a.note);
+        a.note = None;
+        a.touch();
+        assert!(a.note.is_none(), "it is mentioned once, not on every change");
+        // draw the shape again and put it back into the operation
+        a.project.data.loops.push(shapes::new_rect([20.0, 20.0], [70.0, 50.0], 0.0, 0));
+        let id = a.project.data.ops[0].id;
+        assert_eq!(shapes::assign_to_op(&mut a.project.data.loops, &[0].into_iter().collect(), id), 1);
+        a.touch();
+        settle(&mut a);
+        assert!(a.output.as_ref().unwrap().moves.iter().any(|m| m.cut), "the operation cuts again");
+        assert_eq!(a.project.data.ops[0].p.depth, 7.5);
+        // and an operation emptied again is mentioned again
+        a.sel = [0].into_iter().collect();
+        a.delete_selection();
+        assert!(a.note.is_some());
     }
 
     #[test]
