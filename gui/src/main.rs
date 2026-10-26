@@ -32,6 +32,7 @@ mod view3d;
 mod viewcube;
 mod checkui;
 mod widgets;
+mod zoomcard;
 
 use app::App;
 use eframe::egui;

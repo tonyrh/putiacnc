@@ -151,24 +151,38 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 }
             }
             if resp.hovered() && !dragging { tip = Some("Click a face, an edge or a corner to look from there. Drag the cube to orbit."); }
+            // perspective or orthographic, side by side under the cube
             ui.horizontal(|ui| {
-                let label = if app.v3.ortho { "Ortho" } else { "Persp." };
-                let r = ui.selectable_label(app.v3.ortho, label);
-                if r.hovered() { tip = Some("Perspective or orthographic: in orthographic, parallel lines stay parallel and sizes do not shrink with distance."); }
-                if r.clicked() { app.v3.ortho = !app.v3.ortho; }
-                let r = ui.button("Fit");
-                if r.hovered() { tip = Some("Zoom to fit the stock from this angle (F)."); }
-                let key_fit = ui.ctx().input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ui.ctx().wants_keyboard_input();
-                if r.clicked() || std::mem::take(&mut app.fit3d_pending) || key_fit {
-                    let stk = &app.project.data.stock;
-                    let asp = rect.width() / rect.height().max(1.0);
-                    let dist = fit_dist(app.v3.yaw, app.v3.pitch, stk, asp, app.v3.ortho);
-                    let tgt = [stk.w as f32 / 2.0, stk.h as f32 / 2.0, -(stk.t as f32) / 2.0];
-                    app.v3.anim = Some(Anim { from: (app.v3.yaw, app.v3.pitch, app.v3.dist, app.v3.target), to: (app.v3.yaw, app.v3.pitch, dist, tgt), t: 0.0 });
+                ui.spacing_mut().item_spacing = Vec2::splat(2.0);
+                let w = 34.0;
+                ui.add_space(((SIZE - 2.0 * w - 2.0) / 2.0).max(0.0));
+                for (ortho, icon, what) in [
+                    (false, crate::icons::Icon::Persp, "Perspective view: things farther away look smaller."),
+                    (true, crate::icons::Icon::Ortho, "Orthographic view: parallel lines stay parallel and sizes do not shrink with distance."),
+                ] {
+                    let r = crate::zoomcard::button(ui, Vec2::new(w, 30.0), app.v3.ortho == ortho, "", |p, rc, fg| crate::icons::paint_icon(p, icon, rc.center(), fg, 0.8));
+                    if r.hovered() { tip = Some(what); }
+                    if r.clicked() { app.v3.ortho = ortho; }
                 }
             });
         });
     });
+    // the zoom card under the cube: zoom out and in, the zoom level and Fit
+    let stk = app.project.data.stock.clone();
+    let asp = rect.width() / rect.height().max(1.0);
+    let fit = fit_dist(app.v3.yaw, app.v3.pitch, &stk, asp, app.v3.ortho);
+    let (zact, _) = crate::zoomcard::show(ctx, "zoomcard3d", egui::Order::Foreground, Pos2::new(rect.right() - 10.0, shown.response.rect.bottom() + 8.0), fit / app.v3.dist.max(1e-3));
+    let key_fit = ctx.input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ctx.wants_keyboard_input();
+    let act = zact.or_else(|| crate::zoomcard::keys(ctx)).or_else(|| (std::mem::take(&mut app.fit3d_pending) || key_fit).then_some(crate::zoomcard::Act::Fit));
+    match act {
+        Some(crate::zoomcard::Act::By(f)) => { app.v3.anim = None; app.v3.dist = (app.v3.dist / f).clamp(5.0, 20000.0); }
+        Some(crate::zoomcard::Act::To(t)) => { app.v3.anim = None; app.v3.dist = (fit / t.max(1e-3)).clamp(5.0, 20000.0); }
+        Some(crate::zoomcard::Act::Fit) => {
+            let tgt = [stk.w as f32 / 2.0, stk.h as f32 / 2.0, -(stk.t as f32) / 2.0];
+            app.v3.anim = Some(Anim { from: (app.v3.yaw, app.v3.pitch, app.v3.dist, app.v3.target), to: (app.v3.yaw, app.v3.pitch, fit, tgt), t: 0.0 });
+        }
+        None => {}
+    }
     if let Some(t) = tip {
         egui::Area::new(egui::Id::new("viewcube_tip")).order(egui::Order::Tooltip).pivot(egui::Align2::RIGHT_TOP).fixed_pos(shown.response.rect.left_top() + Vec2::new(-8.0, 0.0)).interactable(false).show(ctx, |ui| {
             egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 7.0)).show(ui, |ui| {

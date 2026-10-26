@@ -113,6 +113,28 @@ fn clamp_at(app: &App, w: [f64; 2], tol: f64) -> Option<usize> {
     d.clamps.iter().rposition(|c| w[0] >= c.x && w[0] <= c.x + c.w && w[1] >= c.y && w[1] <= c.y + c.h)
 }
 
+/// The scale and offset that frame the stock, plus the machine work area when it is shown, in `rect` (the free band between the
+/// palette at the top and the hint at the bottom). This is the 100 % of the zoom card.
+fn fit_view(app: &App, rect: Rect) -> (f32, Vec2) {
+    let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
+    let (mut bw, mut bh) = (sw, sh);
+    if app.show_machine_area { if let Some(m) = &app.project.data.machine { bw = bw.max(m.x); bh = bh.max(m.y); } }
+    // the palette floats over the top of the canvas and the hint over the bottom: frame the stock in the free band between them
+    let (top, bottom) = (62.0 + app.palette_extra, 50.0);
+    let avail = rect.height() - top - bottom;
+    let (band, top) = if avail >= rect.height() * 0.4 { (avail, top) } else { (rect.height(), 0.0) };
+    let sx = rect.width() / (bw as f32 * 1.12);
+    let sy = band / (bh as f32 * 1.12);
+    let scale = sx.min(sy).max(0.01);
+    (scale, Vec2::new(rect.width() / 2.0 - bw as f32 * scale / 2.0, top + band / 2.0 + bh as f32 * scale / 2.0))
+}
+
+/// Zoom the drawing by `f` about the middle of the canvas (the buttons and keys; the wheel and pinch zoom about the pointer).
+fn zoom_centre(app: &mut App, rect: Rect, f: f32) {
+    let (s, o) = crate::zoomcard::zoom_about(app.scale, app.offset, rect.size() / 2.0, f, 0.05, 500.0);
+    app.scale = s; app.offset = o; app.view_touched = true;
+}
+
 pub fn canvas(ui: &mut Ui, app: &mut App) {
     let ctx = ui.ctx().clone();
     let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
@@ -123,20 +145,13 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
 
     // the tool palette wrapped to another row (or back): frame the stock again below it, unless the view was moved by hand
     if !app.view_touched && (app.palette_extra - app.fit_extra).abs() > 0.5 { app.fit_pending = true; }
-    if app.fit_pending || (!ctx.wants_keyboard_input() && ctx.input(|i| i.key_pressed(Key::F))) {
-        // frame the stock, plus the machine work area when it is shown
-        let (mut bw, mut bh) = (sw, sh);
-        if app.show_machine_area { if let Some(m) = &app.project.data.machine { bw = bw.max(m.x); bh = bh.max(m.y); } }
-        // the palette floats over the top of the canvas and the hint over the bottom: frame the stock in the free band between them
-        let (top, bottom) = (62.0 + app.palette_extra, 50.0);
-        let avail = rect.height() - top - bottom;
-        let (band, top) = if avail >= rect.height() * 0.4 { (avail, top) } else { (rect.height(), 0.0) };
-        let sx = rect.width() / (bw as f32 * 1.12);
-        let sy = band / (bh as f32 * 1.12);
-        app.scale = sx.min(sy).max(0.01);
-        app.offset = Vec2::new(rect.width() / 2.0 - bw as f32 * app.scale / 2.0, top + band / 2.0 + bh as f32 * app.scale / 2.0);
+    let key_act = crate::zoomcard::keys(&ctx);
+    if app.fit_pending || key_act == Some(crate::zoomcard::Act::Fit) || (!ctx.wants_keyboard_input() && ctx.input(|i| i.key_pressed(Key::F))) {
+        let (scale, offset) = fit_view(app, rect);
+        app.scale = scale; app.offset = offset;
         app.fit_pending = false; app.fit_extra = app.palette_extra; app.view_touched = false;
     }
+    if let Some(crate::zoomcard::Act::By(f)) = key_act { zoom_centre(app, rect, f); }
     if resp.dragged_by(PointerButton::Middle) || resp.dragged_by(PointerButton::Secondary) { app.offset += resp.drag_delta(); app.view_touched = true; }
     if resp.hovered() {
         let scroll = ctx.input(|i| i.smooth_scroll_delta.y);
@@ -147,6 +162,14 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 app.offset = local - (local - app.offset) * (ns / app.scale);
             }
             app.scale = ns; app.view_touched = true;
+        }
+        // a pinch on a trackpad, or Ctrl and the wheel
+        let pinch = crate::zoomcard::pinch(&ctx);
+        if (pinch - 1.0).abs() > 1e-4 {
+            if let Some(m) = resp.hover_pos() {
+                let (ns, no) = crate::zoomcard::zoom_about(app.scale, app.offset, m - rect.min, pinch, 0.05, 500.0);
+                app.scale = ns; app.offset = no; app.view_touched = true;
+            }
         }
     }
     // the rotate handles belong to one selection; a different selection ends them (Esc is handled with the other keys)
@@ -900,7 +923,18 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         draw_rulers(&painter, rect, &view, app.scale, zero, hover_w, sel_bb, th.accent, ui);
         orect = Rect::from_min_max(rect.min + Vec2::splat(RULER), rect.max);
     }
-    if !app.tools_open && !app.machines_open { overlays(&ctx, app, orect); rotate_popup(&ctx, app, rect); }
+    if !app.tools_open && !app.machines_open {
+        let frac = app.scale / fit_view(app, rect).0.max(1e-6);
+        overlays(&ctx, app, orect, frac);
+        rotate_popup(&ctx, app, rect);
+        // what the zoom card asked for takes effect on the next frame
+        match app.zoom_act.take() {
+            Some(crate::zoomcard::Act::By(f)) => { zoom_centre(app, rect, f); ctx.request_repaint(); }
+            Some(crate::zoomcard::Act::To(t)) => { let f = t / frac.max(1e-6); zoom_centre(app, rect, f); ctx.request_repaint(); }
+            Some(crate::zoomcard::Act::Fit) => { app.fit_pending = true; ctx.request_repaint(); }
+            None => {}
+        }
+    }
 }
 
 /// In rotate mode: a small field above the selection to turn it by a typed angle (counter-clockwise is positive).
@@ -1258,7 +1292,7 @@ fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
 
 // ------------------------------------------------------------------- overlays
 
-fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
+fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac: f32) {
     app.canvas_right = rect.right();
     app.canvas_left = rect.left();
     // tool palette
@@ -1287,8 +1321,6 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
             divider(ui);
             if icon_button(ui, Icon::Undo, false, app.hist.can_undo(crate::app::Scope::Drawing), "Undo drawing change (Edit menu: undo anything)").clicked() { app.do_undo_drawing(); }
             if icon_button(ui, Icon::Redo, false, app.hist.can_redo(crate::app::Scope::Drawing), "Redo drawing change (Edit menu: redo anything)").clicked() { app.do_redo_drawing(); }
-            divider(ui);
-            if icon_button(ui, Icon::Fit, false, true, "Fit the stock and work area in view (F)").clicked() { app.fit_pending = true; }
           });
         });
     });
@@ -1296,6 +1328,11 @@ fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect) {
     app.palette_extra = (pal.response.rect.height() - 46.0).max(0.0);
     // where the tool dialogs open: under the palette and whatever option bar is showing, at the same left edge
     app.bars_bottom = pal.response.rect.bottom();
+    // the zoom card: at the right end of the palette's row when there is room for both, else just below that row
+    let room = pal.response.rect.right() + 12.0 + crate::zoomcard::CARD_W + 10.0 <= rect.right();
+    let card_y = if room { rect.top() + 10.0 } else { pal.response.rect.bottom() + 8.0 };
+    let (zact, _) = crate::zoomcard::show(ctx, "zoomcard2d", egui::Order::Middle, Pos2::new(rect.right() - 10.0, card_y), zoom_frac);
+    if zact.is_some() { app.zoom_act = zact; }
     tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line

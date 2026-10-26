@@ -277,6 +277,9 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         if resp.hovered() {
             let s = ctx.input(|i| i.smooth_scroll_delta.y);
             if s != 0.0 { st.dist = (st.dist * (-s * 0.0015).exp()).clamp(5.0, 20000.0); }
+            // a pinch on a trackpad, or Ctrl and the wheel
+            let z = crate::zoomcard::pinch(&ctx);
+            if (z - 1.0).abs() > 1e-4 { st.anim = None; st.dist = (st.dist / z).clamp(5.0, 20000.0); }
         }
         if resp.double_clicked() { st.framed = false; st.yaw = -1.15; st.pitch = 0.62; frame(st, &app.project.data.stock); }
     }
