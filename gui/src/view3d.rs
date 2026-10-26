@@ -225,9 +225,12 @@ pub fn play_bar(ui: &mut Ui, app: &mut App) {
         }
     });
     let label = format!("{} / {}", fmt_time(app.v3.t), fmt_time(app.v3.total));
-    let lw = crate::panels::tw(ui, "00:00 / 00:00") + 8.0;
+    // room for the longest time this job can show (its total), at most 3 digits of minutes: no spare space either side
+    let digits = ((app.v3.total.max(0.0) as u64).to_string().len()).clamp(1, 3);
+    let wide = "0".repeat(digits);
+    let lw = crate::panels::tw(ui, &format!("{wide}:00 / {wide}:00")) + 2.0;
     // the slider takes everything the time label leaves
-    ui.spacing_mut().slider_width = (ui.available_width() - lw - 2.0 * ui.spacing().item_spacing.x - 16.0).max(40.0);
+    ui.spacing_mut().slider_width = (ui.available_width() - lw - 2.0 * ui.spacing().item_spacing.x - 8.0).max(40.0);
     let total = app.v3.total.max(1e-6);
     let mut t = app.v3.t;
     let r = ui.add_enabled(have, egui::Slider::new(&mut t, 0.0..=total).show_value(false));

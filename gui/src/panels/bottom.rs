@@ -13,12 +13,14 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
         let left_w = ui.available_width() - right_w - gap - 2.0;
         let h = ui.spacing().interact_size.y;
         if left_w >= 300.0 {
+            // the toggles take their own width from the right; playback gets exactly what is left, so nothing is wasted between them
             ui.horizontal(|ui| {
-                ui.allocate_ui_with_layout(egui::vec2(left_w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     crate::view3d::speed_box(ui, app, slot);
                     ui.checkbox(&mut app.show_rapids, "Rapids");
                     ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+                    let w = ui.available_width().max(0.0);
+                    ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
                 });
             });
         } else {
