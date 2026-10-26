@@ -14,9 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
-      # pinned to the version the code is checked with here: a newer clippy adds lints now and then, and a push
-      # should not turn red because of that. Raise it on purpose, fixing what the new version finds.
-      - uses: dtolnay/rust-toolchain@1.97.0
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
