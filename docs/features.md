@@ -47,6 +47,7 @@ The complete list of what the desktop app does. The README has the short version
 - Remembers window size and position, panel layout, view toggles, last folders and recent files (File → Open recent) between sessions.
 - A Notes tab with free-form project notes (saved with the project), plus the generator's warnings.
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay. `--example docproject <font> <font name> <out.json>` builds the project used for the README screenshots, and `--example optimes <project.json>` prints when each operation starts and ends in the job.
+- The toolpath is worked out beside the window, so editing stays smooth on big jobs (the status bar shows "generating…" when it takes a moment); saving and exporting always use the toolpath of the current drawing. 3D relief toolpaths use all the processor's cores.
 - The 3D preview replays the program in short slices, so switching to it never freezes the window; a progress badge shows while it catches up.
 - Stock appearance (light wood, dark wood, metal or foam) in the drawing and the 3D preview.
 - 3D view cube: in the corner of the 3D preview, click a face (Top, Front, Right, Back, Left), an edge (a 45 degree view) or a corner (isometric) and the camera glides there and fits the stock; drag the cube to orbit; Persp./Ortho and Fit sit below it.
