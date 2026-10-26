@@ -3,7 +3,7 @@ use crate::app::App;
 use eframe::egui;
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.offset_open { app.ghost.clear_if("offset"); app.tool_note = None; return; }
+    if !app.offset_open { app.ghost.clear_if("offset"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "offset") { app.tool_note = None; } return; }
     {
         let d = if app.offset_inward { -app.offset_mm } else { app.offset_mm };
         let keep = app.offset_keep;
@@ -37,7 +37,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(4.0);
         ui.checkbox(&mut app.offset_keep, "Keep the original shapes");
-        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref()) { ui.weak(n); }
+        let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "offset").map(|(_, m)| m);
+        if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n > 0, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -54,7 +55,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let d = if app.offset_inward { -app.offset_mm } else { app.offset_mm };
         let keep = app.offset_keep;
         app.ghost.clear();
-        if app.run_tool(|a| a.offset_selection(d, keep)) { app.offset_open = false; }
+        if app.run_tool("offset", |a| a.offset_selection(d, keep)) { app.offset_open = false; }
     }
     if close { app.offset_open = false; }
 }

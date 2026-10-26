@@ -4,7 +4,7 @@ use eframe::egui;
 use putiacnc_core::shapes::BoolOp;
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.combine_open { app.ghost.clear_if("combine"); app.tool_note = None; return; }
+    if !app.combine_open { app.ghost.clear_if("combine"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "combine") { app.tool_note = None; } return; }
     {
         let (op, keep, swap) = (app.combine_op, app.combine_keep, app.combine_swap);
         let code = match op { BoolOp::Union => 0, BoolOp::Subtract => 1, BoolOp::Intersect => 2, BoolOp::Exclude => 3 };
@@ -37,7 +37,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(6.0);
         ui.checkbox(&mut app.combine_keep, "Keep the original shapes");
-        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref()) { ui.weak(n); }
+        let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "combine").map(|(_, m)| m);
+        if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n >= 2, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -53,7 +54,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if apply {
         let (op, keep, swap) = (app.combine_op, app.combine_keep, app.combine_swap);
         app.ghost.clear();
-        if app.run_tool(|a| a.combine_selection(op, keep, swap)) { app.combine_open = false; }
+        if app.run_tool("combine", |a| a.combine_selection(op, keep, swap)) { app.combine_open = false; }
     }
     if close { app.combine_open = false; }
 }

@@ -53,6 +53,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_IMPORT2=file`, `PUTIACNC_TRACE_MODE=centre` | Opens a bitmap in the Import bitmap dialog (centre line instead of outlines with the second). |
 | `PUTIACNC_OP=n` | Operation n (by position) is active with its shapes selected; all the others are folded. |
 | `PUTIACNC_NODE_EDIT=i`, `PUTIACNC_TAB_EDIT`, `PUTIACNC_ROTATE` | Starts point editing, tab placing or rotate mode. |
+| `PUTIACNC_APPLY_NOTHING=array\|combine\|corners` | Opens that tool on a case where Apply changes nothing and presses Apply once, to see where its message goes. |
 | `PUTIACNC_PLACE_TEXT=..`, `PUTIACNC_EDIT_TEXT`, `PUTIACNC_POLYGON=ring\|point`, `PUTIACNC_DYN=..`, `PUTIACNC_IMPORT2=file`, `PUTIACNC_RELIEF`, `PUTIACNC_TOOL_QUERY=..` | Sets up a tool mid-use. |
 | `PUTIACNC_CHECK_SHOW=n`, `PUTIACNC_DEBUG_CHECKS` | Shows check result `n` in the 3D view; prints a summary of the checks. |
 | `PUTIACNC_PRINT_VERSION_INFO` | Prints the "Copy version info" text and carries on. |

@@ -106,13 +106,13 @@ impl App {
 
     /// Runs a tool that changes the selected shapes and shows its message, if any. True when the drawing changed, so the
     /// tool's window can close; when nothing happened it stays open for new values.
-    pub fn run_tool(&mut self, f: impl FnOnce(&mut App) -> Option<String>) -> bool {
+    pub fn run_tool(&mut self, tool: &'static str, f: impl FnOnce(&mut App) -> Option<String>) -> bool {
         let before = self.project.data.loops.clone();
         self.tool_note = None;
         let msg = f(self);
         let changed = self.project.data.loops != before;
         // a result that only matters while the window is open stays in the window; a note about what was done goes to the banner
-        if let Some(m) = msg { if changed { self.error = Some(m); } else { self.tool_note = Some(m); } }
+        if let Some(m) = msg { if changed { self.error = Some(m); } else { self.tool_note = Some((tool, m)); } }
         changed
     }
 

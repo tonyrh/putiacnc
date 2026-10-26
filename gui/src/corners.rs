@@ -54,7 +54,7 @@ impl App {
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.corners.open { app.ghost.clear_if("corners"); app.tool_note = None; return; }
+    if !app.corners.open { app.ghost.clear_if("corners"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "corners") { app.tool_note = None; } return; }
     {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
@@ -86,7 +86,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
             ui.end_row();
         });
-        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref()) { ui.weak(n); }
+        let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "corners").map(|(_, m)| m);
+        if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(has, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -103,7 +104,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
         app.ghost.clear();
-        if app.run_tool(|a| a.corner_selection(kind, size)) { app.corners.open = false; }
+        if app.run_tool("corners", |a| a.corner_selection(kind, size)) { app.corners.open = false; }
     }
     if close { app.corners.open = false; }
 }

@@ -112,7 +112,7 @@ pub struct App {
     /// banner as soon as the problem is fixed.
     pub notes: Vec<(NoteUntil, String)>,
     /// What the last Apply of a selection tool had to say when it changed nothing: shown in the tool's own window, not in the banner.
-    pub tool_note: Option<String>,
+    pub tool_note: Option<(&'static str, String)>,
     pub offset_mm: f64,
     pub offset_inward: bool,
     pub offset_keep: bool,
@@ -327,6 +327,26 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_CLEAN").is_some() { a.clean.open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ALIGN").is_some() { a.align_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
+        // an Apply that changes nothing, to see where its message goes: array | combine | corners
+        if let Ok(which) = std::env::var("PUTIACNC_APPLY_NOTHING") {
+            a.project.data.loops.clear();
+            match which.as_str() {
+                "combine" => {
+                    a.project.data.loops.push(shapes::new_rect([20.0, 20.0], [60.0, 60.0], 0.0, 0));
+                    a.project.data.loops.push(shapes::new_rect([100.0, 20.0], [140.0, 60.0], 0.0, 0));
+                    a.combine_open = true; a.combine_op = shapes::BoolOp::Intersect;
+                }
+                "corners" => { a.project.data.loops.push(shapes::new_circle([60.0, 60.0], 30.0, 0)); a.corners.open = true; }
+                _ => { a.project.data.loops.push(shapes::new_rect([20.0, 20.0], [60.0, 60.0], 0.0, 0)); a.array.open = true; a.array.cols = 1.0; a.array.rows = 1.0; }
+            }
+            a.sel = (0..a.project.data.loops.len()).collect();
+            a.preview_on = false;
+            match which.as_str() {
+                "combine" => { let (op, keep, swap) = (a.combine_op, a.combine_keep, a.combine_swap); a.run_tool("combine", |a| a.combine_selection(op, keep, swap)); }
+                "corners" => { let (kind, size) = (if a.corners.chamfer { putiacnc_core::shapes::CornerKind::Chamfer } else { putiacnc_core::shapes::CornerKind::Fillet }, a.corners.size); a.run_tool("corners", |a| a.corner_selection(kind, size)); }
+                _ => { a.run_tool("array", |a| a.array_selection()); }
+            }
+        }
         if std::env::var_os("PUTIACNC_POLYGON").is_some() {
             a.poly_star = true;
             for l in [shapes::new_polygon([50.0, 75.0], 25.0, std::f64::consts::FRAC_PI_2, 6, None, 0), shapes::new_polygon([130.0, 75.0], 30.0, std::f64::consts::FRAC_PI_2, 5, Some(0.5), 0)].into_iter().flatten() { a.add_loop(l); }

@@ -82,7 +82,7 @@ impl App {
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.array.open { app.ghost.clear_if("array"); app.tool_note = None; return; }
+    if !app.array.open { app.ghost.clear_if("array"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "array") { app.tool_note = None; } return; }
     if !app.array.centre_set {
         let s = &app.project.data.stock;
         (app.array.cx, app.array.cy, app.array.centre_set) = (s.w / 2.0, s.h / 2.0, true);
@@ -129,7 +129,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.add_space(4.0);
             ui.checkbox(&mut a.rotate, "Turn the copies").on_hover_text("Off: the copies keep their orientation and only move round the circle");
         }
-        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref()) { ui.weak(n); }
+        let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "array").map(|(_, m)| m);
+        if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n > 0, egui::Button::new("Apply")).clicked() { apply = true; }
@@ -143,7 +144,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 else { "The gap is measured between the edges of neighbouring copies." });
         });
     });
-    if apply { app.ghost.clear(); if app.run_tool(|a| a.array_selection()) { app.array.open = false; } }
+    if apply { app.ghost.clear(); if app.run_tool("array", |a| a.array_selection()) { app.array.open = false; } }
     if close { app.array.open = false; }
 }
 
@@ -198,13 +199,13 @@ mod tests {
     fn an_apply_that_changes_nothing_talks_in_the_window_not_the_banner() {
         let mut a = app_with_rect();
         a.array.cols = 1.0; a.array.rows = 1.0;
-        let changed = a.run_tool(|a| a.array_selection());
+        let changed = a.run_tool("array", |a| a.array_selection());
         assert!(!changed);
         assert!(a.error.is_none(), "banner: {:?}", a.error);
-        assert!(a.tool_note.as_deref().is_some_and(|m| m.contains("Nothing to copy")));
+        assert!(a.tool_note.as_ref().is_some_and(|(k, m)| *k == "array" && m.contains("Nothing to copy")));
         // a working apply clears the note and changes the drawing
         a.array.cols = 2.0;
-        assert!(a.run_tool(|a| a.array_selection()));
+        assert!(a.run_tool("array", |a| a.array_selection()));
         assert!(a.tool_note.is_none());
     }
 }
