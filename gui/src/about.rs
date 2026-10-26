@@ -49,9 +49,19 @@ fn memory_gib() -> Option<f64> {
     { None }
 }
 
+/// A path with the user's home folder written as "~", so a pasted report does not carry the user name.
+fn hide_home(path: &str, home: Option<&str>) -> String {
+    let Some(h) = home.map(|h| h.trim_end_matches(['/', '\\'])).filter(|h| !h.is_empty()) else { return path.to_string() };
+    match path.strip_prefix(h) {
+        Some(rest) if rest.is_empty() || rest.starts_with(['/', '\\']) => format!("~{rest}"),
+        _ => path.to_string(),
+    }
+}
+
 /// Version, system and config folder as plain text, for bug reports. No user or computer name is included.
 pub fn version_info(ctx: &egui::Context, gl: &str) -> String {
-    let dir = crate::toolmgr::config_dir().map(|d| d.display().to_string()).unwrap_or_else(|| "unknown".into());
+    let home = std::env::var("HOME").ok().or_else(|| std::env::var("USERPROFILE").ok());
+    let dir = crate::toolmgr::config_dir().map(|d| hide_home(&d.display().to_string(), home.as_deref())).unwrap_or_else(|| "unknown".into());
     let var = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
     let mut out = format!("PutiaCNC {} ({} {}, {} build)\n", crate::update::CURRENT, std::env::consts::OS, std::env::consts::ARCH, if cfg!(debug_assertions) { "debug" } else { "release" });
     out += &format!("System: {}\n", os_name());
@@ -133,5 +143,26 @@ mod tests {
         if !host.trim().is_empty() { assert!(!t.contains(host.trim()), "the computer's name must not be in the text"); }
         // without a driver name there is no Graphics line
         assert!(!version_info(&egui::Context::default(), "").contains("Graphics:"));
+    }
+}
+
+#[cfg(test)]
+mod home_tests {
+    use super::hide_home;
+
+    #[test]
+    fn home_becomes_a_tilde() {
+        assert_eq!(hide_home("/home/anna/.config/putiacnc", Some("/home/anna")), "~/.config/putiacnc");
+        assert_eq!(hide_home("/home/anna/.config/putiacnc", Some("/home/anna/")), "~/.config/putiacnc");
+        assert_eq!(hide_home("/home/anna", Some("/home/anna")), "~");
+        assert_eq!(hide_home("C:\\Users\\Anna\\AppData\\putiacnc", Some("C:\\Users\\Anna")), "~\\AppData\\putiacnc");
+    }
+
+    #[test]
+    fn other_paths_are_left_alone() {
+        assert_eq!(hide_home("/home/annabel/x", Some("/home/anna")), "/home/annabel/x");
+        assert_eq!(hide_home("/etc/putiacnc", Some("/home/anna")), "/etc/putiacnc");
+        assert_eq!(hide_home("/etc/putiacnc", None), "/etc/putiacnc");
+        assert_eq!(hide_home("/etc/putiacnc", Some("")), "/etc/putiacnc");
     }
 }
