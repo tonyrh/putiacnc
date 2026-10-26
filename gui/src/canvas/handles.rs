@@ -123,8 +123,6 @@ pub(super) fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     if app.sel.is_empty() || app.mode != Mode::Select { return; }
     let before = app.project.data.clone();
     let sel = app.sel.clone();
-    let text_gid = app.selected_text();
-    let mut text_act = 0u8; // 1 edit, 2 convert to outlines
     let d = &mut app.project.data;
     let Some(b) = shapes::bbox_many(sel.iter().map(|&i| &d.loops[i])) else { return };
     // X and Y are relative to the XY zero, like the rulers and the pointer readout
@@ -154,14 +152,6 @@ pub(super) fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 geom |= field(ui, "H", &mut h, 0.01, 100000.0);
                 ui.weak("mm");
             });
-            if text_gid.is_some() {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 4.0;
-                    ui.label("Text");
-                    if ui.button("Edit text").on_hover_text("Change the words, font, size or place of this text (double-click does the same)").clicked() { text_act = 1; }
-                    if ui.button("To outlines").on_hover_text("Stop treating the letters as text: they become ordinary shapes you can edit point by point").clicked() { text_act = 2; }
-                });
-            }
         });
     });
     app.bars_bottom = app.bars_bottom.max(_bar.response.rect.bottom());
@@ -177,11 +167,6 @@ pub(super) fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             app.hist.open = true;
         }
         app.touch();
-    }
-    match (text_act, text_gid) {
-        (1, Some(g)) => app.edit_text(g),
-        (2, Some(g)) => app.text_to_outlines(g),
-        _ => {}
     }
 }
 

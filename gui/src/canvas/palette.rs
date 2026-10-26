@@ -153,6 +153,7 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point \u{b7} click an edge to add one \u{b7} Del removes" } else if app.tab_edit.is_some() { "Click an outline to add a tab \u{b7} right-click removes one" } else { match app.mode {
+        Mode::Select if app.selected_text().is_some() => "Double-click: edit the text \u{b7} drag to move \u{b7} handles resize",
         Mode::Select => "Click or box-select \u{b7} drag to move \u{b7} handles resize",
         Mode::Node => "Click a shape to edit its points",
         Mode::Line => "Click points \u{b7} Enter ends \u{b7} C closes \u{b7} Esc cancels",
