@@ -117,7 +117,7 @@ pub fn machine_manager(ctx: &egui::Context, app: &mut App) {
     let mut open = true;
     let mut close = false;
     egui::Window::new("Machines").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(true)
-        .default_size([770.0, 520.0]).min_width(770.0).max_width(770.0).min_height(320.0)
+        .default_size([830.0, 580.0]).min_width(830.0).max_width(830.0).min_height(320.0)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Machines", ctx.screen_rect().center()))
         .show(ctx, |ui| {
             if crate::csd::dialog_header(ui, "Machines", true) { close = true; }
@@ -139,7 +139,7 @@ fn body(ui: &mut Ui, app: &mut App) {
     let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(300.0).max(300.0);
     crate::csd::scroll_fill(ui, 100.0, |ui| {
         ui.horizontal_top(|ui| {
-            ui.allocate_ui_with_layout(egui::vec2(200.0, h), Layout::top_down(Align::LEFT), |ui| list(ui, app, h));
+            ui.allocate_ui_with_layout(egui::vec2(260.0, h), Layout::top_down(Align::LEFT), |ui| list(ui, app, h));
             let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
             ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
             let r = ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), 300.0), Layout::top_down(Align::LEFT), |ui| form(ui, app));
@@ -267,7 +267,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         if crate::widgets::num(ui, [fw, 22.0], &mut r, 0.01, 1.0e6, 10.0 / sfac, 3, "").changed() { m.rapid = (r * sfac).max(1.0); changed = true; }
         spacer(ui);
         rlabel(ui, lw, "Time correction ×");
-        changed |= crate::widgets::num(ui, [fw, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "")
+        changed |= crate::widgets::num(ui, [60.0, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "")
             .on_hover_text("Multiplies the estimated time to account for acceleration and corners").changed();
         ui.end_row();
     });
