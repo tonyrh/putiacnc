@@ -498,6 +498,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
         else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot | Drag::Relief { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
+        else if matches!(app.drag, Drag::Move { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Move); }
         else if let Drag::Clamp { idx, .. } = &app.drag { clamp_hot = Some(*idx); ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
         else if matches!(app.drag, Drag::None) && resp.hovered() && hover_w.and_then(|w| clamp_at(app, w, tol)).is_some() {
             clamp_hot = hover_w.and_then(|w| clamp_at(app, w, tol));
@@ -505,11 +506,23 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         }
         else if matches!(app.drag, Drag::None) {
             let sel_bb = shapes::bbox_many(app.sel.iter().filter_map(|&i| app.project.data.loops.get(i))).filter(|_| handles_apply(app));
+            let mut on_handle = false;
             if let (Some(ps), Some(b)) = (ctx.input(|i| i.pointer.latest_pos()), sel_bb) {
                 if app.rotate_mode {
                     let pivot = app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
                     if view.w2s(pivot).distance(ps) <= 10.0 || hit_handle(&view, b, ps).is_some_and(|h| h % 2 == 0) { ctx.set_cursor_icon(egui::CursorIcon::Grab); }
-                } else if let Some(h) = hit_handle(&view, b, ps) { ctx.set_cursor_icon(handle_cursor(h)); }
+                } else if let Some(h) = hit_handle(&view, b, ps) { ctx.set_cursor_icon(handle_cursor(h)); on_handle = true; }
+                if app.rotate_mode && (view.w2s(app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0])).distance(ps) <= 10.0 || hit_handle(&view, b, ps).is_some_and(|h| h % 2 == 0)) { on_handle = true; }
+            }
+            // over a shape that a press would pick up (its outline, or the inside of a selected one): the four-way move cursor
+            if !on_handle && resp.hovered() {
+                if let Some(w) = hover_w {
+                    let loops = &app.project.data.loops;
+                    let edge = loops.iter().enumerate().map(|(i, l)| (i, shapes::dist_to_loop(l, w))).filter(|(_, d)| *d <= tol)
+                        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|(i, _)| i);
+                    let hit = edge.or_else(|| app.sel.iter().copied().find(|&i| shapes::point_in_loop(&loops[i], w)));
+                    if hit.is_some_and(|h| !app.loop_locked(h)) { ctx.set_cursor_icon(egui::CursorIcon::Move); }
+                }
             }
         }
     }
