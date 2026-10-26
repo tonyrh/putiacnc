@@ -295,29 +295,13 @@ impl App {
     pub fn text_siblings(&self, i: usize) -> Vec<usize> { self.unit_of(&[i]) }
 
     /// The shapes of `seed` plus everything that belongs with them (see `text_siblings`).
-    pub fn unit_of(&self, seed: &[usize]) -> Vec<usize> {
-        let d = &self.project.data;
-        let mut set: std::collections::BTreeSet<usize> = seed.iter().copied().collect();
-        loop {
-            let texts: Vec<i64> = set.iter().filter_map(|&i| d.loops.get(i)?.grp).filter(|g| d.groups.iter().any(|x| x.id == *g && x.text.is_some())).collect();
-            let ugs: Vec<i64> = set.iter().filter_map(|&i| d.loops.get(i)?.ug).collect();
-            let before = set.len();
-            for (k, l) in d.loops.iter().enumerate() {
-                if l.grp.is_some_and(|g| texts.contains(&g)) || l.ug.is_some_and(|g| ugs.contains(&g)) { set.insert(k); }
-            }
-            if set.len() == before { break; }
-        }
-        set.into_iter().collect()
-    }
+    pub fn unit_of(&self, seed: &[usize]) -> Vec<usize> { putiacnc_core::selection::unit_of(&self.project.data, seed) }
 
     /// Edit > Group: the selected shapes (a placed text counts as one) become one group.
     pub fn group_selection(&mut self) {
-        let all = self.unit_of(&self.sel.iter().copied().collect::<Vec<_>>());
-        if all.len() < 2 || self.group_is_whole_selection() { return; }
+        if !putiacnc_core::selection::can_group(&self.project.data, &self.sel) { return; }
         self.hist.record(&self.project.data);
-        let id = putiacnc_core::shapes::GroupCopies::new(&self.project.data.loops).fresh();
-        for &i in &all { if let Some(l) = self.project.data.loops.get_mut(i) { l.ug = Some(id); } }
-        self.sel = all.into_iter().collect();
+        if let Some(sel) = putiacnc_core::selection::group(&mut self.project.data, &self.sel) { self.sel = sel; }
         self.touch();
     }
 
@@ -325,19 +309,14 @@ impl App {
     pub fn ungroup_selection(&mut self) {
         if !self.sel_in_group() { return; }
         self.hist.record(&self.project.data);
-        let sel: Vec<usize> = self.sel.iter().copied().collect();
-        for i in sel { if let Some(l) = self.project.data.loops.get_mut(i) { l.ug = None; } }
+        putiacnc_core::selection::ungroup(&mut self.project.data, &self.sel);
         self.touch();
     }
 
     /// The selection is exactly one group already, so grouping it again would change nothing.
-    pub fn group_is_whole_selection(&self) -> bool {
-        let d = &self.project.data;
-        let ugs: std::collections::BTreeSet<Option<i64>> = self.sel.iter().filter_map(|&i| d.loops.get(i)).map(|l| l.ug).collect();
-        ugs.len() == 1 && ugs.iter().next().is_some_and(|g| g.is_some())
-    }
+    pub fn group_is_whole_selection(&self) -> bool { putiacnc_core::selection::is_whole_group(&self.project.data, &self.sel) }
 
-    pub fn sel_in_group(&self) -> bool { self.sel.iter().any(|&i| self.project.data.loops.get(i).is_some_and(|l| l.ug.is_some())) }
+    pub fn sel_in_group(&self) -> bool { putiacnc_core::selection::in_group(&self.project.data, &self.sel) }
 
     pub fn expand_text_selection(&mut self) {
         let all: Vec<usize> = self.sel.iter().flat_map(|&i| self.text_siblings(i)).collect();

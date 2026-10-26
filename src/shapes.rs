@@ -664,6 +664,79 @@ pub fn blank_project() -> ProjectFile {
     }
 }
 
+// ---------------------------------------------------------------- adding operations
+
+/// The Profile, Pocket, V-carve, Drill, Inlay and 3D relief buttons: a new operation (inheriting the settings of the
+/// last one) that takes over the selected shapes. Returns the operations those shapes were in before (one entry per
+/// shape that moved), so the caller can say so.
+pub fn add_operation(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize>, kind: &str) -> Option<Vec<i64>> {
+    if kind == "inlay" { add_inlay(d, sel); return None; }
+    let base = d.ops.last().map(|o| o.p.clone());
+    let mut p = base.unwrap_or_else(|| default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
+    p.kind = match kind {
+        "relief" => "relief".into(),
+        "pocket" => "pocket".into(),
+        "vcarve" => "vcarve".into(),
+        "drill" => "drill".into(),
+        _ => if ["outside", "inside", "online"].contains(&p.kind.as_str()) { p.kind.clone() } else { "outside".into() },
+    };
+    if kind == "relief" {
+        // a ball nose to finish, a flat end mill to rough, and the model's height as the depth
+        if let Some(t) = d.tools.iter().find(|t| t.shape == "ball") { p.tool = t.id.clone(); }
+        p.tool2 = d.tools.iter().filter(|t| t.shape == "flat").min_by(|a, b| (a.dia - 6.0).abs().partial_cmp(&(b.dia - 6.0).abs()).unwrap_or(std::cmp::Ordering::Equal)).map(|t| t.id.clone());
+        p.pass_depth = Some(2.0);
+        p.tabs = false; p.lead = None;
+    }
+    if kind == "vcarve" {
+        if let Some(t) = d.tools.iter().find(|t| ["vbit", "engrave", "taper"].contains(&t.shape.as_str())) { p.tool = t.id.clone(); }
+    }
+    d.oid = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
+    let id = d.oid;
+    d.ops.push(Operation { id, p });
+    let mut from = Vec::new();
+    if kind != "relief" {
+        from = sel.iter().filter_map(|&i| d.loops.get(i)).map(|l| l.op).filter(|&o| o != 0 && o != id).collect();
+        for &i in sel.iter() { if let Some(l) = d.loops.get_mut(i) { l.op = id; } }
+    }
+    d.act = id;
+    Some(from)
+}
+
+/// The Inlay button: a pocket operation for the selected shapes and a plug operation for a mirrored copy
+/// of them, placed to the right of the selection.
+pub fn add_inlay(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize>) {
+    let is_cone = |t: &&Tool| ["vbit", "engrave", "taper"].contains(&t.shape.as_str());
+    let vbit = d.tools.iter().find(|t| is_cone(t) && t.angle == 60.0).or_else(|| d.tools.iter().find(is_cone)).or(d.tools.first()).map(|t| t.id.clone()).unwrap_or_default();
+    let flats: Vec<&Tool> = d.tools.iter().filter(|t| t.shape == "flat").collect();
+    let flat = flats.iter().find(|t| t.dia <= 3.5).or(flats.first()).map(|t| t.id.clone());
+    let mut base = default_op_params(&vbit);
+    base.kind = "inlay".into();
+    base.depth = 3.0;
+    base.tool2 = flat;
+    let mut plug = base.clone();
+    plug.kind = "plug".into();
+    plug.fit = Some(0.05);
+    let first = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
+    d.oid = first + 1;
+    d.ops.push(Operation { id: first, p: base });
+    d.ops.push(Operation { id: first + 1, p: plug });
+    d.act = first;
+    let picked: Vec<usize> = sel.iter().copied().filter(|&i| i < d.loops.len()).collect();
+    for &i in &picked { d.loops[i].op = first; }
+    if let Some(b) = bbox_many(picked.iter().map(|&i| &d.loops[i])) {
+        let (cx, w) = ((b[0] + b[2]) / 2.0, b[2] - b[0]);
+        let copies: Vec<LoopData> = picked.iter().filter(|&&i| d.loops[i].closed()).map(|&i| {
+            let mut l = d.loops[i].clone();
+            mirror_x(&mut l, cx);
+            translate(&mut l, w + 10.0, 0.0);
+            l.op = first + 1;
+            l
+        }).collect();
+        d.loops.extend(copies);
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1120,5 +1193,101 @@ mod group_copy_tests {
         gc.next_batch();
         let mut a2 = a.clone(); gc.apply(&mut a2);
         assert!(a2.ug != a1.ug && a2.ug != Some(3), "the next copy is another group");
+    }
+}
+
+#[cfg(test)]
+mod add_operation_tests {
+    use super::*;
+
+    fn two_shapes() -> ProjectFile {
+        let mut f = blank_project();
+        f.data.loops.clear();
+        f.data.loops.push(new_poly(&[[10.0, 10.0], [30.0, 10.0], [30.0, 20.0], [15.0, 30.0]], true, 0).unwrap());
+        f.data.loops.push(new_circle([50.0, 20.0], 5.0, 0));
+        f
+    }
+
+    #[test]
+    fn a_new_operation_takes_over_the_selected_shapes() {
+        let mut f = two_shapes();
+        let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
+        let from = add_operation(&mut f.data, &sel, "pocket").unwrap();
+        assert!(from.is_empty()); // the shape had no operation before
+        let op = f.data.ops.last().unwrap();
+        assert_eq!(op.p.kind, "pocket");
+        assert_eq!(f.data.loops[0].op, op.id);
+        assert_eq!(f.data.loops[1].op, 0); // the other shape is untouched
+        assert_eq!(f.data.act, op.id);
+    }
+
+    #[test]
+    fn shapes_that_leave_an_operation_are_reported() {
+        let mut f = two_shapes();
+        let all: std::collections::BTreeSet<usize> = [0, 1].into_iter().collect();
+        add_operation(&mut f.data, &all, "outside");
+        let first = f.data.ops[0].id;
+        let from = add_operation(&mut f.data, &all, "pocket").unwrap();
+        assert_eq!(from, vec![first, first]);
+        let second = f.data.ops[1].id;
+        assert_ne!(first, second);
+        assert!(f.data.loops.iter().all(|l| l.op == second));
+    }
+
+    #[test]
+    fn operation_ids_never_repeat() {
+        let mut f = two_shapes();
+        let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
+        for _ in 0..3 { add_operation(&mut f.data, &sel, "outside"); }
+        let mut ids: Vec<i64> = f.data.ops.iter().map(|o| o.id).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), f.data.ops.len());
+    }
+
+    #[test]
+    fn a_relief_operation_leaves_the_shapes_alone_and_picks_a_ball_nose() {
+        let mut f = two_shapes();
+        let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
+        let from = add_operation(&mut f.data, &sel, "relief").unwrap();
+        assert!(from.is_empty());
+        assert_eq!(f.data.loops[0].op, 0);
+        let op = f.data.ops.last().unwrap();
+        assert_eq!(op.p.kind, "relief");
+        assert!(f.data.tools.iter().find(|t| t.id == op.p.tool).is_some_and(|t| t.shape == "ball") || !f.data.tools.iter().any(|t| t.shape == "ball"));
+        assert_eq!(op.p.pass_depth, Some(2.0));
+    }
+
+    #[test]
+    fn a_vcarve_operation_picks_a_cone_tool() {
+        let mut f = two_shapes();
+        let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
+        add_operation(&mut f.data, &sel, "vcarve");
+        let op = f.data.ops.last().unwrap();
+        assert!(f.data.tools.iter().find(|t| t.id == op.p.tool).is_some_and(|t| ["vbit", "engrave", "taper"].contains(&t.shape.as_str())));
+    }
+
+    #[test]
+    fn the_inlay_button_makes_a_pocket_and_a_mirrored_plug_beside_it() {
+        let mut f = two_shapes();
+        let d = &mut f.data;
+        let sel: std::collections::BTreeSet<usize> = [0, 1].into_iter().collect();
+        assert!(add_operation(d, &sel, "inlay").is_none());
+        assert_eq!(d.ops.len(), 2);
+        assert_eq!((d.ops[0].p.kind.as_str(), d.ops[1].p.kind.as_str()), ("inlay", "plug"));
+        assert_eq!(d.ops[0].p.depth, 3.0);
+        assert_eq!(d.ops[1].p.fit, Some(0.05));
+        let vb = d.tools.iter().find(|t| t.id == d.ops[0].p.tool).unwrap();
+        assert!(vb.shape == "vbit" && vb.angle == 60.0);
+        let fl = d.tools.iter().find(|t| Some(&t.id) == d.ops[0].p.tool2.as_ref()).unwrap();
+        assert!(fl.shape == "flat" && fl.dia <= 3.5);
+        assert_eq!(d.ops[1].p.tool2, d.ops[0].p.tool2);
+        assert_eq!(d.loops.len(), 4);
+        assert!(d.loops[0].op == d.ops[0].id && d.loops[1].op == d.ops[0].id);
+        assert!(d.loops[2].op == d.ops[1].id && d.loops[3].op == d.ops[1].id);
+        let b = bbox_many(d.loops[2..].iter()).unwrap();
+        assert!((b[0] - 65.0).abs() < 0.01 && (b[2] - 110.0).abs() < 0.01, "{b:?}");
+        let p = d.loops[2].path();
+        assert!(p.iter().any(|q| q[1] == 30_000 && (q[0] as f64 / 1000.0 - 105.0).abs() < 0.01), "{p:?}");
     }
 }
