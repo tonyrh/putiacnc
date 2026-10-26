@@ -30,9 +30,10 @@ impl M {
 
 struct Ent { kind: String, g: Vec<(i32, String)> }
 impl Ent {
-    fn f(&self, code: i32) -> Option<f64> { self.g.iter().find(|(c, _)| *c == code).and_then(|(_, v)| v.parse().ok()) }
+    // numbers that are not finite or absurdly large (a damaged file) are treated as missing
+    fn f(&self, code: i32) -> Option<f64> { self.g.iter().find(|(c, _)| *c == code).and_then(|(_, v)| v.parse::<f64>().ok()).filter(|v| v.abs() < 1e9) }
     fn s(&self, code: i32) -> Option<&str> { self.g.iter().find(|(c, _)| *c == code).map(|(_, v)| v.as_str()) }
-    fn all(&self, code: i32) -> Vec<f64> { self.g.iter().filter(|(c, _)| *c == code).filter_map(|(_, v)| v.parse().ok()).collect() }
+    fn all(&self, code: i32) -> Vec<f64> { self.g.iter().filter(|(c, _)| *c == code).filter_map(|(_, v)| v.parse::<f64>().ok()).filter(|v| v.abs() < 1e9).collect() }
     fn flag(&self) -> i32 { self.f(70).unwrap_or(0.0) as i32 }
 }
 
@@ -190,8 +191,9 @@ fn entities(ents: &[Ent], doc: &Doc, m: &M, depth: usize, out: &mut Vec<Item>, s
             }
             "ARC" => {
                 if let (Some(c), Some(r), Some(a0), Some(a1)) = (pt("10", "20"), e.f(40), e.f(50), e.f(51)) {
-                    let (a0, mut a1) = (a0.to_radians(), a1.to_radians());
-                    while a1 <= a0 { a1 += TAU; }
+                    // angles taken round to one turn first: adding turns to a huge angle would never get past it
+                    let (a0, mut a1) = (a0.to_radians().rem_euclid(TAU), a1.to_radians().rem_euclid(TAU));
+                    if a1 <= a0 { a1 += TAU; }
                     let mut v = Vec::new();
                     arc_pts(c, r, a0, a1, &mut v);
                     out.push(Item::Path(Path { pts: v.into_iter().map(|p| mm.ap(p)).collect(), closed: false }));
@@ -199,8 +201,10 @@ fn entities(ents: &[Ent], doc: &Doc, m: &M, depth: usize, out: &mut Vec<Item>, s
             }
             "ELLIPSE" => {
                 if let (Some(c), Some(ax), Some(ratio)) = (pt("10", "20"), pt("11", "21"), e.f(40)) {
-                    let (t0, mut t1) = (e.f(41).unwrap_or(0.0), e.f(42).unwrap_or(TAU));
-                    while t1 <= t0 { t1 += TAU; }
+                    let (t0, t1) = (e.f(41).unwrap_or(0.0), e.f(42).unwrap_or(TAU));
+                    // a whole turn stays a whole turn; otherwise both ends are taken round to one turn
+                    let (t0, mut t1) = if (t1 - t0 - TAU).abs() < 1e-9 { (t0.rem_euclid(TAU), t0.rem_euclid(TAU) + TAU) } else { (t0.rem_euclid(TAU), t1.rem_euclid(TAU)) };
+                    if t1 <= t0 { t1 += TAU; }
                     let full = (t1 - t0 - TAU).abs() < 1e-6;
                     let a = (ax[0] * ax[0] + ax[1] * ax[1]).sqrt();
                     let n = (((a * (t1 - t0)) / (TOL * 10.0)) as usize).clamp(24, 4000);
@@ -219,7 +223,7 @@ fn entities(ents: &[Ent], doc: &Doc, m: &M, depth: usize, out: &mut Vec<Item>, s
                 let mut v: Vec<(P, f64)> = Vec::new();
                 let mut x = None;
                 for (c, val) in &e.g {
-                    let Ok(f) = val.parse::<f64>() else { continue };
+                    let Some(f) = val.parse::<f64>().ok().filter(|v| v.abs() < 1e9) else { continue };
                     match c { 10 => x = Some(f), 20 => if let Some(px) = x.take() { v.push(([px, f], 0.0)); }, 42 => if let Some(l) = v.last_mut() { l.1 = f; }, _ => {} }
                 }
                 let closed = e.flag() & 1 != 0;
@@ -384,6 +388,20 @@ mod tests {
         assert_eq!(r.loops.len(), 1);
         assert!(r.loops[0].closed());
         assert!((r.width_mm - 30.0).abs() < 0.05 && (r.height_mm - 10.0).abs() < 0.05, "{} x {}", r.width_mm, r.height_mm);
+    }
+
+    #[test]
+    fn damaged_numbers_do_not_hang_the_import() {
+        // an arc angle of 1e309 (infinite) or 1e300 used to loop for ever while adding turns; an ellipse the same
+        for bad in ["1e309", "1e300", "nan", "-1e309"] {
+            let body = format!("{}0\nARC\n10\n0\n20\n0\n40\n5\n50\n{bad}\n51\n90\n0\nELLIPSE\n10\n0\n20\n0\n11\n5\n21\n0\n40\n0.5\n41\n{bad}\n42\n1\n", line([0.0, 0.0], [20.0, 0.0]));
+            let t0 = std::time::Instant::now();
+            let _ = import(&dxf(4, &body));
+            assert!(t0.elapsed().as_secs_f64() < 1.0, "{bad}");
+        }
+        // a huge sweep start keeps the arc: 450 degrees is a quarter turn round from 90
+        let r = import(&dxf(4, "0\nARC\n10\n0\n20\n0\n40\n5\n50\n450\n51\n180\n")).unwrap();
+        assert!((r.width_mm - 5.0).abs() < 0.05 && (r.height_mm - 5.0).abs() < 0.05, "{} x {}", r.width_mm, r.height_mm);
     }
 
     #[test]

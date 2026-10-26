@@ -112,8 +112,61 @@ impl Sim {
     }
 
     /// Cuts the part of a move between fractions `f0` and `f1` of its length.
+    /// Cuts a level stretch from `a` to `b` at height `z` in one sweep: every cell takes the cutter's height at its distance from the
+    /// stretch. The same as stamping the cutter all along it, because the cutter (and its wall ramp) never gets lower further out.
+    fn stamp_level(&mut self, slot: usize, a: [f64; 2], b: [f64; 2], z: f64) {
+        let Some((r, tab)) = self.tools.get(slot) else { return };
+        let r0 = *tab.last().unwrap_or(&0.0) as f64;
+        let wall = self.cell * 1.5;
+        let (r, ext) = (*r, *r + wall);
+        if r <= 0.0 { return; }
+        let bottom = -self.t as f32;
+        let (x0, x1, y0, y1) = (a[0].min(b[0]) - ext, a[0].max(b[0]) + ext, a[1].min(b[1]) - ext, a[1].max(b[1]) + ext);
+        let (ix0, ix1) = (((x0 / self.cell).floor().max(0.0)) as usize, ((x1 / self.cell).ceil().max(0.0) as usize).min(self.nx - 1));
+        let (iy0, iy1) = (((y0 / self.cell).floor().max(0.0)) as usize, ((y1 / self.cell).ceil().max(0.0) as usize).min(self.ny - 1));
+        let (ux, uy) = (b[0] - a[0], b[1] - a[1]);
+        let l2 = ux * ux + uy * uy;
+        let step = self.cell / 2.0;
+        for iy in iy0..=iy1 {
+            let py = iy as f64 * self.cell;
+            for ix in ix0..=ix1 {
+                let px = ix as f64 * self.cell;
+                let t = if l2 > 0.0 { (((px - a[0]) * ux + (py - a[1]) * uy) / l2).clamp(0.0, 1.0) } else { 0.0 };
+                let rho = (px - a[0] - ux * t).hypot(py - a[1] - uy * t);
+                if rho > ext { continue; }
+                let v = if rho <= r {
+                    let k = ((rho / step).round() as usize).min(tab.len() - 1);
+                    (z + tab[k] as f64) as f32
+                } else {
+                    let b = z + r0;
+                    if b >= 0.0 { continue; }
+                    (b * (1.0 - (rho - r) / wall)) as f32
+                };
+                let c = &mut self.z[iy * self.nx + ix];
+                if v < *c { *c = v.max(bottom); }
+            }
+        }
+    }
+
     fn stamp_move(&mut self, m: &Move, f0: f64, f1: f64) {
         if !m.cut || f1 <= f0 || self.skip.get(m.op).copied().unwrap_or(false) { return; }
+        let slot = m.op * 2 + m.alt as usize;
+        // when the cutter never gets lower further out (almost every tool), the move is swept in level pieces: one piece for a level move,
+        // pieces at most 0.01 mm apart in height for a ramp (each cut at its lower end, so a ramp is never left too high), and one piece at
+        // the bottom for a plunge. Much faster than stamping the cutter every 0.7 cell, above all for big cutters.
+        if self.tools.get(slot).is_some_and(|(_, tab)| tab.windows(2).all(|w| w[1] >= w[0])) {
+            let at = |f: f64| [m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, m.from[2] + (m.to[2] - m.from[2]) * f];
+            let horiz = (m.to[0] - m.from[0]).hypot(m.to[1] - m.from[1]) * (f1 - f0);
+            let dz = (m.to[2] - m.from[2]).abs() * (f1 - f0);
+            let n = ((dz / 0.01).ceil().min((horiz / (self.cell * 0.7)).ceil()) as usize).max(1);
+            for i in 0..n {
+                let (a, b) = (at(f0 + (f1 - f0) * i as f64 / n as f64), at(f0 + (f1 - f0) * (i + 1) as f64 / n as f64));
+                let z = a[2].min(b[2]);
+                if z > 0.0 { continue; }
+                self.stamp_level(slot, [a[0], a[1]], [b[0], b[1]], z);
+            }
+            return;
+        }
         let d = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt() * (f1 - f0);
         let n = ((d / (self.cell * 0.7)).ceil() as usize).max(1);
         for i in 0..=n {
