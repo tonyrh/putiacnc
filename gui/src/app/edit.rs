@@ -100,8 +100,34 @@ impl App {
         shapes::tabs_after_delete(&mut self.project.data.ops, &removed);
         self.sel.clear();
         // the tools that work on the selection have nothing left to work on
-        self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false;
+        self.close_tool_windows();
         self.touch();
+    }
+
+    /// Closes the windows of the tools that work on the selection.
+    pub fn close_tool_windows(&mut self) {
+        self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false;
+    }
+
+    /// The Text window with whatever it was doing: a text being edited goes back as it was.
+    pub fn close_text_window(&mut self) {
+        if !self.text.open && self.text.edit.is_none() { return; }
+        self.text.open = false; self.text.edit = None; self.text.angle = 0.0; self.text.rest = [1.0, 0.0, 0.0, 1.0];
+    }
+
+    /// Opens the window of a selection tool. Only one tool is active at a time, so every other tool window closes, the Text tool too.
+    pub fn open_tool_window(&mut self, w: ToolWin) {
+        self.close_tool_windows();
+        if self.mode == Mode::Text { self.mode = Mode::Select; }
+        self.close_text_window();
+        match w {
+            ToolWin::Align => self.align_open = true,
+            ToolWin::Offset => self.offset_open = true,
+            ToolWin::Array => self.array.open = true,
+            ToolWin::Corners => self.corners.open = true,
+            ToolWin::Combine => self.combine_open = true,
+            ToolWin::Clean => { self.clean.open = true; self.clean.msg.clear(); }
+        }
     }
 
     /// Runs a tool that changes the selected shapes and shows its message, if any. True when the drawing changed, so the

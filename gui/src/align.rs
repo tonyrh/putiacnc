@@ -71,7 +71,7 @@ pub fn button(ui: &mut egui::Ui, app: &mut App) {
     let tip = if locked { "Align: this drawing is locked" } else { "Align the selection to the stock or to each other, or distribute shapes evenly" };
     let r = icon_button(ui, Icon::AlignMenu, app.align_open, !app.sel.is_empty() && !locked, tip);
     app.align_btn = Some(r.rect);
-    if r.clicked() { app.align_open = !app.align_open; }
+    if r.clicked() { if app.align_open { app.align_open = false; } else { app.open_tool_window(crate::app::ToolWin::Align); } }
 }
 
 /// The panel under the button. It stays open so several alignments can follow each other.

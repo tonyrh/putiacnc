@@ -5,6 +5,10 @@ use super::*;
 
 /// Switches tool. Leaves point editing; the node tool starts on the selected shape when there is exactly one.
 pub(super) fn set_mode(app: &mut App, m: Mode) {
+    // one tool at a time: another tool closes the windows of the selection tools, and leaving Text closes its window.
+    // Select is how the shapes for those tools are picked, so it leaves them open.
+    if m != Mode::Select { app.close_tool_windows(); }
+    if m != Mode::Text { app.close_text_window(); }
     app.mode = m;
     app.poly.clear();
     app.tab_edit = None;
@@ -206,4 +210,52 @@ pub(super) fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
         } else { app.node_msg = "Nothing to simplify at this tolerance.".into(); }
     }
     if done { app.node_edit = None; app.mode = Mode::Select; }
+}
+
+#[cfg(test)]
+mod tool_window_tests {
+    use super::*;
+    use crate::app::ToolWin;
+
+    fn open_count(a: &App) -> usize {
+        [a.align_open, a.combine_open, a.array.open, a.offset_open, a.corners.open, a.clean.open].iter().filter(|o| **o).count()
+    }
+
+    #[test]
+    fn opening_a_tool_window_closes_the_others() {
+        let mut a = App::new(None);
+        a.open_tool_window(ToolWin::Combine);
+        a.open_tool_window(ToolWin::Array);
+        assert!(a.array.open && !a.combine_open && open_count(&a) == 1);
+        a.open_tool_window(ToolWin::Clean);
+        assert!(a.clean.open && open_count(&a) == 1);
+    }
+
+    #[test]
+    fn a_drawing_tool_closes_the_selection_tool_windows_but_select_does_not() {
+        let mut a = App::new(None);
+        a.open_tool_window(ToolWin::Offset);
+        set_mode(&mut a, Mode::Select);
+        assert!(a.offset_open, "Select is how the shapes are picked");
+        set_mode(&mut a, Mode::Rect);
+        assert_eq!(open_count(&a), 0);
+        assert_eq!(a.mode, Mode::Rect);
+    }
+
+    #[test]
+    fn text_and_the_selection_tools_exclude_each_other() {
+        let mut a = App::new(None);
+        set_mode(&mut a, Mode::Text);
+        assert!(a.text.open && a.mode == Mode::Text);
+        a.open_tool_window(ToolWin::Combine);
+        assert!(!a.text.open && a.mode == Mode::Select && a.combine_open);
+        set_mode(&mut a, Mode::Text);
+        assert!(a.text.open && !a.combine_open);
+        set_mode(&mut a, Mode::Line);
+        assert!(!a.text.open);
+        // leaving Text for Select closes the Text window as well
+        set_mode(&mut a, Mode::Text);
+        set_mode(&mut a, Mode::Select);
+        assert!(!a.text.open);
+    }
 }

@@ -66,6 +66,10 @@ pub enum DlgKind { Open, SaveAs, Import, Model, Bitmap, ExportGcode, LibExport, 
 
 pub struct Dlg { pub kind: DlgKind, rx: std::sync::mpsc::Receiver<Option<std::path::PathBuf>> }
 
+/// The windows of the tools that work on the selection. Only one tool is active at a time: starting another closes the first.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum ToolWin { Align, Offset, Array, Corners, Combine, Clean }
+
 /// What has to happen to the shapes of a group (by id) for a banner sentence about it to be dropped.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum NoteUntil {

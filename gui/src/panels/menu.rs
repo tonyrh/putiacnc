@@ -1,5 +1,6 @@
 //! The menu bar.
 use super::*;
+use crate::app::ToolWin;
 
 pub fn menu_bar(ui: &mut Ui, app: &mut App) {
     fn item(ui: &mut Ui, label: &str, shortcut: &str, enabled: bool) -> bool {
@@ -64,11 +65,11 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Group", "Ctrl+G", can_group) { app.group_selection(); }
             if item(ui, "Ungroup", "Ctrl+Shift+G", app.sel_in_group()) { app.ungroup_selection(); }
             ui.separator();
-            if item(ui, "Offset…", "", !app.sel.is_empty()) { app.offset_open = true; }
-            if item(ui, "Array and copy…", "", !app.sel.is_empty()) { app.array.open = true; }
-            if item(ui, "Fillet and chamfer…", "", app.selection_has_corners()) { app.corners.open = true; }
-            if item(ui, "Combine shapes…", "", app.sel.len() >= 2) { app.combine_open = true; }
-            if item(ui, "Clean up drawing…", "", !app.project.data.loops.is_empty()) { app.clean.open = true; app.clean.msg.clear(); }
+            if item(ui, "Offset…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Offset); }
+            if item(ui, "Array and copy…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Array); }
+            if item(ui, "Fillet and chamfer…", "", app.selection_has_corners()) { app.open_tool_window(ToolWin::Corners); }
+            if item(ui, "Combine shapes…", "", app.sel.len() >= 2) { app.open_tool_window(ToolWin::Combine); }
+            if item(ui, "Clean up drawing…", "", !app.project.data.loops.is_empty()) { app.open_tool_window(ToolWin::Clean); }
         });
         ui.menu_button("View", |ui| {
             ui.style_mut().wrap = Some(false);
