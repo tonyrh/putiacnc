@@ -27,13 +27,13 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             (BoolOp::Exclude, "Exclude", "Keep the parts that belong to only one shape (overlaps are removed)"),
         ] {
             if ui.radio(app.combine_op == op, name).on_hover_text(tip).clicked() { app.combine_op = op; }
-        }
-        if app.combine_op == BoolOp::Subtract {
-            ui.add_space(2.0);
-            ui.indent("combine_sub", |ui| {
-                ui.checkbox(&mut app.combine_swap, "Use the shape drawn last as the base")
-                    .on_hover_text("By default the shape drawn first is the one that gets cut by the others");
-            });
+            // the choice of base belongs to Subtract, so it sits right under it (greyed out while another operation is chosen)
+            if op == BoolOp::Subtract {
+                ui.indent("combine_sub", |ui| {
+                    ui.add_enabled(app.combine_op == BoolOp::Subtract, egui::Checkbox::new(&mut app.combine_swap, "Use the shape drawn last as the base"))
+                        .on_hover_text("By default the shape drawn first is the one that gets cut by the others");
+                });
+            }
         }
         ui.add_space(6.0);
         ui.checkbox(&mut app.combine_keep, "Keep the original shapes");
