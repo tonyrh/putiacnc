@@ -21,6 +21,8 @@ pub struct TraceTool {
     pub dirty: bool,
     /// The trace running on a worker thread (one at a time); its answer arrives here.
     pub rx: Option<mpsc::Receiver<Traced>>,
+    /// When the running trace started: the busy sign over the preview only shows once the wait is long enough to notice.
+    pub started: Option<std::time::Instant>,
     pub err: Option<String>,
     /// The settings to remember for next time (see `Settings::trace`).
     pub remember: Option<Opts>,
@@ -39,7 +41,7 @@ impl TraceTool {
                 self.bm = Some(Arc::new(bm));
                 self.tex = None;
                 self.result = None;
-                self.rx = None; // an answer still on its way for the previous picture is dropped
+                self.rx = None; self.started = None; // an answer still on its way for the previous picture is dropped
                 self.dirty = true;
                 self.err = None;
                 self.open = true;
@@ -56,8 +58,8 @@ impl TraceTool {
     fn pump(&mut self, ctx: &egui::Context) {
         if let Some(rx) = &self.rx {
             match rx.try_recv() {
-                Ok(r) => { self.result = Some(r); self.rx = None; }
-                Err(mpsc::TryRecvError::Disconnected) => { self.rx = None; }
+                Ok(r) => { self.result = Some(r); self.rx = None; self.started = None; }
+                Err(mpsc::TryRecvError::Disconnected) => { self.rx = None; self.started = None; }
                 Err(mpsc::TryRecvError::Empty) => {}
             }
         }
@@ -66,6 +68,7 @@ impl TraceTool {
                 let (tx, rx) = mpsc::channel();
                 let (opts, ctx2) = (self.opts.clone(), ctx.clone());
                 self.rx = Some(rx);
+                self.started = Some(std::time::Instant::now());
                 self.dirty = false;
                 std::thread::spawn(move || { let _ = tx.send(bm.trace(&opts)); ctx2.request_repaint(); });
             }
@@ -126,6 +129,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 painter.add(egui::Shape::line(pts, st));
             }
         }
+        // a trace that takes a moment: the preview is dimmed and says so (quick ones show nothing)
+        if t.working() && t.started.is_some_and(|s| s.elapsed().as_secs_f32() > 0.3) {
+            let dark = ui.visuals().dark_mode;
+            painter.rect_filled(rect, 4.0, Color32::from_black_alpha(if dark { 125 } else { 70 }));
+            let pill = Rect::from_center_size(rect.center(), Vec2::new(170.0, 44.0));
+            painter.rect(pill, 12.0, ui.visuals().window_fill().gamma_multiply(0.95), ui.visuals().widgets.noninteractive.bg_stroke);
+            egui::Spinner::new().size(18.0).paint_at(ui, Rect::from_center_size(Pos2::new(pill.left() + 32.0, pill.center().y), Vec2::splat(18.0)));
+            painter.text(Pos2::new(pill.left() + 55.0, pill.center().y), egui::Align2::LEFT_CENTER, "Tracing\u{2026}", egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
+        }
         ui.add_space(8.0);
         let mut changed = false;
         // the label columns are as wide in both grids, so the labels line up
@@ -167,6 +179,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             changed |= ui.checkbox(&mut t.opts.invert, "Invert").on_hover_text("Trace the light areas instead of the dark ones").changed();
             ui.add_space(8.0);
             changed |= ui.checkbox(&mut t.opts.smooth, "Smooth curves").on_hover_text("Off keeps straight segments that follow the pixels").changed();
+            // the sign that a trace is running, at the right end of the row
+            if t.working() {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.weak("Tracing\u{2026}"); ui.add(egui::Spinner::new().size(14.0)); });
+            }
         });
         if changed {
             t.dirty = true;
@@ -177,7 +193,6 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         match &t.result {
             Some(Ok(i)) if !i.warnings.is_empty() => { ui.colored_label(Color32::from_rgb(0xe0, 0x8a, 0x2a), i.warnings.join(" ")); }
             Some(Err(e)) => { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
-            _ if t.working() => { ui.horizontal(|ui| { ui.add(egui::Spinner::new().size(14.0)); ui.weak("Tracing..."); }); }
             _ => { ui.weak(if t.opts.mode == Mode::Outline { format!("{count} outlines (holes included).") } else { format!("{count} lines.") }); }
         }
         ui.add_space(8.0);
