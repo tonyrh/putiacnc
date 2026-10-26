@@ -99,6 +99,8 @@ impl App {
         let removed: Vec<usize> = self.sel.iter().copied().collect();
         shapes::tabs_after_delete(&mut self.project.data.ops, &removed);
         self.sel.clear();
+        // the tools that work on the selection have nothing left to work on
+        self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false;
         self.touch();
     }
 
