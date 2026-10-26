@@ -213,34 +213,34 @@ fn glyph_button(ui: &mut Ui, kind: u8, tip: &str) -> egui::Response {
     resp
 }
 
+/// Restart, play, the progress slider and the time. It fills the width it is given; the speed box and the
+/// view toggles sit to its right, in the bottom bar (`panels::tool_bar`).
 pub fn play_bar(ui: &mut Ui, app: &mut App) {
     let have = app.v3.total > 0.0;
-    ui.horizontal(|ui| {
-        ui.add_enabled_ui(have, |ui| {
-            if glyph_button(ui, 2, "Restart from the beginning").clicked() { app.v3.t = 0.0; app.v3.playing = true; }
-            let playing = app.v3.playing;
-            if glyph_button(ui, if playing { 1 } else { 0 }, if playing { "Pause" } else { "Play" }).clicked() {
-                if playing { app.v3.playing = false; } else { if app.v3.t >= app.v3.total - 1e-9 { app.v3.t = 0.0; } app.v3.playing = true; }
-            }
-        });
-        let label = format!("{} / {}", fmt_time(app.v3.t), fmt_time(app.v3.total));
-        let lw = crate::panels::tw(ui, "00:00 / 00:00") + 8.0;
-        // the speed box is as wide as its longest choice, so the slider next to it does not move when the speed changes
-        let speed_cw = crate::widgets::combo_fit(ui, &SPEEDS.iter().map(|(_, n)| *n).collect::<Vec<_>>());
-        let avail = ui.available_width();
-        // the speed box is its set width plus the arrow and padding; the slider takes everything else
-        let combo_total = speed_cw + 4.0;
-        ui.spacing_mut().slider_width = (avail - lw - combo_total - 1.0 * ui.spacing().item_spacing.x - 2.0).max(60.0);
-        let total = app.v3.total.max(1e-6);
-        let mut t = app.v3.t;
-        let r = ui.add_enabled(have, egui::Slider::new(&mut t, 0.0..=total).show_value(false));
-        if r.changed() { app.v3.t = t; app.v3.playing = false; }
-        ui.allocate_ui_with_layout(Vec2::new(lw, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.label(label); });
-        ui.add_enabled_ui(have, |ui| {
-            egui::ComboBox::from_id_source("speed").width(speed_cw).selected_text(SPEEDS[app.v3.speed_idx].1).show_ui(ui, |ui| {
-                for (i, (_, n)) in SPEEDS.iter().enumerate() { ui.selectable_value(&mut app.v3.speed_idx, i, *n); }
-            }).response.on_hover_text("Playback speed relative to the machine's real time");
-        });
+    ui.add_enabled_ui(have, |ui| {
+        if glyph_button(ui, 2, "Restart from the beginning").clicked() { app.v3.t = 0.0; app.v3.playing = true; }
+        let playing = app.v3.playing;
+        if glyph_button(ui, if playing { 1 } else { 0 }, if playing { "Pause" } else { "Play" }).clicked() {
+            if playing { app.v3.playing = false; } else { if app.v3.t >= app.v3.total - 1e-9 { app.v3.t = 0.0; } app.v3.playing = true; }
+        }
+    });
+    let label = format!("{} / {}", fmt_time(app.v3.t), fmt_time(app.v3.total));
+    let lw = crate::panels::tw(ui, "00:00 / 00:00") + 8.0;
+    // the slider takes everything the time label leaves
+    ui.spacing_mut().slider_width = (ui.available_width() - lw - 2.0 * ui.spacing().item_spacing.x - 16.0).max(40.0);
+    let total = app.v3.total.max(1e-6);
+    let mut t = app.v3.t;
+    let r = ui.add_enabled(have, egui::Slider::new(&mut t, 0.0..=total).show_value(false));
+    if r.changed() { app.v3.t = t; app.v3.playing = false; }
+    ui.allocate_ui_with_layout(Vec2::new(lw, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.label(label); });
+}
+
+/// The playback speed box, `width` wide (the width of the Guides button in the 2D bar, so the toggles next to it stay put).
+pub fn speed_box(ui: &mut Ui, app: &mut App, width: f32) {
+    ui.add_enabled_ui(app.v3.total > 0.0, |ui| {
+        egui::ComboBox::from_id_source("speed").width(width).selected_text(SPEEDS[app.v3.speed_idx].1).show_ui(ui, |ui| {
+            for (i, (_, n)) in SPEEDS.iter().enumerate() { ui.selectable_value(&mut app.v3.speed_idx, i, *n); }
+        }).response.on_hover_text("Playback speed relative to the machine's real time");
     });
 }
 

@@ -126,9 +126,6 @@ impl eframe::App for App {
         }
         egui::TopBottomPanel::bottom("toolbar").frame(bar_frame(ctx, self.theme.header())).show(ctx, |ui| panels::tool_bar(ui, self));
         let preview = self.view_tab == view3d::ViewTab::Preview;
-        if preview {
-            egui::TopBottomPanel::bottom("playbar").frame(bar_frame(ctx, self.theme.header())).show(ctx, |ui| view3d::play_bar(ui, self));
-        }
         egui::TopBottomPanel::top("viewtabs").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin { left: 8.0, right: 8.0, top: 8.0, bottom: 4.0 })).show(ctx, |ui| view3d::tab_strip(ui, self));
         if self.error.is_some() {
             egui::TopBottomPanel::top("msgbar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(10.0, 6.0))).show(ctx, |ui| panels::message_bar(ui, self));

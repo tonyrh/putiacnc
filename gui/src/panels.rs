@@ -170,15 +170,37 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
 /// Fixed toolbar under the menu: undo/redo and view options.
 pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     if app.view_tab == crate::view3d::ViewTab::Preview {
-        ui.horizontal(|ui| {
-            // same right-hand spots as in the 2D toolbar; the hint takes the left
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let sz = guides_size(ui);
-                ui.allocate_exact_size(sz, egui::Sense::hover()); // keeps the spacing identical to the 2D toolbar
-                ui.checkbox(&mut app.show_rapids, "Rapids");
-                ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+        // playback on the left; on the right the same spots as in the 2D bar, with the speed box where Guides is
+        let sp = ui.spacing();
+        let (gap, extra) = (sp.item_spacing.x, sp.icon_width + sp.icon_spacing + 2.0 * sp.button_padding.x);
+        let slot = guides_size(ui).x;
+        let right_w = slot + 2.0 * extra + tw(ui, "Rapids") + tw(ui, "Toolpaths") + 3.0 * gap;
+        let left_w = ui.available_width() - right_w - gap - 2.0;
+        let h = ui.spacing().interact_size.y;
+        if left_w >= 300.0 {
+            ui.horizontal(|ui| {
+                ui.allocate_ui_with_layout(egui::vec2(left_w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    crate::view3d::speed_box(ui, app, slot);
+                    ui.checkbox(&mut app.show_rapids, "Rapids");
+                    ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+                });
             });
-        });
+        } else {
+            // too narrow for the slider to stay useful: playback and speed on one row, the toggles under it
+            ui.horizontal(|ui| {
+                let w = (ui.available_width() - slot - gap).max(120.0);
+                ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| crate::view3d::speed_box(ui, app, slot));
+            });
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.allocate_exact_size(egui::vec2(slot, h), egui::Sense::hover());
+                    ui.checkbox(&mut app.show_rapids, "Rapids");
+                    ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+                });
+            });
+        }
         return;
     }
     ui.horizontal(|ui| {
