@@ -11,6 +11,8 @@ const BTN: f32 = 34.0;
 const PCT_W: f32 = 54.0;
 /// The width of the card (buttons, gaps, frame), for deciding where there is room for it.
 pub const ROW_W: f32 = 3.0 * BTN + PCT_W + 3.0 * 5.0;
+/// Width of the row without the Fit button (the 3D card puts Fit next to Persp./Ortho.)
+pub const ROW3_W: f32 = 2.0 * BTN + PCT_W + 2.0 * 5.0;
 pub const CARD_W: f32 = ROW_W + 8.0 + 2.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -61,7 +63,7 @@ pub fn button(ui: &mut egui::Ui, size: Vec2, selected: bool, tip: &str, paint: i
 }
 
 /// The four zoom buttons in a row (−, level, +, Fit), for use inside any card. `frac` is the current zoom (1.0 = fit view).
-pub fn row(ui: &mut egui::Ui, id: &str, frac: f32) -> Option<Act> {
+pub fn row(ui: &mut egui::Ui, id: &str, frac: f32, with_fit: bool) -> Option<Act> {
     let mut act = None;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing = Vec2::splat(5.0);
@@ -82,7 +84,7 @@ pub fn row(ui: &mut egui::Ui, id: &str, frac: f32) -> Option<Act> {
             }
         });
         if button(ui, sq, false, "Zoom in (+)", |p, r, fg| paint_icon(p, Icon::Add, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::By(STEP)); }
-        if button(ui, sq, false, "Fit the stock in view (0 or F)", |p, r, fg| paint_icon(p, Icon::Fit, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::Fit); }
+        if with_fit && button(ui, sq, false, "Fit the stock in view (0 or F)", |p, r, fg| paint_icon(p, Icon::Fit, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::Fit); }
     });
     act
 }
@@ -91,7 +93,7 @@ pub fn row(ui: &mut egui::Ui, id: &str, frac: f32) -> Option<Act> {
 pub fn show(ctx: &egui::Context, id: &str, order: egui::Order, pos: Pos2, frac: f32) -> (Option<Act>, Rect) {
     let mut act = None;
     let r = egui::Area::new(egui::Id::new(id)).order(order).pivot(egui::Align2::RIGHT_TOP).fixed_pos(pos).show(ctx, |ui| {
-        egui::Frame::popup(ui.style()).inner_margin(4.0).show(ui, |ui| { act = row(ui, id, frac); });
+        egui::Frame::popup(ui.style()).inner_margin(4.0).show(ui, |ui| { act = row(ui, id, frac, true); });
     });
     (act, r.response.rect)
 }

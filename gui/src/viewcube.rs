@@ -115,11 +115,12 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let asp = rect.width() / rect.height().max(1.0);
     let fit = fit_dist(app.v3.yaw, app.v3.pitch, &stk, asp, app.v3.ortho);
     let mut zact = None;
+    let mut fit_click = false;
     let shown = egui::Area::new(egui::Id::new("viewcube")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-10.0, 10.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(6.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
-            ui.set_min_width(crate::zoomcard::ROW_W);
-            let (area, resp) = ui.horizontal(|ui| { ui.add_space((crate::zoomcard::ROW_W - SIZE) / 2.0 - 4.0); ui.allocate_exact_size(Vec2::new(SIZE, SIZE), Sense::click_and_drag()) }).inner;
+            ui.set_min_width(crate::zoomcard::ROW3_W);
+            let (area, resp) = ui.horizontal(|ui| { ui.add_space((crate::zoomcard::ROW3_W - SIZE) / 2.0 - 4.0); ui.allocate_exact_size(Vec2::new(SIZE, SIZE), Sense::click_and_drag()) }).inner;
             let (yaw, pitch) = (app.v3.yaw, app.v3.pitch);
             let list = cells(area.center(), SIZE * 0.5 / 1.85, yaw, pitch);
             let hover = resp.hover_pos().and_then(|p| list.iter().filter(|c| c.dir[2] >= 0).find(|c| inside(&c.quad, p)).map(|c| c.dir));
@@ -160,7 +161,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing = Vec2::splat(2.0);
                 let w = 34.0;
-                ui.add_space(((crate::zoomcard::ROW_W - 2.0 * w - 2.0) / 2.0).max(0.0));
+                ui.add_space(((crate::zoomcard::ROW3_W - 3.0 * w - 4.0) / 2.0).max(0.0));
                 for (ortho, icon, what) in [
                     (false, crate::icons::Icon::Persp, "Perspective view: things farther away look smaller."),
                     (true, crate::icons::Icon::Ortho, "Orthographic view: parallel lines stay parallel and sizes do not shrink with distance."),
@@ -169,14 +170,16 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     if r.hovered() { tip = Some(what); }
                     if r.clicked() { app.v3.ortho = ortho; }
                 }
+                let r = crate::zoomcard::button(ui, Vec2::new(w, 30.0), false, "Fit the stock in view (F)", |p, rc, fg| crate::icons::paint_icon(p, crate::icons::Icon::Fit, rc.center(), fg, 0.8));
+                if r.clicked() { fit_click = true; }
             });
             // zoom out and in, the zoom level and Fit, in the same card
             ui.add_space(2.0);
-            zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3));
+            zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3), false);
         });
     });
     let key_fit = ctx.input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ctx.wants_keyboard_input();
-    let act = zact.or_else(|| crate::zoomcard::keys(ctx)).or_else(|| (std::mem::take(&mut app.fit3d_pending) || key_fit).then_some(crate::zoomcard::Act::Fit));
+    let act = zact.or_else(|| fit_click.then_some(crate::zoomcard::Act::Fit)).or_else(|| crate::zoomcard::keys(ctx)).or_else(|| (std::mem::take(&mut app.fit3d_pending) || key_fit).then_some(crate::zoomcard::Act::Fit));
     match act {
         Some(crate::zoomcard::Act::By(f)) => { app.v3.anim = None; app.v3.dist = (app.v3.dist / f).clamp(5.0, 20000.0); }
         Some(crate::zoomcard::Act::To(t)) => { app.v3.anim = None; app.v3.dist = (fit / t.max(1e-3)).clamp(5.0, 20000.0); }
