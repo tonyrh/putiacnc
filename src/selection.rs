@@ -30,9 +30,21 @@ pub fn is_whole_group(d: &ProjectData, sel: &BTreeSet<usize>) -> bool {
 /// Some selected shape is in a user group.
 pub fn in_group(d: &ProjectData, sel: &BTreeSet<usize>) -> bool { sel.iter().any(|&i| d.loops.get(i).is_some_and(|l| l.ug.is_some())) }
 
+/// How many separate things the selection holds: a placed text or a group counts once, however many shapes it has.
+pub fn unit_count(d: &ProjectData, sel: &BTreeSet<usize>) -> usize {
+    let mut left: BTreeSet<usize> = sel.clone();
+    let mut n = 0;
+    while let Some(&i) = left.iter().next() {
+        for k in unit_of(d, &[i]) { left.remove(&k); }
+        left.remove(&i);
+        n += 1;
+    }
+    n
+}
+
 /// Grouping the selection would do something: two or more units, not already exactly one group.
 pub fn can_group(d: &ProjectData, sel: &BTreeSet<usize>) -> bool {
-    unit_of(d, &sel.iter().copied().collect::<Vec<_>>()).len() >= 2 && !is_whole_group(d, sel)
+    unit_count(d, sel) >= 2 && !is_whole_group(d, sel)
 }
 
 /// Edit > Group. Returns the new selection (the whole unit), or `None` when there was nothing to group.
@@ -70,6 +82,20 @@ mod tests {
         assert!(!can_group(&d, &set(&[0])));
         assert_eq!(group(&mut d, &set(&[0, 1])), Some(set(&[0, 1])));
         assert!(d.loops[0].ug.is_some() && d.loops[0].ug == d.loops[1].ug && d.loops[2].ug.is_none());
+    }
+
+    #[test]
+    fn a_placed_text_is_one_unit_so_it_cannot_be_grouped_alone() {
+        let mut d = three_circles();
+        // circles 0 and 1 are the letters of one placed text
+        let spec: crate::model::TextSpec = serde_json::from_str(r#"{"content":"ab","font":"Hack","size":10.0,"spacing":0.0,"align":"Left"}"#).expect("a text spec");
+        d.groups.push(crate::model::ShapeGroup { id: 7, name: "Text".into(), locked: false, text: Some(spec) });
+        d.loops[0].grp = Some(7);
+        d.loops[1].grp = Some(7);
+        assert_eq!(unit_count(&d, &set(&[0, 1])), 1);
+        assert!(!can_group(&d, &set(&[0, 1])));
+        assert_eq!(unit_count(&d, &set(&[0, 1, 2])), 2);
+        assert!(can_group(&d, &set(&[0, 1, 2])));
     }
 
     #[test]
