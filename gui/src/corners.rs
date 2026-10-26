@@ -71,14 +71,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
+        let lw = ["Corner", "Distance", "Radius"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("corner_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            ui.label("Corner");
+            crate::toolmgr::rlabel(ui, lw, "Corner");
             ui.horizontal(|ui| {
                 if ui.selectable_label(!app.corners.chamfer, "Fillet").on_hover_text("Round the corners").clicked() { app.corners.chamfer = false; }
                 if ui.selectable_label(app.corners.chamfer, "Chamfer").on_hover_text("Cut the corners off with a straight bevel").clicked() { app.corners.chamfer = true; }
             });
             ui.end_row();
-            ui.label(if app.corners.chamfer { "Distance" } else { "Radius" });
+            crate::toolmgr::rlabel(ui, lw, if app.corners.chamfer { "Distance" } else { "Radius" });
             ui.horizontal(|ui| {
                 crate::widgets::num(ui, [70.0, 24.0], &mut app.corners.size, 0.01, 1000.0, 0.25, 2, "");
                 ui.weak("mm");

@@ -459,9 +459,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(6.0);
         let st = &stock;
         let (zx, zy) = (match st.zr.as_str() { "lr" | "ur" => st.w, "c" => st.w / 2.0, _ => 0.0 }, match st.zr.as_str() { "ul" | "ur" => st.h, "c" => st.h / 2.0, _ => 0.0 });
+        // one label column width for the whole dialog, so every field lines up whichever section it is in
+        let lw = ["Font", "Height", "Align", "Letters", "Words", "Layout", "Width", "Radius", "Position", "Start", "Angle", "Shadow"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         // the things set every time stay in view: font, height, alignment
         egui::Grid::new("text_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            ui.label("Font");
+            crate::toolmgr::rlabel(ui, lw, "Font");
             let cur = t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default();
             // a long name is shortened, so the box keeps its width
             let cur = crate::widgets::combo_elide(ui, &cur, 190.0);
@@ -505,14 +507,14 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
             if keep { crate::widgets::reopen_combo(ui, "text_font"); }
             ui.end_row();
-            ui.label("Height");
+            crate::toolmgr::rlabel(ui, lw, "Height");
             ui.horizontal(|ui| {
                 let fitted = t.fit_on && t.flow == Flow::Straight;
                 ui.add_enabled_ui(!fitted, |ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.size, 0.5, 500.0, 0.1, 2, ""); });
                 ui.weak(if fitted { "mm, from the width" } else { "mm, capital letters" });
             });
             ui.end_row();
-            ui.label("Align");
+            crate::toolmgr::rlabel(ui, lw, "Align");
             ui.horizontal(|ui| {
                 for (a, n) in [(Align::Left, "Left"), (Align::Center, "Centre"), (Align::Right, "Right")] {
                     if ui.selectable_label(t.align == a, n).clicked() { t.align = a; }
@@ -528,10 +530,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.checkbox(&mut t.kerning, "Kerning").on_hover_text("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
             ui.add_space(4.0);
             grid("text_spacing").show(ui, |ui| {
-                ui.label("Letters");
+                crate::toolmgr::rlabel(ui, lw, "Letters");
                 ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.letter_pct, -30.0, 300.0, 0.5, 1, ""); ui.weak("% of the height"); });
                 ui.end_row();
-                ui.label("Words");
+                crate::toolmgr::rlabel(ui, lw, "Words");
                 ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.word_pct, -100.0, 500.0, 1.0, 1, ""); ui.weak("% of the height, at the gaps"); });
                 ui.end_row();
             });
@@ -544,7 +546,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         };
         section(ui, &mut t.sections, "layout", "Layout", &sum_layout, |ui| {
             grid("text_layout").show(ui, |ui| {
-                ui.label("Layout");
+                crate::toolmgr::rlabel(ui, lw, "Layout");
                 let flow_resp = egui::ComboBox::from_id_source("text_flow").width(crate::widgets::combo_fit(ui, &["Straight", "Along an arc", "Stacked, top to bottom"]).max(190.0)).selected_text(match t.flow {
                     Flow::Straight => "Straight", Flow::Vertical => "Stacked, top to bottom", _ => "Along an arc",
                 }).show_ui(ui, |ui| {
@@ -555,7 +557,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 if !ui.memory(|m| m.any_popup_open()) { flow_resp.on_hover_text("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there"); }
                 ui.end_row();
                 if t.flow == Flow::Straight {
-                    ui.label("Width");
+                    crate::toolmgr::rlabel(ui, lw, "Width");
                     ui.horizontal(|ui| {
                         ui.checkbox(&mut t.fit_on, "Fit to");
                         ui.add_enabled_ui(t.fit_on, |ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.fit_w, 1.0, 5000.0, 1.0, 1, ""); });
@@ -564,16 +566,16 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     ui.end_row();
                 }
                 if t.flow == Flow::Arc {
-                    ui.label("Radius");
+                    crate::toolmgr::rlabel(ui, lw, "Radius");
                     ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak("mm, of the baseline"); });
                     ui.end_row();
-                    ui.label("Position");
+                    crate::toolmgr::rlabel(ui, lw, "Position");
                     ui.horizontal(|ui| {
                         crate::widgets::num(ui, [60.0, 24.0], &mut t.arc_deg, -360.0, 720.0, 1.0, 1, "");
                         ui.weak("° (90 top, 270 bottom)");
                     }).response.on_hover_text("Where the text sits round the circle: 0 is the right, 90 the top, 180 the left, 270 the bottom");
                     ui.end_row();
-                    ui.label("Letters");
+                    crate::toolmgr::rlabel(ui, lw, "Letters");
                     ui.horizontal(|ui| {
                         ui.selectable_value(&mut t.arc_in, false, "Face outwards");
                         ui.selectable_value(&mut t.arc_in, true, "Face the centre");
@@ -586,7 +588,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let sum_pos = format!("X {} · Y {} · {}°", crate::panels::fmt_num(p0[0] - zx), crate::panels::fmt_num(p0[1] - zy), crate::panels::fmt_num(t.angle));
         section(ui, &mut t.sections, "position", "Position", &sum_pos, |ui| {
             grid("text_position").show(ui, |ui| {
-                ui.label("Start");
+                crate::toolmgr::rlabel(ui, lw, "Start");
                 ui.horizontal(|ui| {
                     // where the first line begins (left end of its baseline), from the XY zero like the rulers
                     let p = t.pos.unwrap_or([zx, zy]);
@@ -600,7 +602,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     if cx || cy { t.pos = Some([x + zx, y + zy]); }
                 });
                 ui.end_row();
-                ui.label("Angle");
+                crate::toolmgr::rlabel(ui, lw, "Angle");
                 ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.angle, -360.0, 360.0, 1.0, 1, ""); ui.weak("degrees, counter-clockwise"); });
                 ui.end_row();
             });
@@ -608,7 +610,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let sum_shadow = if t.shadow == [0.0, 0.0] { "none".to_string() } else { format!("X {} · Y {} mm", crate::panels::fmt_num(t.shadow[0]), crate::panels::fmt_num(t.shadow[1])) };
         section(ui, &mut t.sections, "shadow", "Shadow", &sum_shadow, |ui| {
             grid("text_shadow").show(ui, |ui| {
-                ui.label("Shadow");
+                crate::toolmgr::rlabel(ui, lw, "Shadow");
                 ui.horizontal(|ui| {
                     ui.label("X");
                     crate::widgets::num(ui, [50.0, 24.0], &mut t.shadow[0], -100.0, 100.0, 0.1, 2, "");

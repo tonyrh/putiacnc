@@ -57,8 +57,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if open == 0 { ui.label("No open contours."); }
         else { ui.colored_label(egui::Color32::from_rgb(200, 90, 30), format!("{open} open contour{}, {} loose end{} ({joinable} can be joined at this tolerance).", if open == 1 { "" } else { "s" }, ends.len(), if ends.len() == 1 { "" } else { "s" })); }
         ui.add_space(6.0);
+        let lw = crate::panels::tw(ui, "Gap tolerance");
         egui::Grid::new("clean_grid").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
-            ui.label("Gap tolerance");
+            crate::toolmgr::rlabel(ui, lw, "Gap tolerance");
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(&mut app.clean.tol).clamp_range(0.001..=5.0).speed(0.005).max_decimals(3));
                 ui.weak("mm");

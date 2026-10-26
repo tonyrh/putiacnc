@@ -112,13 +112,16 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             crate::widgets::num(ui, [70.0, 24.0], v, lo, hi, if dec == 0 { 0.1 } else { 0.25 }, dec, "");
             ui.weak(unit);
         };
+        // the same label columns in both modes, so the dialog does not change width when you switch
+        let l1 = ["Columns", "Gap X", "Copies", "Centre X"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let l3 = ["Rows", "Gap Y", "Angle", "Centre Y"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("array_grid").num_columns(4).spacing([10.0, 8.0]).show(ui, |ui| {
             if !a.circular {
-                ui.label("Columns"); field(ui, &mut a.cols, 1.0, 100.0, 0, ""); ui.label("Rows"); field(ui, &mut a.rows, 1.0, 100.0, 0, ""); ui.end_row();
-                ui.label("Gap X"); field(ui, &mut a.gap_x, -10000.0, 10000.0, 2, "mm"); ui.label("Gap Y"); field(ui, &mut a.gap_y, -10000.0, 10000.0, 2, "mm"); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, "Columns"); field(ui, &mut a.cols, 1.0, 100.0, 0, ""); crate::toolmgr::rlabel(ui, l3, "Rows"); field(ui, &mut a.rows, 1.0, 100.0, 0, ""); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, "Gap X"); field(ui, &mut a.gap_x, -10000.0, 10000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, "Gap Y"); field(ui, &mut a.gap_y, -10000.0, 10000.0, 2, "mm"); ui.end_row();
             } else {
-                ui.label("Copies"); field(ui, &mut a.count, 2.0, 200.0, 0, ""); ui.label("Angle"); field(ui, &mut a.angle, -360.0, 360.0, 1, "°"); ui.end_row();
-                ui.label("Centre X"); field(ui, &mut a.cx, -100000.0, 100000.0, 2, "mm"); ui.label("Centre Y"); field(ui, &mut a.cy, -100000.0, 100000.0, 2, "mm"); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, "Copies"); field(ui, &mut a.count, 2.0, 200.0, 0, ""); crate::toolmgr::rlabel(ui, l3, "Angle"); field(ui, &mut a.angle, -360.0, 360.0, 1, "°"); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, "Centre X"); field(ui, &mut a.cx, -100000.0, 100000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, "Centre Y"); field(ui, &mut a.cy, -100000.0, 100000.0, 2, "mm"); ui.end_row();
             }
         });
         if a.circular {

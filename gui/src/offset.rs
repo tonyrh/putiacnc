@@ -20,14 +20,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
+        let lw = crate::panels::tw(ui, "Direction").max(crate::panels::tw(ui, "Distance"));
         egui::Grid::new("offset_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            ui.label("Direction");
+            crate::toolmgr::rlabel(ui, lw, "Direction");
             ui.horizontal(|ui| {
                 if ui.selectable_label(!app.offset_inward, "Outward").on_hover_text("Grow the shapes").clicked() { app.offset_inward = false; }
                 if ui.selectable_label(app.offset_inward, "Inward").on_hover_text("Shrink the shapes").clicked() { app.offset_inward = true; }
             });
             ui.end_row();
-            ui.label("Distance");
+            crate::toolmgr::rlabel(ui, lw, "Distance");
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(&mut app.offset_mm).clamp_range(0.01..=500.0).speed(0.05));
                 ui.weak("mm");

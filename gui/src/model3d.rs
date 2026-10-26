@@ -79,8 +79,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(8.0);
         let mut changed = false;
+        let lw = crate::panels::tw(ui, "Up axis");
         egui::Grid::new("model_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            ui.label("Up axis");
+            crate::toolmgr::rlabel(ui, lw, "Up axis");
             ui.horizontal(|ui| {
                 for (u, n) in [(Up::Z, "Z"), (Up::Y, "Y"), (Up::X, "X")] {
                     if ui.selectable_label(t.orient.up == u, n).on_hover_text("The axis of the model that points towards the cutter").clicked() { t.orient.up = u; changed = true; }
