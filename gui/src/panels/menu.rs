@@ -39,7 +39,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 });
             });
             if item(ui, "Import Vectors...", "Ctrl+I", true) { app.import_dialog(); }
-            if item(ui, "Import Bitmap (trace)...", "", true) { app.import_bitmap_dialog(); }
+            if item(ui, "Import Bitmap...", "", true) { app.import_bitmap_dialog(); }
             if item(ui, "Import 3D Model (STL, OBJ)...", "", true) { app.import_model_dialog(); }
             ui.separator();
             if item(ui, "Save", "Ctrl+S", true) { app.save(); }
