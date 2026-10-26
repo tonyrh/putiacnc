@@ -514,10 +514,10 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         if hit {
             let ops: Vec<String> = hit_by.iter().map(|o| (o + 1).to_string()).collect();
             let tip = format!("Operation {} runs into this clamp", ops.join(", "));
-            let c0 = r.right_top() + egui::vec2(-9.0, 9.0);
-            painter.circle_filled(c0, 8.0, Color32::from_rgb(0xe0, 0x1b, 0x24));
-            painter.text(c0, egui::Align2::CENTER_CENTER, "!", egui::FontId::proportional(12.0), Color32::WHITE);
-            if hover_w.is_some() && resp.hovered() && ui.input(|i| i.pointer.hover_pos()).is_some_and(|p| p.distance(c0) < 10.0) && !ui.memory(|m| m.any_popup_open()) {
+            // the same warning sign as in the 3D preview, standing in the clamp's top right corner
+            let c0 = r.right_top() + egui::vec2(-14.0, 28.0);
+            crate::checkui::marker(&painter, c0, false, "");
+            if hover_w.is_some() && resp.hovered() && ui.input(|i| i.pointer.hover_pos()).is_some_and(|p| (p.x - c0.x).abs() < 12.0 && p.y > c0.y - 26.0 && p.y < c0.y + 4.0) && !ui.memory(|m| m.any_popup_open()) {
                 egui::show_tooltip_text(ui.ctx(), egui::Id::new(("clamp_hit", i)), tip);
             }
         }

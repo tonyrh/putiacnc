@@ -7,7 +7,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] Air cut on the real GRBL 1.1 machine (nothing has been cut yet).
 
 ## Small
-- [x] Mark clamp collisions on the 2D drawing too (a clamp the toolpath runs into turns solid red with a "!" badge).
+- [x] Mark clamp collisions on the 2D drawing too (a clamp the toolpath runs into turns solid red with the same warning sign as the 3D preview).
 - [ ] Count the tool holder / collet diameter in the clamp check (today only the cutter radius counts).
 - [ ] A way to move a shape into or out of an existing operation (for example a right-click menu "Operation ▸ …"). Wait until the current flow has been used for a while.
 - [ ] Deleting a shape to redraw it loses the operation's settings if it was the last shape; think about a way to keep them.
