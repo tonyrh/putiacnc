@@ -132,7 +132,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n > 0, egui::Button::new("Apply")).clicked() { apply = true; }
-            if ui.button("Close").clicked() { close = true; }
+            if ui.button("Cancel").clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
             });
@@ -142,7 +142,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 else { "The gap is measured between the edges of neighbouring copies." });
         });
     });
-    if apply { app.ghost.clear(); if let Some(msg) = app.array_selection() { app.error = Some(msg); } }
+    if apply { app.ghost.clear(); if app.run_tool(|a| a.array_selection()) { app.array.open = false; } }
     if close { app.array.open = false; }
 }
 

@@ -104,6 +104,14 @@ impl App {
         self.touch();
     }
 
+    /// Runs a tool that changes the selected shapes and shows its message, if any. True when the drawing changed, so the
+    /// tool's window can close; when nothing happened it stays open for new values.
+    pub fn run_tool(&mut self, f: impl FnOnce(&mut App) -> Option<String>) -> bool {
+        let before = self.project.data.loops.clone();
+        if let Some(m) = f(self) { self.error = Some(m); }
+        self.project.data.loops != before
+    }
+
     pub fn duplicate_selection(&mut self) {
         if self.sel.is_empty() { return; }
         self.hist.record(&self.project.data);

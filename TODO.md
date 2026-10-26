@@ -31,8 +31,9 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 - [x] Spelling: British "Centre" is the choice for the app's texts (decided by the maintainer; nothing to change).
 - [x] Button names: the G-code panel button is now "Export G-code…", like the menu. (The "Clean up" button was already right.)
 - [ ] Messages: the red banner mixes errors with plain information ("Imported …", "Scaled down to …", "These letters were edited as shapes …"). Keep the banner for errors and warnings; move the rest to the status bar or drop it.
+- [x] Combine, Array, Offset and Corners close on a successful Apply (Close is now Cancel); they stay open when nothing changed.
 - [ ] The result messages of Combine, Array, Offset and Corners stay until dismissed; they should go on the next edit.
-- [ ] Align, Array, Offset and Corners: check what they show with an empty selection (no leftover preview, Apply disabled, a clear line saying what to select).
+- [ ] Align, Offset and Corners: check what they show with an empty selection (no leftover preview, Apply disabled, a clear line saying what to select). Array is fine except that "Select one or more shapes first." appears twice in its window.
 - [ ] The diagnostics text of "Copy version info" still uses "x" in sizes (kept plain on purpose for bug reports).
 - [x] The controls converted to segmented switches without a screenshot hook (Ellipse / Circle, Radius / Diameter, Polygon / Star, Trim / Extend, Face outwards / Face the centre): tried by the maintainer, they work.
 - [ ] Mac: how the all-scroll (four-way) move cursor looks.
