@@ -498,7 +498,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
         else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot | Drag::Relief { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
-        else if matches!(app.drag, Drag::Move { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Move); }
+        else if matches!(app.drag, Drag::Move { .. }) { ctx.set_cursor_icon(egui::CursorIcon::AllScroll); }
         else if let Drag::Clamp { idx, .. } = &app.drag { clamp_hot = Some(*idx); ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
         else if matches!(app.drag, Drag::None) && resp.hovered() && hover_w.and_then(|w| clamp_at(app, w, tol)).is_some() {
             clamp_hot = hover_w.and_then(|w| clamp_at(app, w, tol));
@@ -521,7 +521,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     let edge = loops.iter().enumerate().map(|(i, l)| (i, shapes::dist_to_loop(l, w))).filter(|(_, d)| *d <= tol)
                         .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|(i, _)| i);
                     let hit = edge.or_else(|| app.sel.iter().copied().find(|&i| shapes::point_in_loop(&loops[i], w)));
-                    if hit.is_some_and(|h| app.sel.contains(&h) && !app.loop_locked(h)) { ctx.set_cursor_icon(egui::CursorIcon::Move); }
+                    if hit.is_some_and(|h| app.sel.contains(&h) && !app.loop_locked(h)) { ctx.set_cursor_icon(egui::CursorIcon::AllScroll); }
                 }
             }
         }
