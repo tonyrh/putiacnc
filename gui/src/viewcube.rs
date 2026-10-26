@@ -171,7 +171,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             });
             // zoom out and in, the zoom level and Fit, in the same card
             ui.add_space(2.0);
-            zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3), false, Vec2::new(crate::zoomcard::BW3, 30.0), crate::zoomcard::ROW3_W - 2.0 * crate::zoomcard::BW3 - 2.0 * 4.0, 4.0);
+            zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3), false, Vec2::new(30.0, 30.0), crate::zoomcard::ROW3_W - 2.0 * 30.0 - 2.0 * 4.0, 4.0);
         });
     });
     let key_fit = ctx.input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ctx.wants_keyboard_input();
