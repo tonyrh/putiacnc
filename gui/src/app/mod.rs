@@ -284,6 +284,7 @@ impl App {
             else { a.path = p.clone(); a.open(&p); }
         }
         if let Ok(p) = std::env::var("PUTIACNC_IMPORT2") { if App::is_bitmap(&p) { a.import_bitmap(&p); } else if App::is_model(&p) { a.import_model(&p); } else { a.import_file(&p); } }
+        if std::env::var("PUTIACNC_TRACE_MODE").is_ok_and(|v| v == "centre") { a.trace.opts.mode = putiacnc_core::bitmap::Mode::Centerline; }
         if std::env::var_os("PUTIACNC_RELIEF").is_some() && a.project.data.relief.is_some() {
             let d = &mut a.project.data;
             let mut p = shapes::default_op_params(&d.tools[0].id);

@@ -4,16 +4,23 @@ use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Vec2};
 use putiacnc_core::bitmap::{Bitmap, Mode, Opts};
 use putiacnc_core::svg::Imported;
+use std::sync::{mpsc, Arc};
+
+type Traced = Result<Imported, String>;
 
 #[derive(Default)]
 pub struct TraceTool {
     pub open: bool,
     pub name: String,
-    pub bm: Option<Bitmap>,
+    pub bm: Option<Arc<Bitmap>>,
     pub opts: Opts,
     pub tex: Option<egui::TextureHandle>,
-    pub result: Option<Result<Imported, String>>,
+    /// The latest finished trace. While a newer one is being worked out it is still drawn, faded.
+    pub result: Option<Traced>,
+    /// The settings changed since the running trace (or the shown one) was started.
     pub dirty: bool,
+    /// The trace running on a worker thread (one at a time); its answer arrives here.
+    pub rx: Option<mpsc::Receiver<Traced>>,
     pub err: Option<String>,
     /// The settings to remember for next time (see `Settings::trace`).
     pub remember: Option<Opts>,
@@ -29,9 +36,10 @@ impl TraceTool {
                 let w = (stock.0 * 0.8).min(stock.1 * 0.8 / aspect);
                 // the settings of last time, but the size is fitted to this picture
                 self.opts = Opts { width_mm: (w * 10.0).round() / 10.0, ..saved.unwrap_or_default() };
-                self.bm = Some(bm);
+                self.bm = Some(Arc::new(bm));
                 self.tex = None;
                 self.result = None;
+                self.rx = None; // an answer still on its way for the previous picture is dropped
                 self.dirty = true;
                 self.err = None;
                 self.open = true;
@@ -40,6 +48,30 @@ impl TraceTool {
         }
     }
     pub fn take_error(&mut self) -> Option<String> { self.err.take() }
+
+    /// A trace is running or waiting to start: what is shown does not match the settings yet.
+    pub fn working(&self) -> bool { self.dirty || self.rx.is_some() }
+
+    /// Collect a finished trace and start the next one when the settings changed meanwhile. The window never waits for a trace.
+    fn pump(&mut self, ctx: &egui::Context) {
+        if let Some(rx) = &self.rx {
+            match rx.try_recv() {
+                Ok(r) => { self.result = Some(r); self.rx = None; }
+                Err(mpsc::TryRecvError::Disconnected) => { self.rx = None; }
+                Err(mpsc::TryRecvError::Empty) => {}
+            }
+        }
+        if self.dirty && self.rx.is_none() {
+            if let Some(bm) = self.bm.clone() {
+                let (tx, rx) = mpsc::channel();
+                let (opts, ctx2) = (self.opts.clone(), ctx.clone());
+                self.rx = Some(rx);
+                self.dirty = false;
+                std::thread::spawn(move || { let _ = tx.send(bm.trace(&opts)); ctx2.request_repaint(); });
+            }
+        }
+        if self.rx.is_some() { ctx.request_repaint_after(std::time::Duration::from_millis(100)); }
+    }
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
@@ -48,27 +80,26 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut place, mut cancel) = (false, false);
     {
         let t = &mut app.trace;
-        let Some(bm) = t.bm.as_ref() else { t.open = false; return };
+        let Some(bm) = t.bm.clone() else { t.open = false; return };
         if t.tex.is_none() {
             let px = bm.luma.iter().map(|&v| Color32::from_gray(v)).collect();
             t.tex = Some(ctx.load_texture("trace_src", egui::ColorImage { size: [bm.w, bm.h], pixels: px }, egui::TextureOptions::LINEAR));
         }
-        if t.dirty {
-            t.result = Some(bm.trace(&t.opts));
-            t.dirty = false;
-        }
+        t.pump(ctx);
     }
+    // as large as the window allows: the picture is what the settings are judged by
+    let (dw, ph) = { let r = ctx.screen_rect(); ((r.width() - 140.0).clamp(380.0, 660.0), (r.height() - 90.0 - 300.0).clamp(200.0, 460.0)) };
     egui::Window::new("Import bitmap").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Import bitmap", egui::pos2(560.0, 172.0))).show(ctx, |ui| {
-        ui.set_width(380.0);
+        ui.set_width(dw);
         if crate::csd::dialog_header(ui, "Import bitmap", true) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.trace;
         let (bw, bh) = t.bm.as_ref().map(|b| (b.w as f32, b.h as f32)).unwrap_or((1.0, 1.0));
         // the picture, dimmed, with the traced outlines on top
-        let size = Vec2::new(360.0, (360.0 * bh / bw).min(200.0)); 
+        let size = Vec2::new(dw, (dw * bh / bw).min(ph));
         let scale = (size.x / bw).min(size.y / bh);
-        let (rect, _) = ui.allocate_exact_size(Vec2::new(360.0, size.y), Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(dw, size.y), Sense::hover());
         let img = Rect::from_center_size(rect.center(), Vec2::new(bw * scale, bh * scale));
         let painter = ui.painter_at(rect);
         painter.rect_filled(rect, 4.0, ui.visuals().extreme_bg_color);
@@ -87,7 +118,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if let Some(Ok(imp)) = &t.result {
             let k = reg.width() / imp.width_mm as f32;
             let to_s = |x: i64, y: i64| Pos2::new(reg.min.x + x as f32 / 1000.0 * k, reg.max.y - y as f32 / 1000.0 * k);
-            let st = Stroke::new(1.4_f32, Color32::from_rgb(0xe0, 0x30, 0x30));
+            // faded while a newer trace is on its way: it no longer matches the settings
+            let st = Stroke::new(1.4_f32, if t.working() { Color32::from_rgba_unmultiplied(0xe0, 0x30, 0x30, 90) } else { Color32::from_rgb(0xe0, 0x30, 0x30) });
             for l in &imp.loops {
                 let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s(c[0], c[1])).collect();
                 if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
@@ -149,11 +181,12 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         match &t.result {
             Some(Ok(i)) if !i.warnings.is_empty() => { ui.colored_label(Color32::from_rgb(0xe0, 0x8a, 0x2a), i.warnings.join(" ")); }
             Some(Err(e)) => { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
+            _ if t.working() => { ui.horizontal(|ui| { ui.add(egui::Spinner::new().size(14.0)); ui.weak("Tracing..."); }); }
             _ => { ui.weak(if t.opts.mode == Mode::Outline { format!("{count} outlines (holes included).") } else { format!("{count} lines.") }); }
         }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(count > 0, egui::Button::new("Import")).clicked() { place = true; }
+            if ui.add_enabled(count > 0 && !app.trace.working(), egui::Button::new("Import")).clicked() { place = true; }
             if ui.button("Cancel").clicked() { cancel = true; }
         });
         });
@@ -166,6 +199,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         app.trace.open = false;
         app.trace.tex = None;
         app.trace.bm = None;
+        app.trace.rx = None;
     }
-    if cancel { app.trace.open = false; app.trace.tex = None; app.trace.bm = None; }
+    if cancel { app.trace.open = false; app.trace.tex = None; app.trace.bm = None; app.trace.rx = None; }
 }
