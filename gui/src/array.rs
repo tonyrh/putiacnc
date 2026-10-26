@@ -99,7 +99,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Array and copy", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
-        if crate::csd::dialog_header(ui, "Array and copy", true) { close = true; }
+        if crate::csd::dialog_header_help(ui, "Array and copy", true, |ui| {
+            ui.label("The gap is measured between the edges of neighbouring copies.");
+            ui.add_space(4.0);
+            ui.label("Around a circle, Copies includes the original. With 360° the copies are spaced evenly all the way round.");
+        }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
@@ -139,9 +143,6 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
             });
         });
-        ui.add_space(2.0);
-        ui.weak(if app.array.circular { "Copies includes the original. With 360° they are spaced evenly all the way round." }
-                else { "The gap is measured between the edges of neighbouring copies." });
         });
     });
     if apply { app.ghost.clear(); if app.run_tool("array", |a| a.array_selection()) { app.array.open = false; } }

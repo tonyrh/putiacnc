@@ -50,7 +50,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Clean up drawing").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Clean up drawing", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
-        if crate::csd::dialog_header(ui, "Clean up drawing", true) { close = true; }
+        if crate::csd::dialog_header_help(ui, "Clean up drawing", true, |ui| { ui.label("Rectangles, circles and ellipses are left as they are. Undo restores everything."); }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(match n { Some(n) => format!("Working on the {n} selected shape{}.", if n == 1 { "" } else { "s" }), None => "Working on the whole drawing (select shapes to limit it).".to_string() });
         ui.add_space(4.0);
@@ -77,8 +77,6 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.button("Close").clicked() { close = true; }
         });
         if !app.clean.msg.is_empty() { ui.add_space(2.0); ui.weak(app.clean.msg.as_str()); }
-        ui.add_space(2.0);
-        ui.weak("Rectangles, circles and ellipses are left as they are. Undo restores everything.");
         });
     });
     if apply { app.clean.msg = app.clean_drawing(); }

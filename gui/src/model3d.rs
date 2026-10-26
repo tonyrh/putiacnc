@@ -65,7 +65,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Import 3D model").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Import 3D model", egui::pos2(560.0, 172.0))).show(ctx, |ui| {
         ui.set_width(380.0);
-        if crate::csd::dialog_header(ui, "Import 3D model", true) { cancel = true; }
+        if crate::csd::dialog_header_help(ui, "Import 3D model", true, |ui| { ui.label("The picture of the model is a height map: light is high, dark is low."); }) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.model3d;
         let (rect, _) = ui.allocate_exact_size(Vec2::new(360.0, 230.0), Sense::hover());
@@ -98,7 +98,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(4.0);
         match (&t.err, &t.mesh) {
             (Some(e), _) => { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
-            (None, Some(m)) => { let s = m.size(t.orient); ui.weak(format!("{:.1} × {:.1} mm, {:.1} mm high. Light is high, dark is low.", s[0], s[1], s[2])); }
+            (None, Some(m)) => { let s = m.size(t.orient); ui.weak(format!("{:.1} × {:.1} mm, {:.1} mm high.", s[0], s[1], s[2])); }
             _ => {}
         }
         ui.add_space(8.0);

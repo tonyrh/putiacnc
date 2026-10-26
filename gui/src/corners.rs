@@ -67,7 +67,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Fillet and chamfer").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
-        if crate::csd::dialog_header(ui, "Fillet and chamfer", true) { close = true; }
+        if crate::csd::dialog_header_help(ui, "Fillet and chamfer", true, |ui| {
+            ui.label("Smooth curves, circles and ellipses are left alone.");
+            ui.add_space(4.0);
+            ui.label("A chamfer is measured as a distance along each edge from the corner.");
+        }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
@@ -96,8 +100,6 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
             });
         });
-        ui.add_space(2.0);
-        ui.weak(if app.corners.chamfer { "The distance is measured along each edge from the corner." } else { "Smooth curves, circles and ellipses are left alone." });
         });
     });
     if apply {

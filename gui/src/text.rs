@@ -409,26 +409,19 @@ fn section(ui: &mut egui::Ui, open: &mut std::collections::BTreeSet<String>, key
     if is_open { ui.add_space(4.0); body(ui); ui.add_space(4.0); }
 }
 
-/// The round "?" at the right of the buttons: hover for what the tool does.
-fn help_button(ui: &mut egui::Ui, editing: bool, found: Option<usize>) {
-    let (rect, resp) = ui.allocate_exact_size(egui::vec2(24.0, 24.0), egui::Sense::hover());
-    let col = if resp.hovered() { ui.visuals().text_color() } else { ui.visuals().weak_text_color() };
-    ui.painter().circle_stroke(rect.center(), 10.5, egui::Stroke::new(1.3_f32, col));
-    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "?", egui::FontId::proportional(13.0), col);
-    resp.on_hover_ui(|ui| {
-        ui.set_max_width(300.0);
-        if editing {
-            ui.label("The letters are set again from these settings, where the text is now.");
-        } else {
-            ui.label("Letters become outlines (holes in A, O, B… are cut out). The text stays editable: double-click it later.");
-            ui.add_space(4.0);
-            ui.label("Click the drawing, or open Position and type X and Y, to move it.");
-        }
+/// What the "?" in the header says: what the tool does, and which fonts it found.
+fn help_text(ui: &mut egui::Ui, editing: bool, found: Option<usize>) {
+    if editing {
+        ui.label("The letters are set again from these settings, where the text is now.");
+    } else {
+        ui.label("Letters become outlines (holes in A, O, B… are cut out). The text stays editable: double-click it later.");
         ui.add_space(4.0);
-        ui.weak(match found {
-            None => "Looking for the fonts installed on this computer…".to_string(),
-            Some(n) => format!("{n} fonts found on this computer, plus Hack and Ubuntu Light."),
-        });
+        ui.label("Click the drawing, or open Position and type X and Y, to move it.");
+    }
+    ui.add_space(4.0);
+    ui.weak(match found {
+        None => "Looking for the fonts installed on this computer…".to_string(),
+        Some(n) => format!("{n} fonts found on this computer, plus Hack and Ubuntu Light."),
     });
 }
 
@@ -453,7 +446,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Text", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
-        if crate::csd::dialog_header(ui, if editing { "Edit text" } else { "Text" }, true) { cancel = true; }
+        let found = app.text.found;
+        if crate::csd::dialog_header_help(ui, if editing { "Edit text" } else { "Text" }, true, |ui| help_text(ui, editing, found)) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.text;
         let te = ui.add(egui::TextEdit::multiline(&mut t.content).desired_rows(3).desired_width(f32::INFINITY).hint_text("Type your text"));
@@ -630,9 +624,6 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.horizontal(|ui| {
             if ui.add_enabled(!t.preview.is_empty(), egui::Button::new(if editing { "Update" } else { "Place" })).clicked() { do_place = true; }
             if ui.button("Cancel").clicked() { cancel = true; }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                help_button(ui, editing, t.found);
-            });
         });
         });
     });
