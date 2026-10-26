@@ -682,7 +682,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 Some(v) => v.iter().map(|t| shapes::tab_resolve(&d.loops, o.id, t)).collect(),
                 None => {
                     // where the generated toolpath really leaves the tabs; an estimate while it is being regenerated
-                    let spots: Vec<[f64; 2]> = match app.output.as_ref().filter(|_| !app.gen_pending) {
+                    let spots: Vec<[f64; 2]> = match app.output.as_ref().filter(|_| !app.gen_stale()) {
                         Some(out) => out.tab_marks.iter().filter(|m| m.op == k).map(|m| m.mid).collect(),
                         None => shapes::auto_tab_points(&d.loops, o.id, o.p.tab_n.unwrap_or(4.0).round().max(1.0) as usize),
                     };
@@ -716,7 +716,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         }
     }
 
-    if app.show_toolpath && !app.gen_pending {
+    if app.show_toolpath && !app.gen_stale() {
         if let Some(o) = &app.output {
             for m in &o.moves {
                 if !m.cut && !app.show_rapids { continue; }

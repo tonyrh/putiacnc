@@ -160,9 +160,10 @@ impl eframe::App for App {
         if !busy && !ctx.wants_keyboard_input() { self.hist.open = false; }
         if !busy { self.hist.classify(&self.project.data); }
         if self.poll_checks() { ctx.request_repaint_after(std::time::Duration::from_millis(100)); }
-        if self.gen_pending && !busy {
-            self.regenerate();
-            ctx.request_repaint();
+        if self.poll_generation() { ctx.request_repaint_after(std::time::Duration::from_millis(30)); }
+        if self.gen_pending && !busy && self.gen_rx.is_none() {
+            self.start_generation();
+            ctx.request_repaint_after(std::time::Duration::from_millis(30));
         }
 
         let title = format!("{}{} - PutiaCNC", self.project.name, if self.modified { " *" } else { "" });

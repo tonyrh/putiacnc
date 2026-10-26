@@ -321,6 +321,14 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
 pub fn status_bar(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         crate::checkui::chip(ui, app);
+        // a generation that takes a moment shows itself; quick ones (most) do not, so the bar does not flicker
+        let slow = app.gen_started.is_some_and(|t| t.elapsed().as_millis() > 200);
+        if slow {
+            ui.add(egui::Spinner::new().size(12.0));
+            ui.label("generating…");
+            ui.separator();
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
+        }
         match &app.output {
             Some(o) => {
                 ui.label(format!("Estimated time {}", fmt_time(o.time_min)));
@@ -331,6 +339,8 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
                 ui.separator();
                 ui.label(format!("{} lines, generated in {:.0} ms", o.lines.len(), app.gen_ms));
             }
+            // the first toolpath of a project is still being worked out: the spinner says so
+            None if app.gen_stale() && app.gen_error.is_none() => {}
             None if app.project.data.ops.is_empty() => { ui.label("Add an operation to generate G-code"); }
             None => { ui.label(app.gen_error.clone().unwrap_or_else(|| "No G-code".into())); }
         }

@@ -200,6 +200,10 @@ pub struct App {
     pub hist: History,
     pub modified: bool,
     pub gen_pending: bool,
+    /// The toolpath being worked out on a worker thread (at most one at a time; changes made meanwhile set `gen_pending` and are picked up
+    /// when it finishes), with the version it was started for and when.
+    pub gen_rx: Option<std::sync::mpsc::Receiver<(Result<putiacnc_core::Output, String>, f64)>>,
+    pub gen_started: Option<std::time::Instant>,
     /// Warnings about the toolpath (collisions, gouges), computed on a background thread for `checks_ver`.
     pub checks: Vec<putiacnc_core::checks::Finding>,
     pub checks_ver: u64,
@@ -323,7 +327,7 @@ impl App {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None, note: None, esc_request: false,
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
-            gen_pending: true, checks: vec![], checks_ver: 0, checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
+            gen_pending: true, gen_rx: None, gen_started: None, checks: vec![], checks_ver: 0, checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, fit_extra: 0.0, view_touched: false, canvas_right: 0.0, canvas_left: 0.0, ghost: Default::default(), preview_on: true, bars_bottom: 0.0, align_btn: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, fit3d_pending: false, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
@@ -439,6 +443,10 @@ impl App {
         self.modified = false;
         self.fit_pending = true;
         self.gen_pending = true;
+        // a toolpath still being worked out belongs to the project that was open before: forget it, and its results
+        self.gen_rx = None; self.gen_started = None;
+        self.output = None; self.gen_error = None; self.out_ver += 1;
+        self.checks.clear(); self.checks_rx = None; self.check_sel = None;
         let n = self.sync_tools();
         self.sync_machine();
         self.modified = n > 0;
@@ -592,6 +600,9 @@ impl App {
             DlgKind::Bitmap => self.import_bitmap(&p.display().to_string()),
             DlgKind::ExportGcode => {
                 if p.extension().is_none() { p.set_extension("nc"); }
+                // the drawing may have changed while the dialog was open
+                self.finish_generation();
+                if self.output.is_none() { self.error = Some(format!("Export failed: {}", self.gen_error.clone().unwrap_or_else(|| "there is no G-code.".into()))); }
                 if let Some(o) = &self.output {
                     match std::fs::write(&p, o.gcode()) { Ok(()) => self.error = None, Err(e) => self.error = Some(format!("Export failed: {e}")) }
                 }
@@ -745,6 +756,7 @@ impl App {
     }
 
     pub fn export_gcode_dialog(&mut self) {
+        self.finish_generation();
         if self.output.is_none() { self.error = Some("Nothing to export: there is no G-code yet.".into()); return; }
         let name = if self.project.name.trim().is_empty() { "output".to_string() } else { self.project.name.trim().to_string() };
         let dir = crate::prefs::existing_dir(&self.prefs.dir_gcode)
@@ -758,6 +770,7 @@ impl App {
     }
 
     fn write_project(&mut self) {
+        self.finish_generation();
         let mut p = self.project.clone();
         // like the browser app, a project file only carries the tools its operations use
         let used: Vec<String> = p.data.ops.iter().map(|o| o.p.tool.clone()).collect();
@@ -769,19 +782,75 @@ impl App {
         }
     }
 
+    /// True while the toolpath on hand does not match the drawing yet (a change waits, or the new toolpath is being worked out).
+    pub fn gen_stale(&self) -> bool { self.gen_pending || self.gen_rx.is_some() }
+
+    /// Starts working out the toolpath on a worker thread, so the window keeps answering while a big job is generated.
+    /// Does nothing while one is already running: the change is picked up as soon as it finishes.
+    pub fn start_generation(&mut self) {
+        if self.gen_rx.is_some() { return; }
+        self.gen_pending = false;
+        let units = if self.imperial { Units::Imperial } else { Units::Metric };
+        let data = self.project.data.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let t = std::time::Instant::now();
+            let r = generate(&data, units);
+            let _ = tx.send((r, t.elapsed().as_secs_f64() * 1000.0));
+        });
+        self.gen_rx = Some(rx);
+        self.gen_started = Some(std::time::Instant::now());
+    }
+
+    /// Picks up a finished toolpath; true while one is still being worked out.
+    pub fn poll_generation(&mut self) -> bool {
+        let Some(rx) = &self.gen_rx else { return false };
+        match rx.try_recv() {
+            Ok((r, ms)) => { self.gen_rx = None; self.gen_started = None; self.apply_generated(r, ms); false }
+            Err(std::sync::mpsc::TryRecvError::Empty) => true,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                // the worker stopped without an answer (a bug in the generator): say so instead of waiting for ever
+                self.gen_rx = None; self.gen_started = None;
+                self.apply_generated(Err("The toolpath could not be generated (internal error). Please report it with the project file.".into()), 0.0);
+                false
+            }
+        }
+    }
+
+    /// Makes sure the toolpath matches the drawing right now, waiting for or redoing the generation if needed. Saving and exporting call
+    /// it, so the file never carries a toolpath of an earlier version of the drawing.
+    pub fn finish_generation(&mut self) {
+        if let Some(rx) = self.gen_rx.take() {
+            self.gen_started = None;
+            match rx.recv() {
+                Ok((r, ms)) => self.apply_generated(r, ms),
+                Err(_) => self.apply_generated(Err("The toolpath could not be generated (internal error). Please report it with the project file.".into()), 0.0),
+            }
+        }
+        if self.gen_pending { self.regenerate(); }
+    }
+
+    /// Works out the toolpath here and now (tests, and saving or exporting right after a change).
     pub fn regenerate(&mut self) {
         self.gen_pending = false;
         let units = if self.imperial { Units::Imperial } else { Units::Metric };
-        self.out_ver += 1;
         let t = std::time::Instant::now();
-        match generate(&self.project.data, units) {
+        let r = generate(&self.project.data, units);
+        self.apply_generated(r, t.elapsed().as_secs_f64() * 1000.0);
+    }
+
+    fn apply_generated(&mut self, r: Result<putiacnc_core::Output, String>, ms: f64) {
+        self.out_ver += 1;
+        match r {
             Ok(o) => { self.output = Some(o); self.gen_error = None; }
             Err(e) => { self.output = None; self.gen_error = Some(e); }
         }
-        self.gen_ms = t.elapsed().as_secs_f64() * 1000.0;
+        self.gen_ms = ms;
         // the warnings are worked out beside the UI: they replay the whole program
         self.checks.clear(); self.check_sel = None;
         self.checks_rx = None;
+        // a newer change is already waiting: its toolpath gets the checks, not this one
+        if self.gen_pending { return; }
         if let Some(o) = self.output.clone() {
             let (tx, rx) = std::sync::mpsc::channel();
             let (data, ver) = (self.project.data.clone(), self.out_ver);
@@ -1206,5 +1275,98 @@ mod history_tests {
         a.hist.record(&a.project.data);
         a.hist.classify(&a.project.data);
         assert_eq!(a.hist.undo.len(), n);
+    }
+}
+
+#[cfg(test)]
+mod gen_tests {
+    use super::*;
+
+    /// A project with something to cut: a rectangle in a profile operation.
+    fn app_with_job() -> App {
+        let mut a = App::new(None);
+        let d = &mut a.project.data;
+        let tool = d.tools[0].id.clone();
+        let mut p = shapes::default_op_params(&tool);
+        p.kind = "outside".into(); p.depth = 3.0;
+        d.ops.push(putiacnc_core::model::Operation { id: 1, p });
+        d.loops.push(shapes::new_rect([10.0, 10.0], [60.0, 40.0], 0.0, 1));
+        a.touch();
+        a
+    }
+
+    /// What the main loop does every frame, until the toolpath matches the drawing.
+    fn settle(a: &mut App) {
+        for _ in 0..2000 {
+            a.poll_generation();
+            if a.gen_pending && a.gen_rx.is_none() { a.start_generation(); }
+            if !a.gen_stale() { return; }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        panic!("the toolpath never settled");
+    }
+
+    #[test]
+    fn the_worker_gives_the_same_toolpath_as_generating_here() {
+        let mut a = app_with_job();
+        settle(&mut a);
+        let bg = a.output.as_ref().unwrap().lines.clone();
+        a.regenerate();
+        assert_eq!(bg, a.output.as_ref().unwrap().lines);
+        assert!(!bg.is_empty());
+    }
+
+    #[test]
+    fn only_one_generation_runs_and_the_latest_change_wins() {
+        let mut a = app_with_job();
+        a.start_generation();
+        assert!(a.gen_rx.is_some());
+        // a change while it runs: no second worker, the change waits
+        a.project.data.ops[0].p.depth = 5.0;
+        a.touch();
+        a.start_generation();
+        assert!(a.gen_pending, "the change is still waiting while the first worker runs");
+        settle(&mut a);
+        let deepest = a.output.as_ref().unwrap().moves.iter().map(|m| m.to[2]).fold(0.0_f64, f64::min);
+        assert!((deepest + 5.0).abs() < 1e-6, "the toolpath is for the latest depth: {deepest}");
+    }
+
+    #[test]
+    fn saving_and_exporting_never_use_an_old_toolpath() {
+        let mut a = app_with_job();
+        settle(&mut a);
+        // change the drawing and, before the main loop gets to it, ask for the current toolpath (what save and export do)
+        a.project.data.ops[0].p.depth = 7.0;
+        a.touch();
+        a.start_generation();
+        a.project.data.ops[0].p.depth = 8.0;
+        a.touch();
+        a.finish_generation();
+        assert!(!a.gen_stale());
+        let deepest = a.output.as_ref().unwrap().moves.iter().map(|m| m.to[2]).fold(0.0_f64, f64::min);
+        assert!((deepest + 8.0).abs() < 1e-6, "{deepest}");
+    }
+
+    #[test]
+    fn opening_another_project_drops_the_old_toolpath() {
+        let mut a = app_with_job();
+        a.start_generation();
+        a.project = shapes::blank_project();
+        a.reset_after_load();
+        assert!(a.gen_rx.is_none() && a.output.is_none(), "nothing of the old project is kept or picked up later");
+        settle(&mut a);
+        assert!(a.output.as_ref().is_none_or(|o| o.moves.is_empty()), "the blank project has nothing to cut");
+    }
+
+    #[test]
+    fn a_worker_that_dies_is_reported_not_waited_for() {
+        let mut a = app_with_job();
+        let (tx, rx) = std::sync::mpsc::channel();
+        drop(tx);
+        a.gen_pending = false;
+        a.gen_rx = Some(rx);
+        assert!(!a.poll_generation());
+        assert!(a.gen_rx.is_none() && a.output.is_none());
+        assert!(a.gen_error.as_deref().is_some_and(|e| e.contains("internal error")));
     }
 }
