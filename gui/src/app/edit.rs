@@ -4,9 +4,26 @@ use super::*;
 impl App {
     /// Call after any change to the project.
     pub fn touch(&mut self) {
+        self.clear_oversize_note();
         self.note_empty_ops();
         self.modified = true;
         self.gen_pending = true;
+    }
+
+    /// Once the imported drawing has been resized to fit the stock (or is gone), its "too large" sentence leaves the banner.
+    fn clear_oversize_note(&mut self) {
+        let Some((gid, frag)) = self.oversize.clone() else { return };
+        let d = &self.project.data;
+        let fits = match shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(gid as _))) {
+            Some(b) => (b[2] - b[0]) <= d.stock.w + 1e-6 && (b[3] - b[1]) <= d.stock.h + 1e-6,
+            None => true,
+        };
+        if !fits { return; }
+        self.oversize = None;
+        if let Some(e) = self.error.take() {
+            let rest = e.replacen(&frag, "", 1).trim().to_string();
+            if !rest.is_empty() { self.error = Some(rest); }
+        }
     }
 
     /// An operation that has lost its last shape stays, with all its settings, so the shapes can be redrawn and put back with
