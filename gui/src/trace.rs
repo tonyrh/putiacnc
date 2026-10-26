@@ -179,21 +179,20 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             changed |= ui.checkbox(&mut t.opts.invert, "Invert").on_hover_text("Trace the light areas instead of the dark ones").changed();
             ui.add_space(8.0);
             changed |= ui.checkbox(&mut t.opts.smooth, "Smooth curves").on_hover_text("Off keeps straight segments that follow the pixels").changed();
-            // the sign that a trace is running, at the right end of the row
-            if t.working() {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.weak("Tracing\u{2026}"); ui.add(egui::Spinner::new().size(14.0)); });
-            }
+            // what the trace found, at the right end of the row
+            let count = match &t.result { Some(Ok(i)) => i.loops.len(), _ => 0 };
+            let (txt, tip) = if t.opts.mode == Mode::Outline { (format!("{count} outlines"), "Holes included") } else { (format!("{count} lines"), "Centre lines found") };
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.weak(txt).on_hover_text(tip); });
         });
         if changed {
             t.dirty = true;
             t.remember = Some(Opts { width_mm: 100.0, ..t.opts.clone() });
         }
-        ui.add_space(4.0);
         let count = match &t.result { Some(Ok(i)) => i.loops.len(), _ => 0 };
         match &t.result {
-            Some(Ok(i)) if !i.warnings.is_empty() => { ui.colored_label(Color32::from_rgb(0xe0, 0x8a, 0x2a), i.warnings.join(" ")); }
-            Some(Err(e)) => { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
-            _ => { ui.weak(if t.opts.mode == Mode::Outline { format!("{count} outlines (holes included).") } else { format!("{count} lines.") }); }
+            Some(Ok(i)) if !i.warnings.is_empty() => { ui.add_space(4.0); ui.colored_label(Color32::from_rgb(0xe0, 0x8a, 0x2a), i.warnings.join(" ")); }
+            Some(Err(e)) => { ui.add_space(4.0); ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
+            _ => {}
         }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
