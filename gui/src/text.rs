@@ -517,11 +517,12 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
             ui.end_row();
             crate::toolmgr::rlabel(ui, lw, "Align");
-            ui.horizontal(|ui| {
-                for (a, n) in [(Align::Left, "Left"), (Align::Center, "Centre"), (Align::Right, "Right")] {
-                    if ui.selectable_label(t.align == a, n).clicked() { t.align = a; }
-                }
-            });
+            {
+                const ALIGNS: [Align; 3] = [Align::Left, Align::Center, Align::Right];
+                let cur = ALIGNS.iter().position(|a| *a == t.align).unwrap_or(0);
+                let (c, _) = crate::zoomcard::seg3(ui, ["Left", "Centre", "Right"], ["Lines start at the left edge", "Lines are centred", "Lines end at the right edge"], cur);
+                if let Some(i) = c { t.align = ALIGNS[i]; }
+            }
             ui.end_row();
         });
 

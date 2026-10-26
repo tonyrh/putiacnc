@@ -63,15 +63,24 @@ pub fn segmented(ui: &mut egui::Ui, half: Vec2, sel: usize, items: [Icon; 2]) ->
 /// The pill itself, with whatever `face` draws on each half (half number, its rectangle, the colour to draw in).
 /// Returns (the half that was clicked, the half under the pointer, the response of the whole control).
 pub fn segmented_with(ui: &mut egui::Ui, half: Vec2, sel: usize, face: impl Fn(&egui::Painter, usize, Rect, Color32)) -> (Option<usize>, Option<usize>, egui::Response) {
-    let (rect, resp) = ui.allocate_exact_size(Vec2::new(half.x * 2.0, half.y), Sense::click());
+    segmented_n(ui, half, 2, sel, face)
+}
+
+/// The same pill with `n` equal parts.
+pub fn segmented_n(ui: &mut egui::Ui, half: Vec2, n: usize, sel: usize, face: impl Fn(&egui::Painter, usize, Rect, Color32)) -> (Option<usize>, Option<usize>, egui::Response) {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(half.x * n as f32, half.y), Sense::click());
     let v = ui.style().visuals.widgets.clone();
     let rad = 6.0;
     ui.painter().rect(rect, rad, v.inactive.bg_fill, v.inactive.bg_stroke);
-    let hot = resp.hover_pos().map(|p| if p.x < rect.center().x { 0 } else { 1 });
+    let hot = resp.hover_pos().map(|p| (((p.x - rect.min.x) / half.x).floor().max(0.0) as usize).min(n - 1));
     let mut clicked = None;
-    for i in 0..2 {
+    for i in 0..n {
         let r = Rect::from_min_size(rect.min + Vec2::new(half.x * i as f32, 0.0), half);
-        let round = if i == 0 { egui::Rounding { nw: rad, sw: rad, ne: 0.0, se: 0.0 } } else { egui::Rounding { nw: 0.0, sw: 0.0, ne: rad, se: rad } };
+        let round = egui::Rounding {
+            nw: if i == 0 { rad } else { 0.0 }, sw: if i == 0 { rad } else { 0.0 },
+            ne: if i + 1 == n { rad } else { 0.0 }, se: if i + 1 == n { rad } else { 0.0 },
+        };
+        if n > 2 && i > 0 && sel != i && sel + 1 != i { ui.painter().line_segment([r.left_top() + Vec2::new(0.0, 5.0), r.left_bottom() - Vec2::new(0.0, 5.0)], v.inactive.bg_stroke); }
         let on = sel == i;
         if on { ui.painter().rect_filled(r, round, ui.visuals().selection.bg_fill); }
         else if hot == Some(i) && resp.hovered() { ui.painter().rect_filled(r, round, v.hovered.bg_fill); }
@@ -91,6 +100,16 @@ pub fn seg2(ui: &mut egui::Ui, labels: [&str; 2], tips: [&str; 2], sel: usize) -
     let w = labels.iter().map(|l| ui.fonts(|f| f.layout_no_wrap(l.to_string(), font.clone(), Color32::WHITE).size().x)).fold(0.0_f32, f32::max).ceil() + 22.0;
     let half = Vec2::new(w, ui.spacing().interact_size.y.max(24.0));
     let (clicked, hov, resp) = segmented_with(ui, half, sel, |p, i, r, fg| { p.text(r.center(), egui::Align2::CENTER_CENTER, labels[i], font.clone(), fg); });
+    if let Some(i) = hov { if !tips[i].is_empty() { resp.clone().on_hover_text(tips[i]); } }
+    (clicked, resp)
+}
+
+/// A three-choice switch with words on it, like `seg2`.
+pub fn seg3(ui: &mut egui::Ui, labels: [&str; 3], tips: [&str; 3], sel: usize) -> (Option<usize>, egui::Response) {
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let w = labels.iter().map(|l| ui.fonts(|f| f.layout_no_wrap(l.to_string(), font.clone(), Color32::WHITE).size().x)).fold(0.0_f32, f32::max).ceil() + 22.0;
+    let half = Vec2::new(w, ui.spacing().interact_size.y.max(24.0));
+    let (clicked, hov, resp) = segmented_n(ui, half, 3, sel, |p, i, r, fg| { p.text(r.center(), egui::Align2::CENTER_CENTER, labels[i], font.clone(), fg); });
     if let Some(i) = hov { if !tips[i].is_empty() { resp.clone().on_hover_text(tips[i]); } }
     (clicked, resp)
 }
