@@ -10,7 +10,7 @@ const PRESETS: [f32; 6] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
 const BTN: f32 = 34.0;
 const PCT_W: f32 = 54.0;
 /// The width of the card (buttons, gaps, frame), for deciding where there is room for it.
-pub const CARD_W: f32 = 3.0 * BTN + PCT_W + 3.0 * 2.0 + 8.0 + 2.0;
+pub const CARD_W: f32 = 3.0 * BTN + PCT_W + 3.0 * 5.0 + 8.0 + 2.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Act {
@@ -66,7 +66,7 @@ pub fn show(ctx: &egui::Context, id: &str, order: egui::Order, pos: Pos2, frac: 
     let r = egui::Area::new(egui::Id::new(id)).order(order).pivot(egui::Align2::RIGHT_TOP).fixed_pos(pos).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(4.0).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing = Vec2::splat(2.0);
+                ui.spacing_mut().item_spacing = Vec2::splat(5.0);
                 let sq = Vec2::splat(BTN);
                 if button(ui, sq, false, "Zoom out (-)", |p, r, fg| paint_icon(p, Icon::Minus, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::By(1.0 / STEP)); }
                 let text = pct_text(frac);
