@@ -27,11 +27,13 @@ changes the project inside a drawing function, it probably belongs in core.
 |---|---|
 | `model` | The data structures above, with serde defaults for old files. |
 | `shapes` | Making and changing shapes, per-operation defaults, `add_operation` / `add_inlay`, `GroupCopies` (fresh group ids when copying), tabs bookkeeping. |
-| `clip`, `arcs`, `trim`, `cleanup` | Polygon offsetting and booleans (Clipper), arc fitting, the Trim tool, the Clean up command. |
+| `clip` | A thin safe wrapper over Clipper 6.4 for offsets and boolean operations. |
+| `arcs` | Rewrites runs of short straight moves that lie on a circle as G2/G3 lines. |
+| `trim`, `cleanup` | The Trim and Extend tool; the Clean up command for imported drawings (joins paths, drops duplicates, finds open contours). |
 | `svg`, `dxf`, `bitmap`, `text` | Importers and the font-to-outline code. |
 | `toolpath` | `generate(&ProjectData, Units) -> Output`: profile, pocket, V-carve, drill, inlay, tabs, lead-in, G-code lines and a time estimate. |
 | `relief` | The 3D model roughing and finishing passes. |
-| `sim` | Walks the toolpath to give the 3D preview its material removal and timing. |
+| `sim` | Material-removal simulation on a height field: each cutting move is stamped into a grid with the tool's profile, which the 3D preview shows. |
 | `checks` | Reads the generated toolpath and reports what would go wrong: clamp collisions, depth beyond the stock, and so on. |
 | `history` | Undo and redo as project snapshots, each tagged Drawing / Project / Both, so the toolbar and the Edit menu can step differently. |
 | `selection` | Selection units, group and ungroup. |
@@ -48,11 +50,13 @@ changes the project inside a drawing function, it probably belongs in core.
 | `app/session.rs`, `files.rs`, `generate.rs`, `edit.rs` | New / load / preferences; opening, importing, saving, exporting; background toolpath generation and the checks; delete, duplicate, offset, combine, undo steps, snapping. |
 | `canvas/` | The 2D drawing: `mod.rs` (the big `canvas()` function and keys), `palette.rs` (tool palette, options bar, zoom card), `handles.rs`, `tabs.rs`, `nodes.rs`, `trim.rs`, `rulers.rs`, `draw.rs`. |
 | `panels/` | `menu.rs`, `bottom.rs` (the bottom bar), `dialogs.rs` (status bar, confirm), `project.rs` (project and operations panels), `stock.rs` (stock and clamps cards). |
-| `view3d.rs`, `viewcube.rs`, `preview.rs`, `model3d.rs` | The 3D preview, its cube card, and the mesh code. |
+| `view3d.rs`, `viewcube.rs` | The 3D preview and its cube card. |
+| `preview.rs` | The "ghost" previews for tools that change the drawing: the tool runs on a scratch copy, what it would change is drawn over the canvas, and applying does exactly that. |
+| `model3d.rs` | The Import 3D model dialog (pick which axis is up). |
 | `zoomcard.rs` | The zoom card (2D and 3D). |
-| `text.rs`, `array.rs`, `offset.rs`, `combine.rs`, `corners.rs`, `align.rs`, `trace.rs`, `cleanup.rs` | The dialogs and popovers of the tools of the same name. |
+| `text.rs`, `array.rs`, `offset.rs`, `combine.rs`, `corners.rs`, `align.rs`, `trace.rs`, `cleanup.rs` | The dialogs and popovers of the tools of the same name (Text, Array and copy, Offset, Combine, Fillet and chamfer, Align, bitmap trace, Clean up). |
 | `toolmgr.rs`, `machmgr.rs`, `toolpick.rs` | Tool and machine managers, the tool picker. |
-| `checkui.rs`, `osnap.rs`, `dynin.rs` | Showing check results, object snap, typing exact values while drawing. |
+| `checkui.rs`, `osnap.rs`, `dynin.rs` | The warnings chip, list and 3D markers; object snap; typed values while drawing. |
 | `icons.rs`, `theme.rs`, `widgets.rs`, `csd.rs`, `about.rs`, `update.rs`, `prefs.rs`, `shortcuts.rs` | Drawn icons, colours, shared widgets, the window header, About, update check, preferences, the shortcut list. |
 
 ## How a change reaches the machine
