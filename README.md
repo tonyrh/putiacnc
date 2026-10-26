@@ -145,7 +145,7 @@ its G-code and a meta file in the same format.
 - Offsets that collapse a shape are very slow in Clipper. Repeated offsets (pocket rings, V-carve rings)
   therefore offset the previous ring by one step instead of offsetting the original shape by a growing distance.
 
-Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report.
+Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report (version, system and kernel, desktop session, CPU and memory, window scale, graphics driver, config folder; no user or computer name).
 
 ## Trademarks and bit data
 

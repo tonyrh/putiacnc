@@ -16,10 +16,62 @@ fn icon_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> {
     Some(ctx.load_texture("about-icon", img, egui::TextureOptions::LINEAR))
 }
 
-/// Version, system and config folder as plain text, for bug reports.
-pub fn version_info() -> String {
+/// The operating system as a person would name it ("Fedora Linux 41", "macOS 14.5", "Windows ..."), with the kernel on Linux.
+fn os_name() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        let pretty = std::fs::read_to_string("/etc/os-release").ok().and_then(|t| t.lines().find_map(|l| l.strip_prefix("PRETTY_NAME=").map(|v| v.trim_matches('"').to_string())));
+        let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease").ok().map(|k| k.trim().to_string());
+        match (pretty, kernel) {
+            (Some(p), Some(k)) => format!("{p} (kernel {k})"),
+            (Some(p), None) => p,
+            (None, Some(k)) => format!("Linux (kernel {k})"),
+            _ => "Linux".into(),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    { std::process::Command::new("sw_vers").arg("-productVersion").output().ok().map(|o| format!("macOS {}", String::from_utf8_lossy(&o.stdout).trim())).unwrap_or_else(|| "macOS".into()) }
+    #[cfg(target_os = "windows")]
+    { std::process::Command::new("cmd").args(["/C", "ver"]).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|t| !t.is_empty()).unwrap_or_else(|| "Windows".into()) }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    { std::env::consts::OS.to_string() }
+}
+
+/// Installed memory in GiB, where the system says so cheaply.
+fn memory_gib() -> Option<f64> {
+    #[cfg(target_os = "linux")]
+    {
+        let t = std::fs::read_to_string("/proc/meminfo").ok()?;
+        let kb: f64 = t.lines().find_map(|l| l.strip_prefix("MemTotal:"))?.trim().trim_end_matches("kB").trim().parse().ok()?;
+        Some(kb / 1024.0 / 1024.0)
+    }
+    #[cfg(not(target_os = "linux"))]
+    { None }
+}
+
+/// Version, system and config folder as plain text, for bug reports. No user or computer name is included.
+pub fn version_info(ctx: &egui::Context, gl: &str) -> String {
     let dir = crate::toolmgr::config_dir().map(|d| d.display().to_string()).unwrap_or_else(|| "unknown".into());
-    format!("PutiaCNC {} ({} {})\nConfig folder: {}", crate::update::CURRENT, std::env::consts::OS, std::env::consts::ARCH, dir)
+    let var = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
+    let mut out = format!("PutiaCNC {} ({} {}, {} build)\n", crate::update::CURRENT, std::env::consts::OS, std::env::consts::ARCH, if cfg!(debug_assertions) { "debug" } else { "release" });
+    out += &format!("System: {}\n", os_name());
+    let session = [var("XDG_SESSION_TYPE").or_else(|| var("WAYLAND_DISPLAY").map(|_| "wayland".into())), var("XDG_CURRENT_DESKTOP")].into_iter().flatten().collect::<Vec<_>>().join(", ");
+    if !session.is_empty() { out += &format!("Session: {session}\n"); }
+    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    out += &format!("CPU: {cores} threads{}\n", memory_gib().map(|g| format!(", {g:.1} GiB memory")).unwrap_or_default());
+    let r = ctx.screen_rect();
+    out += &format!("Window: {:.0} x {:.0} points, scale {:.2}\n", r.width(), r.height(), ctx.pixels_per_point());
+    if !gl.is_empty() { out += &format!("Graphics: {gl}\n"); }
+    if let Some(l) = var("LANG") { out += &format!("Locale: {l}\n"); }
+    out += &format!("Config folder: {dir}");
+    out
+}
+
+/// The OpenGL renderer and version, as the driver names them.
+pub fn gl_summary(gl: &eframe::glow::Context) -> String {
+    use eframe::glow::HasContext;
+    // SAFETY: plain driver queries on the context eframe made current for this thread
+    unsafe { format!("{} (OpenGL {})", gl.get_parameter_string(eframe::glow::RENDERER), gl.get_parameter_string(eframe::glow::VERSION)) }
 }
 
 pub fn window(ctx: &egui::Context, app: &mut App) {
@@ -57,7 +109,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             if ui.button("Open config folder").on_hover_text("Where your tool libraries, machines and settings are saved").clicked() {
                 if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that(d); }
             }
-            if ui.button("Copy version info").on_hover_text("Version, system and config folder, for a bug report").clicked() { ctx.output_mut(|o| o.copied_text = version_info()); }
+            if ui.button("Copy version info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); } }
         });
         ui.add_space(8.0);
         egui::CollapsingHeader::new(egui::RichText::new("Notices").small().weak()).default_open(false).show(ui, |ui| {
@@ -69,4 +121,19 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         });
     });
     if close || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.about_open = false; }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_info_names_the_system_and_leaves_out_who_and_where() {
+        let t = version_info(&egui::Context::default(), "Test GPU (OpenGL 4.6)");
+        for want in ["PutiaCNC ", "System: ", "CPU: ", "Window: ", "Graphics: Test GPU (OpenGL 4.6)", "Config folder: "] { assert!(t.contains(want), "missing {want:?} in\n{t}"); }
+        let host = std::fs::read_to_string("/etc/hostname").unwrap_or_default();
+        if !host.trim().is_empty() { assert!(!t.contains(host.trim()), "the computer's name must not be in the text"); }
+        // without a driver name there is no Graphics line
+        assert!(!version_info(&egui::Context::default(), "").contains("Graphics:"));
+    }
 }
