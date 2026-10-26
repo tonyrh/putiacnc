@@ -149,7 +149,7 @@ pub fn dialog_header(ui: &mut Ui, title: &str, closable: bool) -> bool {
     dialog_header_inner(ui, title, closable, None::<fn(&mut Ui)>)
 }
 
-/// The same header with a round "?" at its left end: hover or click it for `help`, the explanations that do not need to
+/// The same header with a round "?" at its left end: hover it for `help`, the explanations that do not need to
 /// stay on screen. It mirrors the close button at the right end.
 pub fn dialog_header_help(ui: &mut Ui, title: &str, closable: bool, help: impl FnOnce(&mut Ui)) -> bool {
     dialog_header_inner(ui, title, closable, Some(help))
@@ -185,23 +185,12 @@ fn dialog_header_inner(ui: &mut Ui, title: &str, closable: bool, help: Option<im
     }
     if let Some(help) = help {
         let b = Rect::from_center_size(Pos2::new(rect.min.x + 15.0, rect.center().y), egui::vec2(28.0, 28.0));
-        let id = ui.id().with(("dialog_help", title));
-        let resp = ui.interact(b, id, Sense::click());
-        if resp.clicked() { ui.memory_mut(|m| m.toggle_popup(id)); }
-        if std::env::var_os("PUTIACNC_HELP_OPEN").is_some() { ui.memory_mut(|m| m.open_popup(id)); } // for screenshots
-        let open = ui.memory(|m| m.is_popup_open(id));
-        if resp.hovered() || resp.is_pointer_button_down_on() || open {
-            let c = if resp.is_pointer_button_down_on() || open { vis.widgets.active.bg_fill } else { vis.widgets.hovered.bg_fill };
-            ui.painter().circle_filled(b.center(), 12.0, c);
-        }
-        let col = if resp.hovered() || open { vis.text_color() } else { vis.weak_text_color() };
+        let resp = ui.interact(b, ui.id().with(("dialog_help", title)), Sense::hover());
+        if resp.hovered() { ui.painter().circle_filled(b.center(), 12.0, vis.widgets.hovered.bg_fill); }
+        let col = if resp.hovered() { vis.text_color() } else { vis.weak_text_color() };
         ui.painter().circle_stroke(b.center(), 8.5, Stroke::new(1.3_f32, col));
         ui.painter().text(b.center(), egui::Align2::CENTER_CENTER, "?", egui::FontId::proportional(12.0), col);
-        if open {
-            egui::popup::popup_below_widget(ui, id, &resp, |ui| { ui.set_max_width(300.0); help(ui); });
-        } else {
-            resp.on_hover_ui(|ui| { ui.set_max_width(300.0); help(ui); });
-        }
+        resp.on_hover_ui(|ui| { ui.set_max_width(300.0); help(ui); });
     }
     // divider spanning the full dialog width (through the window's padding)
     let y = rect.max.y + 2.0;
