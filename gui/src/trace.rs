@@ -128,7 +128,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(8.0);
         let mut changed = false;
-        egui::Grid::new("trace_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
+        let col1 = 86.0; // the first column is as wide in both grids, so the labels line up
+        egui::Grid::new("trace_grid").num_columns(2).min_col_width(col1).spacing([10.0, 8.0]).show(ui, |ui| {
             ui.label("Trace");
             ui.horizontal(|ui| {
                 for (m, n, tip) in [(Mode::Outline, "Outlines", "Closed outlines of the shapes, holes included: for Profile, Pocket, V-carve"), (Mode::Centerline, "Centre line", "One open line along the middle of each stroke: for engraving lines and writing")] {
@@ -138,39 +139,33 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.end_row();
             ui.label("Threshold");
             let mut th = t.opts.threshold as i32;
+            // the slider takes the rest of the row, up to the number box
+            ui.spacing_mut().slider_width = (ui.available_width() - 64.0).max(80.0);
             if ui.add(egui::Slider::new(&mut th, 1..=254)).on_hover_text("Pixels darker than this become part of the shape").changed() { t.opts.threshold = th as u8; changed = true; }
             ui.end_row();
-            ui.label("Width");
+        });
+        ui.add_space(8.0);
+        // number fields in pairs: label, field, label, field
+        egui::Grid::new("trace_grid2").num_columns(4).min_col_width(col1).spacing([10.0, 8.0]).show(ui, |ui| {
             let (_, hmm) = t.bm.as_ref().map(|b| b.size_mm(&t.opts)).unwrap_or((0.0, 0.0));
-            ui.horizontal(|ui| {
-                changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.width_mm, 1.0, 5000.0, 0.5, 2, "").changed();
-                ui.add_space(4.0);
-                ui.weak(format!("mm   Height {:.2} mm", hmm));
-            });
+            ui.label("Width");
+            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.width_mm, 1.0, 5000.0, 0.5, 2, "").changed(); ui.weak("mm"); });
+            ui.label("Height");
+            ui.weak(format!("{hmm:.2} mm"));
             ui.end_row();
-            ui.label("Edges");
-            ui.horizontal(|ui| {
-                changed |= ui.checkbox(&mut t.opts.crop, "Crop to content").on_hover_text("Cut the picture down to the area that has something in it").changed();
-                ui.add_space(10.0);
-                changed |= crate::widgets::num(ui, [46.0, 24.0], &mut t.opts.trim_pct, 0.0, 45.0, 0.1, 1, "").on_hover_text("Ignore this part of every edge, for a scanner border or a frame").changed();
-                ui.add_space(4.0);
-                ui.weak("% edge");
-            });
-            ui.end_row();
+            ui.label("Edge trim");
+            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.trim_pct, 0.0, 45.0, 0.1, 1, "").on_hover_text("Ignore this part of every edge, for a scanner border or a frame").changed(); ui.weak("%"); });
             ui.label("Ignore specks");
-            ui.horizontal(|ui| {
-                changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.speck_mm2, 0.0, 10000.0, 0.1, 1, "").changed();
-                ui.add_space(4.0);
-                ui.weak("mm² or smaller");
-            });
+            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.speck_mm2, 0.0, 10000.0, 0.1, 1, "").on_hover_text("Shapes this small (or smaller) are left out").changed(); ui.weak("mm\u{b2}"); });
             ui.end_row();
-            ui.label("");
-            ui.horizontal(|ui| {
-                changed |= ui.checkbox(&mut t.opts.invert, "Invert").on_hover_text("Trace the light areas instead of the dark ones").changed();
-                ui.add_space(10.0);
-                changed |= ui.checkbox(&mut t.opts.smooth, "Smooth curves").on_hover_text("Off keeps straight segments that follow the pixels").changed();
-            });
-            ui.end_row();
+        });
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            changed |= ui.checkbox(&mut t.opts.crop, "Crop to content").on_hover_text("Cut the picture down to the area that has something in it").changed();
+            ui.add_space(8.0);
+            changed |= ui.checkbox(&mut t.opts.invert, "Invert").on_hover_text("Trace the light areas instead of the dark ones").changed();
+            ui.add_space(8.0);
+            changed |= ui.checkbox(&mut t.opts.smooth, "Smooth curves").on_hover_text("Off keeps straight segments that follow the pixels").changed();
         });
         if changed {
             t.dirty = true;
