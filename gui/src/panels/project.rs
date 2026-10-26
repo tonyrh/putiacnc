@@ -284,6 +284,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let id = o.id;
             let o_kind = o.p.kind.clone();
             let n_ops = d.ops.len();
+            let sy = ui.spacing().item_spacing.y;
+            let card_hdr: (egui::Rect, bool, Color32);
             {
                 let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
@@ -293,10 +295,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
                 let fill = if in3d && hidden_now.contains(&id) { fill.gamma_multiply(0.55) } else { fill };
-                ui.painter().rect_filled(rect, 6.0, fill);
+                let rnd = if folded { egui::Rounding::same(6.0) } else { egui::Rounding { nw: 6.0, ne: 6.0, sw: 0.0, se: 0.0 } };
+                ui.painter().rect_filled(rect, rnd, fill);
+                card_hdr = (rect, selected, base);
                 // the operations that own the shapes selected in the drawing are brighter and outlined
                 if selected {
-                    ui.painter().rect_stroke(rect.expand(1.5), 7.0, egui::Stroke::new(2.5_f32, ui.visuals().text_color()));
+                    if folded { ui.painter().rect_stroke(rect.expand(1.5), 7.0, egui::Stroke::new(2.5_f32, ui.visuals().text_color())); }
                     if hi_scroll { ui.scroll_to_rect(rect.expand(8.0), Some(egui::Align::Center)); hi_scroll = false; }
                 }
                 // white text on dark colours, near-black on light ones
@@ -337,7 +341,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     });
                 });
             }
-            ui.add_space(2.0);
+            if collapsed.contains(&id) { ui.add_space(2.0); } else { ui.spacing_mut().item_spacing.y = 0.0; }
             if !collapsed.contains(&id) {
             let loops = &d.loops;
             let d_act = d.act;
@@ -349,8 +353,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             }
             let model_h = d.relief.as_ref().map(|r| r.zmax * r.scale);
             let o = &mut d.ops[i];
-            egui::Frame::group(ui.style()).show(ui, |ui| {
-                ui.set_width(lw - 14.0);
+            // one card with the header: the same colour all round, flat where the two meet
+            let card_col = if card_hdr.1 { card_hdr.2 } else { card_hdr.2.gamma_multiply(0.66) };
+            let body_card = egui::Frame::none().inner_margin(egui::Margin::same(6.0)).stroke(egui::Stroke::new(1.5_f32, card_col))
+                .rounding(egui::Rounding { nw: 0.0, ne: 0.0, sw: 6.0, se: 6.0 }).show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = sy;
+                ui.set_width(lw - 12.0);
                 let p = &mut o.p;
                 // an operation without shapes keeps its settings; the selected shapes can be put into it (a relief works on the model)
                 if p.kind != "relief" {
@@ -675,6 +683,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     }
                 }
             });
+            // the operation that owns the selected shapes: outline the whole card, header and settings
+            if card_hdr.1 {
+                let whole = card_hdr.0.union(body_card.response.rect);
+                ui.painter().rect_stroke(whole.expand(1.5), 7.0, egui::Stroke::new(2.5_f32, ui.visuals().text_color()));
+            }
+            ui.spacing_mut().item_spacing.y = sy;
         }
             ui.add_space(6.0);
         }
