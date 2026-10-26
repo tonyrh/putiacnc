@@ -46,7 +46,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_VIEW=3d` | Opens the 3D preview. |
 | `PUTIACNC_PLAY=0..1`, `PUTIACNC_SPEED=n`, `PUTIACNC_T_FILE=path` | Playback position, speed index, or a file whose number sets the time. |
 | `PUTIACNC_ZOOM=f` | Scales the 3D camera distance. |
-| `PUTIACNC_HIDE=left,right` | Hides side panels. |
+| `PUTIACNC_HIDE=left,right,machine,toolpaths` | Hides the side panels, the machine area outline, or the toolpath lines (any mix). |
 | `PUTIACNC_SELECT=1,4,7` / `PUTIACNC_SELECT_ALL` | Selects shapes by index (no expansion to their group). |
 | `PUTIACNC_SHOW_*` (`ABOUT`, `ALIGN`, `ARRAY`, `CHECKS`, `CLEAN`, `COMBINE`, `CONFIRM`, `CORNERS`, `ERR`, `MACHINES`, `OFFSET`, `SHORTCUTS`, `TEXT`, `TOOLS`, `UPDATE`) | Opens that dialog or popover. |
 | `PUTIACNC_TAB_GCODE`, `PUTIACNC_TAB_NOTES`, `PUTIACNC_COLLAPSE=1,2` | Right panel tab; folds operations by number. |
