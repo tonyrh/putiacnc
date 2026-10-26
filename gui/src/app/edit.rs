@@ -85,10 +85,12 @@ impl App {
         let off = self.snap_mm.max(5.0);
         let mut new = Vec::new();
         let mut gc = shapes::GroupCopies::new(&self.project.data.loops);
+        let mut text_copies: std::collections::HashMap<i64, Option<i64>> = Default::default();
         for &i in &self.sel {
             let mut l = self.project.data.loops[i].clone();
             gc.apply(&mut l); // a copy of a group is a group of its own
-            l.grp = None; // a copy is its own shape, not part of the imported file
+            // a copy of a placed text is a text of its own (listed in the panel, editable); a copy of an imported drawing's shape is loose
+            l.grp = l.grp.and_then(|g| *text_copies.entry(g).or_insert_with(|| shapes::copy_text_group(&mut self.project.data, g)));
             shapes::translate(&mut l, off, -off);
             new.push(l);
         }

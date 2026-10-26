@@ -1162,6 +1162,15 @@ impl GroupCopies {
     }
 }
 
+/// A copy of a placed text's group, for the copy of its letters: same words and settings, a new number, not locked.
+/// `None` when `old` is not a text (a copy of an imported drawing is just loose shapes).
+pub fn copy_text_group(d: &mut ProjectData, old: i64) -> Option<i64> {
+    let g = d.groups.iter().find(|g| g.id == old && g.text.is_some())?.clone();
+    let id = d.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
+    d.groups.push(crate::model::ShapeGroup { id, locked: false, ..g });
+    Some(id)
+}
+
 #[cfg(test)]
 mod group_copy_tests {
     use super::*;
@@ -1176,6 +1185,20 @@ mod group_copy_tests {
         assert!(v.iter().all(|l| l.op == 7));
         assert_eq!(assign_to_op(&mut v, &sel, 7), 0, "nothing left to move");
         assert_eq!(assign_to_op(&mut v, &[9].into_iter().collect(), 7), 0, "an index past the end is ignored");
+    }
+
+    #[test]
+    fn a_copied_text_gets_a_group_of_its_own() {
+        let mut f = blank_project();
+        let spec: crate::model::TextSpec = serde_json::from_str(r#"{"content":"ab","font":"Hack","size":10.0,"spacing":0.0,"align":"Left"}"#).unwrap();
+        f.data.groups.push(crate::model::ShapeGroup { id: 4, name: "Text: ab".into(), locked: true, text: Some(spec) });
+        f.data.groups.push(crate::model::ShapeGroup { id: 5, name: "file.dxf".into(), locked: false, text: None });
+        let id = copy_text_group(&mut f.data, 4).unwrap();
+        assert_eq!(id, 6);
+        let g = f.data.groups.iter().find(|g| g.id == 6).unwrap();
+        assert!(g.text.is_some() && !g.locked && g.name == "Text: ab");
+        assert!(copy_text_group(&mut f.data, 5).is_none(), "an imported drawing is not a text");
+        assert!(copy_text_group(&mut f.data, 99).is_none());
     }
 
     #[test]
