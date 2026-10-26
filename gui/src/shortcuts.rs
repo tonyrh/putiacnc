@@ -40,6 +40,8 @@ const RIGHT: &[Section] = &[
         ("Ctrl+Shift+Z", "Redo (also Ctrl+Y)"),
         ("Ctrl+A", "Select all"),
         ("Ctrl+D", "Duplicate"),
+        ("Ctrl+G", "Group the selection"),
+        ("Ctrl+Shift+G", "Ungroup"),
         ("Del", "Delete the selection"),
         ("Arrows", "Nudge by the snap step (Shift: ×10)"),
         ("F", "Fit the stock in view"),

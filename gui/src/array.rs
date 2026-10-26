@@ -63,10 +63,13 @@ impl App {
         let (cx, cy) = (a.cx, a.cy);
         self.hist.record(&self.project.data);
         let first_new = self.project.data.loops.len();
+        let mut gc = putiacnc_core::shapes::GroupCopies::new(&self.project.data.loops);
         for st in &steps {
+            gc.next_batch();
             let start = self.project.data.loops.len();
             for &i in &src {
                 let mut l = self.project.data.loops[i].clone();
+                gc.apply(&mut l);
                 match st { Step::Shift(dx, dy) => shapes::translate(&mut l, *dx, *dy), Step::Turn(th) => shapes::rotate_about(&mut l, cx, cy, *th) }
                 self.project.data.loops.push(l);
             }

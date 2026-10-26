@@ -327,7 +327,7 @@ fn to_loop(px: Vec<[f64; 2]>, k: f64, hmm: f64, closed: bool) -> Option<LoopData
     }
     if closed && pts.len() > 1 && pts.first() == pts.last() { pts.pop(); }
     if pts.len() < if closed { 3 } else { 2 } { return None; }
-    Some(LoopData { c: closed as u8, op: 0, rc: None, cr: None, el: None, pt: None, grp: None, pts: pts.iter().flat_map(|p| [p[0], p[1]]).collect() })
+    Some(LoopData { c: closed as u8, op: 0, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: pts.iter().flat_map(|p| [p[0], p[1]]).collect() })
 }
 
 #[cfg(test)]

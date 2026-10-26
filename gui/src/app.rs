@@ -920,7 +920,14 @@ impl App {
         let mut texts: Vec<i64> = self.sel.iter().filter_map(|&i| before.loops.get(i).and_then(|l| l.grp)).filter(|&g| is_text(&before, g)).collect();
         texts.sort_unstable();
         texts.dedup();
-        let others: std::collections::BTreeSet<usize> = self.sel.iter().copied().filter(|&i| !before.loops.get(i).and_then(|l| l.grp).is_some_and(|g| texts.contains(&g))).collect();
+        // the same for the groups made with Edit > Group
+        let mut ugs: Vec<i64> = self.sel.iter().filter_map(|&i| before.loops.get(i).and_then(|l| l.ug)).collect();
+        ugs.sort_unstable();
+        ugs.dedup();
+        let others: std::collections::BTreeSet<usize> = self.sel.iter().copied().filter(|&i| {
+            let l = before.loops.get(i);
+            !l.and_then(|l| l.grp).is_some_and(|g| texts.contains(&g)) && !l.and_then(|l| l.ug).is_some_and(|g| ugs.contains(&g))
+        }).collect();
         restore(&mut self.project.data, e.snap, kind);
         let other = if undo { &mut self.hist.redo } else { &mut self.hist.undo };
         other.push(Entry { snap: before, kind: Some(kind) });
@@ -930,6 +937,7 @@ impl App {
         for g in texts.into_iter().filter(|&g| is_text(d, g)) {
             self.sel.extend(d.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(g)).map(|(k, _)| k));
         }
+        for g in ugs { self.sel.extend(d.loops.iter().enumerate().filter(|(_, l)| l.ug == Some(g)).map(|(k, _)| k)); }
     }
 
     fn after_history(&mut self) {
@@ -957,8 +965,10 @@ impl App {
         self.hist.record(&self.project.data);
         let off = self.snap_mm.max(5.0);
         let mut new = Vec::new();
+        let mut gc = shapes::GroupCopies::new(&self.project.data.loops);
         for &i in &self.sel {
             let mut l = self.project.data.loops[i].clone();
+            gc.apply(&mut l); // a copy of a group is a group of its own
             l.grp = None; // a copy is its own shape, not part of the imported file
             shapes::translate(&mut l, off, -off);
             new.push(l);

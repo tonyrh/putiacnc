@@ -8,17 +8,17 @@ use putiacnc_core::shapes;
 /// Aligns the selection. `each` = false: to the stock (0 left, 1 centre horizontally, 2 right, 3 top, 4 centre
 /// vertically, 5 bottom, 6 centre on both). `each` = true: to each other (0..5 the same edges), 6 and 7 distribute
 /// horizontally and vertically (three shapes or more).
-/// The selection as things that move as one: a placed text is a single thing (its letters keep their places), anything else
-/// is one shape per entry.
+/// The selection as things that move as one: a placed text and a group are single things (their parts keep their places),
+/// anything else is one shape per entry.
 pub fn units(app: &App) -> Vec<Vec<usize>> {
     let d = &app.project.data;
     let mut out: Vec<Vec<usize>> = Vec::new();
-    let mut seen: Vec<i64> = Vec::new();
+    let mut seen: std::collections::BTreeSet<usize> = Default::default();
     for i in app.sel.iter().copied().filter(|&i| i < d.loops.len()) {
-        match d.loops[i].grp.filter(|g| d.groups.iter().any(|x| x.id == *g && x.text.is_some())) {
-            Some(g) => { if !seen.contains(&g) { seen.push(g); out.push(d.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(g)).map(|(k, _)| k).collect()); } }
-            None => out.push(vec![i]),
-        }
+        if seen.contains(&i) { continue; }
+        let u = app.unit_of(&[i]);
+        seen.extend(u.iter().copied());
+        out.push(u);
     }
     out
 }
@@ -190,5 +190,65 @@ mod tests {
         let moved = boxes(&a);
         align_selection(&mut a, true, 6);
         assert_eq!(boxes(&a), moved);
+    }
+
+    #[test]
+    fn a_group_is_selected_aligned_and_copied_as_one_thing() {
+        let mut a = app3();
+        a.sel = [0, 1].into_iter().collect();
+        a.group_selection();
+        let g = a.project.data.loops[0].ug;
+        assert!(g.is_some() && a.project.data.loops[1].ug == g && a.project.data.loops[2].ug.is_none());
+        // picking one shape of the group takes the other along, and not the loose one
+        assert_eq!(a.text_siblings(1), vec![0, 1]);
+        assert_eq!(a.text_siblings(2), vec![2]);
+        // aligning treats the group as one unit: the two keep their distance
+        a.sel = [0, 1].into_iter().collect();
+        let gap = boxes(&a)[1][0] - boxes(&a)[0][0];
+        align_selection(&mut a, false, 0);
+        assert!((boxes(&a)[1][0] - boxes(&a)[0][0] - gap).abs() < 1e-6, "the group moved as a whole");
+        assert_eq!(units(&a).len(), 1);
+        // a copy of the group is a group of its own
+        a.duplicate_selection();
+        let copy = a.project.data.loops[3].ug;
+        assert!(copy.is_some() && copy != g && a.project.data.loops[4].ug == copy);
+        assert_eq!(a.project.data.loops[0].ug, g);
+        // grouping a group with another shape merges them into one group
+        a.sel = [0, 2].into_iter().collect();
+        a.group_selection();
+        let big = a.project.data.loops[0].ug;
+        assert!([0, 1, 2].iter().all(|&i| a.project.data.loops[i].ug == big));
+        assert_eq!(a.sel.len(), 3);
+        assert_eq!(a.project.data.loops[3].ug, copy, "the other group is untouched");
+    }
+
+    #[test]
+    fn grouping_undoes_saves_and_ungroups() {
+        let mut a = app3();
+        a.group_selection();
+        assert!(a.sel_in_group() && a.group_is_whole_selection());
+        // saved and read back with the group
+        let json = serde_json::to_string(&a.project.data).unwrap();
+        let back: putiacnc_core::model::ProjectData = serde_json::from_str(&json).unwrap();
+        assert!(back.loops.iter().all(|l| l.ug == a.project.data.loops[0].ug && l.ug.is_some()));
+        // grouping again changes nothing
+        let before = a.project.data.loops.clone();
+        a.group_selection();
+        assert_eq!(a.project.data.loops, before);
+        a.ungroup_selection();
+        assert!(a.project.data.loops.iter().all(|l| l.ug.is_none()));
+        a.do_undo(); // back to grouped, and the whole group stays selected
+        assert!(a.project.data.loops.iter().all(|l| l.ug.is_some()));
+        assert_eq!(a.sel.len(), 3);
+        a.do_undo(); // back to no group
+        assert!(a.project.data.loops.iter().all(|l| l.ug.is_none()));
+    }
+
+    #[test]
+    fn a_single_shape_cannot_be_grouped() {
+        let mut a = app3();
+        a.sel = [1].into_iter().collect();
+        a.group_selection();
+        assert!(a.project.data.loops.iter().all(|l| l.ug.is_none()));
     }
 }

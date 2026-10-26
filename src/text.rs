@@ -157,7 +157,7 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
         match (face.glyph_index(a), face.glyph_index(b)) { (Some(ga), Some(gb)) => pair_kerning(&face, ga, gb) * scale, _ => 0.0 }
     };
     let mk = |c: &[[i64; 2]]| LoopData {
-        c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
+        c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: c.iter().flat_map(|p| [p[0], p[1]]).collect(),
     };
     let glyph = |ch: char, x: f64, y: f64, contours: &mut Vec<crate::clip::Path>| {
         if let Some(g) = face.glyph_index(ch) {

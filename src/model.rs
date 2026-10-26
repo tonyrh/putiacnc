@@ -282,6 +282,8 @@ pub struct LoopData {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub pt: Option<f64>,
     /// The imported file this shape came from (see `ProjectData::groups`), so it can be sized and moved as one.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub grp: Option<i64>,
+    /// The group the user made with Edit > Group: shapes with the same number are selected, moved, scaled and turned together.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub ug: Option<i64>,
     /// Flat list: X0, Y0, X1, Y1, ... in 1/1000 mm.
     pub pts: Vec<i64>,
 }

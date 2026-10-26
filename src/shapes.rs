@@ -10,7 +10,7 @@ fn to_i(v: f64) -> i64 { (v * S).round() as i64 }
 
 fn loop_from(pts: &[[f64; 2]], closed: bool, op: i64) -> LoopData {
     LoopData {
-        c: closed as u8, op, rc: None, cr: None, el: None, pt: None, grp: None,
+        c: closed as u8, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None,
         pts: pts.iter().flat_map(|p| [to_i(p[0]), to_i(p[1])]).collect(),
     }
 }
@@ -518,7 +518,7 @@ pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
     let region = crate::clip::simplify_even_odd(&[l.path()]);
     let out = crate::clip::offset(&region, delta_mm * S, S * 0.01);
     crate::clip::clean(&out, S * 0.02).into_iter().filter(|p| p.len() > 2).map(|p| {
-        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
+        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
     }).collect()
 }
 
@@ -550,7 +550,7 @@ pub fn combine(shapes: &[&LoopData], op: BoolOp, swap: bool) -> Vec<LoopData> {
         }
     };
     let opid = list[0].op;
-    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, grp: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
+    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
 }
 
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
@@ -1060,5 +1060,45 @@ mod offset_tests {
         for p in points(&g[0]) { assert!(((p[0] * p[0] + p[1] * p[1]).sqrt() - 11.5).abs() < 0.03); }
         let open = new_poly(&[[0.0, 0.0], [5.0, 0.0], [5.0, 5.0]], false, 1).unwrap();
         assert!(offset_loop(&open, 1.0).is_empty());
+    }
+}
+
+
+/// Hands out group numbers for copies of grouped shapes: all copies made from one group in one go share a new group,
+/// so a copy of a group is a group of its own and never joins the original.
+pub struct GroupCopies { next: i64, map: std::collections::HashMap<i64, i64> }
+
+impl GroupCopies {
+    pub fn new(loops: &[LoopData]) -> Self { GroupCopies { next: loops.iter().filter_map(|l| l.ug).max().unwrap_or(0) + 1, map: Default::default() } }
+    /// A group number nobody uses yet.
+    pub fn fresh(&mut self) -> i64 { let n = self.next; self.next += 1; n }
+    /// Call before each batch of copies (each step of an array).
+    pub fn next_batch(&mut self) { self.map.clear(); }
+    pub fn apply(&mut self, l: &mut LoopData) {
+        if let Some(g) = l.ug {
+            let next = &mut self.next;
+            l.ug = Some(*self.map.entry(g).or_insert_with(|| { let n = *next; *next += 1; n }));
+        }
+    }
+}
+
+#[cfg(test)]
+mod group_copy_tests {
+    use super::*;
+    #[test]
+    fn copies_of_a_group_make_a_new_group_each_time() {
+        let mut a = new_rect([0.0, 0.0], [5.0, 5.0], 0.0, 0); a.ug = Some(3);
+        let mut b = new_rect([10.0, 0.0], [5.0, 5.0], 0.0, 0); b.ug = Some(3);
+        let loose = new_rect([20.0, 0.0], [5.0, 5.0], 0.0, 0);
+        let all = vec![a.clone(), b.clone(), loose.clone()];
+        let mut gc = GroupCopies::new(&all);
+        let (mut a1, mut b1, mut l1) = (a.clone(), b.clone(), loose.clone());
+        gc.apply(&mut a1); gc.apply(&mut b1); gc.apply(&mut l1);
+        assert_eq!(a1.ug, b1.ug);
+        assert!(a1.ug.is_some() && a1.ug != Some(3), "the copy is a group of its own");
+        assert!(l1.ug.is_none());
+        gc.next_batch();
+        let mut a2 = a.clone(); gc.apply(&mut a2);
+        assert!(a2.ug != a1.ug && a2.ug != Some(3), "the next copy is another group");
     }
 }

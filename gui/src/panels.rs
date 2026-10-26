@@ -119,6 +119,10 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Duplicate", "Ctrl+D", !app.sel.is_empty()) { app.duplicate_selection(); }
             if item(ui, "Delete", "Del", !app.sel.is_empty()) { app.delete_selection(); }
             ui.separator();
+            let can_group = app.unit_of(&app.sel.iter().copied().collect::<Vec<_>>()).len() >= 2 && !app.group_is_whole_selection();
+            if item(ui, "Group", "Ctrl+G", can_group) { app.group_selection(); }
+            if item(ui, "Ungroup", "Ctrl+Shift+G", app.sel_in_group()) { app.ungroup_selection(); }
+            ui.separator();
             if item(ui, "Offset...", "", !app.sel.is_empty()) { app.offset_open = true; }
             if item(ui, "Array and copy...", "", !app.sel.is_empty()) { app.array.open = true; }
             if item(ui, "Fillet and chamfer...", "", app.selection_has_corners()) { app.corners.open = true; }

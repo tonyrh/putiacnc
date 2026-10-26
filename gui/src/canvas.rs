@@ -17,7 +17,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         ctx.input_mut(|i| i.events.push(egui::Event::Key { key: Key::Escape, physical_key: Some(Key::Escape), pressed: true, repeat: false, modifiers: Modifiers::NONE }));
     }
     if ctx.wants_keyboard_input() { return; }
-    let (save_as, save, redo, redo2, undo, all, dup, new, open, export, quit, import) = ctx.input_mut(|i| {
+    let (save_as, save, redo, redo2, undo, all, dup, new, open, export, quit, import, group, ungroup) = ctx.input_mut(|i| {
         let save_as = i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::S);
         let save = i.consume_key(Modifiers::COMMAND, Key::S);
         let redo = i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
@@ -25,12 +25,14 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         let undo = i.consume_key(Modifiers::COMMAND, Key::Z);
         let all = i.consume_key(Modifiers::COMMAND, Key::A);
         let dup = i.consume_key(Modifiers::COMMAND, Key::D);
+        let ungroup = i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::G);
+        let group = i.consume_key(Modifiers::COMMAND, Key::G);
         let new = i.consume_key(Modifiers::COMMAND, Key::N);
         let open = i.consume_key(Modifiers::COMMAND, Key::O);
         let export = i.consume_key(Modifiers::COMMAND, Key::E);
         let quit = i.consume_key(Modifiers::COMMAND, Key::Q);
         let import = i.consume_key(Modifiers::COMMAND, Key::I);
-        (save_as, save, redo, redo2, undo, all, dup, new, open, export, quit, import)
+        (save_as, save, redo, redo2, undo, all, dup, new, open, export, quit, import, group, ungroup)
     });
     if save_as { app.save_as_dialog(); }
     if new { app.request(Action::New); }
@@ -44,6 +46,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     if ctx.input(|i| i.key_pressed(Key::F1)) { app.shortcuts_open = !app.shortcuts_open; }
     if all { app.sel = (0..app.project.data.loops.len()).collect(); }
     if dup { app.duplicate_selection(); }
+    if ungroup { app.ungroup_selection(); } else if group { app.group_selection(); }
 
     // while tabs are being placed the other shortcuts (and Del) are off; Esc ends the mode
     if app.tab_edit.is_some() {
@@ -218,7 +221,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     let hit = edge.or_else(|| app.sel.iter().copied().find(|&i| shapes::point_in_loop(&loops[i], w)));
                     match hit {
                         Some(h) => {
-                            if !app.sel.contains(&h) { if !shift { app.sel.clear(); } app.sel.insert(h); }
+                            if !app.sel.contains(&h) { if !shift { app.sel.clear(); } let sib = app.text_siblings(h); app.sel.extend(sib); }
                             let b = shapes::bbox_many(app.sel.iter().map(|&i| &app.project.data.loops[i])).unwrap();
                             // a locked drawing is selected but stays where it is
                             app.drag = if app.sel_locked() { Drag::None } else { Drag::Move { start: w, anchor: [b[0], b[1]], applied: [0.0, 0.0] } };
@@ -620,6 +623,19 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
         if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, th.accent)));
+    }
+    // a dashed box round each selected group, so it is plain which shapes belong together (when the group is the whole selection, the selection box says it)
+    if editing_nodes.is_none() && !app.group_is_whole_selection() {
+        let mut ids: Vec<i64> = app.sel.iter().filter_map(|&i| d.loops.get(i).and_then(|l| l.ug)).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        for g in ids {
+            if let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.ug == Some(g))) {
+                let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(2.0);
+                let pts = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
+                painter.extend(egui::Shape::dashed_line(&pts, Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.7)), 5.0, 4.0));
+            }
+        }
     }
     if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))).filter(|_| editing_nodes.is_none()) {
         let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(4.0);
