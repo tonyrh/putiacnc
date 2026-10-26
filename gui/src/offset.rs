@@ -9,7 +9,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let keep = app.offset_keep;
         app.preview("offset", &[app.offset_inward as u64, crate::preview::bits(app.offset_mm), keep as u64], move |a| a.offset_selection(d, keep));
     }
-    let pnote = app.ghost.note_of("offset").map(String::from);
+    let pnote = app.ghost.note_of("offset").filter(|_| !app.sel.is_empty()).map(String::from);
     let n = app.sel.len();
     let mut apply = false;
     let mut close = false;

@@ -92,7 +92,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let params = [a.circular as u64, a.cols.to_bits(), a.rows.to_bits(), a.gap_x.to_bits(), a.gap_y.to_bits(), a.count.to_bits(), a.cx.to_bits(), a.cy.to_bits(), a.angle.to_bits(), a.rotate as u64];
         app.preview("array", &params, |x| x.array_selection());
     }
-    let pnote = app.ghost.note_of("array").map(String::from);
+    // the window already says what to select; the preview's own message would repeat it
+    let pnote = app.ghost.note_of("array").filter(|_| !app.sel.is_empty()).map(String::from);
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)

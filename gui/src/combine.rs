@@ -10,7 +10,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let code = match op { BoolOp::Union => 0, BoolOp::Subtract => 1, BoolOp::Intersect => 2, BoolOp::Exclude => 3 };
         app.preview("combine", &[code, keep as u64, swap as u64], move |a| a.combine_selection(op, keep, swap));
     }
-    let pnote = app.ghost.note_of("combine").map(String::from);
+    let pnote = app.ghost.note_of("combine").filter(|_| app.sel.len() >= 2).map(String::from);
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)

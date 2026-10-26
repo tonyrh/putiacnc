@@ -60,7 +60,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let size = app.corners.size;
         app.preview("corners", &[app.corners.chamfer as u64, crate::preview::bits(size)], move |a| a.corner_selection(kind, size));
     }
-    let pnote = app.ghost.note_of("corners").map(String::from);
+    let pnote = app.ghost.note_of("corners").filter(|_| !app.sel.is_empty()).map(String::from);
     let n = app.sel.len();
     let has = app.selection_has_corners();
     let (mut apply, mut close) = (false, false);
