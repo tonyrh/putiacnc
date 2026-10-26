@@ -367,7 +367,7 @@ fn units_row(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.set_max_width((ui.available_width() - 1.0).max(100.0));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            egui::ComboBox::from_id_source("tspd").width(90.0).selected_text(sname).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_source("tspd").width(crate::widgets::combo_fit(ui, &putiacnc_core::toollib::SPEED_UNITS.iter().map(|(n, _)| *n).collect::<Vec<_>>()).max(90.0)).selected_text(sname).show_ui(ui, |ui| {
                 for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(&mut app.tool_speed_idx, i, *n); }
             });
             ui.label("Speeds in");
@@ -398,8 +398,10 @@ fn lib_row_inner(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.label("Library");
         let cur = app.tool_libs.current().clone();
+        // a long library name is shortened, so the box keeps its width
+        let shown = crate::widgets::combo_elide(ui, &format!("{} ({} tool{})", cur.name, cur.tools.len(), if cur.tools.len() == 1 { "" } else { "s" }), 212.0);
         egui::ComboBox::from_id_source("libsel").width(212.0)
-            .selected_text(format!("{} ({} tool{})", cur.name, cur.tools.len(), if cur.tools.len() == 1 { "" } else { "s" }))
+            .selected_text(shown)
             .show_ui(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 1.0;
                 for l in &app.tool_libs.libs {
@@ -446,7 +448,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
             let aw = ui.available_width() - 10.0;
             let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")).max(crate::panels::tw(ui, "Arc radius")) + 2.0;
             // wide enough for the longest shape name, or the dropdown pushes the form (and the window) wider every frame
-            let fw = SHAPES.iter().map(|(_, l)| crate::panels::tw(ui, l) + 34.0).fold(120.0_f32, f32::max);
+            let fw = SHAPES.iter().map(|(_, l)| crate::panels::tw(ui, l) + 34.0).fold(120.0_f32, f32::max).max(crate::widgets::combo_fit(ui, &SHAPES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 4.0);
             let sp = 8.0_f32; // label-to-field gap
             let gap = (aw - 2.0 * (lw + fw) - 4.0 * sp).max(8.0); // space between the two column pairs
             egui::Grid::new("tool_form_top").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {

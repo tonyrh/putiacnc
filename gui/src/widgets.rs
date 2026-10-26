@@ -71,3 +71,28 @@ pub fn reopen_combo(ui: &Ui, id: impl std::hash::Hash) {
     let pid = ui.make_persistent_id(egui::Id::new(id)).with("popup");
     ui.memory_mut(|m| m.open_popup(pid));
 }
+
+/// The `ComboBox::width` that holds the widest of `labels` (in the button font) with its arrow and padding, so the box
+/// keeps one width whichever option is selected.
+pub fn combo_fit(ui: &Ui, labels: &[&str]) -> f32 {
+    let sp = ui.spacing();
+    let extra = sp.icon_spacing + sp.icon_width + 2.0 * sp.button_padding.x;
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    labels.iter().map(|l| ui.fonts(|f| f.layout_no_wrap(l.to_string(), font.clone(), egui::Color32::WHITE).size().x)).fold(0.0_f32, f32::max).ceil() + extra + 1.0
+}
+
+/// `s` shortened with an ellipsis so that, shown in a combo box of `width`, it needs no more room than the box has.
+pub fn combo_elide(ui: &Ui, s: &str, width: f32) -> String {
+    let sp = ui.spacing();
+    let max_w = width - (sp.icon_spacing + sp.icon_width + 2.0 * sp.button_padding.x) - 1.0;
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let w = |t: &str| ui.fonts(|f| f.layout_no_wrap(t.to_string(), font.clone(), egui::Color32::WHITE).size().x);
+    if w(s) <= max_w { return s.to_string(); }
+    let mut t: Vec<char> = s.chars().collect();
+    while !t.is_empty() {
+        t.pop();
+        let c: String = t.iter().collect::<String>().trim_end().to_string() + "…";
+        if w(&c) <= max_w { return c; }
+    }
+    "…".into()
+}

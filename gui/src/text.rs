@@ -484,6 +484,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         egui::Grid::new("text_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             ui.label("Font");
             let cur = t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default();
+            // a long name is shortened, so the box keeps its width
+            let cur = crate::widgets::combo_elide(ui, &cur, 190.0);
             let mut keep = false;
             egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
                 let mut picked = false;
@@ -564,7 +566,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         section(ui, &mut t.sections, "layout", "Layout", &sum_layout, |ui| {
             grid("text_layout").show(ui, |ui| {
                 ui.label("Layout");
-                let flow_resp = egui::ComboBox::from_id_source("text_flow").width(190.0).selected_text(match t.flow {
+                let flow_resp = egui::ComboBox::from_id_source("text_flow").width(crate::widgets::combo_fit(ui, &["Straight", "Along an arc", "Stacked, top to bottom"]).max(190.0)).selected_text(match t.flow {
                     Flow::Straight => "Straight", Flow::Vertical => "Stacked, top to bottom", _ => "Along an arc",
                 }).show_ui(ui, |ui| {
                     ui.selectable_value(&mut t.flow, Flow::Straight, "Straight");

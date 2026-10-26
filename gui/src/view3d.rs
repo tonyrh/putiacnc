@@ -225,10 +225,11 @@ pub fn play_bar(ui: &mut Ui, app: &mut App) {
         });
         let label = format!("{} / {}", fmt_time(app.v3.t), fmt_time(app.v3.total));
         let lw = crate::panels::tw(ui, "00:00 / 00:00") + 8.0;
-        let speed_w = 74.0;
+        // the speed box is as wide as its longest choice, so the slider next to it does not move when the speed changes
+        let speed_cw = crate::widgets::combo_fit(ui, &SPEEDS.iter().map(|(_, n)| *n).collect::<Vec<_>>());
         let avail = ui.available_width();
         // the speed box is its set width plus the arrow and padding; the slider takes everything else
-        let combo_total = (speed_w - 24.0) + ui.spacing().button_padding.x * 2.0 + ui.spacing().icon_width;
+        let combo_total = speed_cw + 4.0;
         ui.spacing_mut().slider_width = (avail - lw - combo_total - 1.0 * ui.spacing().item_spacing.x - 2.0).max(60.0);
         let total = app.v3.total.max(1e-6);
         let mut t = app.v3.t;
@@ -236,7 +237,7 @@ pub fn play_bar(ui: &mut Ui, app: &mut App) {
         if r.changed() { app.v3.t = t; app.v3.playing = false; }
         ui.allocate_ui_with_layout(Vec2::new(lw, ui.spacing().interact_size.y), egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.label(label); });
         ui.add_enabled_ui(have, |ui| {
-            egui::ComboBox::from_id_source("speed").width(speed_w - 24.0).selected_text(SPEEDS[app.v3.speed_idx].1).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_source("speed").width(speed_cw).selected_text(SPEEDS[app.v3.speed_idx].1).show_ui(ui, |ui| {
                 for (i, (_, n)) in SPEEDS.iter().enumerate() { ui.selectable_value(&mut app.v3.speed_idx, i, *n); }
             }).response.on_hover_text("Playback speed relative to the machine's real time");
         });

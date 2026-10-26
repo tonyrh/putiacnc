@@ -740,7 +740,8 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 egui::Grid::new("stock_z").num_columns(2).spacing([8.0, 10.0]).show(ui, |ui| {
                     let lz = l3;
                     rlabel(ui, lz, "Z zero");
-                    let (c, _) = combo_w2(ui, 96.0, "zm", &mut d.stock.zm, ZMODES, "", "Where Z0 is measured from");
+                    let zm_w = crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                    let (c, _) = combo_w2(ui, zm_w, "zm", &mut d.stock.zm, ZMODES, "", "Where Z0 is measured from");
                     changed |= c; ui.end_row();
                     if d.stock.zm != "top" {
                         rlabel(ui, lz, "Z0");
@@ -757,7 +758,7 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 rlabel(ui, l1, "Appearance");
                 if !MATERIALS.iter().any(|(k, _)| *k == d.stock.mat) { d.stock.mat = "wood".into(); }
                 // as wide as the longest name, so the box does not change size with the choice
-                let mat_w = MATERIALS.iter().map(|(_, l)| tw(ui, l)).fold(0.0_f32, f32::max) + 52.0;
+                let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
                 let (c, _) = combo_w2(ui, mat_w, "stock_mat", &mut d.stock.mat, MATERIALS, "", "How the stock looks in the drawing and the 3D preview");
                 changed |= c;
             });

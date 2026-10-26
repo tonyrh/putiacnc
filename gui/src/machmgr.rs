@@ -206,7 +206,7 @@ fn footer(ui: &mut Ui, app: &mut App) {
             }
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            egui::ComboBox::from_id_source("mspd").width(90.0).selected_text(sname).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_source("mspd").width(crate::widgets::combo_fit(ui, &putiacnc_core::toollib::SPEED_UNITS.iter().map(|(n, _)| *n).collect::<Vec<_>>()).max(90.0)).selected_text(sname).show_ui(ui, |ui| {
                 for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(&mut app.mach_speed_idx, i, *n); }
             });
             ui.label("Speeds in");
@@ -278,14 +278,16 @@ fn form(ui: &mut Ui, app: &mut App) {
     egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, "G-code output for");
         let cur = if m.post.as_deref() == Some("mach") { "Mach3 / LinuxCNC" } else { "GRBL" };
-        egui::ComboBox::from_id_source("mach_post").width(fw).selected_text(cur).show_ui(ui, |ui| {
+        // both dropdowns of this block share one width that holds the longest choice
+        let gw = crate::widgets::combo_fit(ui, &["GRBL", "Mach3 / LinuxCNC", "mm", "inches"]).max(fw);
+        egui::ComboBox::from_id_source("mach_post").width(gw).selected_text(cur).show_ui(ui, |ui| {
             if ui.selectable_label(cur == "GRBL", "GRBL").clicked() { m.post = Some(String::new()); changed = true; }
             if ui.selectable_label(cur != "GRBL", "Mach3 / LinuxCNC").on_hover_text("Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end").clicked() { m.post = Some("mach".into()); changed = true; }
         });
         ui.end_row();
         rlabel(ui, lw, "G-code units");
         let in_now = m.inches.unwrap_or(false);
-        let combo = egui::ComboBox::from_id_source("mach_units").width(fw).selected_text(if in_now { "inches" } else { "mm" }).show_ui(ui, |ui| {
+        let combo = egui::ComboBox::from_id_source("mach_units").width(gw).selected_text(if in_now { "inches" } else { "mm" }).show_ui(ui, |ui| {
             if ui.selectable_label(!in_now, "mm").clicked() { m.inches = Some(false); changed = true; }
             if ui.selectable_label(in_now, "inches").on_hover_text("A project that uses this machine writes its G-code in inches").clicked() { m.inches = Some(true); changed = true; }
         });
