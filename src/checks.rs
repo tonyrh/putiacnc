@@ -75,6 +75,8 @@ pub struct Finding {
     /// How many moves do it (1 for settings that are not about a move).
     pub count: usize,
     pub msg: String,
+    /// For clamp findings: which clamps (indices into the project's list) the tool runs into.
+    pub clamps: Vec<usize>,
 }
 
 fn tool_of(d: &ProjectData, op: usize, alt: bool) -> Option<&Tool> {
@@ -122,14 +124,14 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         let Some(t) = tool_of(data, op, false) else { continue };
         if t.flute > 0.0 && -z > t.flute + 0.01 {
             let m = &out.moves[i];
-            found.push(Finding { kind: Kind::TooDeep, op: Some(op), mv: Some(i), at: m.to, count: 1,
+            found.push(Finding { clamps: vec![], kind: Kind::TooDeep, op: Some(op), mv: Some(i), at: m.to, count: 1,
                 msg: format!("{} cuts {:.1} mm deep, but the {} has a cutting length of {:.1} mm: the shank would rub the work.", op_name(data, op), -z, if t.name.is_empty() { "tool" } else { &t.name }, t.flute) });
         }
     }
     if let Some((z, i)) = lowest {
         if -z > t_stock + 0.5 {
             let m = &out.moves[i];
-            found.push(Finding { kind: Kind::Spoilboard, op: Some(m.op), mv: Some(i), at: m.to, count: 1,
+            found.push(Finding { clamps: vec![], kind: Kind::Spoilboard, op: Some(m.op), mv: Some(i), at: m.to, count: 1,
                 msg: format!("{} goes {:.1} mm below the bottom of the stock: that cuts into the table or spoilboard (a through cut needs 0.1 to 0.3 mm).", op_name(data, m.op), -z - t_stock) });
         }
     }
@@ -138,11 +140,11 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         let bad: Vec<usize> = out.moves.iter().enumerate().filter(|(_, m)| [m.from, m.to].iter().any(|p| p[0] < -0.01 || p[1] < -0.01 || p[0] > mc.x + 0.01 || p[1] > mc.y + 0.01)).map(|(i, _)| i).collect();
         if let Some(&i) = bad.first() {
             let m = &out.moves[i];
-            found.push(Finding { kind: Kind::OutOfArea, op: Some(m.op), mv: Some(i), at: m.to, count: bad.len(),
+            found.push(Finding { clamps: vec![], kind: Kind::OutOfArea, op: Some(m.op), mv: Some(i), at: m.to, count: bad.len(),
                 msg: format!("{} moves outside the machine's work area ({:.0} × {:.0} mm).", op_name(data, m.op), mc.x, mc.y) });
         }
         if mc.z > 0.0 && t_stock + data.job.safe > mc.z + 1e-6 {
-            found.push(Finding { kind: Kind::ZTravel, op: None, mv: None, at: [0.0, 0.0, 0.0], count: 1,
+            found.push(Finding { clamps: vec![], kind: Kind::ZTravel, op: None, mv: None, at: [0.0, 0.0, 0.0], count: 1,
                 msg: format!("The stock ({t_stock:.1} mm) plus the safe height ({:.1} mm) is more than the machine's Z travel ({:.1} mm).", data.job.safe, mc.z) });
         }
     }
@@ -167,7 +169,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
             !nested && clip::offset(&clip::simplify_even_odd(&[(*p).clone()]), -r * S, S * 0.01).is_empty()
         }).count();
         if small > 0 {
-            found.push(Finding { kind: Kind::TooSmall, op: Some(op), mv: None, at: [0.0; 3], count: small,
+            found.push(Finding { clamps: vec![], kind: Kind::TooSmall, op: Some(op), mv: None, at: [0.0; 3], count: small,
                 msg: format!("{}: {} shape{} narrower than the {:.2} mm the {} cuts at this depth, so {} not cut at all. Use a smaller tool or remove {}.", op_name(data, op), small, if small == 1 { " is" } else { "s are" }, r * 2.0, if t.name.is_empty() { "tool" } else { &t.name }, if small == 1 { "it is" } else { "they are" }, if small == 1 { "it" } else { "them" }) });
         }
     }
@@ -194,12 +196,13 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
     let mut sim = Sim::new(data, 250_000);
     let step = sim.cell.max(0.4);
     let mut seen: std::collections::HashMap<(Kind, usize), usize> = std::collections::HashMap::new();
-    let mut note = |found: &mut Vec<Finding>, kind: Kind, i: usize, at: [f64; 3], msg: String| {
+    let mut note = |found: &mut Vec<Finding>, kind: Kind, i: usize, at: [f64; 3], msg: String, clamp: Option<usize>| {
         let op = out.moves[i].op;
-        match seen.get(&(kind, op)) {
-            Some(&k) => found[k].count += 1,
-            None => { seen.insert((kind, op), found.len()); found.push(Finding { kind, op: Some(op), mv: Some(i), at, count: 1, msg }); }
-        }
+        let k = match seen.get(&(kind, op)) {
+            Some(&k) => { found[k].count += 1; k }
+            None => { seen.insert((kind, op), found.len()); found.push(Finding { clamps: vec![], kind, op: Some(op), mv: Some(i), at, count: 1, msg }); found.len() - 1 }
+        };
+        if let Some(c) = clamp { if !found[k].clamps.contains(&c) { found[k].clamps.push(c); } }
     };
     for (i, m) in out.moves.iter().enumerate() {
         let slot = m.op * 2 + m.alt as usize;
@@ -209,9 +212,9 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         let n = ((len / step).ceil() as usize).max(1);
         let at = |k: usize| { let f = k as f64 / n as f64; [m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, m.from[2] + (m.to[2] - m.from[2]) * f] };
 
-        for c in &data.clamps {
+        for (ci, c) in data.clamps.iter().enumerate() {
             if m.from[2].min(m.to[2]) <= c.height && seg_near_rect([m.from[0], m.from[1]], [m.to[0], m.to[1]], c, r) {
-                note(&mut found, Kind::Clamp, i, m.to, format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y));
+                note(&mut found, Kind::Clamp, i, m.to, format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y), Some(ci));
             }
         }
         if m.cut && !m.alt && !over_done.get(m.op).copied().unwrap_or(true) && m.from[2].min(m.to[2]) < -0.01 && matches!(kinds[m.op], "outside" | "inside" | "pocket") {
@@ -224,7 +227,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
                     if !guard_violated(m.op, rad, p[0], p[1]) { continue; }
                     over_done[m.op] = true;
                     let why = if kinds[m.op] == "outside" { "cuts into a part: shapes closer together than the tool's width, or overlapping" } else { "cuts outside its shape" };
-                    note(&mut found, Kind::Overcut, i, p, format!("{} {why} (by more than {TOL} mm), first at {:.1}, {:.1} mm.", op_name(data, m.op), p[0], p[1]));
+                    note(&mut found, Kind::Overcut, i, p, format!("{} {why} (by more than {TOL} mm), first at {:.1}, {:.1} mm.", op_name(data, m.op), p[0], p[1]), None);
                     break;
                 }
             }
@@ -236,7 +239,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
                     if p[2] >= -0.02 { continue; }
                     let ex = sim.inside_cutter(slot, p[0], p[1], p[2]);
                     if ex > 0.05 {
-                        note(&mut found, Kind::RapidCut, i, p, format!("{} has a rapid move through material ({ex:.1} mm into the stock): the tool would crash. Check the safe height and the retracts.", op_name(data, m.op)));
+                        note(&mut found, Kind::RapidCut, i, p, format!("{} has a rapid move through material ({ex:.1} mm into the stock): the tool would crash. Check the safe height and the retracts.", op_name(data, m.op)), None);
                         break;
                     }
                 }
@@ -249,7 +252,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
                     if top >= 0.0 { continue; }
                     let ex = sim.above_in_ring(p[0], p[1], r + sim.cell * 1.5 + 0.05, t.shank / 2.0, top);
                     if ex > 0.05 {
-                        note(&mut found, Kind::Shank, i, p, format!("{}: the {:.1} mm shank of the {} would rub the walls ({ex:.1} mm of material above its cutting length of {:.1} mm).", op_name(data, m.op), t.shank, if t.name.is_empty() { "tool" } else { &t.name }, t.flute));
+                        note(&mut found, Kind::Shank, i, p, format!("{}: the {:.1} mm shank of the {} would rub the walls ({ex:.1} mm of material above its cutting length of {:.1} mm).", op_name(data, m.op), t.shank, if t.name.is_empty() { "tool" } else { &t.name }, t.flute), None);
                         break;
                     }
                 }
@@ -317,6 +320,8 @@ mod tests {
         let mut d = proj("pocket", 3.0);
         d.clamps.push(crate::model::Clamp { x: 40.0, y: 5.0, w: 10.0, h: 10.0, height: 20.0 });
         assert!(kinds(&d).contains(&Kind::Clamp));
+        let hit = run(&d, &generate(&d, Units::Metric).unwrap());
+        assert_eq!(hit.iter().find(|f| f.kind == Kind::Clamp).map(|f| f.clamps.clone()), Some(vec![0]), "the finding names the clamp");
         d.clamps[0].x = 200.0;
         assert!(!kinds(&d).contains(&Kind::Clamp));
         // a clamp lower than the tool's path is passed over

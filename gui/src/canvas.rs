@@ -506,8 +506,21 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     // clamps: keep-out rectangles on the table
     for (i, c) in d.clamps.iter().enumerate().filter(|_| app.show_clamps) {
         let r = Rect::from_two_pos(to_s([c.x, c.y]), to_s([c.x + c.w, c.y + c.h]));
-        painter.rect_filled(r, 2.0, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 55));
-        painter.rect_stroke(r, 2.0, Stroke::new(if clamp_hot == Some(i) { 3.0_f32 } else { 1.5_f32 }, Color32::from_rgb(0xe0, 0x1b, 0x24)));
+        // a clamp the toolpath runs into (from the background checks, so only while they are current)
+        let hit_by: Vec<usize> = if app.checks_ver == app.out_ver { app.checks.iter().filter(|f| f.kind == putiacnc_core::checks::Kind::Clamp && f.clamps.contains(&i)).filter_map(|f| f.op).collect() } else { vec![] };
+        let hit = !hit_by.is_empty();
+        painter.rect_filled(r, 2.0, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, if hit { 130 } else { 55 }));
+        painter.rect_stroke(r, 2.0, Stroke::new(if clamp_hot == Some(i) || hit { 3.0_f32 } else { 1.5_f32 }, Color32::from_rgb(0xe0, 0x1b, 0x24)));
+        if hit {
+            let ops: Vec<String> = hit_by.iter().map(|o| (o + 1).to_string()).collect();
+            let tip = format!("Operation {} runs into this clamp", ops.join(", "));
+            let c0 = r.right_top() + egui::vec2(-9.0, 9.0);
+            painter.circle_filled(c0, 8.0, Color32::from_rgb(0xe0, 0x1b, 0x24));
+            painter.text(c0, egui::Align2::CENTER_CENTER, "!", egui::FontId::proportional(12.0), Color32::WHITE);
+            if hover_w.is_some() && resp.hovered() && ui.input(|i| i.pointer.hover_pos()).is_some_and(|p| p.distance(c0) < 10.0) && !ui.memory(|m| m.any_popup_open()) {
+                egui::show_tooltip_text(ui.ctx(), egui::Id::new(("clamp_hit", i)), tip);
+            }
+        }
         painter.line_segment([r.left_top(), r.right_bottom()], Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 120)));
         painter.line_segment([r.right_top(), r.left_bottom()], Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 120)));
         painter.text(r.center_top() + egui::vec2(0.0, -3.0), egui::Align2::CENTER_BOTTOM, format!("Clamp {}", i + 1), egui::TextStyle::Small.resolve(ui.style()), Color32::from_rgb(0xe0, 0x1b, 0x24));
