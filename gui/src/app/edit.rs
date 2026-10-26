@@ -108,8 +108,12 @@ impl App {
     /// tool's window can close; when nothing happened it stays open for new values.
     pub fn run_tool(&mut self, f: impl FnOnce(&mut App) -> Option<String>) -> bool {
         let before = self.project.data.loops.clone();
-        if let Some(m) = f(self) { self.error = Some(m); }
-        self.project.data.loops != before
+        self.tool_note = None;
+        let msg = f(self);
+        let changed = self.project.data.loops != before;
+        // a result that only matters while the window is open stays in the window; a note about what was done goes to the banner
+        if let Some(m) = msg { if changed { self.error = Some(m); } else { self.tool_note = Some(m); } }
+        changed
     }
 
     pub fn duplicate_selection(&mut self) {
