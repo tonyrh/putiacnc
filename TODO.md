@@ -34,7 +34,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 - [ ] The result messages of Combine, Array, Offset and Corners stay until dismissed; they should go on the next edit.
 - [ ] Align, Array, Offset and Corners: check what they show with an empty selection (no leftover preview, Apply disabled, a clear line saying what to select).
 - [ ] The diagnostics text of "Copy version info" still uses "x" in sizes (kept plain on purpose for bug reports).
-- [ ] Try the controls converted to segmented switches that have no screenshot hook: Ellipse / Circle, Radius / Diameter, Polygon / Star, Trim / Extend, Face outwards / Face the centre.
+- [x] The controls converted to segmented switches without a screenshot hook (Ellipse / Circle, Radius / Diameter, Polygon / Star, Trim / Extend, Face outwards / Face the centre): tried by the maintainer, they work.
 - [ ] Mac: how the all-scroll (four-way) move cursor looks.
 
 ## Release 0.3.2
