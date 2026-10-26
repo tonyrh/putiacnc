@@ -548,8 +548,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     // clamps: keep-out rectangles on the table
     for (i, c) in d.clamps.iter().enumerate().filter(|_| app.show_clamps) {
         let r = Rect::from_two_pos(to_s([c.x, c.y]), to_s([c.x + c.w, c.y + c.h]));
-        // a clamp the toolpath runs into (from the background checks, so only while they are current)
-        let hit_by: Vec<usize> = if app.checks_ver == app.out_ver { app.checks.iter().filter(|f| f.kind == putiacnc_core::checks::Kind::Clamp && f.clamps.contains(&i)).filter_map(|f| f.op).collect() } else { vec![] };
+        // a clamp the toolpath runs into (from the background checks; the last result stays up while a new one is worked out)
+        let hit_by: Vec<usize> = app.clamp_hits.iter().find(|h| h.0 == i).map(|h| h.1.clone()).unwrap_or_default();
         let hit = !hit_by.is_empty();
         painter.rect_filled(r, 2.0, Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, if hit { 130 } else { 55 }));
         painter.rect_stroke(r, 2.0, Stroke::new(if clamp_hot == Some(i) || hit { 3.0_f32 } else { 1.5_f32 }, Color32::from_rgb(0xe0, 0x1b, 0x24)));
@@ -784,12 +784,15 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         }
     }
 
-    if app.show_toolpath && !app.gen_stale() {
+    if app.show_toolpath {
+        // the toolpath on hand stays drawn while a new one is worked out, so it does not blink off with every change; only when the wait
+        // gets long does it fade, to say it is out of date
+        let fade = if app.gen_started.is_some_and(|t| t.elapsed().as_secs_f32() > 0.4) { 0.35 } else { 1.0 };
         if let Some(o) = &app.output {
             for m in &o.moves {
                 if !m.cut && !app.show_rapids { continue; }
                 if m.from[0] == m.to[0] && m.from[1] == m.to[1] { continue; }
-                let col = if m.cut { op_color(m.op, dark).gamma_multiply(0.85) } else { th.rapid() };
+                let col = if m.cut { op_color(m.op, dark).gamma_multiply(0.85 * fade) } else { th.rapid().gamma_multiply(fade) };
                 painter.line_segment([to_s([m.from[0], m.from[1]]), to_s([m.to[0], m.to[1]])], Stroke::new(1.0_f32, col));
             }
         }

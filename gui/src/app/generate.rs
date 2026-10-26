@@ -84,7 +84,14 @@ impl App {
         let Some(rx) = &self.checks_rx else { return false };
         match rx.try_recv() {
             Ok((v, f)) => {
-                if v == self.out_ver { self.checks = f; self.checks_ver = v; }
+                if v == self.out_ver {
+                    let mut hits: Vec<(usize, Vec<usize>)> = vec![];
+                    for x in f.iter().filter(|x| x.kind == putiacnc_core::checks::Kind::Clamp) {
+                        for &c in &x.clamps { match hits.iter_mut().find(|h| h.0 == c) { Some(h) => h.1.extend(x.op), None => hits.push((c, x.op.into_iter().collect())) } }
+                    }
+                    self.clamp_hits = hits;
+                    self.checks = f; self.checks_ver = v;
+                }
                 self.checks_rx = None;
                 // testing aid: press "Show in 3D" on this warning
                 if let Some(i) = std::env::var("PUTIACNC_CHECK_SHOW").ok().and_then(|s| s.parse::<usize>().ok()) { if i < self.checks.len() { crate::checkui::show_in_3d(self, i); } }
