@@ -577,8 +577,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     ui.end_row();
                     crate::toolmgr::rlabel(ui, lw, "Letters");
                     ui.horizontal(|ui| {
-                        ui.selectable_value(&mut t.arc_in, false, "Face outwards");
-                        ui.selectable_value(&mut t.arc_in, true, "Face the centre");
+                        let (c, _) = crate::zoomcard::seg2(ui, ["Face outwards", "Face the centre"], ["", ""], t.arc_in as usize);
+                        if let Some(i) = c { t.arc_in = i == 1; }
                     });
                     ui.end_row();
                 }

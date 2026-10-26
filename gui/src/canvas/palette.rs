@@ -35,8 +35,10 @@ pub(super) fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 }
             }
             if app.mode == Mode::Polygon {
-                if ui.selectable_label(!app.poly_star, "Polygon").clicked() { app.poly_star = false; if app.poly_sides == 5.0 { app.poly_sides = 6.0; } }
-                if ui.selectable_label(app.poly_star, "Star").clicked() { app.poly_star = true; if app.poly_sides == 6.0 { app.poly_sides = 5.0; } }
+                let (c, _) = crate::zoomcard::seg2(ui, ["Polygon", "Star"], ["", ""], app.poly_star as usize);
+                if let Some(i) = c {
+                    if i == 0 { app.poly_star = false; if app.poly_sides == 5.0 { app.poly_sides = 6.0; } } else { app.poly_star = true; if app.poly_sides == 6.0 { app.poly_sides = 5.0; } }
+                }
                 ui.add_space(6.0);
                 ui.label(if app.poly_star { "Points" } else { "Sides" });
                 ui.add_space(6.0);
@@ -51,17 +53,17 @@ pub(super) fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 }
             }
             if app.mode == Mode::Ellipse {
-                if ui.selectable_label(!app.circle_mode, "Ellipse").on_hover_text("Drag a bounding box").clicked() { app.circle_mode = false; app.dyn_in = None; }
-                if ui.selectable_label(app.circle_mode, "Circle").on_hover_text("Drag from the centre, or type the centre and size").clicked() { app.circle_mode = true; app.dyn_in = None; }
+                let (c, _) = crate::zoomcard::seg2(ui, ["Ellipse", "Circle"], ["Drag a bounding box", "Drag from the centre, or type the centre and size"], app.circle_mode as usize);
+                if let Some(i) = c { app.circle_mode = i == 1; app.dyn_in = None; }
                 if app.circle_mode {
                     ui.add_space(8.0);
-                    if ui.selectable_label(!app.circle_diam, "Radius").clicked() { app.circle_diam = false; app.dyn_in = None; }
-                    if ui.selectable_label(app.circle_diam, "Diameter").clicked() { app.circle_diam = true; app.dyn_in = None; }
+                    let (c, _) = crate::zoomcard::seg2(ui, ["Radius", "Diameter"], ["", ""], app.circle_diam as usize);
+                    if let Some(i) = c { app.circle_diam = i == 1; app.dyn_in = None; }
                 }
             }
             if app.mode == Mode::Trim {
-                if ui.selectable_label(!app.trim_extend, "Trim").on_hover_text("Remove the part of a shape between the nearest crossings").clicked() { app.trim_extend = false; }
-                if ui.selectable_label(app.trim_extend, "Extend").on_hover_text("Run the end of an open line on to the next shape").clicked() { app.trim_extend = true; }
+                let (c, _) = crate::zoomcard::seg2(ui, ["Trim", "Extend"], ["Remove the part of a shape between the nearest crossings", "Run the end of an open line on to the next shape"], app.trim_extend as usize);
+                if let Some(i) = c { app.trim_extend = i == 1; }
             }
             if app.mode == Mode::Rect {
                 ui.label("Corner radius");

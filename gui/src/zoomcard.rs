@@ -56,6 +56,13 @@ pub fn pinch(ctx: &egui::Context) -> f32 { ctx.input(|i| i.zoom_delta()) }
 /// A two-option switch like the macOS segmented control: one rounded pill, the chosen half in the selection colour.
 /// Returns (the half that was clicked, the half under the pointer).
 pub fn segmented(ui: &mut egui::Ui, half: Vec2, sel: usize, items: [Icon; 2]) -> (Option<usize>, Option<usize>) {
+    let (c, h, _) = segmented_with(ui, half, sel, |p, i, r, fg| paint_icon(p, items[i], r.center(), fg, 0.8));
+    (c, h)
+}
+
+/// The pill itself, with whatever `face` draws on each half (half number, its rectangle, the colour to draw in).
+/// Returns (the half that was clicked, the half under the pointer, the response of the whole control).
+pub fn segmented_with(ui: &mut egui::Ui, half: Vec2, sel: usize, face: impl Fn(&egui::Painter, usize, Rect, Color32)) -> (Option<usize>, Option<usize>, egui::Response) {
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(half.x * 2.0, half.y), Sense::click());
     let v = ui.style().visuals.widgets.clone();
     let rad = 6.0;
@@ -69,11 +76,23 @@ pub fn segmented(ui: &mut egui::Ui, half: Vec2, sel: usize, items: [Icon; 2]) ->
         if on { ui.painter().rect_filled(r, round, ui.visuals().selection.bg_fill); }
         else if hot == Some(i) && resp.hovered() { ui.painter().rect_filled(r, round, v.hovered.bg_fill); }
         let fg = if on { Color32::WHITE } else { v.inactive.fg_stroke.color };
-        paint_icon(ui.painter(), items[i], r.center(), fg, 0.8);
+        face(ui.painter(), i, r, fg);
     }
     ui.painter().rect_stroke(rect, rad, v.inactive.bg_stroke);
     if resp.clicked() { clicked = hot; }
-    (clicked, if resp.hovered() { hot } else { None })
+    let hov = if resp.hovered() { hot } else { None };
+    (clicked, hov, resp)
+}
+
+/// A two-choice switch with words on it: `sel` is the chosen half, the result the half that was clicked.
+/// Both halves are as wide as the longer word needs; `tips` are shown when the pointer rests on each half.
+pub fn seg2(ui: &mut egui::Ui, labels: [&str; 2], tips: [&str; 2], sel: usize) -> (Option<usize>, egui::Response) {
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let w = labels.iter().map(|l| ui.fonts(|f| f.layout_no_wrap(l.to_string(), font.clone(), Color32::WHITE).size().x)).fold(0.0_f32, f32::max).ceil() + 22.0;
+    let half = Vec2::new(w, ui.spacing().interact_size.y.max(24.0));
+    let (clicked, hov, resp) = segmented_with(ui, half, sel, |p, i, r, fg| { p.text(r.center(), egui::Align2::CENTER_CENTER, labels[i], font.clone(), fg); });
+    if let Some(i) = hov { if !tips[i].is_empty() { resp.clone().on_hover_text(tips[i]); } }
+    (clicked, resp)
 }
 
 /// A card button: grey, or in the selection colour when `selected`. `paint` draws its face in the colour it is given.

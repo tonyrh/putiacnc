@@ -165,8 +165,8 @@ pub(super) fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.horizontal(|ui| {
                 ui.label("Corners");
                 ui.add_space(4.0);
-                if ui.selectable_label(!cham, "Fillet").on_hover_text("Round the selected corners").clicked() { cham = false; }
-                if ui.selectable_label(cham, "Chamfer").on_hover_text("Bevel the selected corners").clicked() { cham = true; }
+                let (c, _) = crate::zoomcard::seg2(ui, ["Fillet", "Chamfer"], ["Round the selected corners", "Bevel the selected corners"], cham as usize);
+                if let Some(i) = c { cham = i == 1; }
                 ui.add_space(4.0);
                 crate::widgets::num(ui, [64.0, 24.0], &mut csize, 0.01, 1000.0, 0.25, 2, "");
                 ui.weak("mm");

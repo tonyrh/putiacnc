@@ -103,8 +103,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
-            if ui.selectable_label(!app.array.circular, "Grid").on_hover_text("Rows and columns").clicked() { app.array.circular = false; }
-            if ui.selectable_label(app.array.circular, "Circle").on_hover_text("Around a centre point").clicked() { app.array.circular = true; }
+            let (c, _) = crate::zoomcard::seg2(ui, ["Grid", "Circle"], ["Rows and columns", "Around a centre point"], app.array.circular as usize);
+            if let Some(i) = c { app.array.circular = i == 1; }
         });
         ui.add_space(6.0);
         let a = &mut app.array;

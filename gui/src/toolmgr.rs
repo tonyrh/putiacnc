@@ -362,7 +362,6 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
 }
 
 fn units_row(ui: &mut Ui, app: &mut App) {
-    let uname = if app.tool_len_in { "in" } else { "mm" };
     let sname = SPEED_UNITS[app.tool_speed_idx.min(SPEED_UNITS.len() - 1)].0;
     ui.horizontal(|ui| {
         ui.set_max_width((ui.available_width() - 1.0).max(100.0));
@@ -372,10 +371,8 @@ fn units_row(ui: &mut Ui, app: &mut App) {
             });
             ui.label("Speeds in");
             ui.add_space(8.0);
-            egui::ComboBox::from_id_source("tlen").width(70.0).selected_text(uname).show_ui(ui, |ui| {
-                ui.selectable_value(&mut app.tool_len_in, false, "mm");
-                ui.selectable_value(&mut app.tool_len_in, true, "in");
-            });
+            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.tool_len_in as usize);
+            if let Some(i) = c { app.tool_len_in = i == 1; }
             ui.label("Show lengths in");
         });
     });
@@ -434,9 +431,9 @@ fn lib_row_inner(ui: &mut Ui, app: &mut App) {
 }
 
 fn tool_form(ui: &mut Ui, app: &mut App) {
+    let uname = if app.tool_len_in { "in" } else { "mm" };
     let k = unit_k(app);
     let fspd = SPEED_UNITS[app.tool_speed_idx.min(SPEED_UNITS.len() - 1)].1;
-    let uname = if app.tool_len_in { "in" } else { "mm" };
     let sname = SPEED_UNITS[app.tool_speed_idx.min(SPEED_UNITS.len() - 1)].0;
     let Some(idx) = app.tool_libs.current().tools.iter().position(|t| t.id == app.tool_sel) else { return };
     let mut t = app.tool_libs.current().tools[idx].clone();
@@ -487,10 +484,8 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     if crate::widgets::num(ui, [72.0, 22.0], &mut r, if t.concave { t.dia / 2.0 / k } else { 0.1 / k }, 100.0 / k, 0.1 / k, 3, uname).changed() { t.arc = (r * k).max(if t.concave { t.dia / 2.0 } else { 0.1 }); changed = true; }
                     side!(false);
                     rlabel(ui, lw, "Edge");
-                    egui::ComboBox::from_id_source("arc_edge").selected_text(if t.concave { "Concave" } else { "Convex" }).show_ui(ui, |ui| {
-                        if ui.selectable_label(!t.concave, "Convex").clicked() { t.concave = false; changed = true; }
-                        if ui.selectable_label(t.concave, "Concave").clicked() { t.concave = true; changed = true; }
-                    });
+                    let (c, _) = crate::zoomcard::seg2(ui, ["Convex", "Concave"], ["", ""], t.concave as usize);
+                    if let Some(i) = c { t.concave = i == 1; changed = true; }
                     side!(false);
                 }
                 if has_angle(&t.shape) {

@@ -134,9 +134,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         egui::Grid::new("trace_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, col1, "Trace");
             ui.horizontal(|ui| {
-                for (m, n, tip) in [(Mode::Outline, "Outlines", "Closed outlines of the shapes, holes included: for Profile, Pocket, V-carve"), (Mode::Centerline, "Centre line", "One open line along the middle of each stroke: for engraving lines and writing")] {
-                    if ui.selectable_label(t.opts.mode == m, n).on_hover_text(tip).clicked() { t.opts.mode = m; changed = true; }
-                }
+                let (c, _) = crate::zoomcard::seg2(ui, ["Outlines", "Centre line"], ["Closed outlines of the shapes, holes included: for Profile, Pocket, V-carve", "One open line along the middle of each stroke: for engraving lines and writing"], (t.opts.mode == Mode::Centerline) as usize);
+                if let Some(i) = c { let m = if i == 0 { Mode::Outline } else { Mode::Centerline }; if t.opts.mode != m { t.opts.mode = m; changed = true; } }
             });
             ui.end_row();
             crate::toolmgr::rlabel(ui, col1, "Threshold");

@@ -75,8 +75,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         egui::Grid::new("corner_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, lw, "Corner");
             ui.horizontal(|ui| {
-                if ui.selectable_label(!app.corners.chamfer, "Fillet").on_hover_text("Round the corners").clicked() { app.corners.chamfer = false; }
-                if ui.selectable_label(app.corners.chamfer, "Chamfer").on_hover_text("Cut the corners off with a straight bevel").clicked() { app.corners.chamfer = true; }
+                let (c, _) = crate::zoomcard::seg2(ui, ["Fillet", "Chamfer"], ["Round the corners", "Cut the corners off with a straight bevel"], app.corners.chamfer as usize);
+                if let Some(i) = c { app.corners.chamfer = i == 1; }
             });
             ui.end_row();
             crate::toolmgr::rlabel(ui, lw, if app.corners.chamfer { "Distance" } else { "Radius" });

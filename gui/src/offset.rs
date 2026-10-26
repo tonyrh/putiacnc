@@ -24,8 +24,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         egui::Grid::new("offset_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, lw, "Direction");
             ui.horizontal(|ui| {
-                if ui.selectable_label(!app.offset_inward, "Outward").on_hover_text("Grow the shapes").clicked() { app.offset_inward = false; }
-                if ui.selectable_label(app.offset_inward, "Inward").on_hover_text("Shrink the shapes").clicked() { app.offset_inward = true; }
+                let (c, _) = crate::zoomcard::seg2(ui, ["Outward", "Inward"], ["Grow the shapes", "Shrink the shapes"], app.offset_inward as usize);
+                if let Some(i) = c { app.offset_inward = i == 1; }
             });
             ui.end_row();
             crate::toolmgr::rlabel(ui, lw, "Distance");

@@ -596,12 +596,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let manual = p.tab_pts.is_some();
                         ui.horizontal(|ui| {
                             ui.label("Placement").on_hover_text("Automatic spaces the tabs evenly; manual lets you put each one where you want it");
-                            if ui.selectable_label(!manual, "Automatic").clicked() && manual {
+                            let (c, _) = crate::zoomcard::seg2(ui, ["Automatic", "Manual"], ["", "Starts from the evenly spaced tabs, which you can then move, add or remove"], manual as usize);
+                            if c == Some(0) && manual {
                                 p.tab_pts = None;
                                 if *tab_edit == Some(id) { *tab_edit = None; }
                                 changed = true;
                             }
-                            if ui.selectable_label(manual, "Manual").on_hover_text("Starts from the evenly spaced tabs, which you can then move, add or remove").clicked() && !manual {
+                            if c == Some(1) && !manual {
                                 p.tab_pts = Some(shapes::auto_tabs(loops, id, p.tab_n.unwrap_or(4.0).round().max(1.0) as usize));
                                 changed = true;
                             }

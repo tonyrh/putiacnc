@@ -159,7 +159,6 @@ fn body(ui: &mut Ui, app: &mut App) {
 
 fn footer(ui: &mut Ui, app: &mut App) {
     let sname = SPEED_UNITS[app.mach_speed_idx.min(SPEED_UNITS.len() - 1)].0;
-    let uname = if app.mach_len_in { "in" } else { "mm" };
     ui.horizontal(|ui| {
         if app.confirm_mach_del {
             ui.colored_label(Color32::LIGHT_RED, "Delete this machine?");
@@ -211,10 +210,8 @@ fn footer(ui: &mut Ui, app: &mut App) {
             });
             ui.label("Speeds in");
             ui.add_space(8.0);
-            egui::ComboBox::from_id_source("mlen").width(70.0).selected_text(uname).show_ui(ui, |ui| {
-                ui.selectable_value(&mut app.mach_len_in, false, "mm");
-                ui.selectable_value(&mut app.mach_len_in, true, "in");
-            });
+            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.mach_len_in as usize);
+            if let Some(i) = c { app.mach_len_in = i == 1; }
             ui.label("Lengths in");
         });
     });
@@ -246,9 +243,9 @@ fn list(ui: &mut Ui, app: &mut App, h: f32) {
 }
 
 fn form(ui: &mut Ui, app: &mut App) {
+    let uname = if app.mach_len_in { "in" } else { "mm" };
     let k = if app.mach_len_in { 25.4 } else { 1.0 };
     let (sname, sfac) = SPEED_UNITS[app.mach_speed_idx.min(SPEED_UNITS.len() - 1)];
-    let uname = if app.mach_len_in { "in" } else { "mm" };
     let Some(mut m) = app.machines.get(&app.mach_sel).cloned() else { return };
     let mut changed = false;
 
@@ -287,12 +284,10 @@ fn form(ui: &mut Ui, app: &mut App) {
         ui.end_row();
         rlabel(ui, lw, "G-code units");
         let in_now = m.inches.unwrap_or(false);
-        let combo = egui::ComboBox::from_id_source("mach_units").width(gw).selected_text(if in_now { "inches" } else { "mm" }).show_ui(ui, |ui| {
-            if ui.selectable_label(!in_now, "mm").clicked() { m.inches = Some(false); changed = true; }
-            if ui.selectable_label(in_now, "inches").on_hover_text("A project that uses this machine writes its G-code in inches").clicked() { m.inches = Some(true); changed = true; }
-        });
+        let (c, combo_resp) = crate::zoomcard::seg2(ui, ["mm", "inches"], ["", "A project that uses this machine writes its G-code in inches"], in_now as usize);
+        if let Some(i) = c { m.inches = Some(i == 1); changed = true; }
         // the code sits after the dropdown without taking any room from the grid, so the columns never move
-        ui.painter().text(egui::pos2(combo.response.rect.right() + 6.0, combo.response.rect.center().y), egui::Align2::LEFT_CENTER,
+        ui.painter().text(egui::pos2(combo_resp.rect.right() + 6.0, combo_resp.rect.center().y), egui::Align2::LEFT_CENTER,
             if in_now { "(G20)" } else { "(G21)" }, egui::TextStyle::Small.resolve(ui.style()), ui.visuals().weak_text_color());
         spacer(ui);
         // right-aligned to the edge of the panel: the cell keeps the width of a field and the text reaches out to the left of it
