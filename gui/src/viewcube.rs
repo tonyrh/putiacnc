@@ -160,8 +160,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             // perspective or orthographic, side by side under the cube
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing = Vec2::splat(2.0);
-                let w = 34.0;
-                ui.add_space(((crate::zoomcard::ROW3_W - 3.0 * w - 4.0) / 2.0).max(0.0));
+                let w = crate::zoomcard::BW3;
                 for (ortho, icon, what) in [
                     (false, crate::icons::Icon::Persp, "Perspective view: things farther away look smaller."),
                     (true, crate::icons::Icon::Ortho, "Orthographic view: parallel lines stay parallel and sizes do not shrink with distance."),
@@ -170,12 +169,13 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     if r.hovered() { tip = Some(what); }
                     if r.clicked() { app.v3.ortho = ortho; }
                 }
+                ui.add_space(10.0);
                 let r = crate::zoomcard::button(ui, Vec2::new(w, 30.0), false, "Fit the stock in view (F)", |p, rc, fg| crate::icons::paint_icon(p, crate::icons::Icon::Fit, rc.center(), fg, 0.8));
                 if r.clicked() { fit_click = true; }
             });
             // zoom out and in, the zoom level and Fit, in the same card
             ui.add_space(2.0);
-            zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3), false);
+            zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3), false, Vec2::new(crate::zoomcard::BW3, 30.0), crate::zoomcard::ROW3_W - 2.0 * crate::zoomcard::BW3 - 2.0 * 4.0, 4.0);
         });
     });
     let key_fit = ctx.input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ctx.wants_keyboard_input();
