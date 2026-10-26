@@ -13,7 +13,7 @@ const PCT_W: f32 = 54.0;
 pub const ROW_W: f32 = 3.0 * BTN + PCT_W + 3.0 * 5.0;
 /// Width of the row without the Fit button (the 3D card puts Fit next to Persp./Ortho.)
 pub const BW3: f32 = 36.0;
-pub const ROW3_W: f32 = 3.0 * BW3 + 2.0 + 12.0;
+pub const ROW3_W: f32 = 3.0 * BW3 + 12.0;
 pub const CARD_W: f32 = ROW_W + 8.0 + 2.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -52,6 +52,29 @@ pub fn keys(ctx: &egui::Context) -> Option<Act> {
 
 /// A pinch on a trackpad (or Ctrl and the wheel): the factor to zoom by this frame, 1.0 when there is none.
 pub fn pinch(ctx: &egui::Context) -> f32 { ctx.input(|i| i.zoom_delta()) }
+
+/// A two-option switch like the macOS segmented control: one rounded pill, the chosen half in the selection colour.
+/// Returns (the half that was clicked, the half under the pointer).
+pub fn segmented(ui: &mut egui::Ui, half: Vec2, sel: usize, items: [Icon; 2]) -> (Option<usize>, Option<usize>) {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(half.x * 2.0, half.y), Sense::click());
+    let v = ui.style().visuals.widgets.clone();
+    let rad = 6.0;
+    ui.painter().rect(rect, rad, v.inactive.bg_fill, v.inactive.bg_stroke);
+    let hot = resp.hover_pos().map(|p| if p.x < rect.center().x { 0 } else { 1 });
+    let mut clicked = None;
+    for i in 0..2 {
+        let r = Rect::from_min_size(rect.min + Vec2::new(half.x * i as f32, 0.0), half);
+        let round = if i == 0 { egui::Rounding { nw: rad, sw: rad, ne: 0.0, se: 0.0 } } else { egui::Rounding { nw: 0.0, sw: 0.0, ne: rad, se: rad } };
+        let on = sel == i;
+        if on { ui.painter().rect_filled(r, round, ui.visuals().selection.bg_fill); }
+        else if hot == Some(i) && resp.hovered() { ui.painter().rect_filled(r, round, v.hovered.bg_fill); }
+        let fg = if on { Color32::WHITE } else { v.inactive.fg_stroke.color };
+        paint_icon(ui.painter(), items[i], r.center(), fg, 0.8);
+    }
+    ui.painter().rect_stroke(rect, rad, v.inactive.bg_stroke);
+    if resp.clicked() { clicked = hot; }
+    (clicked, if resp.hovered() { hot } else { None })
+}
 
 /// A card button: grey, or in the selection colour when `selected`. `paint` draws its face in the colour it is given.
 pub fn button(ui: &mut egui::Ui, size: Vec2, selected: bool, tip: &str, paint: impl FnOnce(&egui::Painter, Rect, Color32)) -> egui::Response {
