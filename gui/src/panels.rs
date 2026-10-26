@@ -756,7 +756,9 @@ fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             ui.horizontal(|ui| {
                 rlabel(ui, l1, "Appearance");
                 if !MATERIALS.iter().any(|(k, _)| *k == d.stock.mat) { d.stock.mat = "wood".into(); }
-                let (c, _) = combo_w2(ui, 96.0, "stock_mat", &mut d.stock.mat, MATERIALS, "", "How the stock looks in the drawing and the 3D preview");
+                // as wide as the longest name, so the box does not change size with the choice
+                let mat_w = MATERIALS.iter().map(|(_, l)| tw(ui, l)).fold(0.0_f32, f32::max) + 52.0;
+                let (c, _) = combo_w2(ui, mat_w, "stock_mat", &mut d.stock.mat, MATERIALS, "", "How the stock looks in the drawing and the 3D preview");
                 changed |= c;
             });
         });
