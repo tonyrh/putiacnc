@@ -291,7 +291,8 @@ fn form(ui: &mut Ui, app: &mut App) {
             if in_now { "(G20)" } else { "(G21)" }, egui::TextStyle::Small.resolve(ui.style()), ui.visuals().weak_text_color());
         spacer(ui);
         // right-aligned to the edge of the panel: the cell keeps the width of a field and the text reaches out to the left of it
-        ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
+        // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
+        ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(egui::Rect::from_min_max(egui::pos2(cell.right() - 285.0, cell.top()), egui::pos2(cell.right() + 14.0, cell.bottom())), Layout::right_to_left(Align::Center));
         let mut nb = m.numbered.unwrap_or(false);
@@ -306,7 +307,8 @@ fn form(ui: &mut Ui, app: &mut App) {
         let mut ar = m.arcs.unwrap_or(false);
         if ui.checkbox(&mut ar, "").on_hover_text("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
         spacer(ui);
-        ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
+        // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
+        ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(egui::Rect::from_min_max(egui::pos2(cell.right() - 160.0, cell.top()), cell.max), Layout::right_to_left(Align::Center));
         if c.button("Copy test lines").on_hover_text("A half circle to send with the spindle off and the tool well above the work. If the machine draws it, it supports arcs.").clicked() {
