@@ -344,7 +344,6 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             if collapsed.contains(&id) { ui.add_space(2.0); } else { ui.spacing_mut().item_spacing.y = 0.0; }
             if !collapsed.contains(&id) {
             let loops = &d.loops;
-            let d_act = d.act;
             let stock_t = d.stock.t;
             // a relief follows the model's height until a depth is typed in
             if d.ops[i].p.kind == "relief" && !d.ops[i].p.d_man {
@@ -363,9 +362,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if p.kind != "relief" {
                     let mine = loops.iter().filter(|l| l.op == id).count();
                     let to_move = sel.iter().filter(|&&k| loops.get(k).is_some_and(|l| l.op != id)).count();
-                    if mine == 0 || (to_move > 0 && d_act == id) {
+                    if mine == 0 {
                         ui.horizontal(|ui| {
-                            if mine == 0 { ui.weak("No shapes yet"); }
+                            ui.weak("No shapes yet");
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 if ui.add_enabled(to_move > 0, egui::Button::new("Use selected shapes")).on_hover_text("Put the shapes selected in the drawing into this operation").clicked() { act_use = Some(id); }
                             });
