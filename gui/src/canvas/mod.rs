@@ -167,6 +167,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     }
     if let Some(crate::zoomcard::Act::By(f)) = key_act { zoom_centre(app, rect, f); }
     if resp.dragged_by(PointerButton::Middle) || resp.dragged_by(PointerButton::Secondary) { app.offset += resp.drag_delta(); app.view_touched = true; }
+    // the closed hand from the moment the button goes down, so the pan is easy to find and to recognise
+    if (resp.hovered() || resp.dragged()) && ctx.input(|i| i.pointer.button_down(PointerButton::Secondary) || i.pointer.button_down(PointerButton::Middle)) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
     if resp.hovered() {
         let scroll = ctx.input(|i| i.smooth_scroll_delta.y);
         if scroll != 0.0 {
