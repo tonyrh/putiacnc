@@ -111,10 +111,15 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let text = app.theme.text();
     // what the pointer is over, explained to the left of the cube (a tooltip would run over the right panel)
     let mut tip: Option<&'static str> = None;
+    let stk = app.project.data.stock.clone();
+    let asp = rect.width() / rect.height().max(1.0);
+    let fit = fit_dist(app.v3.yaw, app.v3.pitch, &stk, asp, app.v3.ortho);
+    let mut zact = None;
     let shown = egui::Area::new(egui::Id::new("viewcube")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-10.0, 10.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(6.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
-            let (area, resp) = ui.allocate_exact_size(Vec2::new(SIZE, SIZE), Sense::click_and_drag());
+            ui.set_min_width(crate::zoomcard::ROW_W);
+            let (area, resp) = ui.horizontal(|ui| { ui.add_space((crate::zoomcard::ROW_W - SIZE) / 2.0 - 4.0); ui.allocate_exact_size(Vec2::new(SIZE, SIZE), Sense::click_and_drag()) }).inner;
             let (yaw, pitch) = (app.v3.yaw, app.v3.pitch);
             let list = cells(area.center(), SIZE * 0.5 / 1.85, yaw, pitch);
             let hover = resp.hover_pos().and_then(|p| list.iter().filter(|c| c.dir[2] >= 0).find(|c| inside(&c.quad, p)).map(|c| c.dir));
@@ -155,7 +160,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing = Vec2::splat(2.0);
                 let w = 34.0;
-                ui.add_space(((SIZE - 2.0 * w - 2.0) / 2.0).max(0.0));
+                ui.add_space(((crate::zoomcard::ROW_W - 2.0 * w - 2.0) / 2.0).max(0.0));
                 for (ortho, icon, what) in [
                     (false, crate::icons::Icon::Persp, "Perspective view: things farther away look smaller."),
                     (true, crate::icons::Icon::Ortho, "Orthographic view: parallel lines stay parallel and sizes do not shrink with distance."),
@@ -165,13 +170,11 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     if r.clicked() { app.v3.ortho = ortho; }
                 }
             });
+            // zoom out and in, the zoom level and Fit, in the same card
+            ui.add_space(2.0);
+            zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3));
         });
     });
-    // the zoom card under the cube: zoom out and in, the zoom level and Fit
-    let stk = app.project.data.stock.clone();
-    let asp = rect.width() / rect.height().max(1.0);
-    let fit = fit_dist(app.v3.yaw, app.v3.pitch, &stk, asp, app.v3.ortho);
-    let (zact, _) = crate::zoomcard::show(ctx, "zoomcard3d", egui::Order::Foreground, Pos2::new(rect.right() - 10.0, shown.response.rect.bottom() + 8.0), fit / app.v3.dist.max(1e-3));
     let key_fit = ctx.input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ctx.wants_keyboard_input();
     let act = zact.or_else(|| crate::zoomcard::keys(ctx)).or_else(|| (std::mem::take(&mut app.fit3d_pending) || key_fit).then_some(crate::zoomcard::Act::Fit));
     match act {

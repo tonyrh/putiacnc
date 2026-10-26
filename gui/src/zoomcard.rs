@@ -10,7 +10,8 @@ const PRESETS: [f32; 6] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
 const BTN: f32 = 34.0;
 const PCT_W: f32 = 54.0;
 /// The width of the card (buttons, gaps, frame), for deciding where there is room for it.
-pub const CARD_W: f32 = 3.0 * BTN + PCT_W + 3.0 * 5.0 + 8.0 + 2.0;
+pub const ROW_W: f32 = 3.0 * BTN + PCT_W + 3.0 * 5.0;
+pub const CARD_W: f32 = ROW_W + 8.0 + 2.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Act {
@@ -59,34 +60,38 @@ pub fn button(ui: &mut egui::Ui, size: Vec2, selected: bool, tip: &str, paint: i
     if tip.is_empty() { resp } else { resp.on_hover_text(tip) }
 }
 
-/// Draws the card with its top right corner at `pos` and returns what was asked. `frac` is the current zoom (1.0 = fit view).
-/// Returns the card's rectangle too, so the caller can place things under it.
+/// The four zoom buttons in a row (−, level, +, Fit), for use inside any card. `frac` is the current zoom (1.0 = fit view).
+pub fn row(ui: &mut egui::Ui, id: &str, frac: f32) -> Option<Act> {
+    let mut act = None;
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing = Vec2::splat(5.0);
+        let sq = Vec2::splat(BTN);
+        if button(ui, sq, false, "Zoom out (-)", |p, r, fg| paint_icon(p, Icon::Minus, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::By(1.0 / STEP)); }
+        let text = pct_text(frac);
+        let pr = button(ui, Vec2::new(PCT_W, BTN), false, "Zoom level: 100% is the stock framed to fit. Click for sizes", |p, r, fg| {
+            p.text(r.center(), egui::Align2::CENTER_CENTER, text, egui::FontId::proportional(13.0), fg);
+        });
+        let pid = egui::Id::new((id, "menu"));
+        if pr.clicked() { ui.memory_mut(|m| m.toggle_popup(pid)); }
+        egui::popup::popup_below_widget(ui, pid, &pr, |ui| {
+            ui.set_min_width(PCT_W + 20.0);
+            if ui.selectable_label(false, "Fit").clicked() { act = Some(Act::Fit); }
+            ui.separator();
+            for f in PRESETS {
+                if ui.selectable_label((f - frac).abs() < 0.005, pct_text(f)).clicked() { act = Some(Act::To(f)); }
+            }
+        });
+        if button(ui, sq, false, "Zoom in (+)", |p, r, fg| paint_icon(p, Icon::Add, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::By(STEP)); }
+        if button(ui, sq, false, "Fit the stock in view (0 or F)", |p, r, fg| paint_icon(p, Icon::Fit, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::Fit); }
+    });
+    act
+}
+
+/// Draws the card with its top right corner at `pos` and returns what was asked, plus the card's rectangle.
 pub fn show(ctx: &egui::Context, id: &str, order: egui::Order, pos: Pos2, frac: f32) -> (Option<Act>, Rect) {
     let mut act = None;
     let r = egui::Area::new(egui::Id::new(id)).order(order).pivot(egui::Align2::RIGHT_TOP).fixed_pos(pos).show(ctx, |ui| {
-        egui::Frame::popup(ui.style()).inner_margin(4.0).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing = Vec2::splat(5.0);
-                let sq = Vec2::splat(BTN);
-                if button(ui, sq, false, "Zoom out (-)", |p, r, fg| paint_icon(p, Icon::Minus, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::By(1.0 / STEP)); }
-                let text = pct_text(frac);
-                let pr = button(ui, Vec2::new(PCT_W, BTN), false, "Zoom level: 100% is the stock framed to fit. Click for sizes", |p, r, fg| {
-                    p.text(r.center(), egui::Align2::CENTER_CENTER, text, egui::FontId::proportional(13.0), fg);
-                });
-                let pid = egui::Id::new((id, "menu"));
-                if pr.clicked() { ui.memory_mut(|m| m.toggle_popup(pid)); }
-                egui::popup::popup_below_widget(ui, pid, &pr, |ui| {
-                    ui.set_min_width(PCT_W + 20.0);
-                    if ui.selectable_label(false, "Fit").clicked() { act = Some(Act::Fit); }
-                    ui.separator();
-                    for f in PRESETS {
-                        if ui.selectable_label((f - frac).abs() < 0.005, pct_text(f)).clicked() { act = Some(Act::To(f)); }
-                    }
-                });
-                if button(ui, sq, false, "Zoom in (+)", |p, r, fg| paint_icon(p, Icon::Add, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::By(STEP)); }
-                if button(ui, sq, false, "Fit the stock in view (0 or F)", |p, r, fg| paint_icon(p, Icon::Fit, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::Fit); }
-            });
-        });
+        egui::Frame::popup(ui.style()).inner_margin(4.0).show(ui, |ui| { act = row(ui, id, frac); });
     });
     (act, r.response.rect)
 }
