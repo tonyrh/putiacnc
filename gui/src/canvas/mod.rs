@@ -514,14 +514,14 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 } else if let Some(h) = hit_handle(&view, b, ps) { ctx.set_cursor_icon(handle_cursor(h)); on_handle = true; }
                 if app.rotate_mode && (view.w2s(app.rot_pivot.unwrap_or([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0])).distance(ps) <= 10.0 || hit_handle(&view, b, ps).is_some_and(|h| h % 2 == 0)) { on_handle = true; }
             }
-            // over a shape that a press would pick up (its outline, or the inside of a selected one): the four-way move cursor
+            // over a selected shape (its outline, or its inside): the four-way move cursor; unselected shapes keep the arrow
             if !on_handle && resp.hovered() {
                 if let Some(w) = hover_w {
                     let loops = &app.project.data.loops;
                     let edge = loops.iter().enumerate().map(|(i, l)| (i, shapes::dist_to_loop(l, w))).filter(|(_, d)| *d <= tol)
                         .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).map(|(i, _)| i);
                     let hit = edge.or_else(|| app.sel.iter().copied().find(|&i| shapes::point_in_loop(&loops[i], w)));
-                    if hit.is_some_and(|h| !app.loop_locked(h)) { ctx.set_cursor_icon(egui::CursorIcon::Move); }
+                    if hit.is_some_and(|h| app.sel.contains(&h) && !app.loop_locked(h)) { ctx.set_cursor_icon(egui::CursorIcon::Move); }
                 }
             }
         }
