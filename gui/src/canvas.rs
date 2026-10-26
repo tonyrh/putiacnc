@@ -515,9 +515,9 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             let ops: Vec<String> = hit_by.iter().map(|o| (o + 1).to_string()).collect();
             let tip = format!("Operation {} runs into this clamp", ops.join(", "));
             // the same warning sign as in the 3D preview, standing in the clamp's top right corner
-            let c0 = r.right_top() + egui::vec2(-14.0, 28.0);
-            crate::checkui::marker(&painter, c0, false, "");
-            if hover_w.is_some() && resp.hovered() && ui.input(|i| i.pointer.hover_pos()).is_some_and(|p| (p.x - c0.x).abs() < 12.0 && p.y > c0.y - 26.0 && p.y < c0.y + 4.0) && !ui.memory(|m| m.any_popup_open()) {
+            let c0 = r.right_top() + egui::vec2(-11.0, 23.0);
+            crate::checkui::marker_sized(&painter, c0, false, "", 0.85);
+            if hover_w.is_some() && resp.hovered() && ui.input(|i| i.pointer.hover_pos()).is_some_and(|p| (p.x - c0.x).abs() < 11.0 && p.y > c0.y - 21.0 && p.y < c0.y + 3.0) && !ui.memory(|m| m.any_popup_open()) {
                 egui::show_tooltip_text(ui.ctx(), egui::Id::new(("clamp_hit", i)), tip);
             }
         }
