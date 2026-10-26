@@ -686,9 +686,11 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             // selected shapes gets a stronger one in the text colour in its place
             {
                 let card = egui::Rect::from_min_max(card_hdr.0.min, egui::pos2(card_hdr.0.max.x, body_card.response.rect.max.y));
-                let round = egui::Rounding { nw: 0.0, ne: 0.0, sw: 6.0, se: 6.0 };
-                ui.painter().rect_stroke(card.shrink(0.75), round, egui::Stroke::new(1.5_f32, card_col));
-                if card_hdr.1 { ui.painter().rect_stroke(card.shrink(1.0), 6.0, egui::Stroke::new(2.0_f32, ui.visuals().text_color())); }
+                // the colour border only below the header (above it the header is the border); its corners are concentric
+                // with the header's, so nothing pokes out at the top
+                let below = ui.painter().with_clip_rect(egui::Rect::from_min_max(egui::pos2(card.min.x - 2.0, card_hdr.0.max.y), card.max + egui::vec2(2.0, 2.0)));
+                below.rect_stroke(card.shrink(0.75), egui::Rounding { nw: 0.0, ne: 0.0, sw: 5.25, se: 5.25 }, egui::Stroke::new(1.5_f32, card_col));
+                if card_hdr.1 { ui.painter().rect_stroke(card.shrink(1.0), 5.0, egui::Stroke::new(2.0_f32, ui.visuals().text_color())); }
             }
             ui.spacing_mut().item_spacing.y = sy;
         }
