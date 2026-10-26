@@ -23,18 +23,24 @@ Anything that decides something should be testable without a window. See `ARCHIT
 
 ## Looking at the window without a screen
 
-The app has environment variables that open it in a given state, so a screenshot is repeatable. On Linux:
+`scripts/shot.sh` starts a virtual screen (once), opens the app in a given state in a throwaway config folder, waits,
+takes the picture and closes the app. It needs `xvfb` and `imagemagick`, and a built `putiacnc`
+(`cargo build -p putiacnc-gui`).
 
 ```
-Xvfb :99 -screen 0 1920x1080x24 &
-export DISPLAY=:99 PUTIACNC_CONFIG_DIR=/tmp/pc-cfg      # an empty config folder: no saved preferences
-PUTIACNC_THEME=light PUTIACNC_WIN=1920x985 cargo run -p putiacnc-gui -- project.json &
-sleep 10; import -window root shot.png                    # or PIL ImageGrab, or xwd
+scripts/shot.sh -o 2d.png tests/data/outside_holes.project.json
+scripts/shot.sh -t dark -e PUTIACNC_VIEW=3d -e PUTIACNC_PLAY=0.6 -c 396,44,1084,300 -o 3d.png my.project.json
+scripts/shot.sh -w 1354x800 -e PUTIACNC_SHOW_OFFSET=1 -o smallest.png my.project.json
+scripts/shot.sh -h          # all the options
 ```
+
+`-c X,Y,W,H` keeps one part of the screen (the canvas starts at x = 394, below the tab strip at y = 44); `-e` sets the
+variables below, and can be repeated. The same variables work when you start the program by hand:
+`PUTIACNC_WIN=1920x985 PUTIACNC_THEME=dark cargo run -p putiacnc-gui -- project.json`.
 
 | Variable | Effect |
 |---|---|
-| `PUTIACNC_CONFIG_DIR` | Where preferences and libraries are read and written. Use a throwaway folder. |
+| `PUTIACNC_CONFIG_DIR` | Where preferences and libraries are read and written. `shot.sh` uses a throwaway folder. |
 | `PUTIACNC_WIN=WxH` | Window size (the smallest allowed is about 1354 wide). |
 | `PUTIACNC_THEME=light\|dark` | Overrides the desktop theme. |
 | `PUTIACNC_VIEW=3d` | Opens the 3D preview. |
