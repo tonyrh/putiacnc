@@ -5,6 +5,7 @@ use crate::panels::dlg_button;
 use eframe::egui;
 
 const REPO_URL: &str = "https://github.com/tonyrh/putiacnc";
+const PAGE_URL: &str = "https://tonyrh.github.io/putiacnc/";
 const ICON_PNG: &[u8] = include_bytes!("../../assets/icons/putiacnc-256.png");
 
 fn icon_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> {
@@ -104,11 +105,19 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 ui.weak("A CNC toolpath studio for GRBL and Mach3 / LinuxCNC machines.");
             });
         }).response;
-        // the whole top block is a link to the project page
-        let link = ui.interact(head.rect, egui::Id::new("about_head"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(REPO_URL);
-        if link.clicked() { let _ = open::that(REPO_URL); }
+        // the whole top block is a link to the project page (the web page; the source code has its own link below)
+        let link = ui.interact(head.rect, egui::Id::new("about_head"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(PAGE_URL);
+        if link.clicked() { let _ = open::that(PAGE_URL); }
         ui.add_space(10.0);
         ui.add(egui::Label::new("Draw or import shapes, add operations, preview the cut in 3D and write the G-code. Free software under the GNU General Public License, version 3 or later: you may use, study, share and change it.").wrap(true));
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            ui.hyperlink_to("Project page", PAGE_URL);
+            ui.label("·");
+            ui.hyperlink_to("Source code", REPO_URL);
+            ui.label("·");
+            ui.hyperlink_to("Report a problem", format!("{REPO_URL}/issues"));
+        });
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             if dlg_button(ui, Icon::Import, "Check for updates", None, None, false).on_hover_text("Asks GitHub for the latest release; nothing is contacted unless you ask").clicked() {
