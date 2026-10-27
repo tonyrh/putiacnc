@@ -1,5 +1,5 @@
 //! Side panels, toolbar and status bar.
-use crate::app::{fmt_time, Action, App, RightTab};
+use crate::app::{fmt_time, Action, App, Level, RightTab};
 use eframe::egui::{self, Color32, Ui};
 use crate::icons::{icon_text_button, paint_icon, small_icon_button, Icon};
 use crate::toolmgr::rlabel;
@@ -199,16 +199,43 @@ pub fn fmt_num(v: f64) -> String {
 /// Dismissible message bar under the view tabs (import warnings, save errors...). Wraps at any width.
 pub fn message_bar(ui: &mut Ui, app: &mut App) {
     let Some(msg) = app.error.clone() else { return };
-    let red = if app.theme.dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xa5, 0x1d, 0x2d) };
+    let level = app.banner_level_now();
+    let dark = app.theme.dark;
+    let col = match (level, dark) {
+        (Level::Error, true) => Color32::from_rgb(0xff, 0x7b, 0x63),
+        (Level::Error, false) => Color32::from_rgb(0xa5, 0x1d, 0x2d),
+        (Level::Warning, true) => Color32::from_rgb(0xf2, 0xb0, 0x4a),
+        (Level::Warning, false) => Color32::from_rgb(0x9a, 0x5a, 0x00),
+        (Level::Info, true) => Color32::from_rgb(0x7c, 0xb7, 0xff),
+        (Level::Info, false) => Color32::from_rgb(0x1f, 0x5f, 0xb5),
+    };
     let mut close = false;
     ui.horizontal_top(|ui| {
         ui.add_space(2.0);
         let (r, _) = ui.allocate_exact_size(egui::vec2(18.0, 20.0), egui::Sense::hover());
-        ui.painter().circle_filled(r.center(), 8.0, red);
-        ui.painter().line_segment([r.center() + egui::vec2(0.0, -3.5), r.center() + egui::vec2(0.0, 1.0)], egui::Stroke::new(1.8_f32, Color32::WHITE));
-        ui.painter().circle_filled(r.center() + egui::vec2(0.0, 4.0), 1.1, Color32::WHITE);
+        let c = r.center();
+        let stroke = egui::Stroke::new(1.8_f32, Color32::WHITE);
+        match level {
+            Level::Error => {
+                ui.painter().circle_filled(c, 8.0, col);
+                ui.painter().line_segment([c + egui::vec2(0.0, -3.5), c + egui::vec2(0.0, 1.0)], stroke);
+                ui.painter().circle_filled(c + egui::vec2(0.0, 4.0), 1.1, Color32::WHITE);
+            }
+            Level::Warning => {
+                // a triangle with the same mark inside
+                let tri = vec![c + egui::vec2(0.0, -8.5), c + egui::vec2(9.0, 7.0), c + egui::vec2(-9.0, 7.0)];
+                ui.painter().add(egui::Shape::convex_polygon(tri, col, egui::Stroke::new(1.6_f32, col)));
+                ui.painter().line_segment([c + egui::vec2(0.0, -2.5), c + egui::vec2(0.0, 2.0)], stroke);
+                ui.painter().circle_filled(c + egui::vec2(0.0, 4.6), 1.0, Color32::WHITE);
+            }
+            Level::Info => {
+                ui.painter().circle_filled(c, 8.0, col);
+                ui.painter().circle_filled(c + egui::vec2(0.0, -3.8), 1.1, Color32::WHITE);
+                ui.painter().line_segment([c + egui::vec2(0.0, -0.8), c + egui::vec2(0.0, 4.5)], stroke);
+            }
+        }
         let w = (ui.available_width() - 34.0).max(60.0);
-        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(&msg).color(red)).wrap(true)); });
+        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(&msg).color(col)).wrap(true)); });
         if icon_close(ui).clicked() { close = true; }
     });
     if close { app.error = None; }

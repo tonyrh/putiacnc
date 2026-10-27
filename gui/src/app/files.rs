@@ -166,7 +166,7 @@ impl App {
         rel.x = (st.w - mw) / 2.0;
         rel.y = (st.h - mh) / 2.0;
         self.project.data.relief = Some(rel);
-        self.error = Some(note.join(" "));
+        self.say(Level::Info, note.join(" "));
         self.touch();
     }
 
@@ -222,7 +222,7 @@ impl App {
         }
         self.sel = (start..self.project.data.loops.len()).collect();
         self.mode = Mode::Select;
-        self.error = if note.is_empty() { None } else { Some(note.join(" ")) };
+        if note.is_empty() { self.error = None; } else { self.say(Level::Warning, note.join(" ")); }
         self.notes = sentences;
         self.touch();
     }

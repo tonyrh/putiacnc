@@ -72,7 +72,14 @@ fn main() -> eframe::Result<()> {
     };
     eframe::run_native("PutiaCNC", opts, Box::new(move |cc| {
         let mut app = App::new(arg);
-        if std::env::var_os("PUTIACNC_SHOW_ERR").is_some() { app.error = Some("The imported drawing (420 × 310 mm) is larger than the machine work area (300 × 200 mm).".into()); }
+        // PUTIACNC_SHOW_ERR[=warning|info]: a sample message in the banner (an error unless said otherwise)
+        if let Ok(v) = std::env::var("PUTIACNC_SHOW_ERR") {
+            match v.as_str() {
+                "warning" => app.say(app::Level::Warning, "The drawing (190.5 × 202.4 mm) is larger than the stock; resize it with Width/Height in the Selection panel.".into()),
+                "info" => app.say(app::Level::Info, "Imported hill.stl: 120.0 × 80.0 × 25.0 mm. Scaled down to 80% to fit the stock (96.0 × 64.0 mm); change the size with Width in the Imported section.".into()),
+                _ => app.error = Some("Save failed: permission denied (os error 13).".into()),
+            }
+        }
         // PUTIACNC_TAB_EDIT=1: the first operation has manual tabs and is in tab placement (for screenshots)
         if std::env::var_os("PUTIACNC_TAB_EDIT").is_some() {
             if let Some(o) = app.project.data.ops.first_mut() { o.p.tabs = true; o.p.tab_pts = Some(vec![]); app.tab_edit = Some(o.id); app.project.data.act = o.id; }

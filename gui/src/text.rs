@@ -344,7 +344,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
         if app.text.found.is_none() { return false; }
         let msg = format!("The font \"{}\" is not on this computer, so this text cannot be edited here. You can still convert it to outlines.", spec.font);
         app.notes.push((crate::app::NoteUntil::NotText(gid), msg.clone()));
-        app.error = Some(msg);
+        app.say(crate::app::Level::Warning, msg);
         app.text.open = false;
         app.mode = Mode::Select;
         return true;
@@ -359,7 +359,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     let Some((af, _)) = fit else {
         // the letters were edited point by point (or the font draws them differently now): they stay as outlines
         app.text_to_outlines(gid);
-        app.error = Some("These letters were edited as shapes, so they can no longer be edited as text. They are plain outlines now.".into());
+        app.say(crate::app::Level::Info, "These letters were edited as shapes, so they can no longer be edited as text. They are plain outlines now.".into());
         app.text.open = false;
         app.mode = Mode::Select;
         return true;

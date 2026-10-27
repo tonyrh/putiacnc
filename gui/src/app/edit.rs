@@ -26,9 +26,10 @@ impl App {
         if done.is_empty() { return; }
         self.notes.retain(|(_, s)| !done.contains(s));
         if let Some(mut e) = self.error.take() {
+            let level = self.banner_level_with(&e);
             for s in &done { e = e.replacen(s.as_str(), "", 1); }
             let e = e.split_whitespace().collect::<Vec<_>>().join(" ");
-            if !e.is_empty() { self.error = Some(e); }
+            if !e.is_empty() { self.banner_level = level.map(|l| (l, e.clone())); self.error = Some(e); }
         }
     }
 
@@ -109,6 +110,24 @@ impl App {
         self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false;
     }
 
+    /// Shows `msg` in the banner at the given level.
+    pub fn say(&mut self, level: Level, msg: String) {
+        self.banner_level = Some((level, msg.clone()));
+        self.error = Some(msg);
+    }
+
+    fn banner_level_with(&self, msg: &str) -> Option<Level> {
+        self.banner_level.as_ref().filter(|(_, m)| m == msg).map(|(l, _)| *l)
+    }
+
+    /// The level of the message now in the banner.
+    pub fn banner_level_now(&self) -> Level {
+        match (&self.banner_level, &self.error) {
+            (Some((l, m)), Some(e)) if m == e => *l,
+            _ => Level::Error,
+        }
+    }
+
     /// The Text window with whatever it was doing: a text being edited goes back as it was.
     pub fn close_text_window(&mut self) {
         if !self.text.open && self.text.edit.is_none() { return; }
@@ -165,7 +184,7 @@ impl App {
         let msg = f(self);
         let changed = self.project.data.loops != before;
         // a result that only matters while the window is open stays in the window; a note about what was done goes to the banner
-        if let Some(m) = msg { if changed { self.error = Some(m); } else { self.tool_note = Some((tool, m)); } }
+        if let Some(m) = msg { if changed { self.say(Level::Info, m); } else { self.tool_note = Some((tool, m)); } }
         changed
     }
 
