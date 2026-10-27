@@ -1,20 +1,32 @@
 //! Help → About: what the app is, its version, licence and links, and a few things that help when reporting a problem.
 use crate::app::App;
-use crate::icons::Icon;
-use crate::panels::dlg_button;
 use eframe::egui;
 
 const REPO_URL: &str = "https://github.com/tonyrh/putiacnc";
 const PAGE_URL: &str = "https://tonyrh.github.io/putiacnc/";
 const ICON_PNG: &[u8] = include_bytes!("../../assets/icons/putiacnc-256.png");
 
-fn icon_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> {
-    let mut reader = png::Decoder::new(ICON_PNG).read_info().ok()?;
+fn icon_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> { png_texture(ctx, "about-icon", ICON_PNG) }
+
+const MARK_WHITE: &[u8] = include_bytes!("../../assets/icons/github-mark-white.png");
+const MARK_DARK: &[u8] = include_bytes!("../../assets/icons/github-mark-dark.png");
+
+/// The GitHub mark in the colour that shows on the current theme (loaded once per colour).
+fn github_mark(ctx: &egui::Context, dark_theme: bool) -> Option<egui::TextureHandle> {
+    let id = egui::Id::new(("github_mark", dark_theme));
+    if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) { return Some(t); }
+    let t = png_texture(ctx, if dark_theme { "github-mark-white" } else { "github-mark-dark" }, if dark_theme { MARK_WHITE } else { MARK_DARK })?;
+    ctx.data_mut(|d| d.insert_temp(id, t.clone()));
+    Some(t)
+}
+
+fn png_texture(ctx: &egui::Context, name: &str, bytes: &[u8]) -> Option<egui::TextureHandle> {
+    let mut reader = png::Decoder::new(bytes).read_info().ok()?;
     let mut buf = vec![0; reader.output_buffer_size()];
     let info = reader.next_frame(&mut buf).ok()?;
     if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight { return None; }
     let img = egui::ColorImage::from_rgba_unmultiplied([info.width as usize, info.height as usize], &buf[..info.buffer_size()]);
-    Some(ctx.load_texture("about-icon", img, egui::TextureOptions::LINEAR))
+    Some(ctx.load_texture(name, img, egui::TextureOptions::LINEAR))
 }
 
 /// The operating system as a person would name it ("Fedora Linux 41", "macOS 14.5", "Windows ..."), with the kernel on Linux.
@@ -110,29 +122,19 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         if link.clicked() { let _ = open::that(PAGE_URL); }
         ui.add_space(10.0);
         ui.add(egui::Label::new("Draw or import shapes, add operations, preview the cut in 3D and write the G-code. Free software under the GNU General Public License, version 3 or later: you may use, study, share and change it.").wrap(true));
-        ui.add_space(6.0);
-        ui.horizontal(|ui| {
-            ui.hyperlink_to("Project page", PAGE_URL);
-            ui.label("·");
-            ui.hyperlink_to("Source code", REPO_URL);
-            ui.label("·");
-            ui.hyperlink_to("Report a problem", format!("{REPO_URL}/issues"));
-        });
         ui.add_space(10.0);
         ui.horizontal(|ui| {
-            if dlg_button(ui, Icon::Import, "Check for updates", None, None, false).on_hover_text("Asks GitHub for the latest release; nothing is contacted unless you ask").clicked() {
-                app.updater.open = true; app.updater.check(false); close = true;
-            }
-            if ui.button("Open config folder").on_hover_text("Where your tool libraries, machines and settings are saved").clicked() {
-                if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that(d); }
-            }
+            let mark = github_mark(ctx, ui.visuals().dark_mode);
+            let github = match &mark { Some(t) => egui::Button::image_and_text(egui::Image::new(egui::load::SizedTexture::new(t.id(), egui::vec2(16.0, 16.0))), "Source code"), None => egui::Button::new("Source code") };
+            if ui.add(github).on_hover_text("The source code, on GitHub").clicked() { let _ = open::that(REPO_URL); }
+            if ui.button("Report a problem").on_hover_text("Opens the issue list on GitHub (an account is needed to post)").clicked() { let _ = open::that(format!("{REPO_URL}/issues")); }
             if ui.button("Copy version info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); }
         });
         ui.add_space(8.0);
         egui::CollapsingHeader::new(egui::RichText::new("Notices").small().weak()).default_open(false).show(ui, |ui| {
             ui.add(egui::Label::new(egui::RichText::new("Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by them; the names only say which bits the ready-made libraries match. Dimensions come from the makers' published catalogs; feeds, speeds and notes are conservative starting values, not the makers' recommendations.").small().weak()).wrap(true));
             ui.add_space(4.0);
-            ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui.").small().weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui. The GitHub logo is from GitHub\u{2019}s Octicons (MIT licence, copyright GitHub Inc.).").small().weak()).wrap(true));
         });
         ui.add_space(6.0);
         });
