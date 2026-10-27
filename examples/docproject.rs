@@ -1,5 +1,6 @@
 //! Builds the project used for the README screenshots: a rounded plate with "PutiaCNC" pocketed in it and four holes drilled through (as circles the size of the tool).
 //! Usage: cargo run --release --example docproject -- <font.otf> <font name as the app lists it> <out.json>
+//! The screenshots use the demo version of the E-SQUARE font (`E-SQUARE_demo.otf`, font name "E-SQUARE"). It is not part of the repository; supply your own copy.
 use putiacnc_core::model::{Operation, ShapeGroup, TextSpec};
 use putiacnc_core::{save_project, shapes, text};
 
