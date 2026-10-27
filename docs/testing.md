@@ -60,7 +60,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_APPLY_NOTHING=array\|combine\|corners` | Opens that tool on a case where Apply changes nothing and presses Apply once, to see where its message goes. |
 | `PUTIACNC_PLACE_TEXT=..`, `PUTIACNC_EDIT_TEXT`, `PUTIACNC_POLYGON=ring\|point`, `PUTIACNC_DYN=..`, `PUTIACNC_IMPORT2=file`, `PUTIACNC_RELIEF`, `PUTIACNC_TOOL_QUERY=..` | Sets up a tool mid-use. |
 | `PUTIACNC_CHECK_SHOW=n`, `PUTIACNC_DEBUG_CHECKS` | Shows check result `n` in the 3D view; prints a summary of the checks. |
-| `PUTIACNC_PRINT_VERSION_INFO` | Prints the "Copy version info" text and carries on. |
+| `PUTIACNC_PRINT_VERSION_INFO` | Prints the "Copy system info" text and carries on. |
 | `PUTIACNC_UPDATE_URL` | Where the update check looks (point it at a local file to test). |
 
 Things to know:

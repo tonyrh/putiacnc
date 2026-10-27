@@ -125,10 +125,10 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             let mark = github_mark(ctx, ui.visuals().dark_mode);
-            let github = match &mark { Some(t) => egui::Button::image_and_text(egui::Image::new(egui::load::SizedTexture::new(t.id(), egui::vec2(16.0, 16.0))), "Source code"), None => egui::Button::new("Source code") };
+            let github = match &mark { Some(t) => egui::Button::image_and_text(egui::Image::new(egui::load::SizedTexture::new(t.id(), egui::vec2(16.0, 16.0))), " Source code"), None => egui::Button::new("Source code") };
             if ui.add(github).on_hover_text("The source code, on GitHub").clicked() { let _ = open::that(REPO_URL); }
             if ui.button("Report a problem").on_hover_text("Opens the issue list on GitHub (an account is needed to post)").clicked() { let _ = open::that(format!("{REPO_URL}/issues")); }
-            if ui.button("Copy version info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); }
+            if ui.button("Copy system info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); }
         });
         ui.add_space(8.0);
         egui::CollapsingHeader::new(egui::RichText::new("Notices").small().weak()).default_open(false).show(ui, |ui| {

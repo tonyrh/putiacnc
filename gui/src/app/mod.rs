@@ -140,7 +140,7 @@ pub struct App {
     pub prefs_saved: crate::prefs::Settings,
     pub shortcuts_open: bool,
     pub about_open: bool,
-    /// The OpenGL renderer and version, read once from the first frame (for Help > About > Copy version info).
+    /// The OpenGL renderer and version, read once from the first frame (for Help > About > Copy system info).
     pub gl_info: String,
     /// What the zoom card asked for this frame, applied by the drawing or the 3D view.
     pub zoom_act: Option<crate::zoomcard::Act>,
