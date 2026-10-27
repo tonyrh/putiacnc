@@ -13,7 +13,7 @@ stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`
 ![3D preview: the finished cut in light wood](docs/screenshot-3d.png)
 *3D preview: the toolpath is replayed on the stock (shown here once every operation has run), so you can check the result before sending the G-code to the machine.*
 
-
+https://github.com/user-attachments/assets/c7ec8dbf-e8c2-4b89-a90f-1d94a35b7dcb
 
 https://github.com/user-attachments/assets/0fcbaebb-aa6b-4d2a-b85b-e031ee82d803
 

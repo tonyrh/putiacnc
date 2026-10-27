@@ -40,7 +40,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 
 ## Release 0.3.2
 - [x] README screenshots refreshed (`docs/screenshot-2d.png`, `docs/screenshot-3d.png`; project built by `examples/docproject.rs`).
-- [ ] Replace the video embedded in the README (a GitHub upload link) with the new demo; `docs/demo.mp4` is already the new one. The GIF is no longer used and was removed.
+- [x] Demo video replaced (`docs/demo.mp4` and the one embedded in the README); the unused GIF was removed.
 - [ ] Maintainer tags and publishes.
 
 ## Later
