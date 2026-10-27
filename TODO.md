@@ -44,7 +44,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 - [x] Maintainer tags and publishes (0.3.2 is out).
 
 ## Project page
-- [ ] Maintainer: in the repo settings, Pages > Source: `main` branch, `/docs` folder. Then add `https://tonyrh.github.io/putiacnc/` to Google Search Console (URL prefix) and verify with the HTML file or meta tag (a comment in `docs/index.html` shows where), then submit `sitemap.xml`.
+- [ ] Maintainer: in the repo settings, Pages > Source: `main` branch, `/docs` folder. Then add `https://tonyrh.github.io/putiacnc/` to Google Search Console (URL prefix) and verify with the HTML file or meta tag (the meta tag is already in `docs/index.html`), then submit `sitemap.xml`.
 
 ## Later
 - [ ] macOS notarization.
