@@ -31,7 +31,6 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 - [x] Spelling: British "Centre" is the choice for the app's texts (decided by the maintainer; nothing to change).
 - [x] Button names: the G-code panel button is now "Export G-code…", like the menu. (The "Clean up" button was already right.)
 - [x] Messages: the banner has three styles: error (red), warning (orange, chosen so it is not mistaken for green), information (blue, with an "i"). Results of tools and imports are information or warnings; only real failures are errors.
-- [ ] Colour-blindness check (maintainer has a colour vision defect): find places where colour alone carries the meaning (operation colours, operation eye, toolpath colours; clamp collisions were looked at and left as they are) and give each a second cue.
 - [x] Combine, Array, Offset and Corners close on a successful Apply (Close is now Cancel); they stay open when nothing changed.
 - [x] When Apply changes nothing, the message of Combine, Array, Offset and Corners shows in the tool's own window instead of the banner, and goes when the window closes. (Notes about what was done, such as "N open shapes were left out", still go to the banner.)
 - [x] Align, Offset, Corners (and Array, Combine) with an empty selection: checked by screenshot. Align closes itself; the others stay open with one clear line ("Select … first."), Apply greyed out and no preview. Nothing to change.
