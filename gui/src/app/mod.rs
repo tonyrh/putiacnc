@@ -339,6 +339,8 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_CLEAN").is_some() { a.clean.open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ALIGN").is_some() { a.align_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_OFFSET").is_some() { a.offset_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
+        // PUTIACNC_DESELECT: nothing is selected, whichever tool window the lines above opened
+        if std::env::var_os("PUTIACNC_DESELECT").is_some() { a.sel.clear(); }
         // an Apply that changes nothing, to see where its message goes: array | combine | corners
         if let Ok(which) = std::env::var("PUTIACNC_APPLY_NOTHING") {
             a.project.data.loops.clear();

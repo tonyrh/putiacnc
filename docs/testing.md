@@ -54,6 +54,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_OP=n` | Operation n (by position) is active with its shapes selected; all the others are folded. |
 | `PUTIACNC_NODE_EDIT=i`, `PUTIACNC_TAB_EDIT`, `PUTIACNC_ROTATE` | Starts point editing, tab placing or rotate mode. |
 | `PUTIACNC_TAB_EDIT=1` | The first operation gets manual tabs and is in tab placement (shows the Done button). |
+| `PUTIACNC_DESELECT` | Nothing is selected, after the `PUTIACNC_SHOW_*` tool windows are opened (to see their empty state). |
 | `PUTIACNC_SHOW_ERR[=warning|info]` | Shows a sample message in the banner: an error by default, or a warning or information. |
 | `PUTIACNC_DROPUP=snap_menu\|guides_menu` | Opens that drop-up menu of the bottom bar. |
 | `PUTIACNC_APPLY_NOTHING=array\|combine\|corners` | Opens that tool on a case where Apply changes nothing and presses Apply once, to see where its message goes. |
