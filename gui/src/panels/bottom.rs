@@ -44,7 +44,7 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
         ui.checkbox(&mut app.grid_on, "Grid");
         crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, " mm").on_hover_text("Grid size (also the snap step)");
         dropup(ui, app, "snap_menu", "Snap", |ui, app| {
-            ui.set_width(170.0);
+            ui.set_width(checks_width(ui, &["To the grid", "To shapes"]));
             ui.checkbox(&mut app.snap_on, "To the grid").on_hover_text("The pointer jumps to the grid; the grid size is the snap step");
             ui.checkbox(&mut app.osnap_on, "To shapes").on_hover_text("The pointer jumps to the corners, midpoints, centres and crossings of shapes, and to the stock");
         });
@@ -69,17 +69,24 @@ pub(super) fn guides_size(ui: &Ui) -> egui::Vec2 { dropup_size(ui, "Guides") }
 
 pub(super) fn guides_menu(ui: &mut Ui, app: &mut App) {
     dropup(ui, app, "guides_menu", "Guides", |ui, app| {
-        ui.set_width(190.0); // a fixed width: the separator would otherwise stretch the menu across the screen
+        ui.set_width(checks_width(ui, &["Rulers", "Axes", "Machine area"])); // a set width: a separator would otherwise stretch the menu across the screen
         ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
         ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
         ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
     });
 }
 
+/// The width a menu of checkboxes needs: the longest label and the box in front of it.
+fn checks_width(ui: &Ui, labels: &[&str]) -> f32 {
+    let sp = ui.spacing();
+    labels.iter().map(|l| tw(ui, l)).fold(0.0_f32, f32::max) + sp.icon_width + sp.icon_spacing + 2.0
+}
+
 /// A button with a painted arrow whose panel opens upwards and stays open while its toggles are clicked.
 pub(super) fn dropup(ui: &mut Ui, app: &mut App, name: &str, label: &str, contents: impl FnOnce(&mut Ui, &mut App)) {
     let id = ui.id().with(name);
-    let open = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    let mut open = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    if std::env::var("PUTIACNC_DROPUP").is_ok_and(|v| v == name) { open = true; } // for screenshots
     let font = egui::TextStyle::Button.resolve(ui.style());
     let galley = ui.painter().layout_no_wrap(label.to_string(), font, Color32::PLACEHOLDER);
     let size = dropup_size(ui, label);
