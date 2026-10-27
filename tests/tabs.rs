@@ -127,3 +127,25 @@ fn automatic_tab_marks_match_the_uncut_parts_of_the_toolpath() {
         assert!(on_tab.iter().any(|m| (m.to[0] - k.mid[0]).hypot(m.to[1] - k.mid[1]) < reach), "mark without tab moves: {:?}", k.mid);
     }
 }
+
+#[test]
+fn on_line_cuts_get_tabs_on_closed_shapes_too() {
+    let mut p = load_project(&sample()).unwrap();
+    {
+        let op = &mut p.data.ops[0].p;
+        op.kind = "online".into();
+        op.depth = 3.0;
+        op.tabs = true;
+        op.tab_n = Some(4.0);
+        op.tab_w = Some(6.0);
+        op.tab_h = Some(2.0);
+        op.tab_pts = None;
+    }
+    let o = generate(&p.data, Units::Metric).unwrap();
+    assert!(!o.tab_marks.is_empty(), "no tab marks on an On line cut");
+    // the cut moves along the outline at tab height exist, so material is left there
+    assert!(o.moves.iter().any(|m| m.cut && m.pass >= 2 && (m.from[2] + 1.0).abs() < 1e-9 && (m.to[2] + 1.0).abs() < 1e-9 && (m.from[0] != m.to[0] || m.from[1] != m.to[1])));
+    // without the setting there are none
+    p.data.ops[0].p.tabs = false;
+    assert!(generate(&p.data, Units::Metric).unwrap().tab_marks.is_empty());
+}

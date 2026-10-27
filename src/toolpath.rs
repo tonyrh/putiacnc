@@ -773,7 +773,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let nz = (depth / pd - 1e-9).ceil() as usize;
         let zs: Vec<f64> = (0..nz).map(|i| -(depth / nz as f64) * (i as f64 + 1.0)).collect();
         let tab_h = o.p.tab_h.unwrap_or(2.0);
-        let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside");
+        let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside" || kind == "online"); // open paths on a line are cut without tabs
         let tabs_on = tabs_req && tab_h > 0.0 && tab_h < depth - 1e-6;
         let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, z0, sz, zs: zs.clone(),
             tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
