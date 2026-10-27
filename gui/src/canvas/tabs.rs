@@ -87,7 +87,7 @@ pub(super) fn tab_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             ui.horizontal(|ui| {
                 ui.label(format!("Placing tabs for operation {k} · {n} tab{}", if n == 1 { "" } else { "s" }));
                 ui.add_space(6.0);
-                if crate::icons::icon_text_button(ui, Icon::Close, "Done", "Stop placing tabs (Esc)", None).clicked() { done = true; }
+                if crate::icons::icon_text_button(ui, Icon::Check, "Done", "Stop placing tabs (Esc)", None).clicked() { done = true; }
             });
         });
     });

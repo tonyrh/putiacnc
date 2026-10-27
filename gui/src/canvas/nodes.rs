@@ -164,7 +164,7 @@ pub(super) fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.add(egui::DragValue::new(&mut tol).clamp_range(0.01..=5.0).speed(0.01).suffix(" mm"));
                 if ui.button("Simplify").on_hover_text("Remove points that hardly change the shape").clicked() { simplify = true; }
                 ui.add_space(6.0);
-                if crate::icons::icon_text_button(ui, Icon::Close, "Done", "Stop editing points (Esc)", None).clicked() { done = true; }
+                if crate::icons::icon_text_button(ui, Icon::Check, "Done", "Stop editing points (Esc)", None).clicked() { done = true; }
             });
             ui.horizontal(|ui| {
                 ui.label("Corners");

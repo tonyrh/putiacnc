@@ -638,7 +638,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.horizontal(|ui| {
                                 let editing = *tab_edit == Some(id);
                                 let (label, tip) = if editing { ("Done", "Stop placing tabs (Esc)") } else { ("Place tabs", "Click on the outline in the drawing to add tabs; drag to move them, right-click to remove") };
-                                if icon_text_button(ui, if editing { Icon::Close } else { Icon::Add }, label, tip, None).clicked() {
+                                if icon_text_button(ui, if editing { Icon::Check } else { Icon::Add }, label, tip, None).clicked() {
                                     *tab_edit = if editing { None } else { Some(id) };
                                     d.act = id;
                                 }
