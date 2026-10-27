@@ -204,8 +204,8 @@ pub fn message_bar(ui: &mut Ui, app: &mut App) {
     let col = match (level, dark) {
         (Level::Error, true) => Color32::from_rgb(0xff, 0x7b, 0x63),
         (Level::Error, false) => Color32::from_rgb(0xa5, 0x1d, 0x2d),
-        (Level::Warning, true) => Color32::from_rgb(0xf2, 0xb0, 0x4a),
-        (Level::Warning, false) => Color32::from_rgb(0x9a, 0x5a, 0x00),
+        (Level::Warning, true) => Color32::from_rgb(0xff, 0x95, 0x2e),
+        (Level::Warning, false) => Color32::from_rgb(0xd3, 0x54, 0x00),
         (Level::Info, true) => Color32::from_rgb(0x7c, 0xb7, 0xff),
         (Level::Info, false) => Color32::from_rgb(0x1f, 0x5f, 0xb5),
     };
