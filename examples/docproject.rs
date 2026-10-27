@@ -6,8 +6,15 @@ use putiacnc_core::{save_project, shapes, text};
 
 fn main() {
     let a: Vec<String> = std::env::args().collect();
+    if a.len() != 4 {
+        eprintln!("Usage: cargo run --release --example docproject -- <font.otf> <font name as the app lists it> <out.json>");
+        std::process::exit(2);
+    }
     let (path, label, out) = (&a[1], &a[2], &a[3]);
-    let font = std::fs::read(path).expect("font");
+    let font = std::fs::read(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read the font {path}: {e}");
+        std::process::exit(1);
+    });
     let mut f = shapes::blank_project();
     f.name = "Sign".into();
     let d = &mut f.data;
