@@ -24,6 +24,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] Maybe, only if asked: text along any picked path (rigid letters first, warped later; placed once, not live-linked). Decided not worth the cost for now.
 - [ ] Rest machining: clear only what the previous, larger tool left (pockets first, then relief).
 - [ ] Bezier and arc node editing (0.4.0).
+- [ ] Marlin output (a third G-code style next to GRBL and Mach3): `;` comments instead of `( )`, no `M2` (end with `M5` and a lift), tool change and spindle `S` scaling as the machine's build needs, arcs optional. First ask the maintainer: is it a CNC build with a spindle, are `G2`/`G3` enabled, how are tools changed. Not checked against Marlin itself yet.
 - [ ] Other ideas from the feature comparison: G-code sender, more post-processors, dogbone corners, helical entry, nesting.
 
 ## Interface consistency (audit of 2026-10-26)
