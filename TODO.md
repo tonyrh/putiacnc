@@ -30,7 +30,8 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. Still open:
 - [x] Spelling: British "Centre" is the choice for the app's texts (decided by the maintainer; nothing to change).
 - [x] Button names: the G-code panel button is now "Export G-code…", like the menu. (The "Clean up" button was already right.)
-- [x] Messages: the banner has three styles: error (red), warning (amber), information (blue, with an "i"). Results of tools and imports are information or warnings; only real failures are errors.
+- [x] Messages: the banner has three styles: error (red), warning (orange, chosen so it is not mistaken for green), information (blue, with an "i"). Results of tools and imports are information or warnings; only real failures are errors.
+- [ ] Colour-blindness check (maintainer has a colour vision defect): find places where colour alone carries the meaning (clamp collisions red in 2D and 3D, operation eye, toolpath colours) and give each a second cue.
 - [x] Combine, Array, Offset and Corners close on a successful Apply (Close is now Cancel); they stay open when nothing changed.
 - [x] When Apply changes nothing, the message of Combine, Array, Offset and Corners shows in the tool's own window instead of the banner, and goes when the window closes. (Notes about what was done, such as "N open shapes were left out", still go to the banner.)
 - [ ] Align, Offset and Corners: check what they show with an empty selection (no leftover preview, Apply disabled, a clear line saying what to select). (The duplicated "Select … first." line is fixed in Array, Offset, Corners and Combine.)
