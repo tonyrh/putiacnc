@@ -97,12 +97,12 @@ pub(super) fn palette_group(ui: &mut Ui, app: &mut App, g: usize, fillet: bool) 
         if icon_button(ui, icon, app.mode == m, true, tip).clicked() { set_mode(app, m); }
     }
     if g == 2 {
-        if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.combine_open = !app.combine_open; }
+        if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.toggle_tool_window(crate::app::ToolWin::Combine); }
         crate::align::button(ui, app);
         // only offered when the selection has a corner to round (not for circles and ellipses)
-        if fillet && icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.corners.open = !app.corners.open; }
-        if icon_button(ui, Icon::Offset, app.offset_open, !app.sel.is_empty(), "Offset: a copy of the selection grown or shrunk by a distance").clicked() { app.offset_open = !app.offset_open; }
-        if icon_button(ui, Icon::Array, app.array.open, !app.sel.is_empty(), "Array and copy: rows and columns, a circle of copies, or a spacing along a line").clicked() { app.array.open = !app.array.open; }
+        if fillet && icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.toggle_tool_window(crate::app::ToolWin::Corners); }
+        if icon_button(ui, Icon::Offset, app.offset_open, !app.sel.is_empty(), "Offset: a copy of the selection grown or shrunk by a distance").clicked() { app.toggle_tool_window(crate::app::ToolWin::Offset); }
+        if icon_button(ui, Icon::Array, app.array.open, !app.sel.is_empty(), "Array and copy: rows and columns, a circle of copies, or a spacing along a line").clicked() { app.toggle_tool_window(crate::app::ToolWin::Array); }
     }
     if g == 3 {
         if icon_button(ui, Icon::Undo, false, app.hist.can_undo(crate::app::Scope::Drawing), "Undo drawing change (Edit menu: undo anything)").clicked() { app.do_undo_drawing(); }

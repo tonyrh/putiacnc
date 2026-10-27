@@ -115,6 +115,33 @@ impl App {
         self.text.open = false; self.text.edit = None; self.text.angle = 0.0; self.text.rest = [1.0, 0.0, 0.0, 1.0];
     }
 
+    pub fn tool_window_open(&self, w: ToolWin) -> bool {
+        match w {
+            ToolWin::Align => self.align_open,
+            ToolWin::Offset => self.offset_open,
+            ToolWin::Array => self.array.open,
+            ToolWin::Corners => self.corners.open,
+            ToolWin::Combine => self.combine_open,
+            ToolWin::Clean => self.clean.open,
+        }
+    }
+
+    /// The button of a tool: closes its window when it is open, opens it (and closes the others) when it is not.
+    pub fn toggle_tool_window(&mut self, w: ToolWin) {
+        if self.tool_window_open(w) { self.close_tool_windows(); } else { self.open_tool_window(w); }
+    }
+
+    /// Safety net for any way of opening a tool window: when more than one is open, the one opened last stays.
+    pub fn one_tool_window(&mut self) {
+        const ALL: [ToolWin; 6] = [ToolWin::Align, ToolWin::Offset, ToolWin::Array, ToolWin::Corners, ToolWin::Combine, ToolWin::Clean];
+        let open: Vec<ToolWin> = ALL.into_iter().filter(|w| self.tool_window_open(*w)).collect();
+        if open.len() > 1 {
+            let newest = open.iter().copied().find(|w| !self.tool_wins_seen.contains(w)).unwrap_or(open[open.len() - 1]);
+            self.open_tool_window(newest);
+        }
+        self.tool_wins_seen = ALL.into_iter().filter(|w| self.tool_window_open(*w)).collect();
+    }
+
     /// Opens the window of a selection tool. Only one tool is active at a time, so every other tool window closes, the Text tool too.
     pub fn open_tool_window(&mut self, w: ToolWin) {
         self.close_tool_windows();

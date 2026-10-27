@@ -150,6 +150,7 @@ impl eframe::App for App {
         self.updater.poll(ctx);
         self.sync_prefs(ctx);
         update::window(ctx, self);
+        self.one_tool_window();
         offset::dialog(ctx, self);
         align::popover(ctx, self);
         cleanup::dialog(ctx, self);

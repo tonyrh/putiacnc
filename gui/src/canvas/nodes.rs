@@ -258,4 +258,28 @@ mod tool_window_tests {
         set_mode(&mut a, Mode::Select);
         assert!(!a.text.open);
     }
+
+    #[test]
+    fn the_toolbar_buttons_toggle_one_window_at_a_time() {
+        let mut a = App::new(None);
+        a.toggle_tool_window(ToolWin::Corners);
+        a.toggle_tool_window(ToolWin::Offset);
+        assert!(a.offset_open && !a.corners.open && open_count(&a) == 1);
+        a.toggle_tool_window(ToolWin::Offset);
+        assert_eq!(open_count(&a), 0);
+    }
+
+    #[test]
+    fn any_other_way_of_opening_a_second_window_leaves_only_the_newest() {
+        let mut a = App::new(None);
+        a.offset_open = true;
+        a.one_tool_window();
+        // a window opened by a path that does not know the rule
+        a.array.open = true;
+        a.one_tool_window();
+        assert!(a.array.open && !a.offset_open && open_count(&a) == 1);
+        a.corners.open = true;
+        a.one_tool_window();
+        assert!(a.corners.open && open_count(&a) == 1);
+    }
 }
