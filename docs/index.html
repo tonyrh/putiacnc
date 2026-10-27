@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PutiaCNC – free CNC toolpath studio for GRBL</title>
+<meta name="description" content="PutiaCNC is a free, open-source CNC toolpath studio for GRBL, Mach3 and LinuxCNC machines. Draw or import shapes, add profile, pocket, V-carve, drill and inlay operations, preview the cut in 3D and export G-code. Linux, macOS and Windows.">
+<link rel="canonical" href="https://tonyrh.github.io/putiacnc/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PutiaCNC – free CNC toolpath studio for GRBL">
+<meta property="og:description" content="Draw or import shapes, add operations, preview the cut in 3D and export G-code. Free and open source.">
+<meta property="og:url" content="https://tonyrh.github.io/putiacnc/">
+<meta property="og:image" content="https://tonyrh.github.io/putiacnc/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<!-- Google Search Console: paste the meta tag it gives you here, or add the google….html file next to this page -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "PutiaCNC",
+  "applicationCategory": "DesignApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "description": "CNC toolpath studio for GRBL, Mach3 and LinuxCNC machines: draw or import shapes, add operations, preview the cut in 3D and export G-code.",
+  "url": "https://tonyrh.github.io/putiacnc/",
+  "downloadUrl": "https://github.com/tonyrh/putiacnc/releases",
+  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+}
+</script>
+<style>
+  :root {
+    --bg: #fafaf8; --fg: #1d1f23; --muted: #5b6068; --card: #ffffff; --line: #dcdcd6;
+    --accent: #1f5fb5; --accent-fg: #ffffff; --code: #efefea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --fg: #e8e8e4; --muted: #a2a6ad; --card: #202225; --line: #34373b;
+      --accent: #7cb7ff; --accent-fg: #0e1a2b; --code: #26282b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 40px 0 8px; }
+  header img { display: block; width: min(480px, 100%); height: auto; }
+  h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.2; margin: 24px 0 12px; }
+  h2 { font-size: 1.4rem; margin: 48px 0 12px; }
+  h3 { font-size: 1.05rem; margin: 0 0 6px; }
+  p { margin: 0 0 14px; }
+  .lead { font-size: 1.15rem; color: var(--muted); max-width: 46em; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 8px; }
+  .btn { display: inline-block; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); }
+  .btn.secondary { color: var(--accent); }
+  .note { color: var(--muted); font-size: 0.95rem; }
+  figure { margin: 28px 0; }
+  figure img, video { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  figcaption { color: var(--muted); font-size: 0.95rem; margin-top: 8px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.97rem; }
+  a { color: var(--accent); }
+  pre { background: var(--code); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.92rem; line-height: 1.5; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 24px 0 48px; color: var(--muted); font-size: 0.95rem; }
+  footer a { margin-right: 16px; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="banner-dark.png">
+    <img src="banner-light.png" alt="PutiaCNC" width="960" height="240">
+  </picture>
+  <h1>A free CNC toolpath studio for GRBL machines</h1>
+  <p class="lead">Draw or import shapes, assign operations (profile, pocket, V-carve, drill, inlay, 3D relief), preview the cut in a simulated 3D view of the machined stock, and export G-code. Mach3 and LinuxCNC output too. Written in Rust, open source.</p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/tonyrh/putiacnc/releases">Download</a>
+    <a class="btn secondary" href="https://github.com/tonyrh/putiacnc">Source on GitHub</a>
+  </div>
+  <p class="note">AppImage for Linux, disk image for macOS, portable zip for Windows. Free software, GPL-3.0-or-later.</p>
+</header>
+
+<main class="wrap">
+  <figure>
+    <img src="screenshot-2d.png" alt="PutiaCNC 2D design: a rounded plate with a pocketed name and four drilled holes" width="1876" height="1077">
+    <figcaption>2D design: draw or import shapes, assign them to profile, pocket, V-carve or drill operations, and set depth, tabs and tools.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="screenshot-3d.png" alt="PutiaCNC 3D preview: the finished cut in light wood" width="1876" height="1077" loading="lazy">
+    <figcaption>3D preview: the toolpath is replayed on the stock, so you can check the result before sending the G-code to the machine.</figcaption>
+  </figure>
+
+  <figure>
+    <video controls preload="none" playsinline src="demo.mp4" aria-label="The 3D preview replaying a job: the cutter follows the toolpath and the stock is carved as it goes"></video>
+    <figcaption>The 3D preview replaying a job: the cutter follows the toolpath and the stock is carved as it goes.</figcaption>
+  </figure>
+
+  <h2>What it does</h2>
+  <div class="grid">
+    <div class="card"><h3>Drawing</h3><p>Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids and editable text in any installed font. Import SVG, DXF, bitmaps (traced into outlines or centre lines) and STL / OBJ models for 3D relief.</p></div>
+    <div class="card"><h3>Editing</h3><p>Object snap, typed values, node editing, trim and extend, fillet and chamfer, offset, combine, align, array, rotate, groups, and clean-up of broken outlines.</p></div>
+    <div class="card"><h3>Operations</h3><p>Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, passes, ramp-in, holding tabs, lead-in / lead-out and air cut.</p></div>
+    <div class="card"><h3>Preview and checks</h3><p>2D canvas and simulated 3D stock with a play bar. Warnings for cuts too deep, into the table or clamps, outside the machine area, and rapids through material. The G-code is always written; the warnings only inform.</p></div>
+    <div class="card"><h3>Tools and machines</h3><p>Tool libraries (imperial and metric, with ready-made CMT, Amana, Bosch, Freud, Whiteside and Diablo sets), chip-load estimate, and machine profiles with your own start and end G-code.</p></div>
+    <div class="card"><h3>Everything else</h3><p>G-code tab with time estimate, project notes, keyboard shortcuts, light and dark themes, and projects saved as plain JSON files.</p></div>
+  </div>
+  <p style="margin-top:16px">The full list, with every option, is in the <a href="https://github.com/tonyrh/putiacnc/blob/main/docs/features.md">feature guide</a>.</p>
+
+  <h2>Build from source</h2>
+  <p>You need Rust 1.75 or newer and a C++ compiler. Install Rust from <a href="https://rustup.rs">rustup.rs</a>, then:</p>
+  <pre><code>git clone https://github.com/tonyrh/putiacnc
+cd putiacnc
+cargo run --release -p putiacnc-gui</code></pre>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="https://github.com/tonyrh/putiacnc">GitHub</a>
+      <a href="https://github.com/tonyrh/putiacnc/releases">Releases</a>
+      <a href="https://github.com/tonyrh/putiacnc/issues">Report a problem</a>
+      <a href="https://github.com/tonyrh/putiacnc/blob/main/LICENSE">License (GPL-3.0-or-later)</a>
+    </p>
+    <p>PutiaCNC is provided as it is. Check the G-code and run it without cutting before you trust it on your machine.</p>
+  </div>
+</footer>
+</body>
+</html>

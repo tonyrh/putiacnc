@@ -43,6 +43,9 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 - [x] Demo video replaced (`docs/demo.mp4` and the one embedded in the README); the unused GIF was removed.
 - [x] Maintainer tags and publishes (0.3.2 is out).
 
+## Project page
+- [ ] Maintainer: in the repo settings, Pages > Source: `main` branch, `/docs` folder. Then add `https://tonyrh.github.io/putiacnc/` to Google Search Console (URL prefix) and verify with the HTML file or meta tag (a comment in `docs/index.html` shows where), then submit `sitemap.xml`.
+
 ## Later
 - [ ] macOS notarization.
 - [ ] Arrow-key navigation in the tool picker.
