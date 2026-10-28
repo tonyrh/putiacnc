@@ -83,17 +83,30 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         let (d, n) = (if app.project.data.job.mach() { "Mach3 / LinuxCNC" } else { "GRBL" }, app.project.data.job.numbered);
         ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
         ui.add_space(4.0);
+        // plug pieces have a file of their own: choose which one to read
+        if app.gcode_part > app.pieces.len() && !app.gen_stale() { app.gcode_part = 0; }
+        if !app.pieces.is_empty() {
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut app.gcode_part, 0, "Main piece");
+                for (i, pp) in app.pieces.iter().enumerate() {
+                    ui.selectable_value(&mut app.gcode_part, i + 1, format!("Plug piece (operation {})", pp.job.op_index + 1)).on_hover_text("Its own G-code file, with its own work zero");
+                }
+            });
+            ui.add_space(4.0);
+        }
     }
     let mut export = false;
     let mut copy: Option<String> = None;
     match (&app.output, app.tab) {
-        (Some(o), RightTab::Gcode) => {
+        (Some(main), RightTab::Gcode) => {
+            let o = app.gcode_part.checked_sub(1).and_then(|i| app.pieces.get(i)).map_or(main, |pp| &pp.output);
+            let several = !app.pieces.is_empty();
             // Copy / Export sit at the bottom; the G-code takes the rest of the height
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Copy").on_hover_text("Copy the G-code to the clipboard").clicked() { copy = Some(o.gcode()); }
-                    if ui.button("Export G-code…").on_hover_text("Save the G-code to a file (Ctrl+E)").clicked() { export = true; }
+                    if ui.button("Copy").on_hover_text(if several { "Copy the G-code shown to the clipboard" } else { "Copy the G-code to the clipboard" }).clicked() { copy = Some(o.gcode()); }
+                    if ui.button("Export G-code…").on_hover_text(if several { "Save the G-code to files: one for the main piece and one for each plug piece (Ctrl+E)" } else { "Save the G-code to a file (Ctrl+E)" }).clicked() { export = true; }
                 });
                 ui.add_space(6.0);
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {

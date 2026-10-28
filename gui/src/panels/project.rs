@@ -174,6 +174,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     let mut mach_pick: Option<String> = None;
     let mut open_machines = false;
     let mut group_act: Option<(Option<i64>, GroupAct)> = None;
+    // plug moved onto or off a separate piece: (pocket id, plug id, the piece)
+    let mut piece_act: Option<(i64, i64, Option<putiacnc_core::model::PlugPiece>)> = None;
     // the buttons that add operations stay put above the list; only the list scrolls
     let mut add_kind: Option<&str> = None;
     // the eye only changes the 3D preview, so it is only there while that tab is open
@@ -351,6 +353,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if (d.ops[i].p.depth - eff).abs() > 1e-9 { d.ops[i].p.depth = eff; changed = true; }
             }
             let model_h = d.relief.as_ref().map(|r| r.zmax * r.scale);
+            let prev_id = i.checked_sub(1).map(|j| d.ops[j].id).unwrap_or(0);
+            let main_stock = d.stock.clone();
             let o = &mut d.ops[i];
             // one card with the header: the same colour all round, flat where the two meet
             let card_col = if card_hdr.1 { card_hdr.2 } else { card_hdr.2.gamma_multiply(0.66) };
@@ -546,6 +550,44 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.weak("mm").on_hover_text("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
                                 ui.weak("smaller than the pocket, for glue");
                             });
+                            // the plug can be cut from a piece of its own (a second G-code file, its own work zero)
+                            ui.add_space(2.0);
+                            let mut on = p.piece.is_some();
+                            if ui.checkbox(&mut on, "Cut from a separate piece").on_hover_text("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() {
+                                piece_act = Some((prev_id, id, if on { Some(putiacnc_core::pieces::default_piece(&main_stock)) } else { None }));
+                            }
+                            if let Some(pc) = p.piece.as_mut() {
+                                let mut moved = false;
+                                let fw = 46.0;
+                                let lp = tw_of(ui, "Material").max(tw_of(ui, "XY zero")).max(l1);
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = sp;
+                                    rlabel(ui, lp, "Size");
+                                    changed |= dv_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak("×");
+                                    changed |= dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, ""); ui.weak("×");
+                                    changed |= dv_w(ui, fw, &mut pc.t, 0.1, 1000.0, ""); ui.weak("mm");
+                                }).response.on_hover_text("Width × height × thickness of the piece");
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = sp;
+                                    rlabel(ui, lp, "At");
+                                    ui.label("X"); moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
+                                    ui.label("Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm");
+                                }).response.on_hover_text("Where the piece sits in the drawing, from the main stock's lower-left corner");
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = sp;
+                                    rlabel(ui, lp, "XY zero");
+                                    changed |= xy_picker(ui, &mut pc.zr);
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = sp;
+                                    rlabel(ui, lp, "Material");
+                                    if !MATERIALS.iter().any(|(k, _)| *k == pc.mat) { pc.mat = "wood".into(); }
+                                    let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                                    let (c, _) = combo_w2(ui, mat_w, &format!("plug_mat{id}"), &mut pc.mat, MATERIALS, "", "How the piece looks in the drawing and the 3D preview");
+                                    changed |= c;
+                                });
+                                if moved { piece_act = Some((prev_id, id, Some(pc.clone()))); }
+                            }
                         }
                     }
                     // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
@@ -727,6 +769,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         imports_section(ui, d, sel, &mut group_act, &mut changed);
         }
     });
+    if let Some((pocket, plug, pc)) = piece_act {
+        app.hist.record(&app.project.data);
+        putiacnc_core::shapes::put_plug_on_piece(&mut app.project.data, pocket, plug, pc);
+        app.sel.clear();
+        app.touch();
+    }
     if let Some((g, act)) = group_act {
         match (g, act) {
             (Some(id), GroupAct::Delete) => {

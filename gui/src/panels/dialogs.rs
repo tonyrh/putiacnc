@@ -87,13 +87,16 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
         }
         match &app.output {
             Some(o) => {
-                ui.label(format!("Estimated time {}", fmt_time(o.time_min)));
+                // the plug pieces are cut too: they count towards the totals
+                let (mut tm, mut ct, mut cl, mut ln) = (o.time_min, o.cut_time_min, o.cut_len_mm, o.lines.len());
+                for pp in &app.pieces { tm += pp.output.time_min; ct += pp.output.cut_time_min; cl += pp.output.cut_len_mm; ln += pp.output.lines.len(); }
+                ui.label(format!("Estimated time {}", fmt_time(tm)));
                 ui.separator();
-                ui.label(format!("cutting {}", fmt_time(o.cut_time_min)));
+                ui.label(format!("cutting {}", fmt_time(ct)));
                 ui.separator();
-                ui.label(format!("cut length {:.1} mm", o.cut_len_mm));
+                ui.label(format!("cut length {:.1} mm", cl));
                 ui.separator();
-                ui.label(format!("{} lines, generated in {:.0} ms", o.lines.len(), app.gen_ms));
+                ui.label(format!("{} lines, generated in {:.0} ms", ln, app.gen_ms));
             }
             // the first toolpath of a project is still being worked out: the spinner says so
             None if app.gen_stale() && app.gen_error.is_none() => {}

@@ -71,8 +71,18 @@ impl App {
                 // the drawing may have changed while the dialog was open
                 self.finish_generation();
                 if self.output.is_none() { self.error = Some(format!("Export failed: {}", self.gen_error.clone().unwrap_or_else(|| "there is no G-code.".into()))); }
-                if let Some(o) = &self.output {
-                    match std::fs::write(&p, o.gcode()) { Ok(()) => self.error = None, Err(e) => self.error = Some(format!("Export failed: {e}")) }
+                let files = self.gcode_files(&p);
+                if !files.is_empty() {
+                    let mut err = None;
+                    for (path, text) in &files { if let Err(e) = std::fs::write(path, text) { err = Some(format!("Export failed: {e}")); break; } }
+                    match err {
+                        Some(e) => self.error = Some(e),
+                        None if files.len() > 1 => {
+                            let names: Vec<String> = files.iter().filter_map(|(p, _)| p.file_name().map(|n| n.to_string_lossy().into_owned())).collect();
+                            self.say(Level::Info, format!("Saved {} files: {}. Each piece has its own work zero.", files.len(), names.join(", ")));
+                        }
+                        None => self.error = None,
+                    }
                 }
             }
             DlgKind::LibExport => self.finish_lib_export(p),
@@ -225,6 +235,19 @@ impl App {
         if note.is_empty() { self.error = None; } else { self.say(Level::Warning, note.join(" ")); }
         self.notes = sentences;
         self.touch();
+    }
+
+    /// The G-code files an export writes: the main piece to `path`, then one per plug piece next to it ("name-plug.nc").
+    pub fn gcode_files(&self, path: &std::path::Path) -> Vec<(std::path::PathBuf, String)> {
+        let Some(o) = &self.output else { return vec![] };
+        let mut v = vec![(path.to_path_buf(), o.gcode())];
+        for pp in &self.pieces {
+            let suffix = if self.pieces.len() == 1 { "-plug".to_string() } else { format!("-plug-{}", pp.job.op_index + 1) };
+            let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+            let name = match path.extension() { Some(e) => format!("{stem}{suffix}.{}", e.to_string_lossy()), None => format!("{stem}{suffix}") };
+            v.push((path.with_file_name(name), pp.output.gcode()));
+        }
+        v
     }
 
     pub fn export_gcode_dialog(&mut self) {

@@ -107,6 +107,8 @@ pub struct App {
     /// Set by a right-click on the drawing; the next frame treats it as the Esc key.
     pub esc_request: bool,
     pub imperial: bool,
+    /// Which G-code the G-code tab shows: 0 the main piece, 1.. the plug pieces.
+    pub gcode_part: usize,
     pub sel: BTreeSet<usize>,
     /// Operations whose settings are folded away in the Operations tab (ids; not saved in the project).
     pub collapsed: BTreeSet<i64>,
@@ -289,7 +291,7 @@ impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, pieces: vec![], out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None, note: None, esc_request: false,
-            imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, notes: Vec::new(), tool_note: None, banner_level: None, tool_wins_seen: Vec::new(), offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, gl_info: String::new(), zoom_act: None, empty_ops: vec![], about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
+            imperial: false, gcode_part: 0, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, notes: Vec::new(), tool_note: None, banner_level: None, tool_wins_seen: Vec::new(), offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, gl_info: String::new(), zoom_act: None, empty_ops: vec![], about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_rx: None, gen_started: None, checks: vec![], checks_ver: 0, clamp_hits: vec![], checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, fit_extra: 0.0, view_touched: false, canvas_right: 0.0, canvas_left: 0.0, ghost: Default::default(), preview_on: true, bars_bottom: 0.0, align_btn: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, fit3d_pending: false, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
@@ -310,6 +312,8 @@ impl App {
         if std::env::var("PUTIACNC_VIEW").is_ok_and(|v| v == "3d") { a.view_tab = crate::view3d::ViewTab::Preview; }
         // PUTIACNC_PART=n: the 3D view shows a separate piece of stock (1 = the first), 0 = the main stock
         if let Some(n) = std::env::var("PUTIACNC_PART").ok().and_then(|v| v.parse::<usize>().ok()) { a.v3.part = n; }
+        // PUTIACNC_GCODE_PART=n: the G-code tab shows that piece (1 = the first plug piece)
+        if let Some(n) = std::env::var("PUTIACNC_GCODE_PART").ok().and_then(|v| v.parse::<usize>().ok()) { a.gcode_part = n; }
         if let Ok(f) = std::env::var("PUTIACNC_PLAY") { a.v3.init_frac = f.parse().ok(); }
         if let Some(i) = std::env::var("PUTIACNC_SPEED").ok().and_then(|v| v.parse::<usize>().ok()) { a.v3.speed_idx = i.min(crate::view3d::SPEEDS.len() - 1); }
         if std::env::var_os("PUTIACNC_SHOW_TOOLS").is_some() { a.tools_open = true; }
@@ -674,6 +678,31 @@ mod gen_tests {
         a.sel = [0].into_iter().collect();
         a.delete_selection();
         assert!(a.note.is_some());
+    }
+
+    #[test]
+    fn a_plug_on_a_separate_piece_gives_two_files_and_old_projects_give_one() {
+        let mut a = app_with_job();
+        shapes::add_inlay(&mut a.project.data, &[0].into_iter().collect());
+        a.touch();
+        settle(&mut a);
+        assert!(a.pieces.is_empty());
+        assert_eq!(a.gcode_files(std::path::Path::new("/x/job.nc")).len(), 1, "no piece, one file");
+        let (pocket, plug) = { let o = &a.project.data.ops; (o[o.len() - 2].id, o[o.len() - 1].id) };
+        let pc = putiacnc_core::pieces::default_piece(&a.project.data.stock);
+        shapes::put_plug_on_piece(&mut a.project.data, pocket, plug, Some(pc));
+        a.touch();
+        settle(&mut a);
+        assert_eq!(a.pieces.len(), 1);
+        let files = a.gcode_files(std::path::Path::new("/x/job.nc"));
+        let names: Vec<String> = files.iter().map(|(p, _)| p.display().to_string()).collect();
+        assert_eq!(names, ["/x/job.nc", "/x/job-plug.nc"]);
+        assert!(files[1].1.contains("Plug piece"), "the piece's file says what it is");
+        // and back onto the main stock: one file again
+        shapes::put_plug_on_piece(&mut a.project.data, pocket, plug, None);
+        a.touch();
+        settle(&mut a);
+        assert!(a.pieces.is_empty());
     }
 
     #[test]
