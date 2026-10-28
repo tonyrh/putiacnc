@@ -88,12 +88,17 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         // plug pieces have a file of their own: choose which one to read
         if app.gcode_part > app.pieces.len() && !app.gen_stale() { app.gcode_part = 0; }
         if !app.pieces.is_empty() {
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut app.gcode_part, 0, "Main piece");
-                for (i, pp) in app.pieces.iter().enumerate() {
-                    ui.selectable_value(&mut app.gcode_part, i + 1, format!("Plug piece (operation {})", pp.job.op_index + 1)).on_hover_text("Its own G-code file, with its own work zero");
-                }
-            });
+            if app.pieces.len() == 1 {
+                let (c, _) = crate::zoomcard::seg2(ui, ["Main piece", "Plug piece"], ["The G-code for the main stock", "The G-code for the separate piece the plug is cut from (its own file, its own work zero)"], app.gcode_part.min(1));
+                if let Some(i) = c { app.gcode_part = i; }
+            } else {
+                let names: Vec<String> = app.pieces.iter().map(|pp| format!("Plug piece (operation {})", pp.job.op_index + 1)).collect();
+                let cur = if app.gcode_part == 0 { "Main piece".to_string() } else { names[app.gcode_part - 1].clone() };
+                egui::ComboBox::from_id_source("gcode_part_pick").selected_text(cur).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut app.gcode_part, 0, "Main piece");
+                    for (i, n) in names.iter().enumerate() { ui.selectable_value(&mut app.gcode_part, i + 1, n.as_str()); }
+                });
+            }
             ui.add_space(4.0);
         }
     }
