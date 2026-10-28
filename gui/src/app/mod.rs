@@ -1,7 +1,7 @@
 //! Application state shared by the panels and the canvas.
 use eframe::egui::{Pos2, Vec2};
 use putiacnc_core::shapes;
-use putiacnc_core::{generate, load_project, save_project, Output, ProjectData, ProjectFile, Units};
+use putiacnc_core::{load_project, save_project, Output, ProjectData, ProjectFile, Units};
 mod edit;
 mod files;
 mod generate;
@@ -66,6 +66,10 @@ pub enum DlgKind { Open, SaveAs, Import, Model, Bitmap, ExportGcode, LibExport, 
 
 pub struct Dlg { pub kind: DlgKind, rx: std::sync::mpsc::Receiver<Option<std::path::PathBuf>> }
 
+/// A separate piece of stock of the job (see `putiacnc_core::pieces`): its own project, in the piece's own frame, and its toolpath.
+#[derive(Clone)]
+pub struct PiecePart { pub job: putiacnc_core::pieces::PieceJob, pub output: Output }
+
 /// How serious a banner message is: an error (something failed), a warning (something is wrong and can be fixed) or news.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Level { Error, Warning, Info }
@@ -89,6 +93,8 @@ pub struct App {
     pub path: String,
     pub project: ProjectFile,
     pub output: Option<Output>,
+    /// The plugs that are cut from a separate piece of stock, each with its own job and toolpath (the main one is `output`).
+    pub pieces: Vec<PiecePart>,
     pub out_ver: u64,
     pub view_tab: crate::view3d::ViewTab,
     pub v3: crate::view3d::State,
@@ -156,7 +162,7 @@ pub struct App {
     pub gen_pending: bool,
     /// The toolpath being worked out on a worker thread (at most one at a time; changes made meanwhile set `gen_pending` and are picked up
     /// when it finishes), with the version it was started for and when.
-    pub gen_rx: Option<std::sync::mpsc::Receiver<(Result<putiacnc_core::Output, String>, f64)>>,
+    pub gen_rx: Option<std::sync::mpsc::Receiver<(Result<Vec<putiacnc_core::pieces::PartOutput>, String>, f64)>>,
     pub gen_started: Option<std::time::Instant>,
     /// Warnings about the toolpath (collisions, gouges), computed on a background thread for `checks_ver`.
     pub checks: Vec<putiacnc_core::checks::Finding>,
@@ -282,7 +288,7 @@ pub struct App {
 impl App {
     pub fn new(arg: Option<String>) -> Self {
         let mut a = App {
-            path: String::new(), project: shapes::blank_project(), output: None, out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None, note: None, esc_request: false,
+            path: String::new(), project: shapes::blank_project(), output: None, pieces: vec![], out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None, note: None, esc_request: false,
             imperial: false, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, notes: Vec::new(), tool_note: None, banner_level: None, tool_wins_seen: Vec::new(), offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, gl_info: String::new(), zoom_act: None, empty_ops: vec![], about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_rx: None, gen_started: None, checks: vec![], checks_ver: 0, clamp_hits: vec![], checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, fit_extra: 0.0, view_touched: false, canvas_right: 0.0, canvas_left: 0.0, ghost: Default::default(), preview_on: true, bars_bottom: 0.0, align_btn: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
@@ -302,6 +308,8 @@ impl App {
         if let Ok(h) = std::env::var("PUTIACNC_HIDE") { a.show_left = !h.contains("left"); a.show_right = !h.contains("right"); a.show_machine_area = !h.contains("machine"); if h.contains("toolpaths") { a.show_toolpath = false; } }
         if std::env::var_os("PUTIACNC_SHOW_CONFIRM").is_some() { a.modified = true; a.pending = Some(Action::Quit); }
         if std::env::var("PUTIACNC_VIEW").is_ok_and(|v| v == "3d") { a.view_tab = crate::view3d::ViewTab::Preview; }
+        // PUTIACNC_PART=n: the 3D view shows a separate piece of stock (1 = the first), 0 = the main stock
+        if let Some(n) = std::env::var("PUTIACNC_PART").ok().and_then(|v| v.parse::<usize>().ok()) { a.v3.part = n; }
         if let Ok(f) = std::env::var("PUTIACNC_PLAY") { a.v3.init_frac = f.parse().ok(); }
         if let Some(i) = std::env::var("PUTIACNC_SPEED").ok().and_then(|v| v.parse::<usize>().ok()) { a.v3.speed_idx = i.min(crate::view3d::SPEEDS.len() - 1); }
         if std::env::var_os("PUTIACNC_SHOW_TOOLS").is_some() { a.tools_open = true; }

@@ -103,7 +103,7 @@ mod tests {
         let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
         assert!(add_operation(d, &sel, "inlay").is_none());
         let plug_id = d.ops[1].id;
-        let piece = PlugPiece { t: 8.0, mat: "dark".into(), ..default_piece(&d.stock) };
+        let piece = PlugPiece { t: 8.0, mat: "darkwood".into(), ..default_piece(&d.stock) };
         crate::shapes::put_plug_on_piece(d, d.ops[0].id, plug_id, Some(piece));
         f.data
     }

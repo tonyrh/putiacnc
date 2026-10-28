@@ -20,7 +20,7 @@ impl App {
         self.gen_pending = true;
         // a toolpath still being worked out belongs to the project that was open before: forget it, and its results
         self.gen_rx = None; self.gen_started = None;
-        self.output = None; self.gen_error = None; self.out_ver += 1;
+        self.output = None; self.pieces.clear(); self.gen_error = None; self.out_ver += 1;
         self.checks.clear(); self.clamp_hits.clear(); self.checks_rx = None; self.check_sel = None;
         let n = self.sync_tools();
         self.sync_machine();

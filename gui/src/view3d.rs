@@ -20,6 +20,10 @@ fn norm(a: V3) -> V3 { let l = dot(a, a).sqrt().max(1e-9); [a[0] / l, a[1] / l, 
 
 pub struct State {
     pub sim: Option<Sim>,
+    /// Which job the view shows: 0 = the main one, 1.. = a separate piece of stock (inlay plug), in the order of `App::pieces`.
+    pub part: usize,
+    /// The part the simulation was built for.
+    pub built_part: usize,
     pub ver: u64,
     pub yaw: f32,
     pub pitch: f32,
@@ -53,7 +57,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        State { sim: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
+        State { sim: None, part: 0, built_part: 0, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
             playing: false, speed_idx: 2, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
@@ -87,6 +91,17 @@ impl Cam {
     }
 }
 
+impl App {
+    /// The job the 3D view shows: the project itself, or one separate piece of stock (its stock and its shapes, in its own frame).
+    pub fn v3_data(&self) -> &putiacnc_core::ProjectData {
+        match self.v3.part.checked_sub(1).and_then(|i| self.pieces.get(i)) { Some(pp) => &pp.job.data, None => &self.project.data }
+    }
+    /// The toolpath of the job the 3D view shows.
+    pub fn v3_output(&self) -> Option<&putiacnc_core::Output> {
+        match self.v3.part.checked_sub(1).and_then(|i| self.pieces.get(i)) { Some(pp) => Some(&pp.output), None => self.output.as_ref() }
+    }
+}
+
 fn fmt_time(min: f64) -> String {
     let s = (min * 60.0).round().max(0.0) as u64;
     format!("{}:{:02}", s / 60, s % 60)
@@ -94,17 +109,20 @@ fn fmt_time(min: f64) -> String {
 
 /// Keep the simulation in step with the toolpath and the playback position.
 fn sync(app: &mut App, ctx: &egui::Context) {
-    let moves: &[Move] = app.output.as_ref().map(|o| &o.moves[..]).unwrap_or(&[]);
+    if app.v3.part > app.pieces.len() && !app.gen_stale() { app.v3.part = 0; }
+    let (data, out) = match app.v3.part.checked_sub(1).and_then(|i| app.pieces.get(i)) { Some(pp) => (&pp.job.data, Some(&pp.output)), None => (&app.project.data, app.output.as_ref()) };
+    let moves: &[Move] = out.map(|o| &o.moves[..]).unwrap_or(&[]);
     let st = &mut app.v3;
     let hid: Vec<bool> = app.project.data.ops.iter().map(|o| app.project.data.hidden_ops.contains(&o.id)).collect();
-    let only_hid = st.sim.is_some() && st.ver == app.out_ver && st.hid != hid;
-    if st.sim.is_none() || st.ver != app.out_ver || only_hid {
-        let was_end = st.t >= st.total - 1e-9;
+    let only_hid = st.sim.is_some() && st.ver == app.out_ver && st.built_part == st.part && st.hid != hid;
+    if st.sim.is_none() || st.ver != app.out_ver || st.built_part != st.part || only_hid {
+        let other_part = st.built_part != st.part;
+        let was_end = st.t >= st.total - 1e-9 || other_part;
         let frac = if st.total > 0.0 { st.t / st.total } else { 0.0 };
-        let stk = &app.project.data.stock;
+        let stk = &data.stock;
         // the height texture is at most 4096 texels wide
         let cap = (stk.w * stk.h / (stk.w.max(stk.h) / 4000.0).powi(2)).min(MAX_CELLS as f64) as usize;
-        let mut sim = Sim::new(&app.project.data, cap);
+        let mut sim = Sim::new(data, cap);
         sim.skip = hid.clone();
         st.sim = Some(sim);
         st.hid = hid.clone();
@@ -114,8 +132,10 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         st.total = acc;
         st.t = if was_end { st.total } else if only_hid { st.total * frac } else { st.t.min(st.total) };
         st.ver = app.out_ver;
+        if other_part { st.framed = false; st.playing = false; }
+        st.built_part = st.part;
         if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = st.total * f; } }
-        if !st.framed { frame(st, &app.project.data.stock); }
+        if !st.framed { frame(st, &data.stock); }
     }
     // for recording the demo: the replay time (minutes) is read from a file, so every frame is exact whatever the machine's frame rate
     if let Some(v) = std::env::var_os("PUTIACNC_T_FILE").and_then(|p| std::fs::read_to_string(p).ok()).and_then(|t| t.trim().parse::<f64>().ok()) {
@@ -263,6 +283,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     // camera controls
     crate::viewcube::step(&mut app.v3, &ctx);
     {
+        let stock = app.v3_data().stock.clone();
         let st = &mut app.v3;
         if resp.dragged() || (resp.hovered() && ctx.input(|i| i.smooth_scroll_delta.y != 0.0)) { st.anim = None; }
         let pan = resp.dragged_by(egui::PointerButton::Middle) || resp.dragged_by(egui::PointerButton::Secondary)
@@ -284,7 +305,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let z = crate::zoomcard::pinch(&ctx);
             if (z - 1.0).abs() > 1e-4 { st.anim = None; st.dist = (st.dist / z).clamp(5.0, 20000.0); }
         }
-        if resp.double_clicked() { st.framed = false; st.yaw = -1.15; st.pitch = 0.62; frame(st, &app.project.data.stock); }
+        if resp.double_clicked() { st.framed = false; st.yaw = -1.15; st.pitch = 0.62; frame(st, &stock); }
     }
 
     // the view cube, top right
@@ -307,12 +328,12 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let u = Uniforms {
         eye: cam.eye, f: cam.f, r: cam.r, u: cam.u, tanh: (35.0_f32.to_radians() * 0.5).tan(), ortho: if cam.ortho { cam.half } else { 0.0 },
         bx: [w, h, t], cell, n: [sim.nx as i32, sim.ny as i32],
-        wood: col(app.theme.material(&app.project.data.stock.mat).top),
+        wood: col(app.theme.material(&app.v3_data().stock.mat).top),
         floor: col(if dark { Color32::from_rgb(70, 70, 76) } else { Color32::from_rgb(120, 120, 128) }),
-        side: col(app.theme.material(&app.project.data.stock.mat).side),
-        grain: app.theme.material(&app.project.data.stock.mat).grain,
-        rings: app.theme.material(&app.project.data.stock.mat).rings,
-        brush: app.theme.material(&app.project.data.stock.mat).brush,
+        side: col(app.theme.material(&app.v3_data().stock.mat).side),
+        grain: app.theme.material(&app.v3_data().stock.mat).grain,
+        rings: app.theme.material(&app.v3_data().stock.mat).rings,
+        brush: app.theme.material(&app.v3_data().stock.mat).brush,
     };
     let (glres, pending) = (app.v3.glres.clone(), app.v3.pending.clone());
     painter.add(egui::PaintCallback {
@@ -322,8 +343,8 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let sim = app.v3.sim.as_ref().unwrap();
 
     // clamps: translucent red boxes from the table to their top
-    for c in app.project.data.clamps.iter().filter(|_| app.show_clamps) {
-        let (z0, z1) = (-(app.project.data.stock.t as f32), c.height as f32);
+    for c in app.v3_data().clamps.iter().filter(|_| app.show_clamps) {
+        let (z0, z1) = (-(app.v3_data().stock.t as f32), c.height as f32);
         let (x0, y0, x1, y1) = (c.x as f32, c.y as f32, (c.x + c.w) as f32, (c.y + c.h) as f32);
         let corner = |i: usize, z: f32| cam.p([if i == 1 || i == 2 { x1 } else { x0 }, if i >= 2 { y1 } else { y0 }, z]);
         let fill = Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 70);
@@ -343,7 +364,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     }
 
     // toolpath
-    if let Some(o) = &app.output {
+    if let Some(o) = app.v3_output() {
         let done = sim.done;
         let mut run: Vec<Pos2> = Vec::new();
         let mut run_key: Option<(usize, bool)> = None;
@@ -377,7 +398,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             run.push(b);
         }
         flush(&mut run, run_key);
-        for (i, f) in app.checks.iter().enumerate() {
+        for (i, f) in app.checks.iter().enumerate().filter(|_| app.v3.part == 0) {
             if f.mv.is_none() || f.op.is_some_and(|o| sim.skip.get(o).copied().unwrap_or(false)) { continue; }
             if let Some(a) = cam.p([f.at[0] as f32, f.at[1] as f32, f.at[2] as f32]) { crate::checkui::marker(&painter, a, app.check_sel == Some(i), f.kind.title()); }
         }
@@ -405,7 +426,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
 
     // which operation and pass the replay is on. Retracts and rapids carry no pass, so the last real pass is kept; and at high
     // speed the label changes at most a few times a second and its box keeps one width, so it does not flicker
-    if let (Some(o), Some(sim)) = (&app.output, app.v3.sim.as_ref()) {
+    if let (Some(o), Some(sim)) = (app.v3_output(), app.v3.sim.as_ref()) {
         let mut cur = sim.done.saturating_sub(1).min(o.moves.len().saturating_sub(1));
         while cur > 0 && sim.skip.get(o.moves[cur].op).copied().unwrap_or(false) { cur -= 1; }
         if let Some(m) = o.moves.get(cur) {
@@ -452,6 +473,23 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
     }
 
+    // a job with plugs on separate pieces of stock: which piece the preview shows
+    if !app.pieces.is_empty() {
+        let names: Vec<String> = app.pieces.iter().map(|pp| format!("Plug piece (operation {})", pp.job.op_index + 1)).collect();
+        let mut part = app.v3.part;
+        egui::Area::new(egui::Id::new("v3_part")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -44.0)).show(&ctx, |ui| {
+            if names.len() == 1 {
+                let (c, _) = crate::zoomcard::seg2(ui, ["Main stock", "Plug piece"], ["Shows the main stock, where the pocket is cut", "Shows the separate piece of stock the plug is cut from (its own G-code file)"], part.min(1));
+                if let Some(i) = c { part = i; }
+            } else {
+                egui::ComboBox::from_id_source("v3_part_pick").selected_text(if part == 0 { "Main stock".to_string() } else { names[part - 1].clone() }).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut part, 0, "Main stock");
+                    for (i, n) in names.iter().enumerate() { ui.selectable_value(&mut part, i + 1, n.as_str()); }
+                });
+            }
+        });
+        app.v3.part = part;
+    }
     // a reminder that part of the job is left out of the picture, with a way back
     let n_hid = app.v3.hid.iter().filter(|&&h| h).count();
     if n_hid > 0 {
@@ -464,7 +502,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         if resp.clicked() { app.project.data.hidden_ops.clear(); app.touch(); }
     }
     if app.v3.catching_up {
-        let total = app.output.as_ref().map_or(1, |o| o.moves.len()).max(1);
+        let total = app.v3_output().map_or(1, |o| o.moves.len()).max(1);
         let pct = (app.v3.sim.as_ref().map_or(0, |s| s.done) * 100 / total).min(99);
         let r = Rect::from_center_size(rect.center(), Vec2::new(240.0, 44.0));
         painter.rect_filled(r, 8.0, Color32::from_black_alpha(170));
@@ -478,7 +516,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         let col = Color32::from_rgb(0xe0, 0x1b, 0x24);
         let g = painter.layout(e.clone(), FontId::proportional(13.0), col, (rect.width() - 24.0).max(100.0));
         painter.galley(rect.left_top() + Vec2::new(12.0, 10.0), g, col);
-    } else if app.output.as_ref().is_none_or(|o| o.moves.is_empty()) {
+    } else if app.v3_output().is_none_or(|o| o.moves.is_empty()) {
         painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, "No toolpaths yet: add an operation to preview the cut", FontId::proportional(13.0), ui.visuals().weak_text_color());
     }
 }

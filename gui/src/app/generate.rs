@@ -15,7 +15,7 @@ impl App {
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let t = std::time::Instant::now();
-            let r = generate(&data, units);
+            let r = putiacnc_core::pieces::generate_parts(&data, units);
             let _ = tx.send((r, t.elapsed().as_secs_f64() * 1000.0));
         });
         self.gen_rx = Some(rx);
@@ -55,14 +55,20 @@ impl App {
         self.gen_pending = false;
         let units = if self.imperial { Units::Imperial } else { Units::Metric };
         let t = std::time::Instant::now();
-        let r = generate(&self.project.data, units);
+        let r = putiacnc_core::pieces::generate_parts(&self.project.data, units);
         self.apply_generated(r, t.elapsed().as_secs_f64() * 1000.0);
     }
 
-    pub(super) fn apply_generated(&mut self, r: Result<putiacnc_core::Output, String>, ms: f64) {
+    pub(super) fn apply_generated(&mut self, r: Result<Vec<putiacnc_core::pieces::PartOutput>, String>, ms: f64) {
         self.out_ver += 1;
+        self.pieces.clear();
         match r {
-            Ok(o) => { self.output = Some(o); self.gen_error = None; }
+            Ok(parts) => {
+                let mut parts = parts.into_iter();
+                self.output = parts.next().map(|p| p.out);
+                self.pieces = parts.filter_map(|p| p.piece.map(|job| PiecePart { job, output: p.out })).collect();
+                self.gen_error = None;
+            }
             Err(e) => { self.output = None; self.gen_error = Some(e); }
         }
         self.gen_ms = ms;
@@ -73,7 +79,7 @@ impl App {
         if self.gen_pending { return; }
         if let Some(o) = self.output.clone() {
             let (tx, rx) = std::sync::mpsc::channel();
-            let (data, ver) = (self.project.data.clone(), self.out_ver);
+            let (data, ver) = (putiacnc_core::pieces::split(&self.project.data).0, self.out_ver);
             std::thread::spawn(move || { let f = putiacnc_core::checks::run(&data, &o); if std::env::var_os("PUTIACNC_DEBUG_CHECKS").is_some() { eprintln!("checks: {} findings, tool0 flute {:?}", f.len(), data.tools.first().map(|t| (t.flute, t.shank))); } let _ = tx.send((ver, f)); });
             self.checks_rx = Some(rx);
         }

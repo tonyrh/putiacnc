@@ -14,7 +14,7 @@ fn main() {
     let sel: std::collections::BTreeSet<usize> = [0, 1].into_iter().collect();
     shapes::add_operation(d, &sel, "inlay");
     let (pocket, plug) = (d.ops[0].id, d.ops[1].id);
-    let piece = PlugPiece { t: 8.0, mat: "dark".into(), ..pieces::default_piece(&d.stock) };
+    let piece = PlugPiece { t: 8.0, mat: "darkwood".into(), ..pieces::default_piece(&d.stock) };
     shapes::put_plug_on_piece(d, pocket, plug, Some(piece));
     std::fs::write(&out, save_project(&f).unwrap()).unwrap();
     println!("wrote {out}");

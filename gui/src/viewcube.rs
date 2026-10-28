@@ -111,7 +111,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let text = app.theme.text();
     // what the pointer is over, explained to the left of the cube (a tooltip would run over the right panel)
     let mut tip: Option<&'static str> = None;
-    let stk = app.project.data.stock.clone();
+    let stk = app.v3_data().stock.clone();
     let asp = rect.width() / rect.height().max(1.0);
     let fit = fit_dist(app.v3.yaw, app.v3.pitch, &stk, asp, app.v3.ortho);
     let mut zact = None;
@@ -147,9 +147,9 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             } else if resp.clicked() {
                 if let Some(d) = hover {
                     let (ty, tp) = angles_for(d);
-                    let stk = &app.project.data.stock;
+                    let stk = app.v3_data().stock.clone();
                     let asp = rect.width() / rect.height().max(1.0);
-                    let dist = fit_dist(ty, tp, stk, asp, app.v3.ortho);
+                    let dist = fit_dist(ty, tp, &stk, asp, app.v3.ortho);
                     let tgt = [stk.w as f32 / 2.0, stk.h as f32 / 2.0, -(stk.t as f32) / 2.0];
                     app.v3.anim = Some(Anim { from: (app.v3.yaw, app.v3.pitch, app.v3.dist, app.v3.target), to: (ty, tp, dist, tgt), t: 0.0 });
                     app.v3.back = (stk.w * stk.w + stk.h * stk.h + stk.t * stk.t).sqrt() as f32 * 3.0 + 100.0;

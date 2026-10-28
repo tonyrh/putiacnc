@@ -558,6 +558,15 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let mat = th.material(&d.stock.mat);
     painter.rect_filled(sr, 0.0, mat.fill);
     painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, mat.stroke));
+    // separate pieces of stock (inlay plugs), beside the main one
+    for (k, o) in d.ops.iter().enumerate() {
+        let Some(pc) = o.p.piece.as_ref().filter(|_| o.p.kind == "plug") else { continue };
+        let pm = th.material(&pc.mat);
+        let r = Rect::from_two_pos(to_s([pc.x, pc.y]), to_s([pc.x + pc.w, pc.y + pc.h]));
+        painter.rect_filled(r, 0.0, pm.fill);
+        painter.rect_stroke(r, 0.0, Stroke::new(1.5_f32, pm.stroke));
+        painter.text(r.left_top() + egui::vec2(0.0, -3.0), egui::Align2::LEFT_BOTTOM, format!("Plug piece, operation {}: {} × {} × {} mm", k + 1, pc.w, pc.h, pc.t), egui::TextStyle::Small.resolve(ui.style()), th.shape_idle());
+    }
     // clamps: keep-out rectangles on the table
     for (i, c) in d.clamps.iter().enumerate().filter(|_| app.show_clamps) {
         let r = Rect::from_two_pos(to_s([c.x, c.y]), to_s([c.x + c.w, c.y + c.h]));
@@ -807,6 +816,16 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 if m.from[0] == m.to[0] && m.from[1] == m.to[1] { continue; }
                 let col = if m.cut { op_color(m.op, dark).gamma_multiply(0.85 * fade) } else { th.rapid().gamma_multiply(fade) };
                 painter.line_segment([to_s([m.from[0], m.from[1]]), to_s([m.to[0], m.to[1]])], Stroke::new(1.0_f32, col));
+            }
+        }
+        // the toolpath of each separate piece, in the piece's own frame: drawn where the piece sits in the drawing
+        for pp in &app.pieces {
+            let Some(pc) = app.project.data.ops.get(pp.job.op_index).and_then(|o| o.p.piece.as_ref()) else { continue };
+            for m in &pp.output.moves {
+                if !m.cut && !app.show_rapids { continue; }
+                if m.from[0] == m.to[0] && m.from[1] == m.to[1] { continue; }
+                let col = if m.cut { op_color(m.op, dark).gamma_multiply(0.85 * fade) } else { th.rapid().gamma_multiply(fade) };
+                painter.line_segment([to_s([m.from[0] + pc.x, m.from[1] + pc.y]), to_s([m.to[0] + pc.x, m.to[1] + pc.y])], Stroke::new(1.0_f32, col));
             }
         }
     }
