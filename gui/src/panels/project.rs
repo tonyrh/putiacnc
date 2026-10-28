@@ -560,7 +560,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 let mut moved = false;
                                 ui.add_space(2.0);
                                 egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(8.0)).show(ui, |ui| {
-                                    ui.set_width(ui.available_width());
+                                    // the frame's margins and outline come on top of the width set here
+                                    ui.set_width(ui.available_width() - 20.0);
                                     ui.spacing_mut().item_spacing.x = sp;
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
                                     let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
@@ -572,14 +573,6 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                         rlabel(ui, la, "Position X");
                                         moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
                                         rlabel(ui, lb, "Position Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
-                                    });
-                                    ui.add_space(4.0);
-                                    ui.horizontal(|ui| {
-                                        rlabel(ui, la, "Material");
-                                        if !MATERIALS.iter().any(|(k, _)| *k == pc.mat) { pc.mat = "wood".into(); }
-                                        let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
-                                        let (c, _) = combo_w2(ui, mat_w, &format!("plug_mat{id}"), &mut pc.mat, MATERIALS, "", "How the piece looks in the drawing and the 3D preview");
-                                        changed |= c;
                                     });
                                     ui.add_space(4.0);
                                     // the XY picker with the Z zero beside it, as in the Stock section
@@ -598,6 +591,14 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                                 ui.end_row();
                                             }
                                         });
+                                    });
+                                    ui.add_space(4.0);
+                                    ui.horizontal(|ui| {
+                                        rlabel(ui, la, "Material");
+                                        if !MATERIALS.iter().any(|(k, _)| *k == pc.mat) { pc.mat = "wood".into(); }
+                                        let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                                        let (c, _) = combo_w2(ui, mat_w, &format!("plug_mat{id}"), &mut pc.mat, MATERIALS, "", "How the piece looks in the drawing and the 3D preview");
+                                        changed |= c;
                                     });
                                 });
                                 if moved { piece_act = Some((prev_id, id, Some(pc.clone()))); }
