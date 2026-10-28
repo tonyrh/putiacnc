@@ -580,6 +580,16 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 });
                                 ui.horizontal(|ui| {
                                     ui.spacing_mut().item_spacing.x = sp;
+                                    rlabel(ui, lp, "Z zero");
+                                    let zm_w = crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                                    let (c, _) = combo_w2(ui, zm_w, &format!("plug_zm{id}"), &mut pc.zm, ZMODES, "", "Where Z0 is measured from on this piece");
+                                    changed |= c;
+                                    if pc.zm != "top" {
+                                        changed |= dv_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm");
+                                    }
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = sp;
                                     rlabel(ui, lp, "Material");
                                     if !MATERIALS.iter().any(|(k, _)| *k == pc.mat) { pc.mat = "wood".into(); }
                                     let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
