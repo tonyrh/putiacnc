@@ -265,6 +265,29 @@ pub struct OpParams {
     #[serde(default, rename = "rSo", skip_serializing_if = "Option::is_none")] pub r_so: Option<f64>,
     /// 3D relief finishing: stepover in % of the tool diameter; `None` = the finishing tool's own.
     #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
+    /// Custom feeds and speeds for this operation; `None` = the tool's own. Only the values that are set differ from the tool.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub custom: Option<CustomFeeds>,
+}
+
+/// Spindle speed (rpm), cutting feed and plunge feed (mm/min) of one operation that differ from its tool's.
+/// `None` = follow the tool, so changing the tool's value later still reaches the operation.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
+pub struct CustomFeeds {
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub rpm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub feed: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub plunge: Option<f64>,
+}
+
+impl CustomFeeds {
+    /// The tool with this operation's values in place of its own (values that are not positive numbers are ignored).
+    pub fn apply(&self, t: &Tool) -> Tool {
+        let ok = |v: Option<f64>| v.filter(|x| x.is_finite() && *x > 0.0);
+        let mut o = t.clone();
+        if let Some(v) = ok(self.rpm) { o.rpm = v; }
+        if let Some(v) = ok(self.feed) { o.feed = v; }
+        if let Some(v) = ok(self.plunge) { o.plunge = v; }
+        o
+    }
 }
 
 /// A separate piece of stock that an inlay plug is cut from (the pocket is cut in the main stock). The piece sits beside

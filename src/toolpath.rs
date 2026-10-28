@@ -837,6 +837,18 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         if mine.is_empty() { notes.push(format!("Op {} has no shapes.", k + 1)); continue; }
         let tool = data.tools.iter().find(|t| t.id == o.p.tool)
             .ok_or_else(|| format!("Operation {}: choose a tool (Manage… to create one)", k + 1))?;
+        // this operation's own feeds and speeds, held to the machine's limits like the tool's (inlay operations use two tools and keep theirs)
+        let tool_own;
+        let tool = match &o.p.custom {
+            Some(cf) if !matches!(o.p.kind.as_str(), "inlay" | "plug") => {
+                let asked = cf.apply(tool);
+                tool_own = machine.hold(&asked);
+                let what = machine.hold_text(&asked);
+                if !what.is_empty() { notes.push(format!("{}⚠ Custom feeds and speeds held to the machine's limits: {}.", pre, what)); }
+                &tool_own
+            }
+            _ => tool,
+        };
         let (dia, so, pd, feed, plunge) = (tool.dia, tool.so, tool.pd, tool.feed, tool.plunge);
         let depth = o.p.depth;
         let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };

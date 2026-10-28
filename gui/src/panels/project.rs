@@ -379,7 +379,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let bf = egui::TextStyle::Body.resolve(ui.style());
                 let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
                 // 2 x 2 grid: Type | Cut  /  Tool | Depth
-                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish"));
+                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle"));
                 let l3 = tw_of(ui, "Cut").max(tw_of(ui, "Pass"));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
                 let cw = tw_of(ui, "Conventional") + 44.0;
@@ -736,10 +736,40 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     });
                 }
                 changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
+                // this operation's own spindle speed and feeds (inlay operations use two tools and keep the tools' own)
+                if !matches!(p.kind.as_str(), "inlay" | "plug" | "relief") {
+                    let mut on = p.custom.is_some();
+                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Custom feeds and speeds").on_hover_text("Use other spindle speed and feeds than the tool's for this operation only. Values you leave alone keep following the tool.").changed() }).inner {
+                        p.custom = if on { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
+                        changed = true;
+                    }
+                    if let (Some(cf), Some(t0)) = (p.custom.as_mut(), tools.iter().find(|t| t.id == p.tool)) {
+                        let accent = ui.visuals().hyperlink_color;
+                        ui.add_space(2.0);
+                        egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+                            let rows: [(&str, &str, &mut Option<f64>, f64); 3] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge)];
+                            for (name, unit, own, base) in rows {
+                                rlabel(ui, l1, name);
+                                let ov = own.is_some();
+                                let mut v = own.unwrap_or(base);
+                                ui.scope(|ui| {
+                                    if ov { ui.visuals_mut().override_text_color = Some(accent); }
+                                    if dv_w(ui, 62.0, &mut v, 1.0, 100000.0, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
+                                });
+                                ui.weak(unit);
+                                let hint = format!("tool: {}", base);
+                                if ov { ui.label(egui::RichText::new(hint).color(accent)); } else { ui.weak(hint); }
+                                if ov { if reset_button(ui, "Use the tool's value again") { *own = None; changed = true; } } else { ui.label(""); }
+                                ui.end_row();
+                            }
+                        });
+                    }
+                }
                 ui.add_space(4.0);
                 if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
-                    // what the machine will really run (its limits applied), with a warning when that differs from the tool
-                    let (t, warn) = match &machine_now { Some(m) => (m.hold(t0), m.hold_text(t0)), None => (t0.clone(), String::new()) };
+                    // what the machine will really run (its limits applied, after this operation's own values), with a warning when that differs
+                    let asked = match &p.custom { Some(cf) if !matches!(p.kind.as_str(), "inlay" | "plug" | "relief") => cf.apply(t0), _ => t0.clone() };
+                    let (t, warn) = match &machine_now { Some(m) => (m.hold(&asked), m.hold_text(&asked)), None => (asked.clone(), String::new()) };
                     let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
                     ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} mm/min · step {}% · {:.2} mm/pass",
                         putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, t.feed, t.plunge, t.so, t.pd));
