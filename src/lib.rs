@@ -11,6 +11,7 @@ pub mod cleanup;
 pub mod clip;
 pub mod machines;
 pub mod model;
+pub mod pieces;
 pub mod relief;
 pub mod shapes;
 pub mod sim;

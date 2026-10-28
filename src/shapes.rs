@@ -649,7 +649,7 @@ pub fn auto_tab_points(loops: &[LoopData], op: i64, n: usize) -> Vec<[f64; 2]> {
 pub fn default_op_params(tool: &str) -> OpParams {
     OpParams {
         kind: "outside".into(), dir: "climb".into(), depth: 3.0, ramp: true, tool: tool.into(),
-        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None, d_man: false, r_off: false, f_off: false, r_leave: None, r_so: None, f_so: None,
+        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None, piece: None, d_man: false, r_off: false, f_off: false, r_leave: None, r_so: None, f_so: None,
     }
 }
 
@@ -734,6 +734,31 @@ pub fn add_inlay(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize>) {
         }).collect();
         d.loops.extend(copies);
     }
+}
+
+
+/// Moves an inlay's plug between "beside the pocket on the main stock" (`piece` = None) and "on a separate piece of stock".
+/// The plug's shapes are made again from the pocket's closed shapes, mirrored: beside the selection (10 mm to the right) on the
+/// main stock, or at the pocket's own place on the piece. The plug operation gets or loses its piece.
+/// Shapes are removed and added, so indices of later shapes change; the caller fixes the selection.
+pub fn put_plug_on_piece(d: &mut ProjectData, pocket_id: i64, plug_id: i64, piece: Option<crate::model::PlugPiece>) {
+    let gone: Vec<usize> = d.loops.iter().enumerate().filter(|(_, l)| l.op == plug_id).map(|(i, _)| i).collect();
+    for &i in gone.iter().rev() { d.loops.remove(i); }
+    tabs_after_delete(&mut d.ops, &gone);
+    let picked: Vec<usize> = d.loops.iter().enumerate().filter(|(_, l)| l.op == pocket_id).map(|(i, _)| i).collect();
+    if let Some(b) = bbox_many(picked.iter().map(|&i| &d.loops[i])) {
+        let (cx, w) = ((b[0] + b[2]) / 2.0, b[2] - b[0]);
+        let (dx, dy) = match &piece { Some(pc) => (pc.x, pc.y), None => (w + 10.0, 0.0) };
+        let copies: Vec<LoopData> = picked.iter().filter(|&&i| d.loops[i].closed()).map(|&i| {
+            let mut l = d.loops[i].clone();
+            mirror_x(&mut l, cx);
+            translate(&mut l, dx, dy);
+            l.op = plug_id;
+            l
+        }).collect();
+        d.loops.extend(copies);
+    }
+    if let Some(o) = d.ops.iter_mut().find(|o| o.id == plug_id) { o.p.piece = piece; }
 }
 
 

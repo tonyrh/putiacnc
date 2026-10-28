@@ -248,6 +248,8 @@ pub struct OpParams {
     #[serde(default, rename = "tool2", skip_serializing_if = "Option::is_none")] pub tool2: Option<String>,
     /// Inlay plug: how much smaller the plug is than the pocket, measured sideways, in mm (the glue gap).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub fit: Option<f64>,
+    /// Inlay plug: cut from this separate piece of stock instead of the main one (its own G-code file, its own zero).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub piece: Option<PlugPiece>,
     /// 3D relief: the depth was typed in; otherwise it follows the model's height (capped at the stock thickness).
     #[serde(default, rename = "dMan", skip_serializing_if = "is_false")] pub d_man: bool,
     /// 3D relief: skip the roughing step.
@@ -260,6 +262,25 @@ pub struct OpParams {
     #[serde(default, rename = "rSo", skip_serializing_if = "Option::is_none")] pub r_so: Option<f64>,
     /// 3D relief finishing: stepover in % of the tool diameter; `None` = the finishing tool's own.
     #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
+}
+
+/// A separate piece of stock that an inlay plug is cut from (the pocket is cut in the main stock). The piece sits beside
+/// the main stock in the drawing: `x`, `y` are the drawing position of its lower-left corner, in mm. The rest is
+/// the same as `Stock`; the G-code of the piece uses its own work zero.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PlugPiece {
+    pub x: f64, pub y: f64, pub w: f64, pub h: f64, pub t: f64,
+    #[serde(default = "d_wood")] pub mat: String,
+    /// Work zero: ll, lr, ul, ur or c.
+    #[serde(default = "d_ll")] pub zr: String,
+    /// Z zero: "top" or "h" (height above the piece's bottom, see `zh`).
+    #[serde(default = "d_top")] pub zm: String,
+    #[serde(default)] pub zh: f64,
+}
+
+impl PlugPiece {
+    /// The piece as a stock of its own, with its lower-left corner at (0, 0).
+    pub fn stock(&self) -> Stock { Stock { w: self.w, h: self.h, t: self.t, mat: self.mat.clone(), zr: self.zr.clone(), zm: self.zm.clone(), zh: self.zh } }
 }
 
 /// A manually placed holding tab, anchored to a shape: `l` is the index of the shape in the project's
