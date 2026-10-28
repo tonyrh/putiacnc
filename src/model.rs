@@ -127,6 +127,9 @@ pub struct Job {
     #[serde(default, skip_serializing_if = "is_false")] pub numbered: bool,
     /// G-code dialect: "grbl" (default) or "mach" (Mach3 / LinuxCNC).
     #[serde(default, skip_serializing_if = "String::is_empty")] pub post: String,
+    /// Cut the shapes of an operation in an order that keeps the tool's travel short (nearest next, with parts that are inside others first).
+    /// Off in projects saved before the setting existed, so their G-code does not change.
+    #[serde(default, skip_serializing_if = "is_false")] pub order_opt: bool,
 }
 
 impl Job {

@@ -252,6 +252,90 @@ fn mk_jobs(c: &OpCtx, region: &[Path], closed: &[Path], open: &[Path], rm: f64) 
     jb
 }
 
+/// Where a job's cutting starts (mm): the first point of its path, or the last when the path is cut the other way round.
+fn entry(j: &Job, rev: bool) -> [f64; 2] {
+    let q = if rev && j.closed { j.p.last() } else { j.p.first() };
+    q.map(|q| [q[0] as f64 / S, q[1] as f64 / S]).unwrap_or([0.0, 0.0])
+}
+
+fn dist2(a: [f64; 2], b: [f64; 2]) -> f64 { (a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) }
+
+/// The order in which to visit places so that each next one is the nearest to where the tool is (nearest neighbour). Returns indices.
+fn nearest_order(starts: &[[f64; 2]], from: [f64; 2]) -> Vec<usize> {
+    let mut left: Vec<usize> = (0..starts.len()).collect();
+    let (mut out, mut at) = (Vec::with_capacity(starts.len()), from);
+    while !left.is_empty() {
+        let k = (0..left.len()).min_by(|&a, &b| dist2(starts[left[a]], at).partial_cmp(&dist2(starts[left[b]], at)).unwrap_or(std::cmp::Ordering::Equal)).unwrap();
+        let i = left.remove(k);
+        at = starts[i];
+        out.push(i);
+    }
+    out
+}
+
+/// Which separate piece of the region each point lies in: the smallest region path that contains it (so rings of an island inside a hole
+/// belong to the island, rings around a hole belong to the outline).
+fn component_of(region: &[Path], pts: &[[f64; 2]]) -> Vec<usize> {
+    let mut by_size: Vec<usize> = (0..region.len()).collect();
+    by_size.sort_by(|&a, &b| clip::area(&region[a]).abs().partial_cmp(&clip::area(&region[b]).abs()).unwrap_or(std::cmp::Ordering::Equal));
+    pts.iter().map(|p| by_size.iter().copied().find(|&i| inside_eo(std::slice::from_ref(&region[i]), p[0], p[1])).unwrap_or(usize::MAX)).collect()
+}
+
+/// Groups of consecutive indices that share a component, each group in its original order, groups in order of first appearance.
+fn group_by_component(comp: &[usize]) -> Vec<Vec<usize>> {
+    let mut groups: Vec<(usize, Vec<usize>)> = Vec::new();
+    for (i, &c) in comp.iter().enumerate() {
+        match groups.iter_mut().find(|g| g.0 == c) { Some(g) => g.1.push(i), None => groups.push((c, vec![i])) }
+    }
+    groups.into_iter().map(|g| g.1).collect()
+}
+
+/// Cuts the jobs of one operation. With `opt` the order keeps the tool's travel short: a pocket goes region by region (each depth pass
+/// starts at the region nearest to where the tool is), and profiles go nearest first, but never before something inside them (holes and
+/// parts inside another part are cut before the part around them, as before). Without it the jobs are cut in the order they were made.
+/// A pocket cuts each depth pass over all its rings; the other kinds cut all depths of one job, then the next.
+fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64], guard: &[Path], opt: bool) {
+    if c.kind == "pocket" {
+        let groups = if opt && jobs.len() > 1 {
+            let starts: Vec<[f64; 2]> = jobs.iter().map(|j| entry(j, c.rev)).collect();
+            group_by_component(&component_of(region, &starts))
+        } else { vec![(0..jobs.len()).collect()] };
+        for &z in zs {
+            let order: Vec<usize> = if groups.len() > 1 {
+                let gs: Vec<[f64; 2]> = groups.iter().map(|g| entry(&jobs[g[0]], c.rev)).collect();
+                nearest_order(&gs, [e.cur[0], e.cur[1]])
+            } else { (0..groups.len()).collect() };
+            for gi in order { for &ji in &groups[gi] { cut(e, c, &mut jobs[ji], &[z], guard); } }
+        }
+        return;
+    }
+    // inside-before-outside: job i must wait for every other job whose start lies within it (only for profiles; a line has no inside)
+    let n = jobs.len();
+    if !opt || !(2..=600).contains(&n) || c.kind == "online" || c.kind == "drill" {
+        for j in jobs.iter_mut() { cut(e, c, j, zs, guard); }
+        return;
+    }
+    let starts: Vec<[f64; 2]> = jobs.iter().map(|j| entry(j, c.rev)).collect();
+    let mut waits_for: Vec<Vec<usize>> = vec![vec![]; n];
+    for i in 0..n {
+        if !jobs[i].closed { continue; }
+        for k in 0..n {
+            if k != i && inside_eo(std::slice::from_ref(&jobs[i].p), starts[k][0], starts[k][1]) { waits_for[i].push(k); }
+        }
+    }
+    let mut done = vec![false; n];
+    for _ in 0..n {
+        let at = [e.cur[0], e.cur[1]];
+        let pick = (0..n).filter(|&i| !done[i] && waits_for[i].iter().all(|&k| done[k]))
+            .min_by(|&a, &b| dist2(starts[a], at).partial_cmp(&dist2(starts[b], at)).unwrap_or(std::cmp::Ordering::Equal))
+            // two paths that contain each other's start (overlapping shapes): the plain order breaks the tie
+            .or_else(|| (0..n).find(|&i| !done[i]));
+        let Some(i) = pick else { break };
+        done[i] = true;
+        cut(e, c, &mut jobs[i], zs, guard);
+    }
+}
+
 fn path_f(p: &Path, rev: bool, closed: bool) -> Vec<[f64; 2]> {
     let mut v: Vec<[f64; 2]> = p.iter().map(|q| [q[0] as f64 / S, q[1] as f64 / S]).collect();
     if rev && closed { v.reverse(); }
@@ -1012,13 +1096,13 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             for &z in &zs {
                 let mut jb = mk_jobs(&ctx, &region, &closed, &open, geo.r_at(-z));
                 let guard: Vec<Path> = jb.iter().map(|j| j.p.clone()).collect();
-                for j in jb.iter_mut() { cut(&mut e, &ctx, j, &[z], &guard); }
+                run_jobs(&mut e, &ctx, &mut jb, &region, &[z], &guard, data.job.order_opt);
             }
         } else if kind == "pocket" {
-            for &z in &zs { for j in jobs.iter_mut() { cut(&mut e, &ctx, j, &[z], &[]); } }
+            run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &[], data.job.order_opt);
         } else {
             let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
-            for j in jobs.iter_mut() { cut(&mut e, &ctx, j, &zs, &guard); }
+            run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &guard, data.job.order_opt);
         }
         if e.lead_skipped > 0 {
             notes.push(format!("{}lead-in/out skipped on {} path(s): not enough room for the arc.", pre, e.lead_skipped));

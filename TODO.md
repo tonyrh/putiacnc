@@ -52,3 +52,26 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 ## Later
 - [ ] macOS notarization.
 - [ ] Arrow-key navigation in the tool picker.
+
+## Long term ideas
+Things that make a real job easier
+- [ ] Setup sheet: a printable page or PDF with the stock, work zero, tools in order and estimated time (both files and both zeros for the two-piece inlay).
+- [ ] Feeds and speeds by material: chip-load rules from tool and material (ties in with the CMT tool data).
+- [ ] Surfacing / spoilboard flattening wizard.
+- [ ] Double-sided work: flip the piece with registration holes or dowels.
+
+Toolpath quality
+- [x] Better path ordering (fewer and shorter rapids): done, "Shortest path order" in the G-code tab.
+- [ ] Dogbone / T-bone corners and a finger / box-joint generator.
+- [ ] Adaptive clearing.
+- [ ] Nesting.
+
+Machine side
+- [ ] Send G-code to a GRBL machine over serial (jog, set zero, run, pause). Probing snippets are an easier first step.
+- [ ] Preview against the real machine limits (acceleration) for more accurate time estimates.
+
+Reach and polish
+- [ ] Italian translation and a colour-blind-safe theme.
+- [ ] Distribution: Windows installer, AppImage / Flatpak, signed Mac build.
+- [ ] Project templates and an example gallery; a short manual with videos.
+- [ ] Shared tool and machine preset libraries on GitHub.
