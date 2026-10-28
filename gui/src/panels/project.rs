@@ -619,7 +619,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     let inlay = p.kind == "inlay" || p.kind == "plug" || p.kind == "relief";
                     // an inlay clears and cuts out with its second tool, so the pass depth is that tool's
                     let tool_pd = if inlay { p.tool2.as_deref().and_then(|id| tool_pd_of(&tools, id)).or_else(|| tool_pd_of(&tools, &p.tool)) } else { tool_pd_of(&tools, &p.tool) };
-                    ui.add_space(2.0);
+                    ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         // the row fills the panel: both fields share what the fixed parts leave over
