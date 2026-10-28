@@ -60,6 +60,11 @@
   .note { color: var(--muted); font-size: 0.95rem; }
   figure { margin: 28px 0; }
   figure img, video { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .player { position: relative; }
+  .player .play { position: absolute; left: 50%; top: 50%; width: 84px; height: 60px; margin: -30px 0 0 -42px; border: 0; border-radius: 16px; background: rgba(20,20,20,.82); cursor: pointer; padding: 0; transition: background .15s, transform .15s; }
+  .player .play::after { content: ""; position: absolute; left: 50%; top: 50%; margin: -13px 0 0 -9px; border-style: solid; border-width: 13px 0 13px 22px; border-color: transparent transparent transparent #fff; }
+  .player .play:hover, .player .play:focus-visible { background: var(--accent); transform: scale(1.06); outline: none; }
+  .player.playing .play { display: none; }
   figcaption { color: var(--muted); font-size: 0.95rem; margin-top: 8px; }
   .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
@@ -99,7 +104,19 @@
   </figure>
 
   <figure>
-    <video controls preload="none" playsinline poster="demo-poster.jpg" src="demo.mp4" aria-label="The 3D preview replaying a job: the cutter follows the toolpath and the stock is carved as it goes"></video>
+    <div class="player" id="player">
+    <video id="demo" controls preload="none" playsinline poster="demo-poster.jpg" src="demo.mp4" aria-label="The 3D preview replaying a job: the cutter follows the toolpath and the stock is carved as it goes"></video>
+    <button class="play" id="demo-play" type="button" aria-label="Play the video"></button>
+    </div>
+    <script>
+      (function () {
+        var v = document.getElementById("demo"), b = document.getElementById("demo-play"), p = document.getElementById("player");
+        b.addEventListener("click", function () { v.play(); });
+        v.addEventListener("play", function () { p.classList.add("playing"); });
+        v.addEventListener("pause", function () { p.classList.remove("playing"); });
+        v.addEventListener("ended", function () { p.classList.remove("playing"); });
+      })();
+    </script>
     <figcaption>The 3D preview replaying a job: the cutter follows the toolpath and the stock is carved as it goes.</figcaption>
   </figure>
 
