@@ -1,0 +1,58 @@
+name: Bug report
+description: Something does not work, looks wrong, or produces G-code you did not expect
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The more exactly I can see what you saw, the faster it gets fixed.
+        **Safety:** if the problem is G-code that could hurt a machine (a crash, a move in the wrong place), please say so in the title and do not run that file.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you see, and what did you expect instead? A screenshot helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can I make it happen?
+      description: Numbered steps, starting from a new or an attached project.
+      placeholder: |
+        1. Draw a rectangle
+        2. Add a pocket operation
+        3. ...
+    validations:
+      required: false
+  - type: textarea
+    id: sysinfo
+    attributes:
+      label: System info
+      description: In PutiaCNC open Help → About and press "Copy system info", then paste it here. It has the version, the system and the graphics driver, and nothing about who or where you are.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it show up?
+      multiple: true
+      options:
+        - 2D drawing and editing
+        - Operations and toolpaths
+        - 3D preview
+        - G-code output or my machine
+        - Import (SVG, DXF, images, 3D models)
+        - Tool library or machine settings
+        - Windows, menus, look and feel
+        - Something else
+    validations:
+      required: false
+  - type: textarea
+    id: project
+    attributes:
+      label: Project file
+      description: If you can, attach the project (.json) or a small one that shows the problem. Zip it first; GitHub does not take .json files directly. It contains your drawing and settings, so leave it out if it is private.
+    validations:
+      required: false

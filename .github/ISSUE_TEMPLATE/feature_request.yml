@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest something new, or a change to how something works
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. PutiaCNC is a small project, so a clear description of the job you are trying to do matters more than the exact feature.
+  - type: textarea
+    id: job
+    attributes:
+      label: What are you trying to do?
+      description: The job or the problem, not yet the solution. For example "cut the plug of an inlay from another wood".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How would you like it to work?
+      description: "Anything you have in mind (buttons, options, what the G-code should look like). Sketches and screenshots of other programs are fine."
+    validations:
+      required: false
+  - type: textarea
+    id: today
+    attributes:
+      label: What do you do today?
+      description: Your workaround, or what you use instead (another program, a manual step).
+    validations:
+      required: false
+  - type: input
+    id: machine
+    attributes:
+      label: Your machine and controller
+      description: Only if it matters for the request, for example "GRBL 1.1 on a 3018" or "Marlin on a Ender 3".
+    validations:
+      required: false
