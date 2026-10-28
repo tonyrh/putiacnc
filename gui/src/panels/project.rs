@@ -36,21 +36,28 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
 }
 
 /// The Spindle / Feed / Plunge / Stepover rows of a custom feeds block. A value that differs from the tool's turns blue (a lighter blue in
-/// the dark theme) and shows the tool's value and a reset button; the others keep following the tool. Returns true when something changed.
-fn custom_rows(ui: &mut Ui, id: impl std::hash::Hash, cf: &mut putiacnc_core::model::CustomFeeds, t0: &putiacnc_core::model::Tool, l1: f32, sp: f32, accent: Color32) -> bool {
+/// the dark theme) and shows the tool's value and a reset button; the others keep following the tool. Feeds are shown in the speed unit
+/// `spd` (name, mm/min per unit) of the tool library window and stored in mm/min. Returns true when something changed.
+fn custom_rows(ui: &mut Ui, id: impl std::hash::Hash, cf: &mut putiacnc_core::model::CustomFeeds, t0: &putiacnc_core::model::Tool, l1: f32, sp: f32, accent: Color32, spd: (&str, f64)) -> bool {
     let mut changed = false;
+    let (sname, fk) = (spd.0, spd.1.max(1e-9));
+    let shown = |v: f64| { let t = format!("{:.3}", v); t.trim_end_matches('0').trim_end_matches('.').to_string() };
     egui::Grid::new(id).num_columns(5).spacing([sp, 6.0]).show(ui, |ui| {
-        let rows: [(&str, &str, &mut Option<f64>, f64); 4] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge), ("Stepover", "%", &mut cf.so, t0.so)];
-        for (name, unit, own, base) in rows {
+        // name, unit text, the value, the tool's value, the factor from the shown unit to the stored one
+        let rows: [(&str, &str, &mut Option<f64>, f64, f64); 4] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm, 1.0), ("Feed", sname, &mut cf.feed, t0.feed, fk), ("Plunge", sname, &mut cf.plunge, t0.plunge, fk), ("Stepover", "%", &mut cf.so, t0.so, 1.0)];
+        for (name, unit, own, base, k) in rows {
             rlabel(ui, l1, name);
             let ov = own.is_some();
-            let mut v = own.unwrap_or(base);
+            let mut v = own.unwrap_or(base) / k;
             ui.scope(|ui| {
                 if ov { ui.visuals_mut().override_text_color = Some(accent); }
-                if dv_w(ui, 62.0, &mut v, 1.0, if unit == "%" { 100.0 } else { 100000.0 }, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
+                let hi = if unit == "%" { 100.0 } else { 100000.0 / k };
+                let size = [62.0, ui.spacing().interact_size.y];
+                let edited = if k == 1.0 { dv_w(ui, 62.0, &mut v, 1.0, hi, "") } else { crate::widgets::num(ui, size, &mut v, 0.001, hi, 1.0 / k.max(1.0), 3, "").changed() };
+                if edited { let stored = v * k; *own = if (stored - base).abs() < 1e-6 * base.abs().max(1.0) { None } else { Some(stored) }; changed = true; }
             });
             ui.weak(unit);
-            let hint = format!("tool: {}", base);
+            let hint = format!("tool: {}", shown(base / k));
             if ov { ui.label(egui::RichText::new(hint).color(accent)); } else { ui.weak(hint); }
             if ov { if reset_button(ui, "Use the tool's value again") { *own = None; changed = true; } } else { ui.label(""); }
             ui.end_row();
@@ -189,6 +196,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     let mut changed = false;
     let mut name_changed = false;
     let mut open_tools = false;
+    // the speed unit of the tool library window (feeds in the custom feeds block follow it)
+    let spd = putiacnc_core::toollib::SPEED_UNITS[app.tool_speed_idx.min(putiacnc_core::toollib::SPEED_UNITS.len() - 1)];
     // machine picker data (read before the panel borrows the project)
     let mach_names: Vec<(String, String)> = app.machines.list.iter().map(|m| (m.id.clone(), m.name.clone())).collect();
     let (mach_cur, mach_name, mach_area) = match &app.project.data.machine {
@@ -790,12 +799,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.indent(("cfs_opts", id), |ui| {
                             if let (Some(cf), Some(t0)) = (p.custom.as_mut(), t1.as_ref()) {
                                 if two { ui.label(egui::RichText::new(format!("V-bit: {}", clean(&t0.name))).weak()); }
-                                changed |= custom_rows(ui, ("cfs", id), cf, t0, l1, sp, accent);
+                                changed |= custom_rows(ui, ("cfs", id), cf, t0, l1, sp, accent, spd);
                             }
                             if let (Some(cf), Some(t0)) = (p.custom2.as_mut(), t2.as_ref()) {
                                 ui.add_space(4.0);
                                 ui.label(egui::RichText::new(format!("Flat end mill: {}", clean(&t0.name))).weak());
-                                changed |= custom_rows(ui, ("cfs2", id), cf, t0, l1, sp, accent);
+                                changed |= custom_rows(ui, ("cfs2", id), cf, t0, l1, sp, accent, spd);
                             }
                         });
                     }

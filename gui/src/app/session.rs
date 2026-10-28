@@ -47,6 +47,7 @@ impl App {
         if let Some(v) = &p.text_sections { self.text.sections = v.iter().cloned().collect(); }
         if let Some(v) = p.tool_len_in { self.tool_len_in = v; }
         if let Some(v) = p.tool_speed_idx { self.tool_speed_idx = v; }
+        if let Some(i) = std::env::var("PUTIACNC_SPEED_UNIT").ok().and_then(|v| v.parse::<usize>().ok()) { self.tool_speed_idx = i; } // test hook
         if let Some(v) = p.mach_len_in { self.mach_len_in = v; }
         if let Some(v) = p.mach_speed_idx { self.mach_speed_idx = v; }
         self.prefs_saved = p.clone();
