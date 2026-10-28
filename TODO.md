@@ -52,6 +52,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 ## Later
 - [ ] macOS notarization.
 - [ ] Arrow-key navigation in the tool picker.
+- [ ] Haiku port (idea, low priority): Rust has a Tier 3 `x86_64-unknown-haiku` target, but eframe/winit has no Haiku backend as far as I know, so the GUI would need an SDL-style windowing layer, and file dialogs and clipboard would need Haiku replacements. The core crate and `putia-gcode` might build as they are; untested.
 
 ## Long term ideas
 Things that make a real job easier
