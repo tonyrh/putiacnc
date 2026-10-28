@@ -82,12 +82,15 @@ pub fn segmented_n(ui: &mut egui::Ui, half: Vec2, n: usize, sel: usize, face: im
         };
         if n > 2 && i > 0 && sel != i && sel + 1 != i { ui.painter().line_segment([r.left_top() + Vec2::new(0.0, 5.0), r.left_bottom() - Vec2::new(0.0, 5.0)], v.inactive.bg_stroke); }
         let on = sel == i;
-        if on { ui.painter().rect_filled(r, round, ui.visuals().selection.bg_fill); }
-        else if hot == Some(i) && resp.hovered() { ui.painter().rect_filled(r, round, v.hovered.bg_fill); }
+        // the outline is centred on the edge of the pill: the chosen half is painted over its half of it, so it is as big as the other one
+        if on {
+            let grow = |x: f32| if x > 0.0 { x + 0.5 } else { 0.0 };
+            let big = egui::Rounding { nw: grow(round.nw), ne: grow(round.ne), sw: grow(round.sw), se: grow(round.se) };
+            ui.painter().rect_filled(r.expand(0.5), big, ui.visuals().selection.bg_fill);
+        } else if hot == Some(i) && resp.hovered() { ui.painter().rect_filled(r.shrink(0.5), round, v.hovered.bg_fill); }
         let fg = if on { Color32::WHITE } else { v.inactive.fg_stroke.color };
         face(ui.painter(), i, r, fg);
     }
-    ui.painter().rect_stroke(rect, rad, v.inactive.bg_stroke);
     if resp.clicked() { clicked = hot; }
     let hov = if resp.hovered() { hot } else { None };
     (clicked, hov, resp)
