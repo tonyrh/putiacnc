@@ -379,7 +379,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let bf = egui::TextStyle::Body.resolve(ui.style());
                 let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
                 // 2 x 2 grid: Type | Cut  /  Tool | Depth
-                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle"));
+                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle")).max(tw_of(ui, "Stepover"));
                 let l3 = tw_of(ui, "Cut").max(tw_of(ui, "Pass"));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
                 let cw = tw_of(ui, "Conventional") + 44.0;
@@ -748,14 +748,14 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let accent = if ui.visuals().dark_mode { { let c = ui.visuals().hyperlink_color; let m = |a: u8| a + ((255 - a as u16) / 2) as u8; Color32::from_rgb(m(c.r()), m(c.g()), m(c.b())) } } else { ui.visuals().hyperlink_color };
                         ui.indent(("cfs_opts", id), |ui| {
                           egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 6.0]).show(ui, |ui| {
-                              let rows: [(&str, &str, &mut Option<f64>, f64); 3] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge)];
+                              let rows: [(&str, &str, &mut Option<f64>, f64); 4] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge), ("Stepover", "%", &mut cf.so, t0.so)];
                               for (name, unit, own, base) in rows {
                                   rlabel(ui, l1, name);
                                   let ov = own.is_some();
                                   let mut v = own.unwrap_or(base);
                                   ui.scope(|ui| {
                                       if ov { ui.visuals_mut().override_text_color = Some(accent); }
-                                      if dv_w(ui, 62.0, &mut v, 1.0, 100000.0, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
+                                      if dv_w(ui, 62.0, &mut v, 1.0, if unit == "%" { 100.0 } else { 100000.0 }, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
                                   });
                                   ui.weak(unit);
                                   let hint = format!("tool: {}", base);

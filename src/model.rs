@@ -269,13 +269,14 @@ pub struct OpParams {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub custom: Option<CustomFeeds>,
 }
 
-/// Spindle speed (rpm), cutting feed and plunge feed (mm/min) of one operation that differ from its tool's.
+/// Spindle speed (rpm), cutting feed, plunge feed (mm/min) and stepover (% of the diameter) of one operation that differ from its tool's.
 /// `None` = follow the tool, so changing the tool's value later still reaches the operation.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct CustomFeeds {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub rpm: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")] pub feed: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")] pub plunge: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub so: Option<f64>,
 }
 
 impl CustomFeeds {
@@ -286,6 +287,7 @@ impl CustomFeeds {
         if let Some(v) = ok(self.rpm) { o.rpm = v; }
         if let Some(v) = ok(self.feed) { o.feed = v; }
         if let Some(v) = ok(self.plunge) { o.plunge = v; }
+        if let Some(v) = ok(self.so) { o.so = v.min(100.0); }
         o
     }
 }
