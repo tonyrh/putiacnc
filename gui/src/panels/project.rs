@@ -558,52 +558,47 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             }
                             if let Some(pc) = p.piece.as_mut() {
                                 let mut moved = false;
-                                let fw = 46.0;
-                                let lp = tw_of(ui, "Material").max(tw_of(ui, "XY zero")).max(l1);
-                                ui.horizontal(|ui| {
+                                ui.add_space(2.0);
+                                egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(8.0)).show(ui, |ui| {
+                                    ui.set_width(ui.available_width());
                                     ui.spacing_mut().item_spacing.x = sp;
-                                    rlabel(ui, lp, "Size");
-                                    changed |= dv_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak("×");
-                                    changed |= dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, ""); ui.weak("×");
-                                    changed |= dv_w(ui, fw, &mut pc.t, 0.1, 1000.0, ""); ui.weak("mm");
-                                }).response.on_hover_text("Width × height × thickness of the piece");
-                                ui.horizontal(|ui| {
-                                    ui.spacing_mut().item_spacing.x = sp;
-                                    rlabel(ui, lp, "At");
-                                    ui.label("X"); moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
-                                    ui.label("Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm");
-                                }).response.on_hover_text("Where the piece sits in the drawing, from the main stock's lower-left corner");
-                                // the XY picker with the Z zero beside it, as in the Stock section
-                                ui.horizontal_top(|ui| {
-                                    ui.spacing_mut().item_spacing.x = sp;
-                                    rlabel(ui, lp, "XY zero");
-                                    changed |= xy_picker(ui, &mut pc.zr);
-                                    ui.add_space(sp * 2.0);
-                                    ui.vertical(|ui| {
-                                        ui.spacing_mut().item_spacing.y = 6.0;
-                                        ui.horizontal(|ui| {
-                                            ui.spacing_mut().item_spacing.x = sp;
-                                            ui.label("Z zero");
+                                    // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
+                                    let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
+                                    let fw = ((ui.available_width() - la - lb - 2.0 * mm - 6.0 * sp) / 2.0).clamp(46.0, 110.0);
+                                    egui::Grid::new(("plug_piece", id)).num_columns(6).spacing([sp, 6.0]).show(ui, |ui| {
+                                        rlabel(ui, la, "Width"); changed |= dv_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak("mm");
+                                        rlabel(ui, lb, "Height"); changed |= dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
+                                        rlabel(ui, la, "Thickness"); changed |= dv_w(ui, fw, &mut pc.t, 0.1, 1000.0, ""); ui.weak("mm"); ui.end_row();
+                                        rlabel(ui, la, "Position X");
+                                        moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
+                                        rlabel(ui, lb, "Position Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
+                                    });
+                                    ui.add_space(4.0);
+                                    ui.horizontal(|ui| {
+                                        rlabel(ui, la, "Material");
+                                        if !MATERIALS.iter().any(|(k, _)| *k == pc.mat) { pc.mat = "wood".into(); }
+                                        let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                                        let (c, _) = combo_w2(ui, mat_w, &format!("plug_mat{id}"), &mut pc.mat, MATERIALS, "", "How the piece looks in the drawing and the 3D preview");
+                                        changed |= c;
+                                    });
+                                    ui.add_space(4.0);
+                                    // the XY picker with the Z zero beside it, as in the Stock section
+                                    ui.horizontal_top(|ui| {
+                                        rlabel(ui, la, "XY zero");
+                                        changed |= xy_picker(ui, &mut pc.zr);
+                                        ui.add_space(sp * 3.0);
+                                        egui::Grid::new(("plug_z", id)).num_columns(3).spacing([sp, 6.0]).show(ui, |ui| {
+                                            rlabel(ui, lb, "Z zero");
                                             let zm_w = crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
                                             let (c, _) = combo_w2(ui, zm_w, &format!("plug_zm{id}"), &mut pc.zm, ZMODES, "", "Where Z0 is measured from on this piece");
-                                            changed |= c;
+                                            changed |= c; ui.end_row();
+                                            if pc.zm != "top" {
+                                                rlabel(ui, lb, "Z0");
+                                                ui.horizontal(|ui| { changed |= dv_w(ui, 56.0, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm"); });
+                                                ui.end_row();
+                                            }
                                         });
-                                        if pc.zm != "top" {
-                                            ui.horizontal(|ui| {
-                                                ui.spacing_mut().item_spacing.x = sp;
-                                                ui.label("Z0");
-                                                changed |= dv_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm");
-                                            });
-                                        }
                                     });
-                                });
-                                ui.horizontal(|ui| {
-                                    ui.spacing_mut().item_spacing.x = sp;
-                                    rlabel(ui, lp, "Material");
-                                    if !MATERIALS.iter().any(|(k, _)| *k == pc.mat) { pc.mat = "wood".into(); }
-                                    let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
-                                    let (c, _) = combo_w2(ui, mat_w, &format!("plug_mat{id}"), &mut pc.mat, MATERIALS, "", "How the piece looks in the drawing and the 3D preview");
-                                    changed |= c;
                                 });
                                 if moved { piece_act = Some((prev_id, id, Some(pc.clone()))); }
                             }
