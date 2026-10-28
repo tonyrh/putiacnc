@@ -911,7 +911,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let conv = o.p.dir == "conv";
             let mkzs = |d: f64| -> Vec<f64> { let n = ((d / fpd) - 1e-9).ceil().max(1.0) as usize; (0..n).map(|i| -(d / n as f64) * (i as f64 + 1.0)).collect() };
             let fctx = |kind: &'static str, zs: Vec<f64>, rev: bool| OpCtx {
-                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp && kind == "outside", rev, z0, sz, zs,
+                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp && (kind == "outside" || data.job.ramp_pockets), rev, z0, sz, zs,
                 tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0,
             };
             let ring_rev = !conv;

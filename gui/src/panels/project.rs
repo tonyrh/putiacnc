@@ -568,10 +568,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let (r2, pk2) = crate::toolpick::picker(ui, ("optool2", id), tool_w, cur, p.tool2.as_deref(), &job_tools, &tools, |t| t.shape == "flat");
                             match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.tool2 = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
                             r2.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
-                            if p.kind == "plug" {
+                            if p.kind == "plug" || p.kind == "inlay" {
                                 let rest = ui.available_width() - ramp_w;
                                 if rest > 0.0 { ui.add_space(rest); }
-                                changed |= crate::widgets::check(ui, &mut p.ramp, "Ramp in").on_hover_text("Eases the flat end mill down along the cut-out of the plug instead of plunging").changed();
+                                // the pocket's clearing follows the project's "Ramp into pockets"; the plug's cut-out always can
+                                let pocket = p.kind == "inlay";
+                                changed |= crate::widgets::check_if(ui, !pocket || ramp_pockets, &mut p.ramp, "Ramp in")
+                                    .on_hover_text(if pocket && !ramp_pockets { "Ramping into pockets is switched off for this project: tick \"Ramp into pockets\" in the G-code tab" } else if pocket { "Eases the flat end mill down along each ring that clears the pocket floor instead of plunging" } else { "Eases the flat end mill down along the cut-out of the plug instead of plunging" }).changed();
                             }
                         });
                         if p.kind == "plug" {

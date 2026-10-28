@@ -37,3 +37,26 @@ fn a_ramped_pocket_reaches_the_same_depth_with_fewer_straight_plunges() {
     p.data.ops[k].p.ramp = false;
     assert_eq!(off, lines(&p));
 }
+
+#[test]
+fn the_inlay_pocket_ramps_its_flat_mill_when_the_project_allows_it() {
+    use putiacnc_core::shapes::{add_operation, blank_project, new_rect};
+    let mut f = blank_project();
+    let d = &mut f.data;
+    d.loops.push(new_rect([30.0, 40.0], [50.0, 50.0], 0.0, 0));
+    let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
+    assert!(add_operation(d, &sel, "inlay").is_none());
+    let k = d.ops.iter().position(|o| o.p.kind == "inlay").unwrap();
+    d.ops[k].p.ramp = true;
+    d.job.ramp_pockets = false;
+    let off = generate(d, Units::Metric).unwrap().lines;
+    d.ops[k].p.ramp = false;
+    assert_eq!(off, generate(d, Units::Metric).unwrap().lines, "setting off: no change");
+    d.ops[k].p.ramp = true;
+    d.job.ramp_pockets = true;
+    let on = generate(d, Units::Metric).unwrap().lines;
+    assert_ne!(off, on, "the clearing rings ramp");
+    assert!((min_z(&off) - min_z(&on)).abs() < 1e-6, "same depth");
+    d.ops[k].p.ramp = false;
+    assert_eq!(off, generate(d, Units::Metric).unwrap().lines, "Ramp in unticked: plunges as before");
+}
