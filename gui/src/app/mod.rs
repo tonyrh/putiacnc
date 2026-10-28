@@ -270,7 +270,9 @@ pub struct App {
     pub tool_sel: String,
     pub tool_msg: String,
     pub tool_len_in: bool,
-    pub tool_speed_idx: usize,
+    /// Speed unit (index into `SPEED_UNITS`) of the tool library window and the custom feeds block: one for each view of the lengths (mm, in).
+    pub tool_speed_mm: usize,
+    pub tool_speed_in: usize,
     pub confirm_tool_del: bool,
     pub confirm_lib_del: bool,
     /// the "add a ready-made library" window of the tool manager is open
@@ -300,7 +302,7 @@ impl App {
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
-            tool_len_in: false, tool_speed_idx: 0, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
+            tool_len_in: false, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
             mach_len_in: false, mach_speed_idx: 0, confirm_mach_del: false, machines_dirty: false,
         };
@@ -805,4 +807,14 @@ mod gen_tests {
         assert!(a.gen_rx.is_none() && a.output.is_none());
         assert!(a.gen_error.as_deref().is_some_and(|e| e.contains("internal error")));
     }
+}
+
+impl App {
+    /// The speed unit shown for tools: the one chosen for the current view of the lengths (name, mm/min per unit).
+    pub fn tool_speed(&self) -> (&'static str, f64) {
+        let i = if self.tool_len_in { self.tool_speed_in } else { self.tool_speed_mm };
+        putiacnc_core::toollib::SPEED_UNITS[i.min(putiacnc_core::toollib::SPEED_UNITS.len() - 1)]
+    }
+    /// The setting `tool_speed` reads, for the "Speeds in" box to change.
+    pub fn tool_speed_slot(&mut self) -> &mut usize { if self.tool_len_in { &mut self.tool_speed_in } else { &mut self.tool_speed_mm } }
 }

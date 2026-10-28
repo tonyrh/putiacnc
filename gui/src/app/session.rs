@@ -46,8 +46,14 @@ impl App {
         if let Some(v) = p.show_clamps { self.show_clamps = v; }
         if let Some(v) = &p.text_sections { self.text.sections = v.iter().cloned().collect(); }
         if let Some(v) = p.tool_len_in { self.tool_len_in = v; }
-        if let Some(v) = p.tool_speed_idx { self.tool_speed_idx = v; }
-        if let Some(i) = std::env::var("PUTIACNC_SPEED_UNIT").ok().and_then(|v| v.parse::<usize>().ok()) { self.tool_speed_idx = i; } // test hook
+        // older versions kept one unit for both views: an inch unit there is the one for the inch view
+        if let Some(v) = p.tool_speed_idx { if v < 3 { self.tool_speed_mm = v; } else { self.tool_speed_in = v; } }
+        if let Some(v) = p.tool_speed_idx_in { self.tool_speed_in = v; }
+        // test hook: the unit n (and the lengths view it belongs to)
+        if let Some(i) = std::env::var("PUTIACNC_SPEED_UNIT").ok().and_then(|v| v.parse::<usize>().ok()) {
+            self.tool_len_in = i >= 3;
+            *self.tool_speed_slot() = i;
+        }
         if let Some(v) = p.mach_len_in { self.mach_len_in = v; }
         if let Some(v) = p.mach_speed_idx { self.mach_speed_idx = v; }
         self.prefs_saved = p.clone();
@@ -74,7 +80,8 @@ impl App {
         s.show_clamps = Some(self.show_clamps);
         s.text_sections = Some(self.text.sections.iter().cloned().collect());
         s.tool_len_in = Some(self.tool_len_in);
-        s.tool_speed_idx = Some(self.tool_speed_idx);
+        s.tool_speed_idx = Some(self.tool_speed_mm);
+        s.tool_speed_idx_in = Some(self.tool_speed_in);
         s.mach_len_in = Some(self.mach_len_in);
         s.mach_speed_idx = Some(self.mach_speed_idx);
         if let Some(o) = self.trace.remember.clone() { s.trace = Some(o); }

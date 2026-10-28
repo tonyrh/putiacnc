@@ -50,7 +50,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_HIDE=left,right,machine,toolpaths` | Hides the side panels, the machine area outline, or the toolpath lines (any mix). |
 | `PUTIACNC_SELECT=1,4,7` / `PUTIACNC_SELECT_ALL` | Selects shapes by index (no expansion to their group). |
 | `PUTIACNC_SHOW_*` (`ABOUT`, `ALIGN`, `ARRAY`, `CHECKS`, `CLEAN`, `COMBINE`, `CONFIRM`, `CORNERS`, `ERR`, `MACHINES`, `OFFSET`, `SHORTCUTS`, `TEXT`, `TOOLS`, `UPDATE`) | Opens that dialog or popover. |
-| `PUTIACNC_SPEED_UNIT=n` | The speed unit of the tool library window (and of the custom feeds block): 0 mm/min, 1 mm/s, 2 m/min, 3 in/min, 4 in/s, 5 ft/min. |
+| `PUTIACNC_SPEED_UNIT=n` | The speed unit of the tool library window (and of the custom feeds block), with the lengths view it belongs to (0-2 mm, 3-5 inches): 0 mm/min, 1 mm/s, 2 m/min, 3 in/min, 4 in/s, 5 ft/min. |
 | `PUTIACNC_TAB_GCODE`, `PUTIACNC_TAB_NOTES`, `PUTIACNC_COLLAPSE=1,2` | Right panel tab; folds operations by number. |
 | `PUTIACNC_IMPORT2=file`, `PUTIACNC_TRACE_MODE=centre` | Opens a bitmap in the Import bitmap dialog (centre line instead of outlines with the second). |
 | `PUTIACNC_OP=n` | Operation n (by position) is active with its shapes selected; all the others are folded. |

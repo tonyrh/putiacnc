@@ -35,7 +35,10 @@ pub struct Settings {
     pub show_clamps: Option<bool>,
     pub text_sections: Option<Vec<String>>,
     pub tool_len_in: Option<bool>,
+    /// Speed unit of the tool library window when the lengths are shown in mm (older versions: the only one).
     pub tool_speed_idx: Option<usize>,
+    /// The same when the lengths are shown in inches.
+    pub tool_speed_idx_in: Option<usize>,
     pub mach_len_in: Option<bool>,
     pub mach_speed_idx: Option<usize>,
     pub dir_project: Option<String>,

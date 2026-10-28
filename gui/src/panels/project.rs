@@ -196,8 +196,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     let mut changed = false;
     let mut name_changed = false;
     let mut open_tools = false;
-    // the speed unit of the tool library window (feeds in the custom feeds block follow it)
-    let spd = putiacnc_core::toollib::SPEED_UNITS[app.tool_speed_idx.min(putiacnc_core::toollib::SPEED_UNITS.len() - 1)];
+    // the speed unit the tool library window shows (feeds in the custom feeds block follow it)
+    let spd = app.tool_speed();
     // machine picker data (read before the panel borrows the project)
     let mach_names: Vec<(String, String)> = app.machines.list.iter().map(|m| (m.id.clone(), m.name.clone())).collect();
     let (mach_cur, mach_name, mach_area) = match &app.project.data.machine {

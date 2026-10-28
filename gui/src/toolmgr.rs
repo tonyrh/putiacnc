@@ -362,12 +362,13 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
 }
 
 fn units_row(ui: &mut Ui, app: &mut App) {
-    let sname = SPEED_UNITS[app.tool_speed_idx.min(SPEED_UNITS.len() - 1)].0;
+    let sname = app.tool_speed().0;
     ui.horizontal(|ui| {
         ui.set_max_width((ui.available_width() - 1.0).max(100.0));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             egui::ComboBox::from_id_source("tspd").width(crate::widgets::combo_fit(ui, &putiacnc_core::toollib::SPEED_UNITS.iter().map(|(n, _)| *n).collect::<Vec<_>>()).max(90.0)).selected_text(sname).show_ui(ui, |ui| {
-                for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(&mut app.tool_speed_idx, i, *n); }
+                let slot = app.tool_speed_slot();
+                for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(slot, i, *n); }
             });
             ui.label("Speeds in");
             ui.add_space(8.0);
@@ -433,8 +434,7 @@ fn lib_row_inner(ui: &mut Ui, app: &mut App) {
 fn tool_form(ui: &mut Ui, app: &mut App) {
     let uname = if app.tool_len_in { "in" } else { "mm" };
     let k = unit_k(app);
-    let fspd = SPEED_UNITS[app.tool_speed_idx.min(SPEED_UNITS.len() - 1)].1;
-    let sname = SPEED_UNITS[app.tool_speed_idx.min(SPEED_UNITS.len() - 1)].0;
+    let (sname, fspd) = app.tool_speed();
     let Some(idx) = app.tool_libs.current().tools.iter().position(|t| t.id == app.tool_sel) else { return };
     let mut t = app.tool_libs.current().tools[idx].clone();
     let mut changed = false;
