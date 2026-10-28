@@ -744,7 +744,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         changed = true;
                     }
                     if let (Some(cf), Some(t0)) = (p.custom.as_mut(), tools.iter().find(|t| t.id == p.tool)) {
-                        let accent = ui.visuals().hyperlink_color;
+                        let accent = if ui.visuals().dark_mode { { let c = ui.visuals().hyperlink_color; let m = |a: u8| a + ((255 - a as u16) / 2) as u8; Color32::from_rgb(m(c.r()), m(c.g()), m(c.b())) } } else { ui.visuals().hyperlink_color };
                         ui.add_space(2.0);
                         egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
                             let rows: [(&str, &str, &mut Option<f64>, f64); 3] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge)];

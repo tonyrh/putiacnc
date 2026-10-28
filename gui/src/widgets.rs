@@ -55,8 +55,9 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
     ui.painter().rect(rect, vis.rounding, vis.weak_bg_fill, vis.bg_stroke);
     let font = egui::TextStyle::Button.resolve(ui.style());
     let text = format!("{}{}", fmt_val(*v, dec), suffix);
-    let g = ui.painter().layout_no_wrap(text, font, vis.fg_stroke.color);
-    ui.painter().galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, vis.fg_stroke.color);
+    let col = ui.visuals().override_text_color.unwrap_or(vis.fg_stroke.color);
+    let g = ui.painter().layout_no_wrap(text, font, col);
+    ui.painter().galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, col);
     resp
 }
 
