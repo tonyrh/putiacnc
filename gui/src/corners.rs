@@ -97,7 +97,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.add_enabled(has, egui::Button::new("Apply")).clicked() { apply = true; }
             if ui.button("Cancel").clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
+                crate::widgets::check(ui, &mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
             });
         });
         });

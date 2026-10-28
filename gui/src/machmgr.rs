@@ -296,7 +296,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(egui::Rect::from_min_max(egui::pos2(cell.right() - 285.0, cell.top()), egui::pos2(cell.right() + 14.0, cell.bottom())), Layout::right_to_left(Align::Center));
         let mut nb = m.numbered.unwrap_or(false);
-        if c.checkbox(&mut nb, "").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
+        if crate::widgets::check(&mut c, &mut nb, "").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
         c.add(egui::Label::new("Line numbers (N10, N20…)").wrap(false));
         ui.end_row();
         rlabel(ui, lw, format!("Safe Z ({uname})"));
@@ -305,7 +305,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         ui.end_row();
         rlabel(ui, lw, "Arcs (G2/G3)");
         let mut ar = m.arcs.unwrap_or(false);
-        if ui.checkbox(&mut ar, "").on_hover_text("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
+        if crate::widgets::check(ui, &mut ar, "").on_hover_text("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
         spacer(ui);
         // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
         ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());

@@ -17,8 +17,8 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     crate::view3d::speed_box(ui, app, slot);
-                    ui.checkbox(&mut app.show_rapids, "Rapids");
-                    ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+                    crate::widgets::check(ui, &mut app.show_rapids, "Rapids");
+                    crate::widgets::check(ui, &mut app.show_toolpath, "Toolpaths");
                     let w = ui.available_width().max(0.0);
                     ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
                 });
@@ -33,26 +33,26 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.allocate_exact_size(egui::vec2(slot, h), egui::Sense::hover());
-                    ui.checkbox(&mut app.show_rapids, "Rapids");
-                    ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+                    crate::widgets::check(ui, &mut app.show_rapids, "Rapids");
+                    crate::widgets::check(ui, &mut app.show_toolpath, "Toolpaths");
                 });
             });
         }
         return;
     }
     ui.horizontal(|ui| {
-        ui.checkbox(&mut app.grid_on, "Grid");
+        crate::widgets::check(ui, &mut app.grid_on, "Grid");
         crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, " mm").on_hover_text("Grid size (also the snap step)");
         dropup(ui, app, "snap_menu", "Snap", |ui, app| {
             ui.set_width(checks_width(ui, &["To the grid", "To shapes"]));
-            ui.checkbox(&mut app.snap_on, "To the grid").on_hover_text("The pointer jumps to the grid; the grid size is the snap step");
-            ui.checkbox(&mut app.osnap_on, "To shapes").on_hover_text("The pointer jumps to the corners, midpoints, centres and crossings of shapes, and to the stock");
+            crate::widgets::check(ui, &mut app.snap_on, "To the grid").on_hover_text("The pointer jumps to the grid; the grid size is the snap step");
+            crate::widgets::check(ui, &mut app.osnap_on, "To shapes").on_hover_text("The pointer jumps to the corners, midpoints, centres and crossings of shapes, and to the stock");
         });
         // view toggles on the right (right-to-left, so listed in reverse)
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             guides_menu(ui, app);
-            ui.checkbox(&mut app.show_rapids, "Rapids");
-            ui.checkbox(&mut app.show_toolpath, "Toolpaths");
+            crate::widgets::check(ui, &mut app.show_rapids, "Rapids");
+            crate::widgets::check(ui, &mut app.show_toolpath, "Toolpaths");
         });
     });
 }
@@ -70,9 +70,9 @@ pub(super) fn guides_size(ui: &Ui) -> egui::Vec2 { dropup_size(ui, "Guides") }
 pub(super) fn guides_menu(ui: &mut Ui, app: &mut App) {
     dropup(ui, app, "guides_menu", "Guides", |ui, app| {
         ui.set_width(checks_width(ui, &["Rulers", "Axes", "Machine area"])); // a set width: a separator would otherwise stretch the menu across the screen
-        ui.checkbox(&mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
-        ui.checkbox(&mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
-        ui.checkbox(&mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
+        crate::widgets::check(ui, &mut app.show_rulers, "Rulers").on_hover_text("Rulers in mm along the top and left of the drawing area; they mark the pointer and the selection");
+        crate::widgets::check(ui, &mut app.show_axes, "Axes").on_hover_text("Graduated X and Y axes along the stock's lower and left edges");
+        crate::widgets::check(ui, &mut app.show_machine_area, "Machine area").on_hover_text("Outline of the machine work area, from the stock's lower-left corner");
     });
 }
 

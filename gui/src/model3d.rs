@@ -87,7 +87,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     if ui.selectable_label(t.orient.up == u, n).on_hover_text("The axis of the model that points towards the cutter").clicked() { t.orient.up = u; changed = true; }
                 }
                 ui.add_space(10.0);
-                changed |= ui.checkbox(&mut t.orient.flip, "Upside down").on_hover_text("Look at the model from the other side").changed();
+                changed |= crate::widgets::check(ui, &mut t.orient.flip, "Upside down").on_hover_text("Look at the model from the other side").changed();
             });
             ui.end_row();
         });

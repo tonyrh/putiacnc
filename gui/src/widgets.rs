@@ -96,3 +96,48 @@ pub fn combo_elide(ui: &Ui, s: &str, width: f32) -> String {
     }
     "…".into()
 }
+
+/// A checkbox that looks like the rest of the app: a square with softly rounded corners, the accent colour and a white tick when
+/// ticked, a plain outline when not. Same use as `crate::widgets::check(ui, &mut flag, "text")`.
+pub fn check(ui: &mut Ui, on: &mut bool, label: impl Into<egui::WidgetText>) -> Response {
+    let icon = ui.spacing().icon_width;
+    let gap = ui.spacing().icon_spacing;
+    let wrap = ui.available_width() - icon - gap;
+    let label: egui::WidgetText = label.into();
+    let galley = if label.is_empty() { None } else { Some(label.into_galley(ui, None, wrap.max(20.0), egui::TextStyle::Button)) };
+    let tw = galley.as_ref().map_or(0.0, |g| g.size().x + gap);
+    let th = galley.as_ref().map_or(0.0, |g| g.size().y);
+    let size = egui::vec2(icon + tw, ui.spacing().interact_size.y.max(th).max(icon));
+    let (rect, mut resp) = ui.allocate_exact_size(size, Sense::click());
+    if resp.clicked() { *on = !*on; resp.mark_changed(); }
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, galley.as_ref().map_or("", |g| g.text())));
+    if ui.is_rect_visible(rect) {
+        let v = ui.visuals().clone();
+        let enabled = ui.is_enabled();
+        let w = v.widgets.style(&resp);
+        let bx = egui::Rect::from_min_size(egui::pos2(rect.min.x, rect.center().y - icon / 2.0), egui::vec2(icon, icon));
+        let fade = |c: egui::Color32| if enabled { c } else { c.gamma_multiply(0.45) };
+        let (fill, stroke) = if *on {
+            (v.selection.bg_fill, v.selection.bg_fill)
+        } else {
+            (v.extreme_bg_color, if resp.hovered() { v.widgets.hovered.fg_stroke.color } else { v.widgets.noninteractive.fg_stroke.color.gamma_multiply(0.55) })
+        };
+        ui.painter().rect(bx, 4.0, fade(fill), egui::Stroke::new(1.0_f32, fade(stroke)));
+        if *on {
+            let c = bx.center();
+            let tick = egui::Stroke::new(2.0_f32, fade(egui::Color32::WHITE));
+            ui.painter().line_segment([egui::pos2(c.x - 4.0, c.y + 0.5), egui::pos2(c.x - 1.2, c.y + 3.5)], tick);
+            ui.painter().line_segment([egui::pos2(c.x - 1.2, c.y + 3.5), egui::pos2(c.x + 4.5, c.y - 3.5)], tick);
+        }
+        if let Some(g) = galley {
+            let col = if enabled { w.fg_stroke.color } else { v.widgets.noninteractive.fg_stroke.color.gamma_multiply(0.5) };
+            ui.painter().galley(egui::pos2(rect.min.x + icon + gap, rect.center().y - g.size().y / 2.0), g, col);
+        }
+    }
+    resp
+}
+
+/// `check` that can be switched off (greyed out and not clickable).
+pub fn check_if(ui: &mut Ui, enabled: bool, on: &mut bool, label: impl Into<egui::WidgetText>) -> Response {
+    ui.add_enabled_ui(enabled, |ui| check(ui, on, label)).inner
+}

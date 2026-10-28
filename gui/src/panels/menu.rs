@@ -77,20 +77,20 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.set_min_width(236.0);
             if item(ui, "Fit to stock", "F", true) { if app.view_tab == crate::view3d::ViewTab::Preview { app.fit3d_pending = true; } else { app.fit_pending = true; } }
             ui.separator();
-            ui.checkbox(&mut app.show_toolpath, "Toolpaths");
-            ui.checkbox(&mut app.show_rapids, "Rapid moves");
-            ui.checkbox(&mut app.show_badges, "Operation badges on shapes");
+            crate::widgets::check(ui, &mut app.show_toolpath, "Toolpaths");
+            crate::widgets::check(ui, &mut app.show_rapids, "Rapid moves");
+            crate::widgets::check(ui, &mut app.show_badges, "Operation badges on shapes");
             ui.separator();
-            ui.checkbox(&mut app.show_machine_area, "Machine work area");
-            ui.checkbox(&mut app.show_clamps, "Clamps");
+            crate::widgets::check(ui, &mut app.show_machine_area, "Machine work area");
+            crate::widgets::check(ui, &mut app.show_clamps, "Clamps");
             ui.separator();
-            ui.checkbox(&mut app.grid_on, "Grid");
-            ui.checkbox(&mut app.show_rulers, "Rulers");
-            ui.checkbox(&mut app.show_axes, "Axes");
-            ui.checkbox(&mut app.show_open_ends, "Loose ends of open contours");
+            crate::widgets::check(ui, &mut app.grid_on, "Grid");
+            crate::widgets::check(ui, &mut app.show_rulers, "Rulers");
+            crate::widgets::check(ui, &mut app.show_axes, "Axes");
+            crate::widgets::check(ui, &mut app.show_open_ends, "Loose ends of open contours");
             ui.separator();
-            ui.checkbox(&mut app.show_left, "Project panel");
-            ui.checkbox(&mut app.show_right, "Operations / G-code panel");
+            crate::widgets::check(ui, &mut app.show_left, "Project panel");
+            crate::widgets::check(ui, &mut app.show_right, "Operations / G-code panel");
         });
         ui.menu_button("Libraries", |ui| {
             ui.style_mut().wrap = Some(false);

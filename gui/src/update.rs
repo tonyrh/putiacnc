@@ -234,7 +234,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(8.0);
         ui.separator();
-        ui.checkbox(&mut auto, "Check for updates when PutiaCNC starts");
+        crate::widgets::check(ui, &mut auto, "Check for updates when PutiaCNC starts");
         ui.add_space(2.0);
         ui.add_space(6.0);
         ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {

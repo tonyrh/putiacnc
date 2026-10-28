@@ -524,7 +524,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let grid = |id: &'static str| egui::Grid::new(id).num_columns(2).spacing([10.0, 8.0]);
         let sum_spacing = format!("kerning {} · letters {} · words {}", if t.kerning { "on" } else { "off" }, crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct));
         section(ui, &mut t.sections, "spacing", "Spacing", &sum_spacing, |ui| {
-            ui.checkbox(&mut t.kerning, "Kerning").on_hover_text("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
+            crate::widgets::check(ui, &mut t.kerning, "Kerning").on_hover_text("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
             ui.add_space(4.0);
             grid("text_spacing").show(ui, |ui| {
                 crate::toolmgr::rlabel(ui, lw, "Letters");
@@ -556,7 +556,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 if t.flow == Flow::Straight {
                     crate::toolmgr::rlabel(ui, lw, "Width");
                     ui.horizontal(|ui| {
-                        ui.checkbox(&mut t.fit_on, "Fit to");
+                        crate::widgets::check(ui, &mut t.fit_on, "Fit to");
                         ui.add_enabled_ui(t.fit_on, |ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.fit_w, 1.0, 5000.0, 1.0, 1, ""); });
                         ui.weak("mm");
                     }).response.on_hover_text("Sets the height so the longest line is exactly this wide");

@@ -25,8 +25,8 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
     }));
     ui.add_space(8.0);
     ui.horizontal(|ui| {
-        if !aspect_fixed && ui.add_enabled(!locked, egui::Checkbox::new(&mut keep, "Keep proportions")).changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
-        if let Some(l) = lock.as_mut() { ui.checkbox(l, "Lock").on_hover_text("Stops this drawing being moved, resized, rotated or flipped by accident"); }
+        if !aspect_fixed && crate::widgets::check_if(ui, !locked, &mut keep, "Keep proportions").changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
+        if let Some(l) = lock.as_mut() { crate::widgets::check(ui, l, "Lock").on_hover_text("Stops this drawing being moved, resized, rotated or flipped by accident"); }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
             if ui.add_enabled(!locked, egui::Button::new("Fit to stock")).on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
@@ -72,7 +72,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                     ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
                     if ui.add_enabled(!lock_now, egui::Button::new("Edit text")).on_hover_text("Change the words, font, size or place (double-click the text does the same)").clicked() { *act = Some((Some(g.id), GroupAct::EditText)); }
                     if ui.add_enabled(!lock_now, egui::Button::new("To outlines")).on_hover_text("The letters become ordinary shapes you can edit point by point").clicked() { *act = Some((Some(g.id), GroupAct::ToOutlines)); }
-                    ui.checkbox(&mut lock_now, "Lock").on_hover_text("Stops this text being moved, resized, rotated or flipped by accident");
+                    crate::widgets::check(ui, &mut lock_now, "Lock").on_hover_text("Stops this text being moved, resized, rotated or flipped by accident");
                 });
                 if lock_now != g.locked {
                     if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
@@ -445,7 +445,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         let mut on = !p.r_off;
-                        if ui.checkbox(&mut on, egui::RichText::new("Roughing").strong()).on_hover_text("Removes the bulk with a flat end mill, leaving a little for the finishing step").changed() { p.r_off = !on; changed = true; }
+                        if crate::widgets::check(ui, &mut on, egui::RichText::new("Roughing").strong()).on_hover_text("Removes the bulk with a flat end mill, leaving a little for the finishing step").changed() { p.r_off = !on; changed = true; }
                         if on {
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = sp;
@@ -488,7 +488,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         let mut on = !p.f_off;
-                        if ui.checkbox(&mut on, egui::RichText::new("Finishing").strong()).on_hover_text("Follows the surface line by line, usually with a ball nose").changed() { p.f_off = !on; changed = true; }
+                        if crate::widgets::check(ui, &mut on, egui::RichText::new("Finishing").strong()).on_hover_text("Follows the surface line by line, usually with a ball nose").changed() { p.f_off = !on; changed = true; }
                         if on {
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = sp;
@@ -525,7 +525,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if has_ramp {
                             let rest = ui.available_width() - ramp_w;
                             if rest > 0.0 { ui.add_space(rest); }
-                            changed |= ui.add_enabled(p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), egui::Checkbox::new(&mut p.ramp, "Ramp in")).on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
+                            changed |= crate::widgets::check_if(ui, p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), &mut p.ramp, "Ramp in").on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
                         }
                     });
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
@@ -553,7 +553,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             // the plug can be cut from a piece of its own (a second G-code file, its own work zero)
                             ui.add_space(2.0);
                             let mut on = p.piece.is_some();
-                            if ui.horizontal(|ui| { ui.add_space(6.0); ui.checkbox(&mut on, "Cut from a separate piece").on_hover_text("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() }).inner {
+                            if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Cut from a separate piece").on_hover_text("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() }).inner {
                                 piece_act = Some((prev_id, id, if on { Some(putiacnc_core::model::PlugPiece { same: true, ..putiacnc_core::pieces::default_piece(&main_stock) }) } else { None }));
                             }
                             if let Some(pc) = p.piece.as_mut() {
@@ -566,7 +566,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
                                     let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
                                     let fw = ((ui.available_width() - la - lb - 2.0 * mm - 6.0 * sp) / 2.0).clamp(46.0, 110.0);
-                                    changed |= ui.checkbox(&mut pc.same, "Replaces the main stock").on_hover_text("The main stock is taken off the machine and this piece put in its place: same size and same work zero, so only Z may need setting again. Switch it off to give the piece its own size and zero.").changed();
+                                    changed |= crate::widgets::check(ui, &mut pc.same, "Replaces the main stock").on_hover_text("The main stock is taken off the machine and this piece put in its place: same size and same work zero, so only Z may need setting again. Switch it off to give the piece its own size and zero.").changed();
                                     ui.add_space(2.0);
                                     let same = pc.same;
                                     let mut col5_x = 0.0_f32;
@@ -657,7 +657,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 }
                 ui.add_space(2.0);
                 if ["outside", "inside", "online"].contains(&p.kind.as_str()) {
-                    changed |= ui.checkbox(&mut p.tabs, "Holding tabs").changed();
+                    changed |= crate::widgets::check(ui, &mut p.tabs, "Holding tabs").changed();
                     if p.tabs {
                       ui.indent(("tab_opts", id), |ui| {
                         let manual = p.tab_pts.is_some();
@@ -721,7 +721,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if ["outside", "inside"].contains(&p.kind.as_str()) {
                     ui.horizontal(|ui| {
                         let mut on = p.lead.is_some();
-                        if ui.checkbox(&mut on, "Lead-in / out").on_hover_text("Enters and leaves the cut along an arc on the waste side, so the tool does not plunge on the line or leave a mark where it stops").changed() {
+                        if crate::widgets::check(ui, &mut on, "Lead-in / out").on_hover_text("Enters and leaves the cut along an arc on the waste side, so the tool does not plunge on the line or leave a mark where it stops").changed() {
                             let dia = tools.iter().find(|t| t.id == p.tool).map(|t| t.dia).unwrap_or(3.0);
                             p.lead = if on { Some(dia.max(1.0)) } else { None };
                             changed = true;
@@ -734,7 +734,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                 }
-                changed |= ui.horizontal(|ui| { ui.add_space(6.0); ui.checkbox(&mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
+                changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
                 ui.add_space(4.0);
                 if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
                     // what the machine will really run (its limits applied), with a warning when that differs from the tool

@@ -174,11 +174,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
-            changed |= ui.checkbox(&mut t.opts.crop, "Crop to content").on_hover_text("Cut the picture down to the area that has something in it").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.crop, "Crop to content").on_hover_text("Cut the picture down to the area that has something in it").changed();
             ui.add_space(8.0);
-            changed |= ui.checkbox(&mut t.opts.invert, "Invert").on_hover_text("Trace the light areas instead of the dark ones").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.invert, "Invert").on_hover_text("Trace the light areas instead of the dark ones").changed();
             ui.add_space(8.0);
-            changed |= ui.checkbox(&mut t.opts.smooth, "Smooth curves").on_hover_text("Off keeps straight segments that follow the pixels").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.smooth, "Smooth curves").on_hover_text("Off keeps straight segments that follow the pixels").changed();
             // what the trace found, at the right end of the row
             let count = match &t.result { Some(Ok(i)) => i.loops.len(), _ => 0 };
             let (txt, tip) = if t.opts.mode == Mode::Outline { (format!("{count} outlines"), "Holes included") } else { (format!("{count} lines"), "Centre lines found") };

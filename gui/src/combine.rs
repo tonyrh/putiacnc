@@ -30,13 +30,13 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             // the choice of base belongs to Subtract, so it sits right under it (greyed out while another operation is chosen)
             if op == BoolOp::Subtract {
                 ui.indent("combine_sub", |ui| {
-                    ui.add_enabled(app.combine_op == BoolOp::Subtract, egui::Checkbox::new(&mut app.combine_swap, "Use the shape drawn last as the base"))
+                    crate::widgets::check_if(ui, app.combine_op == BoolOp::Subtract, &mut app.combine_swap, "Use the shape drawn last as the base")
                         .on_hover_text("By default the shape drawn first is the one that gets cut by the others");
                 });
             }
         }
         ui.add_space(6.0);
-        ui.checkbox(&mut app.combine_keep, "Keep the original shapes");
+        crate::widgets::check(ui, &mut app.combine_keep, "Keep the original shapes");
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "combine").map(|(_, m)| m);
         if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
         ui.add_space(8.0);
@@ -44,7 +44,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.add_enabled(n >= 2, egui::Button::new("Apply")).clicked() { apply = true; }
             if ui.button("Cancel").clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.checkbox(&mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
+                crate::widgets::check(ui, &mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
             });
         });
         });
