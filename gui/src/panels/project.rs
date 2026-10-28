@@ -711,6 +711,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 }
                                 ui.weak(format!("{} tab{}", tp.len(), if tp.len() == 1 { "" } else { "s" }));
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.add_space(6.0);
                                     if !tp.is_empty() && ui.button("Clear").on_hover_text("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
                                 });
                             });
@@ -745,23 +746,24 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     }
                     if let (Some(cf), Some(t0)) = (p.custom.as_mut(), tools.iter().find(|t| t.id == p.tool)) {
                         let accent = if ui.visuals().dark_mode { { let c = ui.visuals().hyperlink_color; let m = |a: u8| a + ((255 - a as u16) / 2) as u8; Color32::from_rgb(m(c.r()), m(c.g()), m(c.b())) } } else { ui.visuals().hyperlink_color };
-                        ui.add_space(2.0);
-                        egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
-                            let rows: [(&str, &str, &mut Option<f64>, f64); 3] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge)];
-                            for (name, unit, own, base) in rows {
-                                rlabel(ui, l1, name);
-                                let ov = own.is_some();
-                                let mut v = own.unwrap_or(base);
-                                ui.scope(|ui| {
-                                    if ov { ui.visuals_mut().override_text_color = Some(accent); }
-                                    if dv_w(ui, 62.0, &mut v, 1.0, 100000.0, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
-                                });
-                                ui.weak(unit);
-                                let hint = format!("tool: {}", base);
-                                if ov { ui.label(egui::RichText::new(hint).color(accent)); } else { ui.weak(hint); }
-                                if ov { if reset_button(ui, "Use the tool's value again") { *own = None; changed = true; } } else { ui.label(""); }
-                                ui.end_row();
-                            }
+                        ui.indent(("cfs_opts", id), |ui| {
+                          egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+                              let rows: [(&str, &str, &mut Option<f64>, f64); 3] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge)];
+                              for (name, unit, own, base) in rows {
+                                  rlabel(ui, l1, name);
+                                  let ov = own.is_some();
+                                  let mut v = own.unwrap_or(base);
+                                  ui.scope(|ui| {
+                                      if ov { ui.visuals_mut().override_text_color = Some(accent); }
+                                      if dv_w(ui, 62.0, &mut v, 1.0, 100000.0, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
+                                  });
+                                  ui.weak(unit);
+                                  let hint = format!("tool: {}", base);
+                                  if ov { ui.label(egui::RichText::new(hint).color(accent)); } else { ui.weak(hint); }
+                                  if ov { if reset_button(ui, "Use the tool's value again") { *own = None; changed = true; } } else { ui.label(""); }
+                                  ui.end_row();
+                              }
+                          });
                         });
                     }
                 }
