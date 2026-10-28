@@ -759,6 +759,17 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     Ok(())
 }
 
+/// `tool` with an operation's custom feeds and speeds, held to the machine's limits (with a note when they were held).
+fn custom_tool(cf: &CustomFeeds, tool: &Tool, machine: &Machine, notes: &mut Vec<String>, pre: &str, which: &str) -> Tool {
+    let asked = cf.apply(tool);
+    let what = machine.hold_text(&asked);
+    if !what.is_empty() {
+        let who = if which.is_empty() { String::new() } else { format!(" ({which})") };
+        notes.push(format!("{}⚠ Custom feeds and speeds{} held to the machine's limits: {}.", pre, who, what));
+    }
+    machine.hold(&asked)
+}
+
 pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let ku = units.factor();
     let un = units.name();
@@ -837,17 +848,11 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         if mine.is_empty() { notes.push(format!("Op {} has no shapes.", k + 1)); continue; }
         let tool = data.tools.iter().find(|t| t.id == o.p.tool)
             .ok_or_else(|| format!("Operation {}: choose a tool (Manage… to create one)", k + 1))?;
-        // this operation's own feeds and speeds, held to the machine's limits like the tool's (inlay operations use two tools and keep theirs)
+        // this operation's own feeds and speeds, held to the machine's limits like the tool's
         let tool_own;
         let tool = match &o.p.custom {
-            Some(cf) if !matches!(o.p.kind.as_str(), "inlay" | "plug") => {
-                let asked = cf.apply(tool);
-                tool_own = machine.hold(&asked);
-                let what = machine.hold_text(&asked);
-                if !what.is_empty() { notes.push(format!("{}⚠ Custom feeds and speeds held to the machine's limits: {}.", pre, what)); }
-                &tool_own
-            }
-            _ => tool,
+            Some(cf) => { tool_own = custom_tool(cf, tool, &machine, &mut notes, &pre, if matches!(o.p.kind.as_str(), "inlay" | "plug") { "V-bit" } else { "" }); &tool_own }
+            None => tool,
         };
         let (dia, so, pd, feed, plunge) = (tool.dia, tool.so, tool.pd, tool.feed, tool.plunge);
         let depth = o.p.depth;
@@ -883,6 +888,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 return Err(format!("Operation {}: choose the flat end mill that clears the pocket and cuts the plug out", k + 1));
             };
             if ToolGeo::new(ft).cone { return Err(format!("Operation {}: the clearing tool of an inlay must be a flat end mill", k + 1)); }
+            let ft_own;
+            let ft = match &o.p.custom2 { Some(cf) => { ft_own = custom_tool(cf, ft, &machine, &mut notes, &pre, "flat end mill"); &ft_own } None => ft };
             if !(ft.dia > 0.0 && ft.pd > 0.0 && ft.so > 0.0 && ft.feed > 0.0 && ft.plunge > 0.0) {
                 return Err(format!("Operation {}: check the clearing tool's values", k + 1));
             }

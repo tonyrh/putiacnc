@@ -35,6 +35,30 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
     if moved || sized { Some([x + zero.0, y + zero.1, w, h]) } else { None }
 }
 
+/// The Spindle / Feed / Plunge / Stepover rows of a custom feeds block. A value that differs from the tool's turns blue (a lighter blue in
+/// the dark theme) and shows the tool's value and a reset button; the others keep following the tool. Returns true when something changed.
+fn custom_rows(ui: &mut Ui, id: impl std::hash::Hash, cf: &mut putiacnc_core::model::CustomFeeds, t0: &putiacnc_core::model::Tool, l1: f32, sp: f32, accent: Color32) -> bool {
+    let mut changed = false;
+    egui::Grid::new(id).num_columns(5).spacing([sp, 6.0]).show(ui, |ui| {
+        let rows: [(&str, &str, &mut Option<f64>, f64); 4] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge), ("Stepover", "%", &mut cf.so, t0.so)];
+        for (name, unit, own, base) in rows {
+            rlabel(ui, l1, name);
+            let ov = own.is_some();
+            let mut v = own.unwrap_or(base);
+            ui.scope(|ui| {
+                if ov { ui.visuals_mut().override_text_color = Some(accent); }
+                if dv_w(ui, 62.0, &mut v, 1.0, if unit == "%" { 100.0 } else { 100000.0 }, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
+            });
+            ui.weak(unit);
+            let hint = format!("tool: {}", base);
+            if ov { ui.label(egui::RichText::new(hint).color(accent)); } else { ui.weak(hint); }
+            if ov { if reset_button(ui, "Use the tool's value again") { *own = None; changed = true; } } else { ui.label(""); }
+            ui.end_row();
+        }
+    });
+    changed
+}
+
 /// The small round-arrow button that puts a field back to its default: a real button with the usual padding.
 pub(super) fn reset_button(ui: &mut Ui, tip: &str) -> bool {
     ui.add_sized([26.0, ui.spacing().interact_size.y], egui::Button::new("↺")).on_hover_text(tip).clicked()
@@ -737,40 +761,36 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     });
                 }
                 changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
-                // this operation's own spindle speed and feeds (inlay operations use two tools and keep the tools' own)
-                if !matches!(p.kind.as_str(), "inlay" | "plug" | "relief") {
-                    let mut on = p.custom.is_some();
-                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Custom feeds and speeds").on_hover_text("Use other spindle speed and feeds than the tool's for this operation only. Values you leave alone keep following the tool.").changed() }).inner {
+                // this operation's own spindle speed, feeds and stepover: one block for the tool, and for an inlay one for each of its two tools
+                if p.kind != "relief" {
+                    let two = matches!(p.kind.as_str(), "inlay" | "plug");
+                    let mut on = p.custom.is_some() || p.custom2.is_some();
+                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Custom feeds and speeds").on_hover_text("Use other spindle speed, feeds and stepover than the tool's for this operation only. Values you leave alone keep following the tool.").changed() }).inner {
                         p.custom = if on { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
+                        p.custom2 = if on && two { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
                         changed = true;
                     }
-                    if let (Some(cf), Some(t0)) = (p.custom.as_mut(), tools.iter().find(|t| t.id == p.tool)) {
+                    if on {
                         let accent = if ui.visuals().dark_mode { { let c = ui.visuals().hyperlink_color; let m = |a: u8| a + ((255 - a as u16) / 2) as u8; Color32::from_rgb(m(c.r()), m(c.g()), m(c.b())) } } else { ui.visuals().hyperlink_color };
+                        let t1 = tools.iter().find(|t| t.id == p.tool).cloned();
+                        let t2 = p.tool2.as_ref().and_then(|tid| tools.iter().find(|t| &t.id == tid)).cloned();
                         ui.indent(("cfs_opts", id), |ui| {
-                          egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 6.0]).show(ui, |ui| {
-                              let rows: [(&str, &str, &mut Option<f64>, f64); 4] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge), ("Stepover", "%", &mut cf.so, t0.so)];
-                              for (name, unit, own, base) in rows {
-                                  rlabel(ui, l1, name);
-                                  let ov = own.is_some();
-                                  let mut v = own.unwrap_or(base);
-                                  ui.scope(|ui| {
-                                      if ov { ui.visuals_mut().override_text_color = Some(accent); }
-                                      if dv_w(ui, 62.0, &mut v, 1.0, if unit == "%" { 100.0 } else { 100000.0 }, "") { *own = if (v - base).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
-                                  });
-                                  ui.weak(unit);
-                                  let hint = format!("tool: {}", base);
-                                  if ov { ui.label(egui::RichText::new(hint).color(accent)); } else { ui.weak(hint); }
-                                  if ov { if reset_button(ui, "Use the tool's value again") { *own = None; changed = true; } } else { ui.label(""); }
-                                  ui.end_row();
-                              }
-                          });
+                            if let (Some(cf), Some(t0)) = (p.custom.as_mut(), t1.as_ref()) {
+                                if two { ui.label(egui::RichText::new(format!("V-bit: {}", clean(&t0.name))).weak()); }
+                                changed |= custom_rows(ui, ("cfs", id), cf, t0, l1, sp, accent);
+                            }
+                            if let (Some(cf), Some(t0)) = (p.custom2.as_mut(), t2.as_ref()) {
+                                ui.add_space(4.0);
+                                ui.label(egui::RichText::new(format!("Flat end mill: {}", clean(&t0.name))).weak());
+                                changed |= custom_rows(ui, ("cfs2", id), cf, t0, l1, sp, accent);
+                            }
                         });
                     }
                 }
                 ui.add_space(4.0);
                 if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
                     // what the machine will really run (its limits applied, after this operation's own values), with a warning when that differs
-                    let asked = match &p.custom { Some(cf) if !matches!(p.kind.as_str(), "inlay" | "plug" | "relief") => cf.apply(t0), _ => t0.clone() };
+                    let asked = match &p.custom { Some(cf) if p.kind != "relief" => cf.apply(t0), _ => t0.clone() };
                     let (t, warn) = match &machine_now { Some(m) => (m.hold(&asked), m.hold_text(&asked)), None => (asked.clone(), String::new()) };
                     let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
                     ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} mm/min · step {}% · {:.2} mm/pass",

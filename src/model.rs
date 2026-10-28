@@ -267,6 +267,8 @@ pub struct OpParams {
     #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
     /// Custom feeds and speeds for this operation; `None` = the tool's own. Only the values that are set differ from the tool.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub custom: Option<CustomFeeds>,
+    /// The same for the second tool (the flat end mill of an inlay); `None` = the tool's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub custom2: Option<CustomFeeds>,
 }
 
 /// Spindle speed (rpm), cutting feed, plunge feed (mm/min) and stepover (% of the diameter) of one operation that differ from its tool's.

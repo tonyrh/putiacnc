@@ -57,7 +57,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 Things that make a real job easier
 - [ ] Setup sheet: a printable page or PDF with the stock, work zero, tools in order and estimated time (both files and both zeros for the two-piece inlay).
 - [ ] Feeds and speeds by material: chip-load rules from tool and material (ties in with the CMT tool data). The per-operation custom feeds and speeds are in; this would fill them in.
-- [ ] Custom feeds and speeds for the two tools of inlay operations.
+- [ ] Custom feeds and speeds for 3D relief (one block each for the roughing and the finishing tool).
 - [ ] Surfacing / spoilboard flattening wizard.
 - [ ] Double-sided work: flip the piece with registration holes or dowels.
 

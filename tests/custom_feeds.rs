@@ -78,3 +78,45 @@ fn custom_stepover_changes_the_pocket() {
     let b = generate(&p.data, Units::Metric).unwrap();
     assert!(b.lines.len() > a.lines.len(), "a smaller stepover means more passes: {} vs {}", b.lines.len(), a.lines.len());
 }
+
+/// A pocket with its plug: operation 0 is the inlay pocket, 1 the plug; each cuts with a V-bit and a flat end mill.
+fn inlay() -> putiacnc_core::model::ProjectData {
+    use putiacnc_core::shapes::{add_operation, blank_project, new_rect};
+    let mut f = blank_project();
+    let d = &mut f.data;
+    d.loops.push(new_rect([30.0, 40.0], [50.0, 50.0], 0.0, 0));
+    let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
+    assert!(add_operation(d, &sel, "inlay").is_none());
+    f.data
+}
+
+#[test]
+fn inlay_tools_have_their_own_custom_values() {
+    let mut d = inlay();
+    let base = generate(&d, Units::Metric).unwrap().lines;
+    // flat end mill of the pocket: only its lines change
+    d.ops[0].p.custom2 = Some(CustomFeeds { feed: Some(111.0), ..Default::default() });
+    let flat = generate(&d, Units::Metric).unwrap().lines;
+    assert!(flat.iter().any(|l| l.starts_with("G1") && l.contains("F111")), "the flat mill's feed");
+    assert_eq!(flat.len(), base.len());
+    // the V-bit of the pocket: a different value, and the flat mill keeps F111
+    d.ops[0].p.custom = Some(CustomFeeds { feed: Some(222.0), ..Default::default() });
+    let both = generate(&d, Units::Metric).unwrap().lines;
+    assert!(both.iter().any(|l| l.starts_with("G1") && l.contains("F222")), "the V-bit's feed");
+    assert!(both.iter().any(|l| l.starts_with("G1") && l.contains("F111")), "the flat mill's feed is still there");
+    // without the flat mill's block, the V-bit's value alone leaves the flat mill's lines as they were
+    d.ops[0].p.custom2 = None;
+    let v_only = generate(&d, Units::Metric).unwrap().lines;
+    assert!(!v_only.iter().any(|l| l.contains("F111")));
+}
+
+#[test]
+fn inlay_limits_name_the_tool() {
+    let mut d = inlay();
+    let mut m = d.machine.clone().unwrap_or_default();
+    m.feed_max = Some(500.0);
+    d.machine = Some(m);
+    d.ops[0].p.custom2 = Some(CustomFeeds { feed: Some(5000.0), ..Default::default() });
+    let notes = generate(&d, Units::Metric).unwrap().notes;
+    assert!(notes.iter().any(|n| n.contains("(flat end mill)") && n.contains("held")), "{notes:?}");
+}
