@@ -573,20 +573,29 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     ui.label("X"); moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
                                     ui.label("Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm");
                                 }).response.on_hover_text("Where the piece sits in the drawing, from the main stock's lower-left corner");
-                                ui.horizontal(|ui| {
+                                // the XY picker with the Z zero beside it, as in the Stock section
+                                ui.horizontal_top(|ui| {
                                     ui.spacing_mut().item_spacing.x = sp;
                                     rlabel(ui, lp, "XY zero");
                                     changed |= xy_picker(ui, &mut pc.zr);
-                                });
-                                ui.horizontal(|ui| {
-                                    ui.spacing_mut().item_spacing.x = sp;
-                                    rlabel(ui, lp, "Z zero");
-                                    let zm_w = crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
-                                    let (c, _) = combo_w2(ui, zm_w, &format!("plug_zm{id}"), &mut pc.zm, ZMODES, "", "Where Z0 is measured from on this piece");
-                                    changed |= c;
-                                    if pc.zm != "top" {
-                                        changed |= dv_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm");
-                                    }
+                                    ui.add_space(sp * 2.0);
+                                    ui.vertical(|ui| {
+                                        ui.spacing_mut().item_spacing.y = 6.0;
+                                        ui.horizontal(|ui| {
+                                            ui.spacing_mut().item_spacing.x = sp;
+                                            ui.label("Z zero");
+                                            let zm_w = crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                                            let (c, _) = combo_w2(ui, zm_w, &format!("plug_zm{id}"), &mut pc.zm, ZMODES, "", "Where Z0 is measured from on this piece");
+                                            changed |= c;
+                                        });
+                                        if pc.zm != "top" {
+                                            ui.horizontal(|ui| {
+                                                ui.spacing_mut().item_spacing.x = sp;
+                                                ui.label("Z0");
+                                                changed |= dv_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm");
+                                            });
+                                        }
+                                    });
                                 });
                                 ui.horizontal(|ui| {
                                     ui.spacing_mut().item_spacing.x = sp;
