@@ -553,7 +553,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             // the plug can be cut from a piece of its own (a second G-code file, its own work zero)
                             ui.add_space(2.0);
                             let mut on = p.piece.is_some();
-                            if ui.checkbox(&mut on, "Cut from a separate piece").on_hover_text("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() {
+                            if ui.horizontal(|ui| { ui.add_space(6.0); ui.checkbox(&mut on, "Cut from a separate piece").on_hover_text("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() }).inner {
                                 piece_act = Some((prev_id, id, if on { Some(putiacnc_core::pieces::default_piece(&main_stock)) } else { None }));
                             }
                             if let Some(pc) = p.piece.as_mut() {
@@ -724,7 +724,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                 }
-                changed |= ui.checkbox(&mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed();
+                changed |= ui.horizontal(|ui| { ui.add_space(6.0); ui.checkbox(&mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
                 ui.add_space(4.0);
                 if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
                     // what the machine will really run (its limits applied), with a warning when that differs from the tool
