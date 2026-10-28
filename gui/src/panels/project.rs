@@ -546,7 +546,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, l1, "Gap");
                                 let mut g = p.fit.unwrap_or(0.05);
-                                if dv_w(ui, 42.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
+                                if dv_w(ui, 54.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
                                 ui.weak("mm").on_hover_text("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
                                 ui.weak("smaller than the pocket, for glue");
                             });
