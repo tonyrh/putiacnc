@@ -452,7 +452,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 rlabel(ui, lw, "Name");
                 changed |= ui.add(egui::TextEdit::singleline(&mut t.name).desired_width(aw - lw - sp).char_limit(60)).changed(); ui.end_row();
             });
-            ui.add_space(8.0);
+            ui.add_space(2.0);
             // two columns of label + field pairs
             egui::Grid::new("tool_form").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
                 // shape block: picture in the right-hand columns of the first row, painted over the rows below

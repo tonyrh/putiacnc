@@ -260,7 +260,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         rlabel(ui, lw, "Name");
         changed |= ui.add(egui::TextEdit::singleline(&mut m.name).desired_width(aw - lw - sp + 8.0).char_limit(60)).changed(); ui.end_row();
     });
-    ui.add_space(8.0);
+    ui.add_space(2.0);
     egui::Grid::new("mach_perf").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, format!("Rapid rate ({sname})"));
         let mut r = m.rapid / sfac;
@@ -271,7 +271,7 @@ fn form(ui: &mut Ui, app: &mut App) {
             .on_hover_text("Multiplies the estimated time to account for acceleration and corners").changed();
         ui.end_row();
     });
-    ui.add_space(8.0);
+    ui.add_space(2.0);
     egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, "G-code output for");
         let cur = if m.post.as_deref() == Some("mach") { "Mach3 / LinuxCNC" } else { "GRBL" };
@@ -294,7 +294,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
         ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
-        let mut c = ui.child_ui(egui::Rect::from_min_max(egui::pos2(cell.right() - 285.0, cell.top()), egui::pos2(cell.right() + 14.0, cell.bottom())), Layout::right_to_left(Align::Center));
+        let mut c = ui.child_ui(egui::Rect::from_min_max(egui::pos2(cell.right() - 285.0, cell.top()), egui::pos2(cell.right(), cell.bottom())), Layout::right_to_left(Align::Center));
         let mut nb = m.numbered.unwrap_or(false);
         if crate::widgets::check(&mut c, &mut nb, "").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
         c.add(egui::Label::new("Line numbers (N10, N20…)").wrap(false));
