@@ -1,0 +1,39 @@
+//! "Ramp in" for pockets: opt-in per project, the pocket reaches the same depth, and old projects are unchanged.
+use putiacnc_core::{generate, load_project, Units};
+
+fn pocket() -> putiacnc_core::model::ProjectFile {
+    let p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/pocket_island.project.json");
+    load_project(&std::fs::read_to_string(p).unwrap()).unwrap()
+}
+
+fn lines(p: &putiacnc_core::model::ProjectFile) -> Vec<String> { generate(&p.data, Units::Metric).unwrap().lines }
+
+fn min_z(l: &[String]) -> f64 {
+    l.iter().filter_map(|x| x.split(' ').find(|t| t.starts_with('Z')).and_then(|t| t[1..].parse::<f64>().ok())).fold(f64::MAX, f64::min)
+}
+
+#[test]
+fn old_projects_do_not_ramp_pockets() {
+    let mut p = pocket();
+    assert!(!p.data.job.ramp_pockets, "the setting is off unless the project has it");
+    let k = p.data.ops.iter().position(|o| o.p.kind == "pocket").unwrap();
+    p.data.ops[k].p.ramp = true;
+    let a = lines(&p);
+    p.data.ops[k].p.ramp = false;
+    assert_eq!(a, lines(&p), "with the setting off, Ramp in does nothing for a pocket, as before");
+}
+
+#[test]
+fn a_ramped_pocket_reaches_the_same_depth_with_fewer_straight_plunges() {
+    let mut p = pocket();
+    let k = p.data.ops.iter().position(|o| o.p.kind == "pocket").unwrap();
+    p.data.ops[k].p.ramp = true;
+    let off = lines(&p);
+    p.data.job.ramp_pockets = true;
+    let on = lines(&p);
+    assert_ne!(off, on);
+    assert!((min_z(&off) - min_z(&on)).abs() < 1e-6, "same depth: {} vs {}", min_z(&off), min_z(&on));
+    // Ramp in unticked: the setting alone changes nothing
+    p.data.ops[k].p.ramp = false;
+    assert_eq!(off, lines(&p));
+}

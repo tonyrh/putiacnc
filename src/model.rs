@@ -130,6 +130,9 @@ pub struct Job {
     /// Cut the shapes of an operation in an order that keeps the tool's travel short (nearest next, with parts that are inside others first).
     /// Off in projects saved before the setting existed, so their G-code does not change.
     #[serde(default, skip_serializing_if = "is_false")] pub order_opt: bool,
+    /// Pocket operations with "Ramp in" ticked ease the tool down along each ring instead of plunging straight down.
+    /// Off in projects saved before the setting existed, so their G-code does not change.
+    #[serde(default, skip_serializing_if = "is_false")] pub ramp_pockets: bool,
 }
 
 impl Job {

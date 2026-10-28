@@ -289,6 +289,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let mut job_tools: Vec<String> = Vec::new();
         for o in &d.ops { for t in std::iter::once(&o.p.tool).chain(o.p.tool2.iter()) { if !t.is_empty() && !job_tools.contains(t) { job_tools.push(t.clone()); } } }
         let machine_now = d.machine.clone();
+        let ramp_pockets = d.job.ramp_pockets;
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
         let mut act_use: Option<i64> = None;
@@ -550,7 +551,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if has_ramp {
                             let rest = ui.available_width() - ramp_w;
                             if rest > 0.0 { ui.add_space(rest); }
-                            changed |= crate::widgets::check_if(ui, p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), &mut p.ramp, "Ramp in").on_hover_text("Eases the tool down along the first pass (not needed with a lead-in arc)").changed();
+                            changed |= crate::widgets::check_if(ui, (p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str())) && (p.kind != "pocket" || ramp_pockets), &mut p.ramp, "Ramp in")
+                                .on_hover_text(if p.kind == "pocket" && !ramp_pockets { "Ramping into pockets is switched off for this project: tick \"Ramp into pockets\" in the G-code tab" } else if p.kind == "pocket" { "Eases the tool down along each ring of the pocket instead of plunging straight down" } else { "Eases the tool down along the first pass (not needed with a lead-in arc)" }).changed();
                         }
                     });
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {

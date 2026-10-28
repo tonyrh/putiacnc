@@ -524,9 +524,11 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     e.go("G0", None, None, Some(c.sz), 0.0);
     e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
     e.pn = 0;
-    let mut pz = 0.0;
+    // a pocket ring is cut one depth at a time: it ramps down from the depth before, through the air of the pass above it
+    let mut pz = if job.pocket && c.ramp { zl.first().and_then(|z| c.zs.iter().position(|q| q == z)).and_then(|i| i.checked_sub(1)).map(|i| c.zs[i]).unwrap_or(0.0) } else { 0.0 };
     e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
     e.go("G1", None, None, Some(c.z0), c.plunge);
+    if pz < 0.0 { e.go("G1", None, None, Some(c.z0 + pz), c.plunge); }
     for &z in zl {
         e.pn = c.zs.iter().position(|&q| q == z).map(|i| i + 1).unwrap_or(0);
         let tiv = if c.tabs_on && job.closed && z < c.ztab - 1e-9 { tab_iv(e, c, job, &pts) } else { None };
@@ -538,14 +540,15 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
         }
         if let Some(iv) = tiv {
             tab_pass(e, c, &pts, z, &iv);
-        } else if c.ramp && lead.is_none() && job.closed && !job.pocket && pts.len() > 2 {
+        } else if c.ramp && lead.is_none() && job.closed && (!job.pocket || c.kind == "pocket") && pts.len() > 2 {
             let mut lc = vec![0.0];
             let mut t = 0.0;
             for i in 1..pts.len() { t += (pts[i][0] - pts[i - 1][0]).hypot(pts[i][1] - pts[i - 1][1]); lc.push(t); }
             for (i, q) in pts.iter().enumerate() { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + pz + (z - pz) * lc[i] / t), c.feed); }
             // the sloped lap leaves a sloped floor, but the next lap ramps down from there and cuts deeper everywhere, so
             // only the last depth needs a flat lap to level the floor: 3 depth passes are 3 ramps and one flat lap, not 6 laps
-            if zl.last() == Some(&z) {
+            // a pocket ring is cut one depth at a time, so its last depth is the last of the operation
+            if (if job.pocket { c.zs.last() } else { zl.last() }) == Some(&z) {
                 e.lap = true;
                 for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
                 e.lap = false;
@@ -876,7 +879,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let tab_h = o.p.tab_h.unwrap_or(2.0);
         let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside" || kind == "online"); // open paths on a line are cut without tabs
         let tabs_on = tabs_req && tab_h > 0.0 && tab_h < depth - 1e-6;
-        let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, z0, sz, zs: zs.clone(),
+        let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp && (kind != "pocket" || data.job.ramp_pockets), rev: false, z0, sz, zs: zs.clone(),
             tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
             lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 } };
 
@@ -908,7 +911,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let conv = o.p.dir == "conv";
             let mkzs = |d: f64| -> Vec<f64> { let n = ((d / fpd) - 1e-9).ceil().max(1.0) as usize; (0..n).map(|i| -(d / n as f64) * (i as f64 + 1.0)).collect() };
             let fctx = |kind: &'static str, zs: Vec<f64>, rev: bool| OpCtx {
-                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, z0, sz, zs,
+                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp && kind == "outside", rev, z0, sz, zs,
                 tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0,
             };
             let ring_rev = !conv;
