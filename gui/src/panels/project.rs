@@ -537,7 +537,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     // Tool row: the selector takes all the room left of the right-aligned "Ramp in"
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
-                        let has_ramp = p.kind != "vcarve" && p.kind != "drill" && p.kind != "relief";
+                        // an inlay ramps with its flat end mill, so the checkbox of the plug is on the Flat row, and the pocket has none
+                        let has_ramp = !matches!(p.kind.as_str(), "vcarve" | "drill" | "relief" | "inlay" | "plug");
                         // the room for "Ramp in" is kept even when it is not shown, so the selector is the same width in every operation
                         let ramp_w = tw_of(ui, "Ramp in") + 30.0;
                         let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
@@ -556,13 +557,20 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
-                            let tool_w = (ui.available_width() - l1 - sp - 8.0).max(100.0);
+                            // the same width as the Tool selector above, so the two dropdowns line up (the room for "Ramp in" is kept in both)
+                            let ramp_w = tw_of(ui, "Ramp in") + 30.0;
+                            let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
                             rlabel(ui, l1, if p.kind == "relief" { "Rough" } else { "Flat" });
                             let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                             let cur = elide(ui, &cur, tool_w - 30.0);
                             let (r2, pk2) = crate::toolpick::picker(ui, ("optool2", id), tool_w, cur, p.tool2.as_deref(), &job_tools, &tools, |t| t.shape == "flat");
                             match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.tool2 = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
                             r2.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
+                            if p.kind == "plug" {
+                                let rest = ui.available_width() - ramp_w;
+                                if rest > 0.0 { ui.add_space(rest); }
+                                changed |= crate::widgets::check(ui, &mut p.ramp, "Ramp in").on_hover_text("Eases the flat end mill down along the cut-out of the plug instead of plunging").changed();
+                            }
                         });
                         if p.kind == "plug" {
                             ui.add_space(4.0);
