@@ -53,6 +53,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 - [ ] macOS notarization.
 - [ ] Arrow-key navigation in the tool picker.
 - [ ] Haiku port (idea, low priority): Rust has a Tier 3 `x86_64-unknown-haiku` target, but eframe/winit has no Haiku backend as far as I know, so the GUI would need an SDL-style windowing layer, and file dialogs and clipboard would need Haiku replacements. The core crate and `putia-gcode` might build as they are; untested.
+- [ ] Raspberry Pi / ARM64 Linux (Pi 4 and 5, 64-bit OS): the core crate and `putia-gcode` should build as they are; the GUI needs OpenGL 3.3 or ES 3 (Mesa on the Pi 4/5) and may be slow with big toolpaths or the 3D preview. Untested (the sandbox could not download the aarch64 target). Options: try `cargo build --release` on a real Pi, and/or add a CI job that cross-builds `aarch64-unknown-linux-gnu` and publishes a release binary. Pi 3 and 32-bit armv7 are borderline.
 
 ## Long term ideas
 Things that make a real job easier
