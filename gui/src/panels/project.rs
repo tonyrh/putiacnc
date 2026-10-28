@@ -657,7 +657,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 }
                 ui.add_space(2.0);
                 if ["outside", "inside", "online"].contains(&p.kind.as_str()) {
-                    changed |= crate::widgets::check(ui, &mut p.tabs, "Holding tabs").changed();
+                    changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.tabs, "Holding tabs").changed() }).inner;
                     if p.tabs {
                       ui.indent(("tab_opts", id), |ui| {
                         let manual = p.tab_pts.is_some();
@@ -721,6 +721,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if ["outside", "inside"].contains(&p.kind.as_str()) {
                     ui.horizontal(|ui| {
                         let mut on = p.lead.is_some();
+                        ui.add_space(6.0);
                         if crate::widgets::check(ui, &mut on, "Lead-in / out").on_hover_text("Enters and leaves the cut along an arc on the waste side, so the tool does not plunge on the line or leave a mark where it stops").changed() {
                             let dia = tools.iter().find(|t| t.id == p.tool).map(|t| t.dia).unwrap_or(3.0);
                             p.lead = if on { Some(dia.max(1.0)) } else { None };
