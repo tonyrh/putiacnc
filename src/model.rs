@@ -276,9 +276,18 @@ pub struct PlugPiece {
     /// Z zero: "top" or "h" (height above the piece's bottom, see `zh`).
     #[serde(default = "d_top")] pub zm: String,
     #[serde(default)] pub zh: f64,
+    /// The piece takes the main stock's place on the machine (the main stock is swapped for it): it has the main stock's
+    /// size and work zero, so the machine needs no new XY zero. Only its thickness and material are its own.
+    #[serde(default, skip_serializing_if = "is_false")] pub same: bool,
 }
 
 impl PlugPiece {
+    /// The piece as it is cut: a piece that replaces the main stock has its size and zero.
+    pub fn effective(&self, main: &Stock) -> PlugPiece {
+        if !self.same { return self.clone(); }
+        PlugPiece { w: main.w, h: main.h, zr: main.zr.clone(), zm: main.zm.clone(), zh: main.zh, ..self.clone() }
+    }
+
     /// The piece as a stock of its own, with its lower-left corner at (0, 0).
     pub fn stock(&self) -> Stock { Stock { w: self.w, h: self.h, t: self.t, mat: self.mat.clone(), zr: self.zr.clone(), zm: self.zm.clone(), zh: self.zh } }
 }

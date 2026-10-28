@@ -36,10 +36,13 @@ pub fn split(data: &ProjectData) -> (ProjectData, Vec<PieceJob>) {
     let mut pieces = Vec::new();
     for (k, o) in data.ops.iter().enumerate() {
         let Some(pc) = (if is_piece_op(o) { o.p.piece.as_ref() } else { None }) else { continue };
+        let same = pc.same;
+        let pc = &pc.effective(&data.stock);
         let mut d = data.clone();
         d.stock = pc.stock();
         d.loops = data.loops.iter().filter(|l| l.op == o.id).cloned().map(|mut l| { crate::shapes::translate(&mut l, -pc.x, -pc.y); l }).collect::<Vec<LoopData>>();
-        d.clamps.clear();
+        // a piece that takes the main stock's place sits among the same clamps; one beside it does not
+        if !same { d.clamps.clear(); }
         d.relief = None;
         d.groups.clear();
         d.hidden_ops.clear();
@@ -47,6 +50,13 @@ pub fn split(data: &ProjectData) -> (ProjectData, Vec<PieceJob>) {
         pieces.push(PieceJob { op_id: o.id, op_index: k, data: d });
     }
     (main, pieces)
+}
+
+impl PieceJob {
+    /// True when this piece takes the main stock's place on the machine.
+    pub fn op_index_piece_same(&self, data: &ProjectData) -> bool {
+        data.ops.get(self.op_index).and_then(|o| o.p.piece.as_ref()).is_some_and(|p| p.same)
+    }
 }
 
 /// What the generator made for one part of the job.
@@ -70,7 +80,11 @@ pub fn generate_parts(data: &ProjectData, units: Units) -> Result<Vec<PartOutput
         // in a piece's job every other operation has no shapes: not worth a note
         out.notes.retain(|n| !(n.starts_with("Op ") && n.ends_with(" has no shapes.") && *n != format!("Op {} has no shapes.", pj.op_index + 1)));
         // the header says what this file is: the plug's piece, not "the stock"
-        if let Some(l) = out.lines.iter_mut().find(|l| l.contains("(Stock ")) { *l = l.replacen("(Stock ", "(Plug piece ", 1).replacen("of stock", "of the piece", 1); }
+        let replaces = pj.op_index_piece_same(data);
+        if let Some(l) = out.lines.iter_mut().find(|l| l.contains("(Stock ")) {
+            *l = l.replacen("(Stock ", "(Plug piece ", 1).replacen("of stock", "of the piece", 1);
+            if replaces { if let Some(i) = l.find(';') { l.insert_str(i, " [replaces the main stock, same work zero]"); } }
+        }
         parts.push(PartOutput { piece: Some(pj), out });
     }
     Ok(parts)
@@ -87,7 +101,7 @@ pub fn file_suffix(parts: &[PartOutput], i: usize) -> String {
 
 /// A new piece the size of the main stock, beside it with a gap of 10 mm (the drawing position the plug is placed at).
 pub fn default_piece(main: &crate::model::Stock) -> PlugPiece {
-    PlugPiece { x: main.w + 10.0, y: 0.0, w: main.w, h: main.h, t: main.t, mat: main.mat.clone(), zr: main.zr.clone(), zm: main.zm.clone(), zh: main.zh }
+    PlugPiece { x: main.w + 10.0, y: 0.0, w: main.w, h: main.h, t: main.t, mat: main.mat.clone(), zr: main.zr.clone(), zm: main.zm.clone(), zh: main.zh, same: false }
 }
 
 #[cfg(test)]
@@ -140,6 +154,35 @@ mod tests {
         assert_eq!(file_suffix(&parts, 1), "-plug");
         // no note about operations that belong to the other file
         assert!(!main.notes.iter().chain(plug.notes.iter()).any(|n| n.ends_with("has no shapes.")), "{:?} {:?}", main.notes, plug.notes);
+    }
+
+    #[test]
+    fn a_piece_that_replaces_the_main_stock_has_its_size_zero_and_clamps() {
+        let mut d = inlay_with_piece();
+        d.stock.zr = "ur".into();
+        d.clamps.push(crate::model::Clamp { x: 0.0, y: 0.0, w: 10.0, h: 10.0, height: 20.0 });
+        // a piece of its own keeps its size and zero, and has no clamps
+        let (_, jobs) = split(&d);
+        assert!(jobs[0].data.clamps.is_empty());
+        {
+            let pc = d.ops[1].p.piece.as_mut().unwrap();
+            pc.w = 50.0; pc.h = 40.0; pc.zr = "c".into(); pc.same = true;
+        }
+        let (_, jobs) = split(&d);
+        let st = &jobs[0].data.stock;
+        assert_eq!((st.w, st.h, st.t), (200.0, 150.0, 8.0), "main size, own thickness");
+        assert_eq!(st.zr, "ur", "the main stock's zero");
+        assert_eq!(jobs[0].data.clamps.len(), 1, "it sits among the same clamps");
+        let parts = generate_parts(&d, Units::Metric).unwrap();
+        assert!(parts[1].out.lines.iter().any(|l| l.contains("Plug piece 200 x 150 x 8") && l.contains("replaces the main stock")), "{:?}", &parts[1].out.lines[..3]);
+        // saved and loaded: the flag stays; projects without it load as before
+        let mut p = blank_project();
+        p.data = d.clone();
+        let back = crate::load_project(&crate::save_project(&p).unwrap()).unwrap();
+        assert!(back.data.ops[1].p.piece.as_ref().unwrap().same);
+        let mut q = blank_project();
+        q.data = inlay_with_piece();
+        assert!(!crate::save_project(&q).unwrap().contains("\"same\""));
     }
 
     #[test]

@@ -554,7 +554,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.add_space(2.0);
                             let mut on = p.piece.is_some();
                             if ui.horizontal(|ui| { ui.add_space(6.0); ui.checkbox(&mut on, "Cut from a separate piece").on_hover_text("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() }).inner {
-                                piece_act = Some((prev_id, id, if on { Some(putiacnc_core::pieces::default_piece(&main_stock)) } else { None }));
+                                piece_act = Some((prev_id, id, if on { Some(putiacnc_core::model::PlugPiece { same: true, ..putiacnc_core::pieces::default_piece(&main_stock) }) } else { None }));
                             }
                             if let Some(pc) = p.piece.as_mut() {
                                 let mut moved = false;
@@ -566,15 +566,21 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
                                     let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
                                     let fw = ((ui.available_width() - la - lb - 2.0 * mm - 6.0 * sp) / 2.0).clamp(46.0, 110.0);
+                                    changed |= ui.checkbox(&mut pc.same, "Replaces the main stock").on_hover_text("The main stock is taken off the machine and this piece put in its place: same size and same work zero, so only Z may need setting again. Switch it off to give the piece its own size and zero.").changed();
+                                    ui.add_space(2.0);
+                                    let same = pc.same;
                                     let mut col5_x = 0.0_f32;
                                     egui::Grid::new(("plug_piece", id)).num_columns(6).spacing([sp, 6.0]).show(ui, |ui| {
-                                        rlabel(ui, la, "Width"); changed |= dv_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak("mm");
-                                        rlabel(ui, lb, "Height"); let r = ui.scope(|ui| dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, "")); col5_x = r.response.rect.min.x; changed |= r.inner; ui.weak("mm"); ui.end_row();
+                                        if !same {
+                                            rlabel(ui, la, "Width"); changed |= dv_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak("mm");
+                                            rlabel(ui, lb, "Height"); let r = ui.scope(|ui| dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, "")); col5_x = r.response.rect.min.x; changed |= r.inner; ui.weak("mm"); ui.end_row();
+                                        }
                                         rlabel(ui, la, "Thickness"); changed |= dv_w(ui, fw, &mut pc.t, 0.1, 1000.0, ""); ui.weak("mm"); ui.end_row();
                                         rlabel(ui, la, "Position X");
                                         moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
                                         rlabel(ui, lb, "Position Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
                                     });
+                                    if !same {
                                     ui.add_space(4.0);
                                     // the XY picker with the Z zero beside it, as in the Stock section; the Z labels end where the right-hand labels above end,
                                     // and the Z fields start where the right-hand fields above start
@@ -595,6 +601,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                             if pc.zm != "top" { ui.horizontal(|ui| { changed |= dv_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm"); }); }
                                         });
                                     });
+                                    }
                                     ui.add_space(4.0);
                                     ui.horizontal(|ui| {
                                         rlabel(ui, la, "Material");
