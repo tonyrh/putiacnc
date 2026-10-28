@@ -560,8 +560,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 let mut moved = false;
                                 ui.add_space(2.0);
                                 egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(8.0)).show(ui, |ui| {
-                                    // the frame's margins and outline come on top of the width set here
-                                    ui.set_width(ui.available_width() - 20.0);
+                                    // the frame adds 12 px (its margins and outline) to the width set here
+                                    ui.set_width(ui.available_width() - 12.0);
                                     ui.spacing_mut().item_spacing.x = sp;
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
                                     let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
