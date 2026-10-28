@@ -529,7 +529,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
-                        ui.add_space(2.0);
+                        ui.add_space(4.0);
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
                             let tool_w = (ui.available_width() - l1 - sp - 8.0).max(100.0);
@@ -541,7 +541,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             r2.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
                         });
                         if p.kind == "plug" {
-                            ui.add_space(2.0);
+                            ui.add_space(4.0);
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, l1, "Gap");
@@ -747,7 +747,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     if let (Some(cf), Some(t0)) = (p.custom.as_mut(), tools.iter().find(|t| t.id == p.tool)) {
                         let accent = if ui.visuals().dark_mode { { let c = ui.visuals().hyperlink_color; let m = |a: u8| a + ((255 - a as u16) / 2) as u8; Color32::from_rgb(m(c.r()), m(c.g()), m(c.b())) } } else { ui.visuals().hyperlink_color };
                         ui.indent(("cfs_opts", id), |ui| {
-                          egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+                          egui::Grid::new(("cfs", id)).num_columns(5).spacing([sp, 6.0]).show(ui, |ui| {
                               let rows: [(&str, &str, &mut Option<f64>, f64); 3] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm), ("Feed", "mm/min", &mut cf.feed, t0.feed), ("Plunge", "mm/min", &mut cf.plunge, t0.plunge)];
                               for (name, unit, own, base) in rows {
                                   rlabel(ui, l1, name);
