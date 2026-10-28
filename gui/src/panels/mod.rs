@@ -278,13 +278,14 @@ pub fn clamp_bar(ui: &mut Ui, app: &mut App) {
     // the first finding about a clamp, once the checks have listed them
     let first = app.checks.iter().position(|f| f.kind == putiacnc_core::checks::Kind::Clamp && f.mv.is_some());
     let mut show = false;
-    ui.horizontal_top(|ui| {
-        ui.add_space(2.0);
-        crate::checkui::warn_sign_col(ui, col);
-        let btn_w = 96.0;
-        let w = (ui.available_width() - btn_w - 8.0).max(60.0);
-        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(&text).color(col)).wrap(true)); });
+    // the button at the right, the sign and the text in what is left; everything centred on the row's middle
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         if ui.add_enabled(first.is_some(), egui::Button::new("Show in 3D")).on_hover_text("Jump the 3D preview to the first move that hits the clamp").clicked() { show = true; }
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.add_space(2.0);
+            crate::checkui::warn_sign_col(ui, col);
+            ui.add(egui::Label::new(egui::RichText::new(&text).color(col)).wrap(true));
+        });
     });
     if show { if let Some(i) = first { crate::checkui::show_in_3d(app, i); } }
 }
