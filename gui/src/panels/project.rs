@@ -184,6 +184,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let d = &app.project.data;
         let sel = &app.sel;
         let collapsed = &mut app.collapsed;
+        let own_piece = &mut app.inlay_own_piece;
         // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
         // an operation is made for the shapes that are selected, so the buttons wait for a selection
         let has_sel = sel.iter().any(|&k| k < d.loops.len());
@@ -204,7 +205,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         });
         ui.horizontal(|ui| {
             let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None)).inner;
-            if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some("inlay"); }
+            if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some(if *own_piece { "inlay_piece" } else { "inlay" }); }
+            ui.add_space(4.0);
+            ui.checkbox(own_piece, "Plug on its own piece").on_hover_text("The Inlay button makes the plug on a separate piece of stock that takes the main stock's place (another wood, its own G-code file). You can change this later in the plug operation.");
             let has_model = d.relief.is_some();
             let r = ui.add_enabled_ui(has_model, |ui| icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model: roughing, then a finishing pass that follows the surface", None)).inner;
             if !has_model { r.on_disabled_hover_text("Import a 3D model first (File > Import 3D model)"); } else if r.clicked() { add_kind = Some("relief"); }

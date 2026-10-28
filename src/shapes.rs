@@ -671,6 +671,14 @@ pub fn blank_project() -> ProjectFile {
 /// shape that moved), so the caller can say so.
 pub fn add_operation(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize>, kind: &str) -> Option<Vec<i64>> {
     if kind == "inlay" { add_inlay(d, sel); return None; }
+    // an inlay whose plug is cut from a piece of its own, which takes the main stock's place
+    if kind == "inlay_piece" {
+        add_inlay(d, sel);
+        let (pocket, plug) = { let o = &d.ops; (o[o.len() - 2].id, o[o.len() - 1].id) };
+        let piece = crate::model::PlugPiece { same: true, ..crate::pieces::default_piece(&d.stock) };
+        put_plug_on_piece(d, pocket, plug, Some(piece));
+        return None;
+    }
     let base = d.ops.last().map(|o| o.p.clone());
     let mut p = base.unwrap_or_else(|| default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
     p.kind = match kind {

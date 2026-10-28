@@ -100,9 +100,10 @@ pub fn file_suffix(parts: &[PartOutput], i: usize) -> String {
     }
 }
 
-/// A new piece the size of the main stock, beside it with a gap of 10 mm (the drawing position the plug is placed at).
+/// A new piece the size of the main stock, beside it with a gap of 10 mm (the drawing position the plug is placed at). Its look is a
+/// contrasting wood, since a plug is usually cut from another one.
 pub fn default_piece(main: &crate::model::Stock) -> PlugPiece {
-    PlugPiece { x: main.w + 10.0, y: 0.0, w: main.w, h: main.h, t: main.t, mat: main.mat.clone(), zr: main.zr.clone(), zm: main.zm.clone(), zh: main.zh, same: false }
+    PlugPiece { x: main.w + 10.0, y: 0.0, w: main.w, h: main.h, t: main.t, mat: if main.mat == "wood" { "darkwood".into() } else if main.mat == "darkwood" { "wood".into() } else { main.mat.clone() }, zr: main.zr.clone(), zm: main.zm.clone(), zh: main.zh, same: false }
 }
 
 #[cfg(test)]
@@ -185,6 +186,21 @@ mod tests {
         let mut q = blank_project();
         q.data = inlay_with_piece();
         assert!(!crate::save_project(&q).unwrap().contains("\"same\""));
+    }
+
+    #[test]
+    fn the_inlay_button_can_make_the_plug_on_its_own_piece() {
+        let mut f = blank_project();
+        let d = &mut f.data;
+        d.loops.push(new_rect([30.0, 40.0], [50.0, 50.0], 0.0, 0));
+        let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
+        assert!(add_operation(d, &sel, "inlay_piece").is_none());
+        assert_eq!(d.ops.len(), 2);
+        let pc = d.ops[1].p.piece.as_ref().expect("the plug has a piece");
+        assert!(pc.same, "it takes the main stock's place");
+        assert_ne!(pc.mat, d.stock.mat, "and looks different");
+        assert_eq!(d.loops.iter().filter(|l| l.op == d.ops[0].id).count(), 1, "the pocket's shape is still there");
+        assert_eq!(generate_parts(d, Units::Metric).unwrap().len(), 2);
     }
 
     #[test]
