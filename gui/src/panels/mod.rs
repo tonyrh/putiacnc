@@ -23,6 +23,8 @@ pub(super) const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside"
 pub(super) const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
 pub(super) const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
 pub(super) const MATERIALS: &[(&str, &str)] = &[("wood", "Light wood"), ("darkwood", "Dark wood"), ("metal", "Metal"), ("foam", "Foam")];
+/// The same two choices for a plug piece, with a shorter first name so that the box is no wider than the fields above it.
+pub(super) const PIECE_ZMODES: &[(&str, &str)] = &[("top", "Top"), ("h", "Height")];
 pub(super) const ZMODES: &[(&str, &str)] = &[("top", "Stock top"), ("h", "Height")];
 
 pub fn label_of(opts: &[(&str, &str)], v: &str) -> String {

@@ -566,30 +566,33 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
                                     let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
                                     let fw = ((ui.available_width() - la - lb - 2.0 * mm - 6.0 * sp) / 2.0).clamp(46.0, 110.0);
+                                    let mut col5_x = 0.0_f32;
                                     egui::Grid::new(("plug_piece", id)).num_columns(6).spacing([sp, 6.0]).show(ui, |ui| {
                                         rlabel(ui, la, "Width"); changed |= dv_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak("mm");
-                                        rlabel(ui, lb, "Height"); changed |= dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
+                                        rlabel(ui, lb, "Height"); let r = ui.scope(|ui| dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, "")); col5_x = r.response.rect.min.x; changed |= r.inner; ui.weak("mm"); ui.end_row();
                                         rlabel(ui, la, "Thickness"); changed |= dv_w(ui, fw, &mut pc.t, 0.1, 1000.0, ""); ui.weak("mm"); ui.end_row();
                                         rlabel(ui, la, "Position X");
                                         moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
                                         rlabel(ui, lb, "Position Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
                                     });
                                     ui.add_space(4.0);
-                                    // the XY picker with the Z zero beside it, as in the Stock section
+                                    // the XY picker with the Z zero beside it, as in the Stock section; the Z labels end where the right-hand labels above end,
+                                    // and the Z fields start where the right-hand fields above start
                                     ui.horizontal_top(|ui| {
                                         rlabel(ui, la, "XY zero");
                                         changed |= xy_picker(ui, &mut pc.zr);
-                                        ui.add_space(sp * 3.0);
-                                        egui::Grid::new(("plug_z", id)).num_columns(3).spacing([sp, 6.0]).show(ui, |ui| {
+                                        let gap = col5_x - sp - lb - ui.next_widget_position().x;
+                                        ui.add_space(gap.max(6.0));
+                                        ui.vertical(|ui| {
+                                            ui.spacing_mut().item_spacing.y = 6.0;
                                             rlabel(ui, lb, "Z zero");
-                                            let zm_w = crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
-                                            let (c, _) = combo_w2(ui, zm_w, &format!("plug_zm{id}"), &mut pc.zm, ZMODES, "", "Where Z0 is measured from on this piece");
-                                            changed |= c; ui.end_row();
-                                            if pc.zm != "top" {
-                                                rlabel(ui, lb, "Z0");
-                                                ui.horizontal(|ui| { changed |= dv_w(ui, 56.0, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm"); });
-                                                ui.end_row();
-                                            }
+                                            if pc.zm != "top" { rlabel(ui, lb, "Z0"); }
+                                        });
+                                        ui.vertical(|ui| {
+                                            ui.spacing_mut().item_spacing.y = 6.0;
+                                            let (c, _) = combo_w2(ui, fw + 10.0, &format!("plug_zm{id}"), &mut pc.zm, PIECE_ZMODES, "", "Where Z0 is measured from on this piece: its top surface, or a height above its bottom");
+                                            changed |= c;
+                                            if pc.zm != "top" { ui.horizontal(|ui| { changed |= dv_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm"); }); }
                                         });
                                     });
                                     ui.add_space(4.0);
