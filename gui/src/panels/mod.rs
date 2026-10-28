@@ -261,6 +261,34 @@ pub fn message_bar(ui: &mut Ui, app: &mut App) {
     if close { app.error = None; }
 }
 
+/// The bar for clamp collisions: which operations run into which clamps, and a way to see where. It cannot be dismissed; it is there
+/// while the toolpath hits a clamp. (The status bar's warning count and list still include these.)
+pub fn clamp_bar(ui: &mut Ui, app: &mut App) {
+    let col = if app.theme.dark { Color32::from_rgb(0xff, 0x95, 0x2e) } else { Color32::from_rgb(0xd3, 0x54, 0x00) };
+    let mut ops: Vec<usize> = app.clamp_hits.iter().flat_map(|h| h.1.iter().copied()).collect();
+    ops.sort_unstable(); ops.dedup();
+    let mut clamps: Vec<usize> = app.clamp_hits.iter().map(|h| h.0).collect();
+    clamps.sort_unstable(); clamps.dedup();
+    let list = |v: &[usize]| -> String {
+        let n: Vec<String> = v.iter().map(|x| (x + 1).to_string()).collect();
+        match n.split_last() { None => String::new(), Some((last, [])) => last.clone(), Some((last, rest)) => format!("{} and {}", rest.join(", "), last) }
+    };
+    let (op_word, run_word, clamp_word) = (if ops.len() == 1 { "Operation" } else { "Operations" }, if ops.len() == 1 { "runs" } else { "run" }, if clamps.len() == 1 { "Clamp" } else { "Clamps" });
+    let text = format!("{op_word} {} {run_word} into {clamp_word} {}. Move the clamp or change the drawing.", list(&ops), list(&clamps));
+    // the first finding about a clamp, once the checks have listed them
+    let first = app.checks.iter().position(|f| f.kind == putiacnc_core::checks::Kind::Clamp && f.mv.is_some());
+    let mut show = false;
+    ui.horizontal_top(|ui| {
+        ui.add_space(2.0);
+        crate::checkui::warn_sign_col(ui, col);
+        let btn_w = 96.0;
+        let w = (ui.available_width() - btn_w - 8.0).max(60.0);
+        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(&text).color(col)).wrap(true)); });
+        if ui.add_enabled(first.is_some(), egui::Button::new("Show in 3D")).on_hover_text("Jump the 3D preview to the first move that hits the clamp").clicked() { show = true; }
+    });
+    if show { if let Some(i) = first { crate::checkui::show_in_3d(app, i); } }
+}
+
 pub(super) fn icon_close(ui: &mut Ui) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
     if resp.hovered() { ui.painter().rect_filled(r, 5.0, ui.visuals().widgets.hovered.weak_bg_fill); }

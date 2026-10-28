@@ -151,6 +151,10 @@ impl eframe::App for App {
         if self.error.is_some() {
             egui::TopBottomPanel::top("msgbar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(10.0, 6.0))).show(ctx, |ui| panels::message_bar(ui, self));
         }
+        // a clamp the toolpath runs into is the most serious warning: it has a bar of its own for as long as it is so
+        if !self.clamp_hits.is_empty() && self.output.is_some() {
+            egui::TopBottomPanel::top("clampbar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(10.0, 6.0))).show(ctx, |ui| panels::clamp_bar(ui, self));
+        }
         egui::CentralPanel::default()
             .frame(egui::Frame::none().fill(self.theme.view()))
             .show(ctx, |ui| if preview { view3d::preview(ui, self) } else { canvas::canvas(ui, self) });
