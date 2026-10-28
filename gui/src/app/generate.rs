@@ -73,14 +73,21 @@ impl App {
         }
         self.gen_ms = ms;
         // the warnings are worked out beside the UI: they replay the whole program
-        self.checks.clear(); self.check_sel = None;
+        self.checks.clear(); self.check_parts.clear(); self.check_sel = None;
         self.checks_rx = None;
         // a newer change is already waiting: its toolpath gets the checks, not this one
         if self.gen_pending { return; }
         if let Some(o) = self.output.clone() {
             let (tx, rx) = std::sync::mpsc::channel();
             let (data, ver) = (putiacnc_core::pieces::split(&self.project.data).0, self.out_ver);
-            std::thread::spawn(move || { let f = putiacnc_core::checks::run(&data, &o); if std::env::var_os("PUTIACNC_DEBUG_CHECKS").is_some() { eprintln!("checks: {} findings, tool0 flute {:?}", f.len(), data.tools.first().map(|t| (t.flute, t.shank))); } let _ = tx.send((ver, f)); });
+            // each plug piece is checked on its own, in its own coordinates
+            let pieces: Vec<(putiacnc_core::model::ProjectData, putiacnc_core::toolpath::Output)> = self.pieces.iter().map(|p| (p.job.data.clone(), p.output.clone())).collect();
+            std::thread::spawn(move || {
+                let mut all: Vec<(usize, putiacnc_core::checks::Finding)> = putiacnc_core::checks::run(&data, &o).into_iter().map(|f| (0, f)).collect();
+                if std::env::var_os("PUTIACNC_DEBUG_CHECKS").is_some() { eprintln!("checks: {} findings, tool0 flute {:?}", all.len(), data.tools.first().map(|t| (t.flute, t.shank))); }
+                for (i, (d, out)) in pieces.iter().enumerate() { all.extend(putiacnc_core::checks::run(d, out).into_iter().map(|f| (i + 1, f))); }
+                let _ = tx.send((ver, all));
+            });
             self.checks_rx = Some(rx);
         }
     }
@@ -92,11 +99,13 @@ impl App {
             Ok((v, f)) => {
                 if v == self.out_ver {
                     let mut hits: Vec<(usize, Vec<usize>)> = vec![];
-                    for x in f.iter().filter(|x| x.kind == putiacnc_core::checks::Kind::Clamp) {
+                    for x in f.iter().filter(|(p, x)| *p == 0 && x.kind == putiacnc_core::checks::Kind::Clamp).map(|(_, x)| x) {
                         for &c in &x.clamps { match hits.iter_mut().find(|h| h.0 == c) { Some(h) => h.1.extend(x.op), None => hits.push((c, x.op.into_iter().collect())) } }
                     }
                     self.clamp_hits = hits;
-                    self.checks = f; self.checks_ver = v;
+                    self.check_parts = f.iter().map(|(p, _)| *p).collect();
+                    self.checks = f.into_iter().map(|(_, x)| x).collect();
+                    self.checks_ver = v;
                 }
                 self.checks_rx = None;
                 // testing aid: press "Show in 3D" on this warning

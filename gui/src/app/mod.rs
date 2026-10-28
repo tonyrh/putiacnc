@@ -169,10 +169,12 @@ pub struct App {
     /// Warnings about the toolpath (collisions, gouges), computed on a background thread for `checks_ver`.
     pub checks: Vec<putiacnc_core::checks::Finding>,
     pub checks_ver: u64,
+    /// Which part each warning belongs to (0 the main stock, 1.. a plug piece), parallel to `checks`.
+    pub check_parts: Vec<usize>,
     /// The clamps the toolpath runs into, from the last finished check, with the operations that hit them. It stays on screen while a
     /// newer toolpath is being worked out, so the red highlights do not blink off and on with every change.
     pub clamp_hits: Vec<(usize, Vec<usize>)>,
-    pub checks_rx: Option<std::sync::mpsc::Receiver<(u64, Vec<putiacnc_core::checks::Finding>)>>,
+    pub checks_rx: Option<std::sync::mpsc::Receiver<(u64, Vec<(usize, putiacnc_core::checks::Finding)>)>>,
     pub checks_open: bool,
     /// The warning picked in the list: drawn larger in the 3D preview.
     pub check_sel: Option<usize>,
@@ -292,7 +294,7 @@ impl App {
         let mut a = App {
             path: String::new(), project: shapes::blank_project(), output: None, pieces: vec![], out_ver: 0, view_tab: crate::view3d::ViewTab::Design, v3: Default::default(), error: None, gen_error: None, note: None, esc_request: false,
             imperial: false, gcode_part: 0, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, notes: Vec::new(), tool_note: None, banner_level: None, tool_wins_seen: Vec::new(), offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, gl_info: String::new(), zoom_act: None, empty_ops: vec![], about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
-            gen_pending: true, gen_rx: None, gen_started: None, checks: vec![], checks_ver: 0, clamp_hits: vec![], checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
+            gen_pending: true, gen_rx: None, gen_started: None, checks: vec![], checks_ver: 0, check_parts: vec![], clamp_hits: vec![], checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, fit_extra: 0.0, view_touched: false, canvas_right: 0.0, canvas_left: 0.0, ghost: Default::default(), preview_on: true, bars_bottom: 0.0, align_btn: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, fit3d_pending: false, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
@@ -703,6 +705,23 @@ mod gen_tests {
         a.touch();
         settle(&mut a);
         assert!(a.pieces.is_empty());
+    }
+
+    #[test]
+    fn a_plug_piece_is_checked_on_its_own() {
+        let mut a = app_with_job();
+        shapes::add_inlay(&mut a.project.data, &[0].into_iter().collect());
+        let (pocket, plug) = { let o = &a.project.data.ops; (o[o.len() - 2].id, o[o.len() - 1].id) };
+        // a piece thinner than the plug is deep: the plug cuts into the table, the main stock is fine
+        let mut pc = putiacnc_core::pieces::default_piece(&a.project.data.stock);
+        pc.t = 1.0;
+        shapes::put_plug_on_piece(&mut a.project.data, pocket, plug, Some(pc));
+        a.touch();
+        settle(&mut a);
+        for _ in 0..3000 { if !a.poll_checks() { break; } std::thread::sleep(std::time::Duration::from_millis(5)); }
+        assert_eq!(a.checks.len(), a.check_parts.len());
+        assert!(a.checks.iter().zip(&a.check_parts).any(|(f, &p)| p == 1 && f.kind == putiacnc_core::checks::Kind::Spoilboard), "{:?}", a.checks.iter().map(|f| f.kind).collect::<Vec<_>>());
+        assert!(a.check_parts.iter().all(|&p| p == 1), "the main stock has nothing to report");
     }
 
     #[test]

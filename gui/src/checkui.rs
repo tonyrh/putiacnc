@@ -65,10 +65,11 @@ pub fn marker_sized(painter: &egui::Painter, at: Pos2, selected: bool, what: &st
 pub fn show_in_3d(app: &mut App, i: usize) {
     let Some(mv) = app.checks[i].mv else { return };
     app.check_sel = Some(i);
+    app.v3.part = app.check_parts.get(i).copied().unwrap_or(0);
+    app.v3.goto_mv = Some(mv);
     app.view_tab = crate::view3d::ViewTab::Preview;
     let st = &mut app.v3;
     st.playing = false;
-    if let Some(&c) = st.cum.get(mv) { st.t = c; }
 }
 
 pub fn window(ctx: &egui::Context, app: &mut App) {
@@ -97,6 +98,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                         ui.horizontal(|ui| {
                             warn_sign(ui);
                             ui.label(egui::RichText::new(f.kind.title()).strong().size(19.0));
+                            if app.check_parts.get(i).is_some_and(|&p| p > 0) { ui.weak("plug piece"); }
                             if f.count > 1 { ui.weak(format!("({} moves)", f.count)); }
                         });
                         ui.add_space(2.0);

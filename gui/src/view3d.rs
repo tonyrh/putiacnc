@@ -24,6 +24,8 @@ pub struct State {
     pub part: usize,
     /// The part the simulation was built for.
     pub built_part: usize,
+    /// A warning's move to jump to once the simulation of its part is built.
+    pub goto_mv: Option<usize>,
     pub ver: u64,
     pub yaw: f32,
     pub pitch: f32,
@@ -57,7 +59,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        State { sim: None, part: 0, built_part: 0, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
+        State { sim: None, part: 0, built_part: 0, goto_mv: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
             playing: false, speed_idx: 2, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
@@ -136,6 +138,9 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         st.built_part = st.part;
         if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = st.total * f; } }
         if !st.framed { frame(st, &data.stock); }
+    }
+    if st.built_part == st.part {
+        if let Some(mv) = st.goto_mv.take() { if let Some(&c) = st.cum.get(mv) { st.t = c; st.playing = false; } }
     }
     // for recording the demo: the replay time (minutes) is read from a file, so every frame is exact whatever the machine's frame rate
     if let Some(v) = std::env::var_os("PUTIACNC_T_FILE").and_then(|p| std::fs::read_to_string(p).ok()).and_then(|t| t.trim().parse::<f64>().ok()) {
@@ -398,7 +403,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             run.push(b);
         }
         flush(&mut run, run_key);
-        for (i, f) in app.checks.iter().enumerate().filter(|_| app.v3.part == 0) {
+        for (i, f) in app.checks.iter().enumerate().filter(|(i, _)| app.check_parts.get(*i).copied().unwrap_or(0) == app.v3.part) {
             if f.mv.is_none() || f.op.is_some_and(|o| sim.skip.get(o).copied().unwrap_or(false)) { continue; }
             if let Some(a) = cam.p([f.at[0] as f32, f.at[1] as f32, f.at[2] as f32]) { crate::checkui::marker(&painter, a, app.check_sel == Some(i), f.kind.title()); }
         }
