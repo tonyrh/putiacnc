@@ -41,8 +41,9 @@ pub fn split(data: &ProjectData) -> (ProjectData, Vec<PieceJob>) {
         let mut d = data.clone();
         d.stock = pc.stock();
         d.loops = data.loops.iter().filter(|l| l.op == o.id).cloned().map(|mut l| { crate::shapes::translate(&mut l, -pc.x, -pc.y); l }).collect::<Vec<LoopData>>();
-        // a piece that takes the main stock's place sits among the same clamps; one beside it does not
-        if !same { d.clamps.clear(); }
+        // a piece that takes the main stock's place sits among the same clamps; one beside it stands where it is drawn, so the
+        // clamps are seen from its own corner
+        if !same { for c in d.clamps.iter_mut() { c.x -= pc.x; c.y -= pc.y; } }
         d.relief = None;
         d.groups.clear();
         d.hidden_ops.clear();
@@ -161,9 +162,10 @@ mod tests {
         let mut d = inlay_with_piece();
         d.stock.zr = "ur".into();
         d.clamps.push(crate::model::Clamp { x: 0.0, y: 0.0, w: 10.0, h: 10.0, height: 20.0 });
-        // a piece of its own keeps its size and zero, and has no clamps
+        // a piece of its own beside the stock (drawn at x 210) sees the clamp from its own corner: 210 mm to the left
         let (_, jobs) = split(&d);
-        assert!(jobs[0].data.clamps.is_empty());
+        assert_eq!(jobs[0].data.clamps.len(), 1);
+        assert!((jobs[0].data.clamps[0].x + 210.0).abs() < 1e-9 && jobs[0].data.clamps[0].y.abs() < 1e-9, "{:?}", jobs[0].data.clamps[0]);
         {
             let pc = d.ops[1].p.piece.as_mut().unwrap();
             pc.w = 50.0; pc.h = 40.0; pc.zr = "c".into(); pc.same = true;

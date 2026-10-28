@@ -725,6 +725,24 @@ mod gen_tests {
     }
 
     #[test]
+    fn a_clamp_under_a_plug_piece_beside_the_stock_is_hit_by_the_piece_only() {
+        let mut a = app_with_job();
+        shapes::add_inlay(&mut a.project.data, &[0].into_iter().collect());
+        let (pocket, plug) = { let o = &a.project.data.ops; (o[o.len() - 2].id, o[o.len() - 1].id) };
+        let pc = putiacnc_core::pieces::default_piece(&a.project.data.stock);
+        let x = pc.x;
+        shapes::put_plug_on_piece(&mut a.project.data, pocket, plug, Some(pc));
+        // a clamp on the table where the piece is drawn, at the corner of the plug's outline (10, 10) on the piece
+        a.project.data.clamps.push(putiacnc_core::model::Clamp { x: x + 8.0, y: 8.0, w: 6.0, h: 6.0, height: 20.0 });
+        a.touch();
+        settle(&mut a);
+        for _ in 0..3000 { if !a.poll_checks() { break; } std::thread::sleep(std::time::Duration::from_millis(5)); }
+        let hits: Vec<usize> = a.checks.iter().zip(&a.check_parts).filter(|(f, _)| f.kind == putiacnc_core::checks::Kind::Clamp).map(|(_, &p)| p).collect();
+        assert_eq!(hits, [1], "only the piece runs into it: {:?}", a.checks.iter().map(|f| f.kind).collect::<Vec<_>>());
+        assert!(!a.clamp_hits.is_empty());
+    }
+
+    #[test]
     fn the_worker_gives_the_same_toolpath_as_generating_here() {
         let mut a = app_with_job();
         settle(&mut a);
