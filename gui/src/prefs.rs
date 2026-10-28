@@ -32,7 +32,6 @@ pub struct Settings {
     pub show_rulers: Option<bool>,
     pub show_axes: Option<bool>,
     pub show_badges: Option<bool>,
-    pub inlay_own_piece: Option<bool>,
     pub show_clamps: Option<bool>,
     pub text_sections: Option<Vec<String>>,
     pub tool_len_in: Option<bool>,

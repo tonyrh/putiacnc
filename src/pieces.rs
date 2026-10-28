@@ -189,21 +189,6 @@ mod tests {
     }
 
     #[test]
-    fn the_inlay_button_can_make_the_plug_on_its_own_piece() {
-        let mut f = blank_project();
-        let d = &mut f.data;
-        d.loops.push(new_rect([30.0, 40.0], [50.0, 50.0], 0.0, 0));
-        let sel: std::collections::BTreeSet<usize> = [0].into_iter().collect();
-        assert!(add_operation(d, &sel, "inlay_piece").is_none());
-        assert_eq!(d.ops.len(), 2);
-        let pc = d.ops[1].p.piece.as_ref().expect("the plug has a piece");
-        assert!(pc.same, "it takes the main stock's place");
-        assert_ne!(pc.mat, d.stock.mat, "and looks different");
-        assert_eq!(d.loops.iter().filter(|l| l.op == d.ops[0].id).count(), 1, "the pocket's shape is still there");
-        assert_eq!(generate_parts(d, Units::Metric).unwrap().len(), 2);
-    }
-
-    #[test]
     fn the_piece_has_its_own_work_zero() {
         let mut d = inlay_with_piece();
         d.ops[1].p.piece.as_mut().unwrap().zr = "c".into();

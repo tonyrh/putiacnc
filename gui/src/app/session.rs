@@ -43,7 +43,6 @@ impl App {
         if let Some(v) = p.show_rulers { self.show_rulers = v; }
         if let Some(v) = p.show_axes { self.show_axes = v; }
         if let Some(v) = p.show_badges { self.show_badges = v; }
-        if let Some(v) = p.inlay_own_piece { self.inlay_own_piece = v; }
         if let Some(v) = p.show_clamps { self.show_clamps = v; }
         if let Some(v) = &p.text_sections { self.text.sections = v.iter().cloned().collect(); }
         if let Some(v) = p.tool_len_in { self.tool_len_in = v; }
@@ -71,7 +70,6 @@ impl App {
         s.show_rulers = Some(self.show_rulers);
         s.show_axes = Some(self.show_axes);
         s.show_badges = Some(self.show_badges);
-        s.inlay_own_piece = Some(self.inlay_own_piece);
         s.show_clamps = Some(self.show_clamps);
         s.text_sections = Some(self.text.sections.iter().cloned().collect());
         s.tool_len_in = Some(self.tool_len_in);
