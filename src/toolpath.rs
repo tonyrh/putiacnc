@@ -169,7 +169,7 @@ impl ToolGeo {
 
 // ---------- emitter ----------
 struct Em {
-    g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool,
+    g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool, pw: Option<(usize, usize, bool)>,
     moves: Vec<Move>, alt: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
 }
 
@@ -189,6 +189,13 @@ impl Em {
             self.lf = Some(fd);
         }
         if s == c { return; }
+        // the text says which pass a move belongs to, so what reads the text (the 3D replay) can label it
+        // (a rapid ends the pass for the reader, so the next cut says its pass again)
+        if !is_cut { self.pw = None; }
+        if is_cut && self.pn > 0 && self.pw != Some((self.oi, self.pn, self.lap)) {
+            self.g.push(format!("(Pass {}{})", self.pn, if self.lap { ", levelling lap" } else { "" }));
+            self.pw = Some((self.oi, self.pn, self.lap));
+        }
         self.g.push(s);
         let dist = ((x - self.cur[0]).powi(2) + (y - self.cur[1]).powi(2) + (z - self.cur[2]).powi(2)).sqrt();
         let dt = dist / (if is_cut { fd } else { self.rap }) * self.tsc;
@@ -577,7 +584,7 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     e.go("G0", None, None, Some(c.sz), 0.0);
 }
 
-fn zero_offsets(st: &Stock) -> (f64, f64) {
+pub(crate) fn zero_offsets(st: &Stock) -> (f64, f64) {
     let ox = match st.zr.as_str() { "lr" | "ur" => st.w, "c" => st.w / 2.0, _ => 0.0 };
     let oy = match st.zr.as_str() { "ul" | "ur" => st.h, "c" => st.h / 2.0, _ => 0.0 };
     (ox, oy)
@@ -589,6 +596,11 @@ fn zero_label(zr: &str) -> &'static str {
 /// Prefix every line with a line number: N10, N20, ...
 pub fn number_lines(lines: Vec<String>) -> Vec<String> {
     lines.into_iter().enumerate().map(|(i, l)| format!("N{} {}", (i + 1) * 10, l)).collect()
+}
+
+/// A tool's name as the G-code writes it in a comment: plain ASCII, no brackets (Mach3 and some LinuxCNC setups choke on more).
+pub(crate) fn tool_label(name: &str) -> String {
+    name.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect()
 }
 
 /// A program stop with a message the operator can read. GRBL senders such as gSender drop (bracketed) comments before sending and
@@ -612,19 +624,19 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
     if !st.ids.contains(&tool.id) { st.ids.push(tool.id.clone()); }
     let tno = st.ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
     // Mach3 and some LinuxCNC setups choke on anything but plain ASCII inside a comment
-    let tname: String = tool.name.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect();
+    let tname = tool_label(&tool.name);
     let m6 = format!("T{} M6 (Tool {}: {})", tno, tno, tname);
     let rpm = tool.rpm;
     match st.d {
         None => {
-            if mach { e.g.push(m6); }
+            if mach { e.g.push(m6); } else { e.g.push(format!("(Tool: {})", tname)); }
             e.g.push(format!("M3 S{}", num(rpm))); e.spin_wait();
         }
-        Some(ld) if if mach { st.t.as_deref() != Some(tool.id.as_str()) } else { ld != tool.dia } => {
+        Some(_) if st.t.as_deref() != Some(tool.id.as_str()) => {
             e.go("G0", None, None, Some(sz), 0.0);
             e.g.push("M5".into());
             if mach { e.g.push(m6); }
-            else { e.g.push(stop_line(false, &format!("Change tool to {} {}, then touch off Z0 and resume", dia_txt, un))); }
+            else { e.g.push(stop_line(false, &format!("Change tool to {} {}, then touch off Z0 and resume", dia_txt, un))); e.g.push(format!("(Tool: {})", tname)); }
             e.g.push(format!("M3 S{}", num(rpm)));
             e.spin_wait();
         }
@@ -833,7 +845,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {

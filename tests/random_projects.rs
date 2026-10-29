@@ -5,6 +5,7 @@
 //! the temp folder as `putia-random-1234.project.json`, ready to open in the app.
 //! The normal run covers 20 seeds (a few seconds); `cargo test --release --test random_projects -- --ignored --nocapture`
 //! runs 5000 (or `COUNT=...`).
+mod common;
 use putiacnc_core::model::{CustomFeeds, LoopData, Machine, Operation, ProjectFile, Tool};
 use putiacnc_core::verify::trace;
 use putiacnc_core::{generate, shapes, Output, Units};
@@ -178,6 +179,8 @@ fn problems(f: &ProjectFile) -> Vec<String> {
         for h in &t.hazards { bad.push(format!("{tag}: checker: {h}")); }
         if !o.time_min.is_finite() || o.time_min < 0.0 { bad.push(format!("{tag}: time {}", o.time_min)); }
         if o.lines.iter().any(|l| l.contains("NaN") || l.contains("inf")) { bad.push(format!("{tag}: NaN or inf in the text")); }
+        // the text played back for the 3D preview, against what the generator says it wrote
+        for b in common::replay_problems(d, o, *units) { bad.push(format!("{tag}: {b}")); }
         // text against generator
         let arcs = d.machine.as_ref().is_some_and(|m| m.arcs == Some(true));
         let tol = 0.05 + o.cut_len_mm * if arcs { 0.01 } else { 0.0005 } + if *units == Units::Imperial { 0.002 * t.cut_moves as f64 } else { 0.0 };

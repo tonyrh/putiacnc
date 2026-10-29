@@ -15,6 +15,7 @@ pub mod machines;
 pub mod model;
 pub mod pieces;
 pub mod relief;
+pub mod replay;
 pub mod shapes;
 pub mod sim;
 pub mod dxf;

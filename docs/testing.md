@@ -15,6 +15,7 @@ CI (`.github/workflows/ci.yml`) runs both on every push to `main` and every pull
   They catch unintended changes. After a change you meant to make, run `UPDATE_SNAPSHOTS=1 cargo test --test golden`,
   read `git diff tests/data` by eye, and commit what you accept. Whether the G-code is *right* is the job of
   `verify_programs.rs`, which re-reads the text with an independent checker.
+- **Replay** (`tests/replay.rs`, `tests/common`): the G-code text is played back the way the 3D preview does it (steps with their line, arcs cut into short pieces, stops, waits, tools) and held to what the generator says: cutting length, time, end point, the passes and their lowest Z, the second tool, the levelling lap. Every random project goes through the same check.
 - **Random projects** (`tests/random_projects.rs`): projects built from a seed (stock, tools, one to three operations
   of every kind including inlay, shapes with holes, a random machine) go through the generator and the independent
   checker, in mm and inches, with arcs on and off. A project must not panic, must pass the checker, must agree with the
