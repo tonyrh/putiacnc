@@ -12,7 +12,6 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] Count the tool holder in the clamp check: Holder dia. in the machine settings, Stickout in the tool manager (0 = unknown, check off).
 - [x] Move shapes into an existing operation: "Use selected shapes" (shown in the active operation, and in any operation without shapes). Maybe later: a right-click menu.
 - [x] An operation that loses its last shape stays with its settings; "Use selected shapes" in the operation puts shapes (also from other operations) into it. This also covers moving shapes between operations.
-- [ ] The floating tool palette takes three rows and covers the top of the drawing at the smallest window size; a more compact layout would help.
 
 ## Bigger
 - [x] Grouping (Edit > Group, Ctrl+G; Ungroup, Ctrl+Shift+G): done. Groups are flat (grouping a group with something else merges them); a copy of a group is a group of its own.
