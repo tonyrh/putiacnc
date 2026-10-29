@@ -26,6 +26,8 @@ pub struct State {
     pub built_part: usize,
     /// A warning's move to jump to once the simulation of its part is built.
     pub goto_mv: Option<usize>,
+    /// The G-code text played back as steps (what the machine will do): the preview plays this, not the generator's own list of moves.
+    pub rp: std::sync::Arc<putiacnc_core::replay::Replay>,
     pub ver: u64,
     pub yaw: f32,
     pub pitch: f32,
@@ -59,7 +61,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        State { sim: None, part: 0, built_part: 0, goto_mv: None, ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
+        State { sim: None, part: 0, built_part: 0, goto_mv: None, rp: Default::default(), ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
             playing: false, speed_idx: 2, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
@@ -98,10 +100,6 @@ impl App {
     pub fn v3_data(&self) -> &putiacnc_core::ProjectData {
         match self.v3.part.checked_sub(1).and_then(|i| self.pieces.get(i)) { Some(pp) => &pp.job.data, None => &self.project.data }
     }
-    /// The toolpath of the job the 3D view shows.
-    pub fn v3_output(&self) -> Option<&putiacnc_core::Output> {
-        match self.v3.part.checked_sub(1).and_then(|i| self.pieces.get(i)) { Some(pp) => Some(&pp.output), None => self.output.as_ref() }
-    }
 }
 
 fn fmt_time(min: f64) -> String {
@@ -113,7 +111,6 @@ fn fmt_time(min: f64) -> String {
 fn sync(app: &mut App, ctx: &egui::Context) {
     if app.v3.part > app.pieces.len() && !app.gen_stale() { app.v3.part = 0; }
     let (data, out) = match app.v3.part.checked_sub(1).and_then(|i| app.pieces.get(i)) { Some(pp) => (&pp.job.data, Some(&pp.output)), None => (&app.project.data, app.output.as_ref()) };
-    let moves: &[Move] = out.map(|o| &o.moves[..]).unwrap_or(&[]);
     let st = &mut app.v3;
     let hid: Vec<bool> = app.project.data.ops.iter().map(|o| app.project.data.hidden_ops.contains(&o.id)).collect();
     let only_hid = st.sim.is_some() && st.ver == app.out_ver && st.built_part == st.part && st.hid != hid;
@@ -130,7 +127,9 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         st.hid = hid.clone();
         st.gen += 1;
         let mut acc = 0.0;
-        st.cum = moves.iter().map(|m| { if !hid.get(m.op).copied().unwrap_or(false) { acc += m.dt; } acc }).collect();
+        st.rp = std::sync::Arc::new(out.map(|o| putiacnc_core::replay::replay(&o.lines, data)).unwrap_or_default());
+        let cum: Vec<f64> = st.rp.moves.iter().map(|m| { if !hid.get(m.op).copied().unwrap_or(false) { acc += m.dt; } acc }).collect();
+        st.cum = cum;
         st.total = acc;
         st.t = if was_end { st.total } else if only_hid { st.total * frac } else { st.t.min(st.total) };
         st.ver = app.out_ver;
@@ -139,8 +138,18 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = st.total * f; } }
         if !st.framed { frame(st, &data.stock); }
     }
+    let rp = st.rp.clone();
+    let moves: &[Move] = &rp.moves;
     if st.built_part == st.part {
-        if let Some(mv) = st.goto_mv.take() { if let Some(&c) = st.cum.get(mv) { st.t = c; st.playing = false; } }
+        // a warning points at one of the generator's moves; the same place in the text's steps is the first one of that operation and pass that passes through it
+        if let Some(mv) = st.goto_mv.take() {
+            let at = out.and_then(|o| o.moves.get(mv)).map(|g| (g.op, g.pass, g.cut, g.to));
+            let step = at.and_then(|(op, pass, cut, p)| {
+                let near = |m: &Move| { let (a, b) = (m.from, m.to); let d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]; let l2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2]; let t = if l2 > 0.0 { (((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] + (p[2] - a[2]) * d[2]) / l2).clamp(0.0, 1.0) } else { 0.0 }; ((a[0] + d[0] * t - p[0]).powi(2) + (a[1] + d[1] * t - p[1]).powi(2) + (a[2] + d[2] * t - p[2]).powi(2)).sqrt() < 0.03 };
+                moves.iter().position(|m| m.op == op && m.cut == cut && (m.pass == pass || !cut) && near(m))
+            });
+            if let Some(&c) = step.and_then(|i| st.cum.get(i)) { st.t = c; st.playing = false; }
+        }
     }
     // for recording the demo: the replay time (minutes) is read from a file, so every frame is exact whatever the machine's frame rate
     if let Some(v) = std::env::var_os("PUTIACNC_T_FILE").and_then(|p| std::fs::read_to_string(p).ok()).and_then(|t| t.trim().parse::<f64>().ok()) {
@@ -369,7 +378,9 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     }
 
     // toolpath
-    if let Some(o) = app.v3_output() {
+    let rp_arc = app.v3.rp.clone();
+    {
+        let o = &*rp_arc;
         let done = sim.done;
         let mut run: Vec<Pos2> = Vec::new();
         let mut run_key: Option<(usize, bool)> = None;
@@ -431,7 +442,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
 
     // which operation and pass the replay is on. Retracts and rapids carry no pass, so the last real pass is kept; and at high
     // speed the label changes at most a few times a second and its box keeps one width, so it does not flicker
-    if let (Some(o), Some(sim)) = (app.v3_output(), app.v3.sim.as_ref()) {
+    if let (o, Some(sim)) = (&*rp_arc, app.v3.sim.as_ref()) {
         let mut cur = sim.done.saturating_sub(1).min(o.moves.len().saturating_sub(1));
         while cur > 0 && sim.skip.get(o.moves[cur].op).copied().unwrap_or(false) { cur -= 1; }
         if let Some(m) = o.moves.get(cur) {
@@ -507,7 +518,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         if resp.clicked() { app.project.data.hidden_ops.clear(); app.touch(); }
     }
     if app.v3.catching_up {
-        let total = app.v3_output().map_or(1, |o| o.moves.len()).max(1);
+        let total = rp_arc.moves.len().max(1);
         let pct = (app.v3.sim.as_ref().map_or(0, |s| s.done) * 100 / total).min(99);
         let r = Rect::from_center_size(rect.center(), Vec2::new(240.0, 44.0));
         painter.rect_filled(r, 8.0, Color32::from_black_alpha(170));
@@ -521,7 +532,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         let col = Color32::from_rgb(0xe0, 0x1b, 0x24);
         let g = painter.layout(e.clone(), FontId::proportional(13.0), col, (rect.width() - 24.0).max(100.0));
         painter.galley(rect.left_top() + Vec2::new(12.0, 10.0), g, col);
-    } else if app.v3_output().is_none_or(|o| o.moves.is_empty()) {
+    } else if rp_arc.moves.is_empty() {
         painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, "No toolpaths yet: add an operation to preview the cut", FontId::proportional(13.0), ui.visuals().weak_text_color());
     }
 }
