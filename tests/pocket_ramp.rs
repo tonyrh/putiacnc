@@ -60,3 +60,25 @@ fn the_inlay_pocket_ramps_its_flat_mill_when_the_project_allows_it() {
     d.ops[k].p.ramp = false;
     assert_eq!(off, generate(d, Units::Metric).unwrap().lines, "Ramp in unticked: plunges as before");
 }
+
+/// Moves that go down while they travel sideways: the ramps.
+fn ramp_moves(l: &[String]) -> usize {
+    l.iter().filter(|x| x.starts_with("G1") && x.contains(" Z") && (x.contains(" X") || x.contains(" Y"))).count()
+}
+
+#[test]
+fn only_the_rings_next_to_the_walls_ramp_when_the_stepover_allows_it() {
+    use putiacnc_core::model::CustomFeeds;
+    let mut p = pocket();
+    p.data.job.ramp_pockets = true;
+    let k = p.data.ops.iter().position(|o| o.p.kind == "pocket").unwrap();
+    p.data.ops[k].p.ramp = true;
+    let with_so = |p: &mut putiacnc_core::model::ProjectFile, so: f64| {
+        p.data.ops[k].p.custom = Some(CustomFeeds { rpm: None, feed: None, plunge: None, so: Some(so) });
+        lines(p)
+    };
+    let half = with_so(&mut p, 50.0);
+    let more = with_so(&mut p, 51.0);
+    assert!(ramp_moves(&half) < ramp_moves(&more), "at 50 % only the outer rings ramp: {} vs {}", ramp_moves(&half), ramp_moves(&more));
+    assert!((min_z(&half) - min_z(&more)).abs() < 1e-6, "same depth");
+}

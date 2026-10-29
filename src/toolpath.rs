@@ -206,7 +206,8 @@ fn off_raw(region: &[Path], d: f64) -> Vec<Path> { clip::offset(region, d, S * 0
 fn clean_paths(o: &[Path]) -> Vec<Path> { clip::clean(o, S * 0.02).into_iter().filter(|p| p.len() > 2).collect() }
 fn off(region: &[Path], d: f64) -> Vec<Path> { clean_paths(&off_raw(region, d)) }
 
-struct Job { p: Path, closed: bool, pocket: bool, iv: Option<Option<Vec<[f64; 2]>>> }
+/// `gen` is the generation of a pocket ring: 0 for the rings next to the walls, 1 for the rings inside those, and so on.
+struct Job { p: Path, closed: bool, pocket: bool, gen: usize, iv: Option<Option<Vec<[f64; 2]>>> }
 
 struct OpCtx<'a> {
     kind: &'a str, dia: f64, so: f64, plunge: f64, feed: f64, ramp: bool, rev: bool,
@@ -221,17 +222,17 @@ fn mk_jobs(c: &OpCtx, region: &[Path], closed: &[Path], open: &[Path], rm: f64) 
     let r = rm * S;
     match c.kind {
         "online" => {
-            for p in closed { jb.push(Job { p: p.clone(), closed: true, pocket: false, iv: None }); }
-            for p in open { jb.push(Job { p: p.clone(), closed: false, pocket: false, iv: None }); }
+            for p in closed { jb.push(Job { p: p.clone(), closed: true, pocket: false, gen: 0, iv: None }); }
+            for p in open { jb.push(Job { p: p.clone(), closed: false, pocket: false, gen: 0, iv: None }); }
         }
         "pocket" => {
             let st2 = c.dia * c.so / 100.0 * S;
             let mut cur = off_raw(region, -r);
-            for _ in 0..500 {
+            for gen in 0..500 {
                 if cur.is_empty() { break; }
                 let q = clean_paths(&cur);
                 if q.is_empty() { break; }
-                for p in q { jb.push(Job { p, closed: true, pocket: true, iv: None }); }
+                for p in q { jb.push(Job { p, closed: true, pocket: true, gen, iv: None }); }
                 cur = off_raw(&cur, -st2);
             }
         }
@@ -246,7 +247,7 @@ fn mk_jobs(c: &OpCtx, region: &[Path], closed: &[Path], open: &[Path], rm: f64) 
             if c.kind == "inside" {
                 q.sort_by(|a, b| clip::area(a).abs().partial_cmp(&clip::area(b).abs()).unwrap_or(std::cmp::Ordering::Equal));
             }
-            for p in q { jb.push(Job { p, closed: true, pocket: false, iv: None }); }
+            for p in q { jb.push(Job { p, closed: true, pocket: false, gen: 0, iv: None }); }
         }
     }
     jb
@@ -300,6 +301,8 @@ fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64]
             let starts: Vec<[f64; 2]> = jobs.iter().map(|j| entry(j, c.rev)).collect();
             group_by_component(&component_of(region, &starts))
         } else { vec![(0..jobs.len()).collect()] };
+        // the first ring cut in a piece has no cleared ring beside it, whatever its generation
+        for g in &groups { if let Some(&f) = g.first() { jobs[f].gen = 0; } }
         for &z in zs {
             let order: Vec<usize> = if groups.len() > 1 {
                 let gs: Vec<[f64; 2]> = groups.iter().map(|g| entry(&jobs[g[0]], c.rev)).collect();
@@ -525,6 +528,9 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
     e.pn = 0;
     // a pocket ring is cut one depth at a time: it ramps down from the depth before, through the air of the pass above it
+    // With a stepover of half the tool or less, the start of an inner ring is inside the slot the ring outside it just cut (and
+    // levelled), so only the rings next to the walls ramp; the others plunge there, through air, and cut flat.
+    let inner_plunge = job.pocket && c.ramp && c.so <= 50.0;
     let mut pz = if job.pocket && c.ramp { zl.first().and_then(|z| c.zs.iter().position(|q| q == z)).and_then(|i| i.checked_sub(1)).map(|i| c.zs[i]).unwrap_or(0.0) } else { 0.0 };
     e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
     e.go("G1", None, None, Some(c.z0), c.plunge);
@@ -540,15 +546,16 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
         }
         if let Some(iv) = tiv {
             tab_pass(e, c, &pts, z, &iv);
-        } else if c.ramp && lead.is_none() && job.closed && (!job.pocket || c.kind == "pocket") && pts.len() > 2 {
+        } else if c.ramp && lead.is_none() && job.closed && (!job.pocket || c.kind == "pocket") && pts.len() > 2 && (!inner_plunge || job.gen == 0) {
             let mut lc = vec![0.0];
             let mut t = 0.0;
             for i in 1..pts.len() { t += (pts[i][0] - pts[i - 1][0]).hypot(pts[i][1] - pts[i - 1][1]); lc.push(t); }
             for (i, q) in pts.iter().enumerate() { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + pz + (z - pz) * lc[i] / t), c.feed); }
             // the sloped lap leaves a sloped floor, but the next lap ramps down from there and cuts deeper everywhere, so
             // only the last depth needs a flat lap to level the floor: 3 depth passes are 3 ramps and one flat lap, not 6 laps
-            // a pocket ring is cut one depth at a time, so its last depth is the last of the operation
-            if (if job.pocket { c.zs.last() } else { zl.last() }) == Some(&z) {
+            // a pocket ring is cut one depth at a time, so its last depth is the last of the operation; when the rings inside
+            // plunge into the slot of the ones outside, those must leave a flat floor at every depth
+            if if job.pocket { inner_plunge || c.zs.last() == Some(&z) } else { zl.last() == Some(&z) } {
                 e.lap = true;
                 for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
                 e.lap = false;
