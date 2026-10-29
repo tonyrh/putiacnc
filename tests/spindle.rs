@@ -1,5 +1,5 @@
 //! Spindle waits, tool changes and the header: what the program says before and between the cuts.
-use putiacnc_core::model::ProjectFile;
+use putiacnc_core::model::{CustomFeeds, ProjectFile};
 use putiacnc_core::{generate, load_project, summary, verify, Units};
 
 fn project(name: &str) -> ProjectFile {
@@ -42,4 +42,26 @@ fn a_tool_change_tells_you_to_touch_off_z_again() {
     let one = project("outside_holes");
     let o = generate(&one.data, Units::Metric).unwrap();
     assert!(!summary::describe(&one.data, &o, Units::Metric, false).iter().any(|r| r.label == "At a tool change"));
+}
+
+#[test]
+fn a_speed_change_between_operations_waits_too() {
+    let mut p = project("two_ops_toolchange");
+    // both operations use the first tool, the second one at another speed
+    let first = p.data.ops[0].p.tool.clone();
+    p.data.ops[1].p.tool = first;
+    p.data.ops[1].p.custom = Some(CustomFeeds { rpm: Some(8000.0), ..Default::default() });
+    let o = generate(&p.data, Units::Metric).unwrap();
+    let i = o.lines.iter().position(|l| l.starts_with("M3 S8000")).expect("the second speed");
+    assert_eq!(o.lines[i + 1], "G4 P2");
+    assert!(!o.lines.iter().any(|l| l.starts_with("M0")), "no tool change for the same tool");
+    assert!(verify::hazards(&o.lines).is_empty());
+}
+
+#[test]
+fn the_grbl_header_resets_units_per_minute_and_the_work_coordinate_system() {
+    let o = generate(&project("outside_holes").data, Units::Metric).unwrap();
+    assert_eq!(o.lines[2], "G21 G90 G17 G94 G54");
+    let o = generate(&project("imperial_center").data, Units::Imperial).unwrap();
+    assert_eq!(o.lines[2], "G20 G90 G17 G94 G54");
 }

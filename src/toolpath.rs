@@ -616,7 +616,7 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
             e.g.push(format!("M3 S{}", num(rpm)));
             e.spin_wait();
         }
-        Some(_) if st.r != Some(rpm) => e.g.push(format!("M3 S{}", num(rpm))),
+        Some(_) if st.r != Some(rpm) => { e.g.push(format!("M3 S{}", num(rpm))); e.spin_wait(); }
         _ => {}
     }
     st.d = Some(tool.dia); st.r = Some(rpm); st.t = Some(tool.id.clone()); e.lf = None;
@@ -841,7 +841,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         e.g.push("G40 G49 G80".into());
         e.g.push("G54".into());
     } else {
-        e.g.push(format!("{} G90 G17", if imp { "G20" } else { "G21" }));
+        // metric or imperial, absolute, XY plane, feed per minute, first work coordinate system: nothing is left over from before
+        e.g.push(format!("{} G90 G17 G94 G54", if imp { "G20" } else { "G21" }));
     }
 
     let custom = |s: &Option<String>| -> Vec<String> { s.as_deref().unwrap_or("").lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect() };
