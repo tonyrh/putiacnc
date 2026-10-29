@@ -77,8 +77,8 @@ fn only_the_rings_next_to_the_walls_ramp_when_the_stepover_allows_it() {
         p.data.ops[k].p.custom = Some(CustomFeeds { rpm: None, feed: None, plunge: None, so: Some(so) });
         lines(p)
     };
-    let half = with_so(&mut p, 50.0);
-    let more = with_so(&mut p, 51.0);
-    assert!(ramp_moves(&half) < ramp_moves(&more), "at 50 % only the outer rings ramp: {} vs {}", ramp_moves(&half), ramp_moves(&more));
+    let half = with_so(&mut p, 45.0);
+    let more = with_so(&mut p, 46.0);
+    assert!(ramp_moves(&half) < ramp_moves(&more), "at 45 % only the outer rings ramp: {} vs {}", ramp_moves(&half), ramp_moves(&more));
     assert!((min_z(&half) - min_z(&more)).abs() < 1e-6, "same depth");
 }

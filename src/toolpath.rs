@@ -528,9 +528,9 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
     e.pn = 0;
     // a pocket ring is cut one depth at a time: it ramps down from the depth before, through the air of the pass above it
-    // With a stepover of half the tool or less, the start of an inner ring is inside the slot the ring outside it just cut (and
+    // With a stepover of 45 % of the tool or less (a margin under half), the start of an inner ring is inside the slot the ring outside it just cut (and
     // levelled), so only the rings next to the walls ramp; the others plunge there, through air, and cut flat.
-    let inner_plunge = job.pocket && c.ramp && c.so <= 50.0;
+    let inner_plunge = job.pocket && c.ramp && c.so <= 45.0;
     let mut pz = if job.pocket && c.ramp { zl.first().and_then(|z| c.zs.iter().position(|q| q == z)).and_then(|i| i.checked_sub(1)).map(|i| c.zs[i]).unwrap_or(0.0) } else { 0.0 };
     e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
     e.go("G1", None, None, Some(c.z0), c.plunge);
