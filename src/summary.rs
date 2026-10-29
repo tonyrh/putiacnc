@@ -86,7 +86,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     let deepest = l.iter().filter(|x| x.starts_with("G1 ")).filter_map(|x| word(x, 'Z')).fold(f64::MAX, f64::min);
     let k = units.factor();
     let mut t = String::new();
-    if deepest < f64::MAX { t += &format!("Down to Z{} {}. ", crate::toolpath::num(deepest), un); }
+    if deepest < f64::MAX { t += &format!("Down to Z {} {}. ", crate::toolpath::num(deepest), un); }
     t += &format!("{} {} of cutting, about {} in all.", crate::toolpath::num(crate::toolpath::to_fixed(out.cut_len_mm / k, if k == 1.0 { 0 } else { 1 })), un, duration(out.time_min));
     rows.push(row("Cutting", t, false));
 
@@ -94,7 +94,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     let tail = &l[l.len().saturating_sub(6)..];
     let lift = tail.iter().rev().find(|x| x.starts_with("G0 ")).and_then(|x| word(x, 'Z')).or_else(|| tail.iter().rev().filter(|x| x.starts_with("G0 ")).find_map(|x| word(x, 'Z')));
     let mut t = Vec::new();
-    if let Some(z) = lift { t.push(format!("lifts to Z{}", crate::toolpath::num(z))); }
+    if let Some(z) = lift { t.push(format!("lifts to Z {} {}", crate::toolpath::num(z), un)); }
     if tail.iter().any(|x| x.starts_with("M5")) { t.push("stops the spindle".into()); }
     if let Some(x) = tail.iter().rev().find(|x| x.starts_with("G0 X")) { t.push(format!("goes to {}", x.trim_start_matches("G0 "))); }
     if !t.is_empty() { let mut s = t.join(", "); if let Some(c) = s.get_mut(0..1) { c.make_ascii_uppercase() } rows.push(row("End", s + ".", false)); }
@@ -130,7 +130,7 @@ mod tests {
         assert!(get(&r, "Start").unwrap().text.contains("rpm") && get(&r, "Start").unwrap().text.contains("waits 2 s"));
         assert!(get(&r, "Tools").unwrap().text.contains("No tool change"));
         let c = &get(&r, "Cutting").unwrap().text;
-        assert!(c.contains("Down to Z-") && c.contains("mm of cutting") && c.contains("in all"), "{c}");
+        assert!(c.contains("Down to Z -") && c.contains("mm of cutting") && c.contains("in all"), "{c}");
         assert!(get(&r, "End").unwrap().text.contains("stops the spindle"));
         // the program lifts to safe Z before its first sideways move, so there is nothing to warn about
         assert!(get(&r, "Before you start").is_none());
