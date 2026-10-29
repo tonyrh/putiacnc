@@ -119,15 +119,15 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         }).response;
         // the whole top block is a link to the project page (the web page; the source code has its own link below)
         let link = ui.interact(head.rect, egui::Id::new("about_head"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(PAGE_URL);
-        if link.clicked() { let _ = open::that(PAGE_URL); }
+        if link.clicked() { let _ = open::that_detached(PAGE_URL); }
         ui.add_space(10.0);
         ui.add(egui::Label::new("Draw or import shapes, add operations, preview the cut in 3D and write the G-code. Free software under the GNU General Public License, version 3 or later: you may use, study, share and change it.").wrap(true));
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             let mark = github_mark(ctx, ui.visuals().dark_mode);
             let github = match &mark { Some(t) => egui::Button::image_and_text(egui::Image::new(egui::load::SizedTexture::new(t.id(), egui::vec2(16.0, 16.0))), " Source code"), None => egui::Button::new("Source code") };
-            if ui.add(github).on_hover_text("The source code, on GitHub").clicked() { let _ = open::that(REPO_URL); }
-            if ui.button("Report a problem").on_hover_text("Opens the problem form on GitHub (an account is needed to post)").clicked() { let _ = open::that(format!("{REPO_URL}/issues/new?template=bug_report.yml")); }
+            if ui.add(github).on_hover_text("The source code, on GitHub").clicked() { let _ = open::that_detached(REPO_URL); }
+            if ui.button("Report a problem").on_hover_text("Opens the problem form on GitHub (an account is needed to post)").clicked() { let _ = open::that_detached(format!("{REPO_URL}/issues/new?template=bug_report.yml")); }
             if ui.button("Copy system info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); }
         });
         ui.add_space(8.0);

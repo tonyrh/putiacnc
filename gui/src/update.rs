@@ -226,9 +226,9 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                     if can_self_update(r) {
                         if dlg_button(ui, Icon::Import, "Download and install", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text("Replaces this AppImage with the new version").clicked() { do_download = Some(r.clone()); }
                     } else if let Some((name, url)) = &r.asset {
-                        if dlg_button(ui, Icon::Import, "Download", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text(name.as_str()).clicked() { let _ = open::that(url); }
+                        if dlg_button(ui, Icon::Import, "Download", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text(name.as_str()).clicked() { let _ = open::that_detached(url); }
                     }
-                    if dlg_button(ui, Icon::Export, "Release page", None, None, false).clicked() { let _ = open::that(&r.page); }
+                    if dlg_button(ui, Icon::Export, "Release page", None, None, false).clicked() { let _ = open::that_detached(&r.page); }
                 });
             }
         }

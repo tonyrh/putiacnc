@@ -104,7 +104,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if ui.add(egui::Button::new("Keyboard shortcuts").shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }
             if ui.button("Check for updates…").on_hover_text("Asks GitHub for the latest release; nothing is contacted unless you ask").clicked() { app.updater.open = true; app.updater.check(false); ui.close_menu(); }
             if ui.button("Open config folder").on_hover_text("Where your tool libraries, machines and settings are saved").clicked() {
-                if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that(d); }
+                if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that_detached(d); }
                 ui.close_menu();
             }
             ui.separator();
