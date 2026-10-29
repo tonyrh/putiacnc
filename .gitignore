@@ -1,3 +1,4 @@
 target/
 *.AppImage
 putiacnc-gui.zip
+/shot-sweep/

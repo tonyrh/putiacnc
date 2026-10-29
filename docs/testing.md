@@ -76,6 +76,18 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_PRINT_VERSION_INFO` | Prints the "Copy system info" text and carries on. |
 | `PUTIACNC_UPDATE_URL` | Where the update check looks (point it at a local file to test). |
 
+### Sweeping every state, size and theme
+
+`scripts/shot-sweep.py` takes a picture of about 23 states (the design with and without a selection, folded operations, tabs, the 3D
+preview in three moments, the G-code and Notes tabs, the banners, every dialog, hidden panels) at the smallest window size and at
+1500x900, in the light theme (`--full`: also 1920x985 and the dark theme, about 15 minutes), and checks each picture by itself: the
+window is drawn, the panels and the canvas are not empty, nothing is drawn outside the window, and egui's red duplicate-ID marker is
+not on screen. It also compares every picture with the baseline of an earlier run (`shot-sweep/baseline`, not in git) and lists the ones
+where more than 0.3 % of the pixels changed, with a before | after | changes picture in `shot-sweep/diff/`. Run it with `--update` when
+the program looks the way you want, and again after a change to the layout: only what moved shows up. The status bar is left out of the
+comparison (it prints the generation time). A difference is where to look, not a failure; a layout that looks wrong in a way the checks
+cannot see still needs your eyes.
+
 Things to know:
 - Shift and Ctrl clicks are hard to send through Xvfb, so use `PUTIACNC_SELECT` instead.
 - The toolpath checks need up to a minute on a big project before their markers appear.
