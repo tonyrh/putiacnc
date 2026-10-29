@@ -65,3 +65,18 @@ fn the_grbl_header_resets_units_per_minute_and_the_work_coordinate_system() {
     let o = generate(&project("imperial_center").data, Units::Imperial).unwrap();
     assert_eq!(o.lines[2], "G20 G90 G17 G94 G54");
 }
+
+#[test]
+fn every_program_ends_at_safe_z_over_x0_y0() {
+    for name in ["outside_holes", "pocket_island", "vbit_profile", "tabs", "two_ops_toolchange", "vcarve_circle"] {
+        let p = project(name);
+        let o = generate(&p.data, Units::Metric).unwrap();
+        let l = &o.lines;
+        let n = l.len();
+        assert_eq!((l[n - 3].as_str(), l[n - 2].as_str(), l[n - 1].as_str()), ("M5", "G0 X0 Y0", "M2"), "{name}");
+        let safe = l[n - 4].strip_prefix("G0 Z").unwrap_or_else(|| panic!("{name}: lifts before stopping: {}", l[n - 4]));
+        let st = &p.data.stock;
+        let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
+        assert!((safe.parse::<f64>().unwrap() - (p.data.job.safe + zt)).abs() < 1e-3, "{name}: safe Z {safe}");
+    }
+}
