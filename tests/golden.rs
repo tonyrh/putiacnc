@@ -24,18 +24,29 @@ fn eta_seconds(eta: &str) -> f64 {
 
 /// `tol_mm`: largest allowed coordinate difference. `max_diff_frac`: share of lines allowed to differ at all
 /// (tiny rings may be sampled with different vertices by the two Clipper ports, both within 0.02 mm of the true curve).
+/// The program lifts to safe Z before anything moves sideways (`G0 Z..` right after the header). The browser app's reference files
+/// have no such line, so it is taken out before comparing; `a_program_lifts_before_it_moves_sideways` checks it is there.
+fn without_start_lift(lines: &[String]) -> Vec<String> {
+    let at = lines.iter().position(|l| l.starts_with("G0 Z")).expect("a lift to safe Z");
+    assert!(lines[..at].iter().all(|l| !l.starts_with("G0 X") && !l.starts_with("G1")), "the lift comes before any other move");
+    let mut v = lines.to_vec();
+    v.remove(at);
+    v
+}
+
 fn check(name: &str, tol_mm: f64, max_diff_frac: f64) {
     let proj = load_project(&fs::read_to_string(data(&format!("{name}.project.json"))).unwrap()).unwrap();
     let meta: serde_json::Value = serde_json::from_str(&fs::read_to_string(data(&format!("{name}.meta.json"))).unwrap()).unwrap();
     let units = if meta["units"] == "in" { Units::Imperial } else { Units::Metric };
     let expected = fs::read_to_string(data(&format!("{name}.expected.nc"))).unwrap();
     let out = generate(&proj.data, units).unwrap_or_else(|e| panic!("{name}: {e}"));
+    let out_lines = without_start_lift(&out.lines);
     let exp: Vec<&str> = expected.split('\n').collect();
-    assert_eq!(out.lines.len(), exp.len(), "{name}: line count");
+    assert_eq!(out_lines.len(), exp.len(), "{name}: line count");
     let tol = tol_mm / units.factor();
     let mut worst: f64 = 0.0;
     let mut differing = 0usize;
-    for (i, (a, b)) in exp.iter().zip(out.lines.iter()).enumerate() {
+    for (i, (a, b)) in exp.iter().zip(out_lines.iter()).enumerate() {
         let (ta, tb): (Vec<&str>, Vec<&str>) = (a.split(' ').collect(), b.split(' ').collect());
         assert_eq!(ta.len(), tb.len(), "{name} line {i}: `{a}` vs `{b}`");
         let mut line_differs = false;
@@ -103,13 +114,14 @@ fn check_geometry(name: &str, tol_mm: f64) {
     let proj = load_project(&fs::read_to_string(data(&format!("{name}.project.json"))).unwrap()).unwrap();
     let expected = fs::read_to_string(data(&format!("{name}.expected.nc"))).unwrap();
     let out = generate(&proj.data, Units::Metric).unwrap();
+    let out_lines = without_start_lift(&out.lines);
     let a: Vec<String> = expected.split('\n').map(String::from).collect();
     // Tiny rings may be sampled with a couple more or fewer vertices, so the line counts can differ slightly;
     // every non-motion line (headers, tool changes, comments, spindle) must still match exactly and in order.
     let non_motion = |v: &[String]| -> Vec<String> { v.iter().filter(|l| !(l.starts_with("G0") || l.starts_with("G1"))).cloned().collect() };
-    assert_eq!(non_motion(&a), non_motion(&out.lines), "{name}: non-motion lines");
-    assert!((a.len() as f64 - out.lines.len() as f64).abs() <= 0.02 * a.len() as f64, "{name}: line count {} vs {}", a.len(), out.lines.len());
-    let (sa, sb) = (segments(&a), segments(&out.lines));
+    assert_eq!(non_motion(&a), non_motion(&out_lines), "{name}: non-motion lines");
+    assert!((a.len() as f64 - out_lines.len() as f64).abs() <= 0.02 * a.len() as f64, "{name}: line count {} vs {}", a.len(), out_lines.len());
+    let (sa, sb) = (segments(&a), segments(&out_lines));
     let ((d1, o1, n1), (d2, o2, n2)) = (one_way(&sa, &sb, 0.05), one_way(&sb, &sa, 0.05));
     eprintln!("{name}: geometric difference JS->Rust {d1:.3} mm ({o1}/{n1} vertices over 0.05), Rust->JS {d2:.3} mm ({o2}/{n2})");
     assert!(d1 <= tol_mm && d2 <= tol_mm, "{name}: paths differ by {d1:.3}/{d2:.3} mm");

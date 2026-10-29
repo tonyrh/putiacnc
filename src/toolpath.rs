@@ -842,6 +842,9 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     // the machine's own start lines go in last, below, so arc fitting never sees them; remember where
     let start_at = e.g.len();
 
+    // the tool may be wherever the last job or the zeroing left it, so lift to safe Z before anything moves sideways
+    // (the moves below assume the tool is already there and write nothing, so this line is written by hand)
+    e.g.push(format!("G0 Z{}", num(to_fixed((sz_init + zt) / ku, e.dec()))));
     let mut ts = ToolSt::default();
     let mut any = false;
 

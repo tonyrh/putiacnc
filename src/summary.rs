@@ -132,9 +132,20 @@ mod tests {
         let c = &get(&r, "Cutting").unwrap().text;
         assert!(c.contains("Down to Z-") && c.contains("mm of cutting") && c.contains("in all"), "{c}");
         assert!(get(&r, "End").unwrap().text.contains("stops the spindle"));
-        // the program has no lift before its first sideways move
-        assert!(get(&r, "Before you start").unwrap().warn);
+        // the program lifts to safe Z before its first sideways move, so there is nothing to warn about
+        assert!(get(&r, "Before you start").is_none());
         assert!(get(&r, "Air cut").is_none());
+    }
+
+    #[test]
+    fn a_program_without_a_lift_is_warned_about() {
+        let p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/outside_holes.project.json");
+        let f = load_project(&std::fs::read_to_string(p).unwrap()).unwrap();
+        let mut out = generate(&f.data, Units::Metric).unwrap();
+        let at = out.lines.iter().position(|x| x.starts_with("G0 Z")).unwrap();
+        out.lines.remove(at);
+        let r = describe(&f.data, &out, Units::Metric, false);
+        assert!(get(&r, "Before you start").unwrap().warn);
     }
 
     #[test]
