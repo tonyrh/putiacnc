@@ -62,7 +62,7 @@ Things that make a real job easier
 - [ ] Double-sided work: flip the piece with registration holes or dowels.
 
 Toolpath quality
-- [x] Better path ordering (fewer and shorter rapids): done, "Shortest path order" in the G-code tab.
+- [x] Better path ordering (fewer and shorter rapids): done, always on.
 - [ ] Dogbone / T-bone corners and a finger / box-joint generator.
 - [ ] Adaptive clearing.
 - [ ] Nesting.

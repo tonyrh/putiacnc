@@ -298,13 +298,13 @@ fn group_by_component(comp: &[usize]) -> Vec<Vec<usize>> {
     groups.into_iter().map(|g| g.1).collect()
 }
 
-/// Cuts the jobs of one operation. With `opt` the order keeps the tool's travel short: a pocket goes region by region (each depth pass
+/// Cuts the jobs of one operation. The order keeps the tool's travel short: a pocket goes region by region (each depth pass
 /// starts at the region nearest to where the tool is), and profiles go nearest first, but never before something inside them (holes and
-/// parts inside another part are cut before the part around them, as before). Without it the jobs are cut in the order they were made.
+/// parts inside another part are cut before the part around them).
 /// A pocket cuts each depth pass over all its rings; the other kinds cut all depths of one job, then the next.
-fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64], guard: &[Path], opt: bool) {
+fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64], guard: &[Path]) {
     if c.kind == "pocket" {
-        let groups = if opt && jobs.len() > 1 {
+        let groups = if jobs.len() > 1 {
             let starts: Vec<[f64; 2]> = jobs.iter().map(|j| entry(j, c.rev)).collect();
             group_by_component(&component_of(region, &starts))
         } else { vec![(0..jobs.len()).collect()] };
@@ -321,7 +321,7 @@ fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64]
     }
     // inside-before-outside: job i must wait for every other job whose start lies within it (only for profiles; a line has no inside)
     let n = jobs.len();
-    if !opt || !(2..=600).contains(&n) || c.kind == "online" || c.kind == "drill" {
+    if !(2..=600).contains(&n) || c.kind == "online" || c.kind == "drill" {
         for j in jobs.iter_mut() { cut(e, c, j, zs, guard); }
         return;
     }
@@ -1140,13 +1140,13 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             for &z in &zs {
                 let mut jb = mk_jobs(&ctx, &region, &closed, &open, geo.r_at(-z));
                 let guard: Vec<Path> = jb.iter().map(|j| j.p.clone()).collect();
-                run_jobs(&mut e, &ctx, &mut jb, &region, &[z], &guard, data.job.order_opt);
+                run_jobs(&mut e, &ctx, &mut jb, &region, &[z], &guard);
             }
         } else if kind == "pocket" {
-            run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &[], data.job.order_opt);
+            run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &[]);
         } else {
             let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
-            run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &guard, data.job.order_opt);
+            run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &guard);
         }
         if e.lead_skipped > 0 {
             notes.push(format!("{}lead-in/out skipped on {} path(s): not enough room for the arc.", pre, e.lead_skipped));

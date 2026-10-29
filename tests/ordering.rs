@@ -1,4 +1,4 @@
-//! Path ordering: the same cuts in a shorter order, and nothing changes while the setting is off.
+//! Path ordering: the order of the cuts does not depend on the order the shapes were drawn in.
 use putiacnc_core::{generate, load_project, Units};
 use std::path::PathBuf;
 
@@ -13,20 +13,22 @@ fn lengths(o: &putiacnc_core::Output) -> (f64, f64) {
 }
 
 #[test]
-fn ordering_shortens_rapids_and_keeps_the_cuts() {
-    let name = "outside_holes.project.json";
-    let mut p = load(name);
-    p.data.job.order_opt = false;
-    let (off, off_lines) = { let o = generate(&p.data, Units::Metric).unwrap(); (lengths(&o), o.lines.len()) };
-    p.data.job.order_opt = true;
-    let (on, on_lines) = { let o = generate(&p.data, Units::Metric).unwrap(); (lengths(&o), o.lines.len()) };
-    assert_eq!(off_lines, on_lines, "{name}: same number of lines");
-    assert!((off.0 - on.0).abs() < 0.5, "{name}: cutting length {} vs {}", off.0, on.0);
-    assert!(on.1 < off.1, "{name}: rapids {} should be below {}", on.1, off.1);
+fn the_order_does_not_depend_on_the_drawing_order() {
+    for name in ["outside_holes.project.json", "pocket_island.project.json"] {
+        let p = load(name);
+        let a = lengths(&generate(&p.data, Units::Metric).unwrap());
+        let mut q = p.clone();
+        q.data.loops.reverse();
+        let b = lengths(&generate(&q.data, Units::Metric).unwrap());
+        assert!((a.0 - b.0).abs() < 0.5, "{name}: cutting length {} vs {}", a.0, b.0);
+        // nearest first: the travel is about the same whichever shape was drawn first
+        assert!((a.1 - b.1).abs() < 0.1 * a.1.max(10.0), "{name}: rapids {} vs {}", a.1, b.1);
+    }
 }
 
 #[test]
-fn old_projects_keep_their_order() {
-    // the golden files were made without ordering; a project that does not mention the setting must not turn it on
-    assert!(!load("two_ops_toolchange.project.json").data.job.order_opt);
+fn nearest_first_beats_a_bad_drawing_order_on_two_operations() {
+    // two operations with a few shapes each: the rapids stay short (the unordered program of this sample travelled 3026 mm)
+    let o = generate(&load("two_ops_toolchange.project.json").data, Units::Metric).unwrap();
+    assert!(lengths(&o).1 < 1000.0, "rapids {}", lengths(&o).1);
 }

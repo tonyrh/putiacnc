@@ -82,9 +82,6 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 18.0;
             if crate::widgets::check(ui, &mut app.imperial, "Inches (G20)").on_hover_text("Write the G-code in inches instead of millimetres").changed() { app.gen_pending = true; }
-            if crate::widgets::check(ui, &mut app.project.data.job.order_opt, "Shortest path order").on_hover_text("Cut the shapes of an operation nearest first, so the tool travels less between them. Parts inside another part are still cut before it. Off keeps the order the shapes were drawn in.").changed() {
-                app.gen_pending = true;
-            }
         });
         let (d, n) = (if app.project.data.job.mach() { "Mach3 / LinuxCNC" } else { "GRBL" }, app.project.data.job.numbered);
         ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
