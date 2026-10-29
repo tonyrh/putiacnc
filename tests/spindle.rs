@@ -65,3 +65,22 @@ fn the_grbl_header_resets_units_per_minute_and_the_work_coordinate_system() {
     let o = generate(&project("imperial_center").data, Units::Imperial).unwrap();
     assert_eq!(o.lines[2], "G20 G90 G17 G94 G54");
 }
+
+#[test]
+fn the_return_to_x0_y0_at_the_end_is_a_machine_setting() {
+    let run = |home: Option<bool>| {
+        let mut p = project("outside_holes");
+        let mut m = p.data.machine.clone().unwrap_or_default();
+        m.end_home = home;
+        p.data.machine = Some(m);
+        generate(&p.data, Units::Metric).unwrap()
+    };
+    let (on, default, off) = (run(Some(true)), run(None), run(Some(false)));
+    assert_eq!(on.lines, default.lines, "on when nothing is set");
+    let n = on.lines.len();
+    assert_eq!(&on.lines[n - 3..], &["M5".to_string(), "G0 X0 Y0".to_string(), "M2".to_string()][..]);
+    let n = off.lines.len();
+    assert_eq!(&off.lines[n - 2..], &["M5".to_string(), "M2".to_string()][..]);
+    assert_eq!(off.lines.len() + 1, on.lines.len());
+    assert!(verify::hazards(&off.lines).is_empty());
+}
