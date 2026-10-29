@@ -303,6 +303,10 @@ fn form(ui: &mut Ui, app: &mut App) {
         let mut sz = m.safe.unwrap_or(5.0) / k;
         if crate::widgets::num(ui, [fw, 22.0], &mut sz, 0.1 / k, 200.0 / k, 0.5 / k, 3, "").on_hover_text("Height above the stock where the tool travels between cuts").changed() { m.safe = Some((sz * k).clamp(0.1, 200.0)); changed = true; }
         ui.end_row();
+        rlabel(ui, lw, "Spindle wait (s)");
+        let mut sw = m.spin_up_s();
+        if crate::widgets::num(ui, [fw, 22.0], &mut sw, 0.0, 60.0, 0.5, 1, "").on_hover_text("How long the program waits after the spindle starts or changes speed before the tool touches anything. 0 = no wait.").changed() { m.spin_up = Some(sw.clamp(0.0, 60.0)); changed = true; }
+        ui.end_row();
         rlabel(ui, lw, "Arcs (G2/G3)");
         let mut ar = m.arcs.unwrap_or(false);
         if crate::widgets::check(ui, &mut ar, "").on_hover_text("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }

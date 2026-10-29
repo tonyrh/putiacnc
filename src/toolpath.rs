@@ -170,7 +170,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool,
-    moves: Vec<Move>, alt: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64,
+    moves: Vec<Move>, alt: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
 }
 
 impl Em {
@@ -196,6 +196,13 @@ impl Em {
         self.time += dt;
         if is_cut { self.tc += dt; }
         self.cur = [x, y, z];
+    }
+    /// Wait for the spindle to come up to speed (nothing when the machine's wait is 0). Counted in the time estimate.
+    fn spin_wait(&mut self) {
+        if self.spin > 0.0 {
+            self.g.push(format!("G4 P{}", num(self.spin)));
+            self.time += self.spin / 60.0;
+        }
     }
 }
 
@@ -599,15 +606,15 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
     match st.d {
         None => {
             if mach { e.g.push(m6); }
-            e.g.push(format!("M3 S{}", num(rpm))); e.g.push("G4 P2".into());
+            e.g.push(format!("M3 S{}", num(rpm))); e.spin_wait();
         }
         Some(ld) if if mach { st.t.as_deref() != Some(tool.id.as_str()) } else { ld != tool.dia } => {
             e.go("G0", None, None, Some(sz), 0.0);
             e.g.push("M5".into());
             if mach { e.g.push(m6); }
-            else { e.g.push(format!("M0 (Change tool to {} {}, then resume)", dia_txt, un)); }
+            else { e.g.push(format!("M0 (Change tool to {} {}, then touch off Z0 and resume)", dia_txt, un)); }
             e.g.push(format!("M3 S{}", num(rpm)));
-            e.g.push("G4 P2".into());
+            e.spin_wait();
         }
         Some(_) if st.r != Some(rpm) => e.g.push(format!("M3 S{}", num(rpm))),
         _ => {}
@@ -814,7 +821,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {

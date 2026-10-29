@@ -75,12 +75,15 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     if changes == 0 { if !t.is_empty() { t += ". No tool change."; } }
     else if !stops.is_empty() {
         if !t.is_empty() { t += ". "; }
-        t += &format!("The program pauses {} time{} for you to change the tool (to {}), then you resume it.", changes, if changes == 1 { "" } else { "s" }, stops.join(", then "));
+        t += &format!("The program pauses {} time{} for you to change the tool (to {}).", changes, if changes == 1 { "" } else { "s" }, stops.join(", then "));
     } else {
         if !t.is_empty() { t += ". "; }
         t += &format!("{} tool change{} (M6).", changes, if changes == 1 { "" } else { "s" });
     }
     if !t.is_empty() { rows.push(row("Tools", t, false)); }
+    if !stops.is_empty() {
+        rows.push(row("At a tool change", "Touch off Z0 again with the new tool before you resume: the controller does not know how long each tool is.", true));
+    }
 
     // how deep, how much, how long
     let deepest = l.iter().filter(|x| x.starts_with("G1 ")).filter_map(|x| word(x, 'Z')).fold(f64::MAX, f64::min);

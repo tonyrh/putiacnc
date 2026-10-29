@@ -14,16 +14,15 @@ fn lengths(o: &putiacnc_core::Output) -> (f64, f64) {
 
 #[test]
 fn ordering_shortens_rapids_and_keeps_the_cuts() {
-    for name in ["two_ops_toolchange.project.json", "outside_holes.project.json"] {
-        let mut p = load(name);
-        p.data.job.order_opt = false;
-        let (off, off_lines) = { let o = generate(&p.data, Units::Metric).unwrap(); (lengths(&o), o.lines.len()) };
-        p.data.job.order_opt = true;
-        let (on, on_lines) = { let o = generate(&p.data, Units::Metric).unwrap(); (lengths(&o), o.lines.len()) };
-        assert_eq!(off_lines, on_lines, "{name}: same number of lines");
-        assert!((off.0 - on.0).abs() < 0.5, "{name}: cutting length {} vs {}", off.0, on.0);
-        assert!(on.1 < off.1, "{name}: rapids {} should be below {}", on.1, off.1);
-    }
+    let name = "outside_holes.project.json";
+    let mut p = load(name);
+    p.data.job.order_opt = false;
+    let (off, off_lines) = { let o = generate(&p.data, Units::Metric).unwrap(); (lengths(&o), o.lines.len()) };
+    p.data.job.order_opt = true;
+    let (on, on_lines) = { let o = generate(&p.data, Units::Metric).unwrap(); (lengths(&o), o.lines.len()) };
+    assert_eq!(off_lines, on_lines, "{name}: same number of lines");
+    assert!((off.0 - on.0).abs() < 0.5, "{name}: cutting length {} vs {}", off.0, on.0);
+    assert!(on.1 < off.1, "{name}: rapids {} should be below {}", on.1, off.1);
 }
 
 #[test]

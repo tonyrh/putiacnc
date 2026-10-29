@@ -158,6 +158,8 @@ pub struct Machine {
     /// Fastest cutting feed and plunge rate the machine can do, in mm/min (`None` = no limit).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub feed_max: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")] pub plunge_max: Option<f64>,
+    /// Seconds to wait after the spindle starts or changes speed before the tool touches anything (`None` = 2 s, 0 = no wait).
+    #[serde(default, rename = "spinUp", skip_serializing_if = "Option::is_none")] pub spin_up: Option<f64>,
     /// Write the G-code in inches (G20) when a project uses this machine (`None` = leave the current choice).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub inches: Option<bool>,
     /// Write circular runs of cutting moves as G2/G3 arcs (shorter files; the controller must support them, as Grbl does).
@@ -169,6 +171,8 @@ pub struct Machine {
 }
 
 impl Machine {
+    /// The wait after the spindle starts, in seconds.
+    pub fn spin_up_s(&self) -> f64 { self.spin_up.unwrap_or(2.0).clamp(0.0, 60.0) }
     /// The tool as this machine can run it: spindle speed, feed and plunge held to the machine's limits.
     pub fn hold(&self, t: &Tool) -> Tool {
         let mut h = t.clone();
@@ -193,7 +197,7 @@ impl Machine {
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
-                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), start_code: None, end_code: None }
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None }
     }
 }
 
