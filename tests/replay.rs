@@ -99,3 +99,19 @@ fn every_step_ends_at_its_own_time_so_a_stop_can_be_told_from_the_step_after_it(
     }
     assert!(t > 0.0 && stops >= 2, "expected the pause and the tool change to be stops, got {stops}");
 }
+
+#[test]
+fn the_summary_at_the_top_is_comments_only_and_changes_nothing_else() {
+    let d = sample("two_ops_toolchange");
+    for numbered in [false, true] {
+        let mut d = d.clone(); d.job.numbered = numbered;
+        let parts = putiacnc_core::pieces::generate_parts(&d, Units::Metric).unwrap();
+        let l = &parts[0].out.lines;
+        let body = |x: &String| x.split_once(' ').filter(|_| numbered).map_or(x.as_str(), |p| p.1).to_string();
+        assert!(body(&l[0]).starts_with("(Summary"), "{:?}", l[0]);
+        let n = l.iter().take_while(|x| body(x).starts_with('(') && !body(x).starts_with("(PutiaCNC")).count();
+        assert!(n >= 4 && l[..n].iter().all(|x| !body(x).contains(';')), "header: {:?}", &l[..n]);
+        if numbered { assert!(l[0].starts_with("N10 ") && l[1].starts_with("N20 ")); }
+        assert!(common::replay_problems(&d, &parts[0].out, Units::Metric).is_empty());
+    }
+}

@@ -75,6 +75,7 @@ pub fn generate_parts(data: &ProjectData, units: Units) -> Result<Vec<PartOutput
     let mut out_main = generate(&main, units)?;
     // the plugs that have a piece are not in this part; drop the "no shapes" notes about them
     out_main.notes.retain(|n| !ids.iter().any(|&k| *n == format!("Op {} has no shapes.", k + 1)));
+    crate::summary::add_header(&mut out_main, &main, units, false);
     let mut parts = vec![PartOutput { piece: None, out: out_main }];
     for pj in pieces {
         let mut out = generate(&pj.data, units)?;
@@ -86,6 +87,7 @@ pub fn generate_parts(data: &ProjectData, units: Units) -> Result<Vec<PartOutput
             *l = l.replacen("(Stock ", "(Plug piece ", 1).replacen("of stock", "of the piece", 1);
             if replaces { if let Some(i) = l.find(';') { l.insert_str(i, " [replaces the main stock, same work zero]"); } }
         }
+        crate::summary::add_header(&mut out, &pj.data, units, true);
         parts.push(PartOutput { piece: Some(pj), out });
     }
     Ok(parts)
@@ -133,7 +135,9 @@ mod tests {
         add_operation(d, &sel, "inlay");
         let parts = generate_parts(d, Units::Metric).unwrap();
         assert_eq!(parts.len(), 1);
-        assert_eq!(parts[0].out.lines, generate(d, Units::Metric).unwrap().lines);
+        // the same program, under the summary comments
+        let plain = generate(d, Units::Metric).unwrap().lines;
+        assert!(parts[0].out.lines.ends_with(&plain));
     }
 
     #[test]

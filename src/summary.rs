@@ -131,6 +131,36 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     rows
 }
 
+/// Writes the summary at the top of the program as comments, so whoever opens the file at the machine reads what it will do. The rows
+/// are the ones of the "What this will do" box, in plain ASCII without brackets and wrapped to short lines. Nothing else in the
+/// program changes (the comments are ignored by every sender and by the 3D replay).
+pub fn add_header(out: &mut Output, data: &ProjectData, units: Units, piece: bool) {
+    let rows = describe(data, out, units, piece);
+    let mut head = vec!["(Summary, written by PutiaCNC)".to_string()];
+    for r in &rows {
+        let text: String = crate::toolpath::tool_label(&r.text.replace(['\u{201c}', '\u{201d}'], "\"").replace('\u{2019}', "'"));
+        let mut first = true;
+        let mut line = String::new();
+        let mut flush = |line: &mut String, first: &mut bool| {
+            let lab = if *first { format!("{}:", if r.warn { format!("{} (!)", r.label) } else { r.label.to_string() }) } else { String::new() };
+            head.push(format!("({lab:<24}{line})").replace("  )", " )"));
+            line.clear();
+            *first = false;
+        };
+        for w in text.split_whitespace() {
+            if !line.is_empty() && line.len() + 1 + w.len() > 70 { flush(&mut line, &mut first); }
+            if !line.is_empty() { line.push(' '); }
+            line.push_str(w);
+        }
+        if !line.is_empty() { flush(&mut line, &mut first); }
+    }
+    let numbered = data.job.numbered;
+    let mut old: Vec<String> = std::mem::take(&mut out.lines);
+    if numbered { old = old.iter().map(|l| strip_number(l).to_string()).collect(); }
+    head.extend(old);
+    out.lines = if numbered { crate::toolpath::number_lines(head) } else { head };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
