@@ -33,7 +33,8 @@ pub fn header(ui: &mut Ui, app: &mut App) {
     if drag.double_clicked() { ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized)); }
 
     // title, centred
-    let title = format!("{}{}", app.project.name, if app.modified { " •" } else { "" });
+    let name = if app.project.name.trim().is_empty() { "Untitled" } else { app.project.name.trim() };
+    let title = format!("{}{} - PutiaCNC", name, if app.modified { " •" } else { "" });
     let font = egui::TextStyle::Body.resolve(ui.style());
     ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, title, font, ui.visuals().strong_text_color());
 
