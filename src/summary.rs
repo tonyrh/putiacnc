@@ -17,6 +17,15 @@ fn word(line: &str, letter: char) -> Option<f64> {
 
 fn is_move(line: &str) -> bool { line.starts_with("G0 ") || line.starts_with("G1 ") || line.starts_with("G0\t") }
 
+fn strip_number(l: &str) -> &str {
+    let b = l.as_bytes();
+    if b.first() == Some(&b'N') {
+        let digits = b[1..].iter().take_while(|c| c.is_ascii_digit()).count();
+        if digits > 0 && b.get(1 + digits) == Some(&b' ') { return &l[digits + 2..]; }
+    }
+    l
+}
+
 /// "2 min 8 s", "45 s", "1 h 05 min".
 pub fn duration(min: f64) -> String {
     let s = (min * 60.0).round().max(0.0) as u64;
@@ -28,7 +37,9 @@ pub fn duration(min: f64) -> String {
 /// `piece`: the program is for a separate plug piece, so what is read from the project (tool names, air cut) is left out.
 pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> Vec<Row> {
     let un = units.name();
-    let l = &out.lines;
+    // numbered programs ("N120 G0 Z5") are read without their numbers
+    let plain: Vec<String> = out.lines.iter().map(|x| strip_number(x).to_string()).collect();
+    let l = &plain;
     let mut rows = Vec::new();
 
     // zero: the header comment says it, for the main piece and for a plug piece alike
@@ -83,6 +94,13 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     if !t.is_empty() { rows.push(row("Tools", t, false)); }
     if !stops.is_empty() {
         rows.push(row("At a tool change", "Touch off Z0 again with the new tool before you resume: the controller does not know how long each tool is.", true));
+    }
+
+    // pauses the operator asked for (a tool change has its own row)
+    let pauses: Vec<String> = l.iter().filter(|x| x.starts_with("M0 (") && !x.starts_with("M0 (Change tool to"))
+        .map(|x| format!("\u{201c}{}\u{201d}", x.trim_start_matches("M0 (").trim_end_matches(')'))).collect();
+    if !pauses.is_empty() {
+        rows.push(row("Pauses", format!("The program stops {} time{} with the spindle off: {}. Resume it when you are ready; the spindle starts again by itself.", pauses.len(), if pauses.len() == 1 { "" } else { "s" }, pauses.join(", ")), false));
     }
 
     // how deep, how much, how long

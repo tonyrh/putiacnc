@@ -593,6 +593,7 @@ pub fn number_lines(lines: Vec<String>) -> Vec<String> {
 
 /// Which tool is in the spindle, and the Mach3 / LinuxCNC tool numbers (in order of first use).
 #[derive(Default)]
+/// `r` is the spindle speed that is running; `None` while the spindle is stopped (the next tool selection starts it again).
 struct ToolSt { d: Option<f64>, r: Option<f64>, t: Option<String>, ids: Vec<String> }
 
 /// Emit what it takes to start cutting with `tool`: spindle start, or a tool change when another tool was in.
@@ -1151,6 +1152,15 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         if e.lead_skipped > 0 {
             notes.push(format!("{}lead-in/out skipped on {} path(s): not enough room for the arc.", pre, e.lead_skipped));
             e.lead_skipped = 0;
+        }
+        // a pause the operator asked for: lift, stop the spindle, wait; the next operation starts the spindle again
+        if let Some(msg) = &o.p.pause {
+            let msg: String = msg.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect::<String>().trim().chars().take(80).collect();
+            e.go("G0", None, None, Some(sz), 0.0);
+            e.g.push("M5".into());
+            e.g.push(format!("M0 ({})", if msg.is_empty() { format!("Operation {} done: resume when ready", k + 1) } else { msg }));
+            ts.r = None;
+            e.lf = None;
         }
         any = true;
     }

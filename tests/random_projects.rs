@@ -132,6 +132,7 @@ fn random_project(seed: u64) -> ProjectFile {
         p.depth = if r.chance(0.05) { r.f(t, t * 1.3) } else { r.f(0.2, t) };
         p.ramp = r.chance(0.6);
         p.air = r.chance(0.04);
+        if r.chance(0.15) { p.pause = Some(if r.chance(0.5) { String::new() } else { "Flip the (stock)".into() }); }
         p.pass_depth = if r.chance(0.4) { Some(r.f(0.3, 5.0)) } else { None };
         if kind == "outside" || kind == "inside" {
             if r.chance(0.2) { p.lead = Some(r.f(1.0, 6.0)); }
@@ -188,10 +189,13 @@ fn problems(f: &ProjectFile) -> Vec<String> {
         // the end: lift to safe Z, spindle off, X0 Y0, end of program
         let l: Vec<&str> = o.lines.iter().map(|x| strip_number(x)).collect();
         let n = l.len();
-        let end_ok = n >= 4 && l[n - 3] == "M5" && l[n - 2] == "G0 X0 Y0" && (l[n - 1] == "M2" || l[n - 1] == "M30") && l[n - 4].starts_with("G0 Z");
+        // a pause after the last operation adds "M5, M0 (message)" in front of the usual ending; its lift comes before them
+        let mut at = n.saturating_sub(4);
+        if at >= 2 && l[at].starts_with("M0 (") && l[at - 1] == "M5" { at -= 2; }
+        let end_ok = n >= 4 && l[n - 3] == "M5" && l[n - 2] == "G0 X0 Y0" && (l[n - 1] == "M2" || l[n - 1] == "M30") && (l[n - 4].starts_with("G0 Z") || (l[n - 4].starts_with("M0 (") && l[at].starts_with("G0 Z")));
         if !end_ok { bad.push(format!("{tag}: odd ending {:?}", &l[n.saturating_sub(4)..])); }
         else {
-            let z: f64 = l[n - 4][4..].parse().unwrap_or(f64::NAN);
+            let z: f64 = l[at][4..].parse().unwrap_or(f64::NAN);
             // safe Z, or 10 mm above it when the last operation is an air cut
             let safe = (d.job.safe + zt) / units.factor();
             let top = safe + 10.0 / units.factor();

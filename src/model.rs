@@ -266,6 +266,9 @@ pub struct OpParams {
     #[serde(default, rename = "rSo", skip_serializing_if = "Option::is_none")] pub r_so: Option<f64>,
     /// 3D relief finishing: stepover in % of the tool diameter; `None` = the finishing tool's own.
     #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
+    /// Stop the program after this operation: the tool lifts, the spindle stops, and the program waits (`M0`) with this message until you resume
+    /// (flip the stock, move a clamp, clean up chips). `Some("")` = a pause with a standard message; `None` = no pause.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub pause: Option<String>,
     /// Custom feeds and speeds for this operation; `None` = the tool's own. Only the values that are set differ from the tool.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub custom: Option<CustomFeeds>,
     /// The same for the second tool (the flat end mill of an inlay); `None` = the tool's own.

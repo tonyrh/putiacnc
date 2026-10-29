@@ -807,6 +807,19 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     });
                 }
                 changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
+                {
+                    let mut on = p.pause.is_some();
+                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Pause afterwards").on_hover_text("When this operation is done the tool lifts, the spindle stops and the program waits until you resume it: flip the stock, move a clamp, clear the chips.").changed() }).inner {
+                        p.pause = if on { Some(String::new()) } else { None };
+                        changed = true;
+                    }
+                    if let Some(msg) = p.pause.as_mut() {
+                        ui.horizontal(|ui| {
+                            ui.add_space(26.0);
+                            changed |= ui.add(egui::TextEdit::singleline(msg).hint_text("Message, e.g. Flip the stock").desired_width(ui.available_width() - 6.0)).changed();
+                        });
+                    }
+                }
                 // this operation's own spindle speed, feeds and stepover: one block for the tool, and for an inlay one for each of its two tools
                 if p.kind != "relief" {
                     let two = matches!(p.kind.as_str(), "inlay" | "plug");

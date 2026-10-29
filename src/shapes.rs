@@ -649,7 +649,7 @@ pub fn auto_tab_points(loops: &[LoopData], op: i64, n: usize) -> Vec<[f64; 2]> {
 pub fn default_op_params(tool: &str) -> OpParams {
     OpParams {
         kind: "outside".into(), dir: "climb".into(), depth: 3.0, ramp: true, tool: tool.into(),
-        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None, piece: None, d_man: false, r_off: false, f_off: false, r_leave: None, r_so: None, f_so: None, custom: None, custom2: None,
+        tabs: false, air: false, tab_n: Some(4.0), tab_w: Some(5.0), tab_h: Some(2.0), tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None, piece: None, d_man: false, r_off: false, f_off: false, r_leave: None, r_so: None, f_so: None, pause: None, custom: None, custom2: None,
     }
 }
 
@@ -673,6 +673,7 @@ pub fn add_operation(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize
     if kind == "inlay" { add_inlay(d, sel); return None; }
     let base = d.ops.last().map(|o| o.p.clone());
     let mut p = base.unwrap_or_else(|| default_op_params(d.tools.first().map(|t| t.id.as_str()).unwrap_or("")));
+    p.pause = None;
     p.kind = match kind {
         "relief" => "relief".into(),
         "pocket" => "pocket".into(),
