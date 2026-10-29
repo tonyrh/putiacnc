@@ -15,6 +15,13 @@ CI (`.github/workflows/ci.yml`) runs both on every push to `main` and every pull
   They catch unintended changes. After a change you meant to make, run `UPDATE_SNAPSHOTS=1 cargo test --test golden`,
   read `git diff tests/data` by eye, and commit what you accept. Whether the G-code is *right* is the job of
   `verify_programs.rs`, which re-reads the text with an independent checker.
+- **Random projects** (`tests/random_projects.rs`): projects built from a seed (stock, tools, one to three operations
+  of every kind including inlay, shapes with holes, a random machine) go through the generator and the independent
+  checker, in mm and inches, with arcs on and off. A project must not panic, must pass the checker, must agree with the
+  generator on cutting length and depth, must end at safe Z over X0 Y0, and must not cut below the stock without a note.
+  20 seeds run with the normal tests; `cargo test --release --test random_projects -- --ignored --nocapture`
+  runs 5000 (`COUNT=n` to change). A failure prints its seed and writes the project to the temp folder; `SEED=n` with
+  the `one_seed` test (ignored) shows it in detail.
 - **Feature tests** in `tests/`: `air.rs` (air cuts), `arcs.rs`, `checks_*.rs` (the toolpath checks), `lead.rs`,
   `limits.rs`, `relief.rs`, `tabs.rs`.
 - **GUI tests** (`gui/src`) build an `App` without a window and drive it: undo scopes, groups, operations keeping
