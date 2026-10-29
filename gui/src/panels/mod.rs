@@ -86,9 +86,6 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                 app.gen_pending = true;
             }
         });
-        if crate::widgets::check(ui, &mut app.project.data.job.ramp_pockets, "Ramp into pockets").on_hover_text("Pocket operations with Ramp in ticked ease the tool down along each ring instead of plunging straight down. Gentler on the tool, but it adds a flat lap on the last depth, so a pocket takes longer. Off: pockets plunge, as in projects from before this setting.").changed() {
-            app.gen_pending = true;
-        }
         let (d, n) = (if app.project.data.job.mach() { "Mach3 / LinuxCNC" } else { "GRBL" }, app.project.data.job.numbered);
         ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
         ui.add_space(4.0);

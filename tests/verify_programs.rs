@@ -47,7 +47,7 @@ fn variants(base: &ProjectData) -> Vec<(String, ProjectData)> {
     let mut d = base.clone(); d.job.post = "mach".into(); v.push(("mach".into(), d));
     let mut d = base.clone(); d.job.numbered = true; v.push(("numbered".into(), d));
     let mut d = base.clone(); d.job.air = true; v.push(("air".into(), d));
-    let mut d = base.clone(); d.job.order_opt = true; d.job.ramp_pockets = true; for o in d.ops.iter_mut() { o.p.ramp = true; } v.push(("ordered+ramp".into(), d));
+    let mut d = base.clone(); d.job.order_opt = true; for o in d.ops.iter_mut() { o.p.ramp = true; } v.push(("ordered+ramp".into(), d));
     let mut d = base.clone(); d.machine.get_or_insert_with(Default::default).arcs = Some(true); v.push(("arcs".into(), d));
     v
 }

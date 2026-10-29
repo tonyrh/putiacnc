@@ -320,7 +320,6 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let mut job_tools: Vec<String> = Vec::new();
         for o in &d.ops { for t in std::iter::once(&o.p.tool).chain(o.p.tool2.iter()) { if !t.is_empty() && !job_tools.contains(t) { job_tools.push(t.clone()); } } }
         let machine_now = d.machine.clone();
-        let ramp_pockets = d.job.ramp_pockets;
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
         let mut act_use: Option<i64> = None;
@@ -586,8 +585,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if has_ramp {
                             let rest = ui.available_width() - ramp_w;
                             if rest > 0.0 { ui.add_space(rest); }
-                            changed |= crate::widgets::check_if(ui, (p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str())) && (p.kind != "pocket" || ramp_pockets), &mut p.ramp, "Ramp in")
-                                .on_hover_text(if p.kind == "pocket" && !ramp_pockets { "Ramping into pockets is switched off for this project: tick \"Ramp into pockets\" in the G-code tab" } else if p.kind == "pocket" { "Eases the tool down along each ring of the pocket instead of plunging straight down" } else { "Eases the tool down along the first pass (not needed with a lead-in arc)" }).changed();
+                            changed |= crate::widgets::check_if(ui, p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), &mut p.ramp, "Ramp in")
+                                .on_hover_text(if p.kind == "pocket" { "Eases the tool down along each ring of the pocket instead of plunging straight down" } else { "Eases the tool down along the first pass (not needed with a lead-in arc)" }).changed();
                         }
                     });
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
@@ -606,10 +605,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             if p.kind == "plug" || p.kind == "inlay" {
                                 let rest = ui.available_width() - ramp_w;
                                 if rest > 0.0 { ui.add_space(rest); }
-                                // the pocket's clearing follows the project's "Ramp into pockets"; the plug's cut-out always can
                                 let pocket = p.kind == "inlay";
-                                changed |= crate::widgets::check_if(ui, !pocket || ramp_pockets, &mut p.ramp, "Ramp in")
-                                    .on_hover_text(if pocket && !ramp_pockets { "Ramping into pockets is switched off for this project: tick \"Ramp into pockets\" in the G-code tab" } else if pocket { "Eases the flat end mill down along each ring that clears the pocket floor instead of plunging" } else { "Eases the flat end mill down along the cut-out of the plug instead of plunging" }).changed();
+                                changed |= crate::widgets::check(ui, &mut p.ramp, "Ramp in")
+                                    .on_hover_text(if pocket { "Eases the flat end mill down along each ring that clears the pocket floor instead of plunging" } else { "Eases the flat end mill down along the cut-out of the plug instead of plunging" }).changed();
                             }
                         });
                         if p.kind == "plug" {

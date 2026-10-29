@@ -893,7 +893,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let tab_h = o.p.tab_h.unwrap_or(2.0);
         let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside" || kind == "online"); // open paths on a line are cut without tabs
         let tabs_on = tabs_req && tab_h > 0.0 && tab_h < depth - 1e-6;
-        let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp && (kind != "pocket" || data.job.ramp_pockets), rev: false, z0, sz, zs: zs.clone(),
+        let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, z0, sz, zs: zs.clone(),
             tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
             lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 } };
 
@@ -925,7 +925,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let conv = o.p.dir == "conv";
             let mkzs = |d: f64| -> Vec<f64> { let n = ((d / fpd) - 1e-9).ceil().max(1.0) as usize; (0..n).map(|i| -(d / n as f64) * (i as f64 + 1.0)).collect() };
             let fctx = |kind: &'static str, zs: Vec<f64>, rev: bool| OpCtx {
-                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp && (kind == "outside" || data.job.ramp_pockets), rev, z0, sz, zs,
+                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, z0, sz, zs,
                 tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0,
             };
             let ring_rev = !conv;
