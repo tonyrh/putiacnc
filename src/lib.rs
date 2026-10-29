@@ -7,6 +7,7 @@ pub mod bitmap;
 pub mod checks;
 pub mod history;
 pub mod selection;
+pub mod summary;
 pub mod cleanup;
 pub mod clip;
 pub mod machines;

@@ -115,6 +115,30 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         (Some(main), RightTab::Gcode) => {
             let o = app.gcode_part.checked_sub(1).and_then(|i| app.pieces.get(i)).map_or(main, |pp| &pp.output);
             let several = !app.pieces.is_empty();
+            // what the program will do, in plain words; made again only when the G-code was
+            let key = (app.out_ver, app.gcode_part);
+            if app.summary.as_ref().map(|s| s.0) != Some(key) {
+                let units = if app.imperial { putiacnc_core::Units::Imperial } else { putiacnc_core::Units::Metric };
+                app.summary = Some((key, putiacnc_core::summary::describe(&app.project.data, o, units, app.gcode_part > 0)));
+            }
+            if let Some((_, rows)) = &app.summary {
+                let warn_col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
+                egui::CollapsingHeader::new(egui::RichText::new("What this will do").strong()).id_source("gcode_summary").default_open(true).show(ui, |ui| {
+                    let lw = rows.iter().map(|r| tw(ui, r.label)).fold(0.0_f32, f32::max);
+                    ui.spacing_mut().item_spacing.y = 4.0;
+                    for r in rows {
+                        // the label stays level with the first line of a text that wraps
+                        ui.horizontal_top(|ui| {
+                            ui.spacing_mut().item_spacing.x = 10.0;
+                            ui.allocate_ui_with_layout(egui::vec2(lw, 0.0), egui::Layout::top_down(egui::Align::Max), |ui| { ui.set_width(lw); ui.label(r.label); });
+                            let t = egui::RichText::new(&r.text);
+                            ui.add(egui::Label::new(if r.warn { t.color(warn_col) } else { t }).wrap(true));
+                        });
+                    }
+                });
+                ui.add_space(2.0);
+                ui.separator();
+            }
             // Copy / Export sit at the bottom; the G-code takes the rest of the height
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 ui.add_space(8.0);
