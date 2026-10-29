@@ -50,8 +50,14 @@ pub fn header(ui: &mut Ui, app: &mut App) {
             if win_button(ui, WinIcon::Minimize, "Minimize") { ctx.send_viewport_cmd(ViewportCommand::Minimized(true)); }
             ui.add_space(10.0);
             // panel toggles (listed right-to-left: they read left panel, right panel)
-            panel_toggle(ui, false, &mut app.show_right, "Show / hide the operations panel");
-            panel_toggle(ui, true, &mut app.show_left, "Show / hide the project panel");
+            // a panel hidden because the window is too narrow shows as off; clicking it shows it in place of the other one
+            let (sq_l, sq_r) = app.squeezed;
+            if panel_toggle(ui, false, app.show_right && !sq_r, if sq_r { "Hidden: the window is too narrow. Click to show it instead of the project panel" } else { "Show / hide the operations panel" }) {
+                if sq_r { app.show_left = false; } else { app.show_right = !app.show_right; }
+            }
+            if panel_toggle(ui, true, app.show_left && !sq_l, if sq_l { "Hidden: the window is too narrow. Click to show it instead of the operations panel" } else { "Show / hide the project panel" }) {
+                if sq_l { app.show_right = false; } else { app.show_left = !app.show_left; }
+            }
         });
     });
 
@@ -64,22 +70,49 @@ pub fn header(ui: &mut Ui, app: &mut App) {
 }
 
 /// A small window glyph with the left or right strip filled while that panel is visible.
-fn panel_toggle(ui: &mut Ui, left: bool, on: &mut bool, tip: &str) {
+/// One of the two panel buttons of the header; true when it was clicked.
+fn panel_toggle(ui: &mut Ui, left: bool, on: bool, tip: &str) -> bool {
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(30.0, 28.0), Sense::click());
     let vis = ui.visuals().clone();
     if resp.hovered() { ui.painter().rect_filled(rect.shrink2(egui::vec2(1.0, 1.0)), 7.0, vis.widgets.hovered.bg_fill); }
-    let col = if *on { vis.text_color() } else { vis.text_color().gamma_multiply(0.65) };
+    let col = if on { vis.text_color() } else { vis.text_color().gamma_multiply(0.65) };
     let st = Stroke::new(1.5_f32, col);
     let body = Rect::from_center_size(rect.center(), egui::vec2(18.0, 14.0));
     let strip_w = 6.0;
     let strip = if left { Rect::from_min_size(body.min, egui::vec2(strip_w, body.height())) }
                 else { Rect::from_min_size(Pos2::new(body.max.x - strip_w, body.min.y), egui::vec2(strip_w, body.height())) };
-    if *on { ui.painter().rect_filled(strip.shrink(1.0), 1.0, col.gamma_multiply(0.8)); }
+    if on { ui.painter().rect_filled(strip.shrink(1.0), 1.0, col.gamma_multiply(0.8)); }
     ui.painter().rect_stroke(body, 3.0, st);
     let x = if left { strip.max.x } else { strip.min.x };
     ui.painter().line_segment([Pos2::new(x, body.min.y), Pos2::new(x, body.max.y)], Stroke::new(1.2_f32, col));
-    if resp.on_hover_text(tip).clicked() { *on = !*on; }
+    resp.on_hover_text(tip).clicked()
 }
+
+/// Which side panels fit in a window `w` wide next to a canvas of at least `canvas`: the operations panel (right) is the first to go,
+/// then the project panel (left). Returns (left, right) as shown.
+pub fn fit_panels(w: f32, canvas: f32, left_w: f32, right_w: f32, left: bool, right: bool) -> (bool, bool) {
+    let right = right && w >= canvas + right_w + if left { left_w } else { 0.0 };
+    let left = left && w >= canvas + left_w + if right { right_w } else { 0.0 };
+    (left, right)
+}
+
+#[cfg(test)]
+mod fit_tests {
+    use super::fit_panels;
+    #[test]
+    fn the_operations_panel_goes_first_then_the_project_panel() {
+        let f = |w: f32, l: bool, r: bool| fit_panels(w, 520.0, 394.0, 440.0, l, r);
+        assert_eq!(f(1354.0, true, true), (true, true), "wide enough for both");
+        assert_eq!(f(1353.0, true, true), (true, false), "one pixel short: the right one goes");
+        assert_eq!(f(1000.0, true, true), (true, false));
+        assert_eq!(f(900.0, true, true), (false, false), "not even the left one fits");
+        assert_eq!(f(1000.0, false, true), (false, true), "the right one alone fits");
+        assert_eq!(f(900.0, false, true), (false, false));
+        assert_eq!(f(1000.0, true, false), (true, false));
+        assert_eq!(f(1000.0, false, false), (false, false), "panels the user hid stay hidden");
+    }
+}
+
 
 #[derive(Clone, Copy, PartialEq)]
 enum WinIcon { Minimize, Maximize, Restore, Close }

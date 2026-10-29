@@ -131,6 +131,10 @@ impl eframe::App for App {
         self.poll_dialog(ctx);
         if self.pending.is_none() { canvas::handle_keys(ctx, self); }
 
+        // a window narrower than the panels and the smallest canvas (a tiling window manager can do that) hides the operations panel first,
+        // then the project panel, until the window is wide enough again
+        let (fit_left, fit_right) = csd::fit_panels(ctx.screen_rect().width(), MIN_CANVAS_W, LEFT_W, RIGHT_W, self.show_left, self.show_right);
+        self.squeezed = (self.show_left && !fit_left, self.show_right && !fit_right);
         egui::TopBottomPanel::top("menu").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, true))).show(ctx, |ui| { ui.set_min_height(csd::HEADER_H); csd::header(ui, self) });
         egui::TopBottomPanel::bottom("status").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, false))).show(ctx, |ui| panels::status_bar(ui, self));
         // the smallest window depends on which panels are showing
@@ -139,10 +143,10 @@ impl eframe::App for App {
             self.last_min_w = min_w;
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(min_w.max(640.0), MIN_H)));
         }
-        if self.show_left {
+        if fit_left {
             egui::SidePanel::left("left").resizable(false).exact_width(LEFT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)); });
         }
-        if self.show_right {
+        if fit_right {
             egui::SidePanel::right("right").resizable(false).exact_width(RIGHT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)); });
         }
         egui::TopBottomPanel::bottom("toolbar").frame(bar_frame(ctx, self.theme.header())).show(ctx, |ui| panels::tool_bar(ui, self));
