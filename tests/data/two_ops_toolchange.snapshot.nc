@@ -456,7 +456,7 @@ G1 X60.633
 G1 Y39.368
 G0 Z5
 M5
-M0 (Change tool to 6 mm, then touch off Z0 and resume)
+M0 ; Change tool to 6 mm, then touch off Z0 and resume
 M3 S10000
 G4 P2
 (Operation 2: outside, tool 6 mm)

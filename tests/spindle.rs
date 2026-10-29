@@ -34,7 +34,7 @@ fn the_wait_after_the_spindle_starts_is_the_machines_setting() {
 fn a_tool_change_tells_you_to_touch_off_z_again() {
     let p = project("two_ops_toolchange");
     let o = generate(&p.data, Units::Metric).unwrap();
-    let m0 = o.lines.iter().find(|l| l.starts_with("M0 (Change tool")).expect("a pause for the change");
+    let m0 = o.lines.iter().find(|l| l.starts_with("M0 ; Change tool")).expect("a pause for the change");
     assert!(m0.contains("touch off Z0"), "{m0}");
     let rows = summary::describe(&p.data, &o, Units::Metric, false);
     assert!(rows.iter().any(|r| r.label == "At a tool change" && r.warn && r.text.contains("Touch off Z0")));

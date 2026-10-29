@@ -18,7 +18,7 @@ fn a_pause_lifts_stops_the_spindle_waits_and_starts_again() {
     let o = generate(&f.data, Units::Metric).unwrap();
     let l = &o.lines;
     let m0 = l.iter().position(|x| x.starts_with("M0 ")).expect("a pause");
-    assert_eq!(l[m0], "M0 (Flip the stock)");
+    assert_eq!(l[m0], "M0 ; Flip the stock", "GRBL: a ; comment, which gSender shows");
     assert_eq!(l[m0 - 1], "M5");
     assert!(l[m0 - 2].starts_with("G0 Z"), "lifts first: {}", l[m0 - 2]);
     // before the next operation the spindle starts again, with the wait, and only then does it move
@@ -37,7 +37,7 @@ fn without_a_pause_nothing_changes_and_an_empty_message_gets_a_standard_one() {
     assert!(!plain.lines.iter().any(|x| x.starts_with("M0")));
     f.data.ops[0].p.pause = Some("  ".into());
     let o = generate(&f.data, Units::Metric).unwrap();
-    assert!(o.lines.iter().any(|x| x == "M0 (Operation 1 done: resume when ready)"));
+    assert!(o.lines.iter().any(|x| x == "M0 ; Operation 1 done: resume when ready"));
     assert_eq!(o.lines.len(), plain.lines.len() + 4, "lift, M5, M0 and the new M3 with its wait");
 }
 
@@ -47,7 +47,7 @@ fn the_message_is_plain_ascii_without_parentheses() {
     f.data.ops[0].p.pause = Some("Flip (the) \"stock\" — côté B".into());
     let o = generate(&f.data, Units::Metric).unwrap();
     let m0 = o.lines.iter().find(|x| x.starts_with("M0 ")).unwrap();
-    assert!(m0.is_ascii() && m0.matches('(').count() == 1 && m0.matches(')').count() == 1, "{m0}");
+    assert!(m0.is_ascii() && !m0.contains('(') && !m0.contains(')'), "{m0}");
     assert!(m0.contains("Flip -the- instock"), "{m0}");
 }
 
@@ -88,4 +88,14 @@ fn the_summary_reads_numbered_programs_too() {
     let rows = summary::describe(&f.data, &o, Units::Metric, false);
     assert!(rows.iter().any(|r| r.label == "Start" && r.text.contains("waits 2 s")), "{rows:?}");
     assert!(rows.iter().any(|r| r.label == "End"), "{rows:?}");
+}
+
+#[test]
+fn mach3_gets_a_bracketed_message_because_it_has_no_semicolon_comments() {
+    let mut f = project();
+    f.data.job.post = "mach".into();
+    f.data.ops[0].p.pause = Some("Flip the stock".into());
+    let o = generate(&f.data, Units::Metric).unwrap();
+    assert!(o.lines.iter().any(|x| x == "M0 (Flip the stock)"));
+    assert!(!o.lines.iter().any(|x| !x.starts_with('(') && x.contains(';')), "no semicolon comments outside the bracketed header");
 }

@@ -79,7 +79,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
             }
         }
     }
-    let stops: Vec<&str> = l.iter().filter(|x| x.starts_with("M0 (Change tool to")).map(|x| x.trim_start_matches("M0 (Change tool to ").split(", then").next().unwrap_or("")).collect();
+    let stops: Vec<&str> = l.iter().filter_map(|x| crate::toolpath::stop_message(x)).filter_map(|m| m.strip_prefix("Change tool to ")).map(|m| m.split(", then").next().unwrap_or("")).collect();
     let m6 = l.iter().filter(|x| x.contains(" M6 ")).count().saturating_sub(1);
     let changes = stops.len().max(m6);
     let mut t = if names.is_empty() { String::new() } else { names.join(", ") };
@@ -97,8 +97,8 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     }
 
     // pauses the operator asked for (a tool change has its own row)
-    let pauses: Vec<String> = l.iter().filter(|x| x.starts_with("M0 (") && !x.starts_with("M0 (Change tool to"))
-        .map(|x| format!("\u{201c}{}\u{201d}", x.trim_start_matches("M0 (").trim_end_matches(')'))).collect();
+    let pauses: Vec<String> = l.iter().filter_map(|x| crate::toolpath::stop_message(x)).filter(|m| !m.starts_with("Change tool to "))
+        .map(|m| format!("\u{201c}{m}\u{201d}")).collect();
     if !pauses.is_empty() {
         rows.push(row("Pauses", format!("The program stops {} time{} with the spindle off: {}. Resume it when you are ready; the spindle starts again by itself.", pauses.len(), if pauses.len() == 1 { "" } else { "s" }, pauses.join(", ")), false));
     }

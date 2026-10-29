@@ -591,6 +591,17 @@ pub fn number_lines(lines: Vec<String>) -> Vec<String> {
     lines.into_iter().enumerate().map(|(i, l)| format!("N{} {}", (i + 1) * 10, l)).collect()
 }
 
+/// A program stop with a message the operator can read. GRBL senders such as gSender drop (bracketed) comments before sending and
+/// show a `;` comment instead, so GRBL gets `M0 ; message`; Mach3 has no `;` comments, so it gets `M0 (message)`.
+pub fn stop_line(mach: bool, msg: &str) -> String { if mach { format!("M0 ({msg})") } else { format!("M0 ; {msg}") } }
+
+/// The message of a line written by `stop_line` (either form), when it is one.
+pub fn stop_message(line: &str) -> Option<&str> {
+    let line = line.trim_end();
+    if let Some(m) = line.strip_prefix("M0 ; ") { return Some(m); }
+    line.strip_prefix("M0 (").map(|m| m.strip_suffix(')').unwrap_or(m))
+}
+
 /// Which tool is in the spindle, and the Mach3 / LinuxCNC tool numbers (in order of first use).
 #[derive(Default)]
 /// `r` is the spindle speed that is running; `None` while the spindle is stopped (the next tool selection starts it again).
@@ -613,7 +624,7 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
             e.go("G0", None, None, Some(sz), 0.0);
             e.g.push("M5".into());
             if mach { e.g.push(m6); }
-            else { e.g.push(format!("M0 (Change tool to {} {}, then touch off Z0 and resume)", dia_txt, un)); }
+            else { e.g.push(stop_line(false, &format!("Change tool to {} {}, then touch off Z0 and resume", dia_txt, un))); }
             e.g.push(format!("M3 S{}", num(rpm)));
             e.spin_wait();
         }
@@ -1158,7 +1169,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let msg: String = msg.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect::<String>().trim().chars().take(80).collect();
             e.go("G0", None, None, Some(sz), 0.0);
             e.g.push("M5".into());
-            e.g.push(format!("M0 ({})", if msg.is_empty() { format!("Operation {} done: resume when ready", k + 1) } else { msg }));
+            e.g.push(stop_line(mach, &if msg.is_empty() { format!("Operation {} done: resume when ready", k + 1) } else { msg }));
             ts.r = None;
             e.lf = None;
         }
@@ -1348,7 +1359,7 @@ mod tests {
         d.ops.push(Operation { id: 2, p });
         d.loops.push(crate::shapes::new_circle([80.0, 40.0], 1.0, 2));
         let grbl = generate(&d, Units::Metric).unwrap();
-        assert!(grbl.gcode().contains("M0 (Change tool") && grbl.lines.last().unwrap() == "M2" && !grbl.gcode().contains("M6"));
+        assert!(grbl.gcode().contains("M0 ; Change tool") && grbl.lines.last().unwrap() == "M2" && !grbl.gcode().contains("M6"));
 
         d.job.post = "mach".into();
         let o = generate(&d, Units::Metric).unwrap();

@@ -189,10 +189,10 @@ fn problems(f: &ProjectFile) -> Vec<String> {
         // the end: lift to safe Z, spindle off, X0 Y0, end of program
         let l: Vec<&str> = o.lines.iter().map(|x| strip_number(x)).collect();
         let n = l.len();
-        // a pause after the last operation adds "M5, M0 (message)" in front of the usual ending; its lift comes before them
+        // a pause after the last operation adds "M5, M0 + message" in front of the usual ending; its lift comes before them
         let mut at = n.saturating_sub(4);
-        if at >= 2 && l[at].starts_with("M0 (") && l[at - 1] == "M5" { at -= 2; }
-        let end_ok = n >= 4 && l[n - 3] == "M5" && l[n - 2] == "G0 X0 Y0" && (l[n - 1] == "M2" || l[n - 1] == "M30") && (l[n - 4].starts_with("G0 Z") || (l[n - 4].starts_with("M0 (") && l[at].starts_with("G0 Z")));
+        if at >= 2 && l[at].starts_with("M0 ") && l[at - 1] == "M5" { at -= 2; }
+        let end_ok = n >= 4 && l[n - 3] == "M5" && l[n - 2] == "G0 X0 Y0" && (l[n - 1] == "M2" || l[n - 1] == "M30") && (l[n - 4].starts_with("G0 Z") || (l[n - 4].starts_with("M0 ") && l[at].starts_with("G0 Z")));
         if !end_ok { bad.push(format!("{tag}: odd ending {:?}", &l[n.saturating_sub(4)..])); }
         else {
             let z: f64 = l[at][4..].parse().unwrap_or(f64::NAN);
