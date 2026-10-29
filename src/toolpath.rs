@@ -940,7 +940,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let closed: Vec<Path> = mine.iter().filter(|l| l.closed() && l.pts.len() / 2 > 2).map(|l| l.path()).collect();
         let open: Vec<Path> = mine.iter().filter(|l| !l.closed()).map(|l| l.path()).collect();
         if depth > st.t { notes.push(format!("⚠ {}depth exceeds stock thickness.", pre)); }
-        let region = clip::simplify_even_odd(&closed);
+        // drilling goes by each shape's centre; the union of the shapes (slow when there are many) is not needed
+        let region = if kind == "drill" { Vec::new() } else { clip::simplify_even_odd(&closed) };
         if kind != "online" && kind != "drill" && !open.is_empty() { notes.push(format!("{}{} open path(s) skipped.", pre, open.len())); }
 
         let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(pd);

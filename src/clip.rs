@@ -48,6 +48,10 @@ fn flatten_and_free(out: c::Polygons) -> Vec<Path> {
 /// Union with the even-odd rule (what the app uses to decide which loops are holes).
 pub fn simplify_even_odd(paths: &[Path]) -> Vec<Path> {
     if paths.is_empty() || !in_range(paths) { return vec![]; }
+    // many overlapping outlines with densely collinear points make Clipper's union take minutes (see `offset`)
+    let cleaned: Vec<Path>;
+    let paths = if paths.iter().map(|p| p.len()).sum::<usize>() > 4000 { cleaned = clean(paths, 1.415); &cleaned[..] } else { paths };
+    if paths.is_empty() { return vec![]; }
     let raw = to_raw(paths);
     let out = unsafe { c::simplify(polygons_of(&raw), c::PolyFillType_pftEvenOdd) };
     let _keep = (&raw.paths, &raw.cpaths);
