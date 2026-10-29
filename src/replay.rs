@@ -211,8 +211,9 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
     r
 }
 
-/// A step that takes no distance: `dt` minutes of waiting, or none.
+/// A step that takes no distance: `dt` minutes of waiting, or (almost) none. Every step takes a moment, so the times at which steps end
+/// are all different and a stop can be told from the step after it.
 fn zero(pos: [f64; 3], op: usize, pass: usize, dt: f64) -> Move {
     let at = [pos[0], pos[1], if pos[2].is_nan() { 0.0 } else { pos[2] }];
-    Move { from: at, to: at, cut: false, dt, pass, op, alt: false, lap: false }
+    Move { from: at, to: at, cut: false, dt: dt.max(1e-7), pass, op, alt: false, lap: false }
 }

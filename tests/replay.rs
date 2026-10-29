@@ -83,3 +83,19 @@ fn a_3d_relief_replays_with_its_roughing_tool() {
         assert!(bad.is_empty(), "relief/{v}: {bad:?}");
     }
 }
+
+#[test]
+fn every_step_ends_at_its_own_time_so_a_stop_can_be_told_from_the_step_after_it() {
+    let mut d = sample("two_ops_toolchange");
+    d.ops[0].p.pause = Some("Flip the stock".into());
+    let o = generate(&d, Units::Metric).unwrap();
+    let r = replay(&o.lines, &d);
+    let mut t = 0.0;
+    let mut stops = 0;
+    for (m, i) in r.moves.iter().zip(&r.info) {
+        assert!(m.dt > 0.0, "a step takes no time: {:?}", i.kind);
+        t += m.dt;
+        if matches!(i.kind, Kind::Stop(_)) { stops += 1; }
+    }
+    assert!(t > 0.0 && stops >= 2, "expected the pause and the tool change to be stops, got {stops}");
+}

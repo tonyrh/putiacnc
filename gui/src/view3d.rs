@@ -28,6 +28,12 @@ pub struct State {
     pub goto_mv: Option<usize>,
     /// The G-code text played back as steps (what the machine will do): the preview plays this, not the generator's own list of moves.
     pub rp: std::sync::Arc<putiacnc_core::replay::Replay>,
+    /// A line of the G-code the person clicked: the preview goes to where the machine is when it reaches that line.
+    pub goto_line: Option<usize>,
+    /// Where the program stops for the operator (time, message), from operations that are shown.
+    pub stops: Vec<(f64, String)>,
+    /// The spindle starting or stopping: (step, on).
+    pub spindle: Vec<(usize, bool)>,
     pub ver: u64,
     pub yaw: f32,
     pub pitch: f32,
@@ -61,7 +67,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        State { sim: None, part: 0, built_part: 0, goto_mv: None, rp: Default::default(), ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
+        State { sim: None, part: 0, built_part: 0, goto_mv: None, rp: Default::default(), goto_line: None, stops: vec![], spindle: vec![], ver: u64::MAX, yaw: -1.15, pitch: 0.62, dist: 300.0, target: [0.0; 3], ortho: false, back: 1000.0, framed: false, anim: None, cum: vec![], hid: vec![], total: 0.0, t: 0.0,
             playing: false, speed_idx: 2, init_frac: None, gen: 0, uploaded: None, catching_up: false, last_upload: None, glres: Default::default(), pending: Default::default() }
     }
 }
@@ -96,6 +102,15 @@ impl Cam {
 }
 
 impl App {
+    /// The line of the G-code the preview is at (the step in progress), for the G-code tab to highlight; `None` while the preview is not
+    /// in step with this program.
+    pub fn current_gcode_line(&self) -> Option<usize> {
+        let st = &self.v3;
+        if st.ver != self.out_ver || st.built_part != st.part || st.rp.moves.is_empty() { return None; }
+        let i = st.cum.partition_point(|&c| c <= st.t + 1e-12).min(st.rp.moves.len() - 1);
+        st.rp.line_of_step(i)
+    }
+
     /// The job the 3D view shows: the project itself, or one separate piece of stock (its stock and its shapes, in its own frame).
     pub fn v3_data(&self) -> &putiacnc_core::ProjectData {
         match self.v3.part.checked_sub(1).and_then(|i| self.pieces.get(i)) { Some(pp) => &pp.job.data, None => &self.project.data }
@@ -130,12 +145,17 @@ fn sync(app: &mut App, ctx: &egui::Context) {
         st.rp = std::sync::Arc::new(out.map(|o| putiacnc_core::replay::replay(&o.lines, data)).unwrap_or_default());
         let cum: Vec<f64> = st.rp.moves.iter().map(|m| { if !hid.get(m.op).copied().unwrap_or(false) { acc += m.dt; } acc }).collect();
         st.cum = cum;
+        st.stops = st.rp.info.iter().enumerate().filter_map(|(i, x)| match &x.kind {
+            putiacnc_core::replay::Kind::Stop(m) if !hid.get(st.rp.moves[i].op).copied().unwrap_or(false) => Some((st.cum[i], m.clone())),
+            _ => None,
+        }).collect();
+        st.spindle = st.rp.info.iter().enumerate().filter_map(|(i, x)| match x.kind { putiacnc_core::replay::Kind::Spindle(on) => Some((i, on)), _ => None }).collect();
         st.total = acc;
         st.t = if was_end { st.total } else if only_hid { st.total * frac } else { st.t.min(st.total) };
         st.ver = app.out_ver;
         if other_part { st.framed = false; st.playing = false; }
         st.built_part = st.part;
-        if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = st.total * f; } }
+        if st.total > 0.0 { if let Some(f) = st.init_frac.take() { st.t = if f < 0.0 { st.stops.get((-f) as usize - 1).map_or(0.0, |s| s.0) } else { st.total * f }; } }
         if !st.framed { frame(st, &data.stock); }
     }
     let rp = st.rp.clone();
@@ -151,6 +171,14 @@ fn sync(app: &mut App, ctx: &egui::Context) {
             if let Some(&c) = step.and_then(|i| st.cum.get(i)) { st.t = c; st.playing = false; }
         }
     }
+    // a line of the G-code was clicked: go to where the machine is just before it runs that line
+    if st.built_part == st.part {
+        if let Some(line) = st.goto_line.take() {
+            let step = st.rp.step_of_line(line);
+            st.t = if step == 0 { 0.0 } else { st.cum.get(step - 1).copied().unwrap_or(st.total) };
+            st.playing = false;
+        }
+    }
     // for recording the demo: the replay time (minutes) is read from a file, so every frame is exact whatever the machine's frame rate
     if let Some(v) = std::env::var_os("PUTIACNC_T_FILE").and_then(|p| std::fs::read_to_string(p).ok()).and_then(|t| t.trim().parse::<f64>().ok()) {
         st.t = v.clamp(0.0, st.total);
@@ -159,8 +187,13 @@ fn sync(app: &mut App, ctx: &egui::Context) {
     }
     if st.playing && std::env::var_os("PUTIACNC_T_FILE").is_none() {
         let dt = ctx.input(|i| i.stable_dt).min(0.1) as f64;
-        st.t += dt * SPEEDS[st.speed_idx].0 / 60.0;
-        if st.t >= st.total { st.t = st.total; st.playing = false; }
+        let next = st.t + dt * SPEEDS[st.speed_idx].0 / 60.0;
+        // the program stops where it says M0, like the machine: playback waits there until Play is pressed again
+        let stop = st.stops.iter().map(|s| s.0).find(|&c| c > st.t + 1e-12 && c <= next + 1e-12);
+        match stop {
+            Some(c) => { st.t = c; st.playing = false; }
+            None => { st.t = next; if st.t >= st.total { st.t = st.total; st.playing = false; } }
+        }
         ctx.request_repaint();
     }
     let idx = st.cum.partition_point(|&c| c <= st.t + 1e-12);
@@ -429,6 +462,9 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
                 let c = crate::theme::op_color(m.op, dark);
                 // lighter while rapiding: the tool is not cutting
                 let c = if m.cut { c } else { c.gamma_multiply(0.55) };
+                // faded while the spindle is stopped (before it starts, during a pause, at the end)
+                let on = match st.spindle.partition_point(|&(i, _)| i < done) { 0 => st.spindle.is_empty(), k => st.spindle[k - 1].1 };
+                let c = if on { c } else { c.gamma_multiply(0.4) };
                 // a dark edge, a white halo and the operation colour: readable on wood, metal, foam and the toolpath lines
                 painter.line_segment([a, b], Stroke::new(9.0_f32, Color32::from_black_alpha(if m.cut { 130 } else { 80 })));
                 painter.line_segment([a, b], Stroke::new(7.0_f32, Color32::WHITE));
@@ -486,6 +522,30 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 10.0), Vec2::new(wg.size().x.max(g.size().x), g.size().y) + Vec2::new(18.0, 10.0));
             painter.rect_filled(r, 6.0, Color32::from_black_alpha(150));
             painter.galley(r.min + Vec2::new(9.0, 5.0), g, Color32::WHITE);
+        }
+    }
+
+    // what the program is doing when it is not cutting: a stop for the operator, or the wait for the spindle
+    {
+        let st = &app.v3;
+        let step = st.cum.partition_point(|&c| c <= st.t + 1e-12).min(rp_arc.moves.len().saturating_sub(1));
+        let stop = st.stops.iter().find(|s| (s.0 - st.t).abs() < 1e-9 && !st.playing).map(|s| s.1.clone());
+        let msg = match (stop, rp_arc.info.get(step).map(|i| &i.kind)) {
+            (Some(m), _) => Some((format!("Paused: {m}"), "Press Play to continue".to_string(), true)),
+            (None, Some(putiacnc_core::replay::Kind::Wait(s))) if st.playing || st.t > 0.0 => Some((format!("Waiting {s} s for the spindle to reach speed"), String::new(), false)),
+            _ => None,
+        };
+        if let Some((a, b, amber)) = msg {
+            let font = FontId::proportional(13.0);
+            let g1 = painter.layout(a, font.clone(), Color32::WHITE, (rect.width() - 80.0).max(120.0));
+            let g2 = (!b.is_empty()).then(|| painter.layout_no_wrap(b, FontId::proportional(12.0), Color32::from_white_alpha(200)));
+            let w = g1.size().x.max(g2.as_ref().map_or(0.0, |g| g.size().x)) + 24.0;
+            let h = g1.size().y + g2.as_ref().map_or(0.0, |g| g.size().y + 2.0) + 14.0;
+            let r = Rect::from_center_size(Pos2::new(rect.center().x, rect.bottom() - 70.0 - h / 2.0), Vec2::new(w, h));
+            painter.rect_filled(r, 8.0, if amber { Color32::from_rgba_unmultiplied(150, 100, 0, 225) } else { Color32::from_black_alpha(170) });
+            let y2 = r.min.y + 7.0 + g1.size().y + 2.0;
+            painter.galley(Pos2::new(r.center().x - g1.size().x / 2.0, r.min.y + 7.0), g1, Color32::WHITE);
+            if let Some(g) = g2 { painter.galley(Pos2::new(r.center().x - g.size().x / 2.0, y2), g, Color32::WHITE); }
         }
     }
 

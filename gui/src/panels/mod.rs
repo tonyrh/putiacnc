@@ -105,6 +105,10 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     }
     let mut export = false;
     let mut copy: Option<String> = None;
+    // the line the 3D preview is at is highlighted; a click on a line takes the preview there
+    let cur = if app.v3.part == app.gcode_part { app.current_gcode_line() } else { None };
+    let scroll_to = if cur != app.gcode_seen { app.gcode_seen = cur; cur } else { None };
+    let mut clicked = None;
     match (&app.output, app.tab) {
         (Some(main), RightTab::Gcode) => {
             let o = app.gcode_part.checked_sub(1).and_then(|i| app.pieces.get(i)).map_or(main, |pp| &pp.output);
@@ -143,9 +147,24 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                 ui.add_space(6.0);
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                     let row_h = ui.text_style_height(&egui::TextStyle::Monospace);
-                    egui::ScrollArea::both().auto_shrink([false, false]).show_rows(ui, row_h, o.lines.len(), |ui, range| {
-                        for i in range { ui.add(egui::Label::new(egui::RichText::new(&o.lines[i]).monospace()).wrap(false)); }
+                    let mut area = egui::ScrollArea::both().auto_shrink([false, false]);
+                    if let Some(c) = scroll_to {
+                        let step = row_h + ui.spacing().item_spacing.y;
+                        area = area.vertical_scroll_offset((c as f32 * step - 100.0).max(0.0));
+                    }
+                    let (hi, hover) = (ui.visuals().selection.bg_fill, ui.visuals().widgets.hovered.weak_bg_fill);
+                    let col = ui.visuals().text_color();
+                    area.show_rows(ui, row_h, o.lines.len(), |ui, range| {
+                        for i in range {
+                            let g = ui.painter().layout_no_wrap(o.lines[i].clone(), egui::TextStyle::Monospace.resolve(ui.style()), col);
+                            let w = g.size().x.max(ui.available_width());
+                            let (r, resp) = ui.allocate_exact_size(egui::vec2(w, row_h), egui::Sense::click());
+                            if cur == Some(i) { ui.painter().rect_filled(r, 2.0, hi); } else if resp.hovered() { ui.painter().rect_filled(r, 2.0, hover); }
+                            ui.painter().galley(r.min, g, col);
+                            if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() { clicked = Some(i); }
+                        }
                     });
+
                 });
             });
         }
@@ -155,6 +174,11 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     }
     if let Some(t) = copy { ui.ctx().copy_text(t); }
     if export { app.export_gcode_dialog(); }
+    if let Some(i) = clicked {
+        app.v3.part = app.gcode_part;
+        app.v3.goto_line = Some(i);
+        app.view_tab = crate::view3d::ViewTab::Preview;
+    }
 }
 
 /// The Notes tab: the project's own notes (always editable, saved with the project) and, below, what the
