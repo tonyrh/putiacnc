@@ -47,6 +47,8 @@ impl Sim {
                     // The wall is a thin ramp of fixed width (1.5 cells) instead of a one-cell step: a cell
                     // beside the wall then stores where the edge really is inside it, so edges come out
                     // smooth while staying within ~0.1 mm of vertical at any depth.
+                    // a cutter metres wide would need a table of millions of entries: it is not drawn
+                    if !(g.r.is_finite() && g.r / step < 200_000.0) { return (0.0, vec![0.0]); }
                     let n = (g.r / step).ceil() as usize + 1;
                     let tab: Vec<f32> = (0..=n).map(|k| rise(&g, (k as f64 * step).min(g.r)) as f32).collect();
                     (g.r, tab)

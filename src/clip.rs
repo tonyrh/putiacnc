@@ -18,6 +18,11 @@ pub fn area(p: &[Pt]) -> f64 {
     -a * 0.5
 }
 
+/// Clipper throws a C++ exception (which aborts the whole program when it reaches Rust) for a point beyond ±4.6e18. A project can hold
+/// such numbers (a hand-edited file, a diameter of 1e300 turned into a point by saturating): paths that far out are given no result.
+const LIMIT: i64 = 2_000_000_000_000_000_000;
+fn in_range(paths: &[Path]) -> bool { paths.iter().all(|p| p.iter().all(|q| q[0].abs() < LIMIT && q[1].abs() < LIMIT)) }
+
 struct Raw { paths: Vec<Path>, cpaths: Vec<c::Path>, cpolys: Vec<c::Polygon> }
 
 fn to_raw(paths: &[Path]) -> Raw {
@@ -42,7 +47,7 @@ fn flatten_and_free(out: c::Polygons) -> Vec<Path> {
 
 /// Union with the even-odd rule (what the app uses to decide which loops are holes).
 pub fn simplify_even_odd(paths: &[Path]) -> Vec<Path> {
-    if paths.is_empty() { return vec![]; }
+    if paths.is_empty() || !in_range(paths) { return vec![]; }
     let raw = to_raw(paths);
     let out = unsafe { c::simplify(polygons_of(&raw), c::PolyFillType_pftEvenOdd) };
     let _keep = (&raw.paths, &raw.cpaths);
@@ -55,7 +60,7 @@ pub enum BoolKind { Union, Intersect, Difference, Xor }
 /// Boolean combination of two sets of closed paths. Both sets must be properly oriented regions
 /// (outer outlines one way, holes the other, as `simplify_even_odd` returns them): they are filled with the non-zero rule.
 pub fn boolean(kind: BoolKind, subject: &[Path], clip: &[Path]) -> Vec<Path> {
-    if subject.is_empty() && clip.is_empty() { return vec![]; }
+    if (subject.is_empty() && clip.is_empty()) || !in_range(subject) || !in_range(clip) { return vec![]; }
     let (a, b) = (to_raw(subject), to_raw(clip));
     let polys = vec![
         c::Polygon { paths: a.cpaths.as_ptr() as *mut c::Path, paths_count: a.cpaths.len(), type_: c::PolyType_ptSubject },
@@ -69,7 +74,8 @@ pub fn boolean(kind: BoolKind, subject: &[Path], clip: &[Path]) -> Vec<Path> {
 
 /// Round-join offset of closed polygons (delta in integer units, negative = inward).
 pub fn offset(paths: &[Path], delta: f64, arc_tolerance: f64) -> Vec<Path> {
-    if paths.is_empty() { return vec![]; }
+    // the offset moves every point by delta, and the arcs of a round join need a sensible tolerance
+    if paths.is_empty() || !in_range(paths) || !delta.is_finite() || delta.abs() > 1e18 || !arc_tolerance.is_finite() || arc_tolerance <= 0.0 { return vec![]; }
     let raw = to_raw(paths);
     let out = unsafe { c::offset(2.0, arc_tolerance, c::JoinType_jtRound, c::EndType_etClosedPolygon, polygons_of(&raw), delta) };
     let _keep = (&raw.paths, &raw.cpaths);
@@ -78,7 +84,7 @@ pub fn offset(paths: &[Path], delta: f64, arc_tolerance: f64) -> Vec<Path> {
 
 /// Remove vertices closer than `distance` to the line through their neighbours.
 pub fn clean(paths: &[Path], distance: f64) -> Vec<Path> {
-    if paths.is_empty() { return vec![]; }
+    if paths.is_empty() || !in_range(paths) || !distance.is_finite() { return vec![]; }
     let raw = to_raw(paths);
     let out = unsafe { c::clean(polygons_of(&raw), distance) };
     let _keep = (&raw.paths, &raw.cpaths);

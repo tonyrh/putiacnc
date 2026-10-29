@@ -64,6 +64,8 @@ pub fn to_fixed(v: f64, dec: usize) -> f64 {
 
 /// `to_fixed` the long way: the exact decimal expansion, rounded half up.
 fn to_fixed_exact(v: f64, dec: usize) -> f64 {
+    // a number this large has no fraction to round (and would overflow the integer below)
+    if v.abs() >= 1e22 { return v; }
     let neg = v < 0.0;
     let s = format!("{:.40}", v.abs());
     let (ip, fp) = s.split_once('.').unwrap();
@@ -815,13 +817,35 @@ fn custom_tool(cf: &CustomFeeds, tool: &Tool, machine: &Machine, notes: &mut Vec
     machine.hold(&asked)
 }
 
+/// Numbers no machine could use: a damaged or hand-edited project file can hold them, and they would make the generator run for
+/// hours, use all the memory or write infinite times. They are refused with a message instead.
+fn sanity(data: &ProjectData) -> Result<(), String> {
+    let ok = |v: f64, max: f64| v.is_finite() && v.abs() <= max;
+    let st = &data.stock;
+    if !(ok(st.w, 1e5) && ok(st.h, 1e5) && ok(st.t, 1e5)) { return Err("The stock size is out of range (up to 100 m).".into()); }
+    if !ok(data.job.safe, 1e4) { return Err("The safe Z is out of range.".into()); }
+    for t in &data.tools {
+        if !(ok(t.dia, 1e3) && ok(t.pd, 1e4) && ok(t.so, 1e4) && ok(t.feed, 1e6) && ok(t.plunge, 1e6) && ok(t.rpm, 1e6)) {
+            return Err(format!("Tool {}: a value is out of range.", if t.name.is_empty() { &t.id } else { &t.name }));
+        }
+    }
+    if data.loops.iter().any(|l| l.pts.iter().any(|v| !ok(*v as f64, 1e9))) { return Err("A shape has a point far outside any work area.".into()); }
+    for o in &data.ops {
+        if !ok(o.p.depth, 1e4) { return Err("An operation's depth is out of range.".into()); }
+    }
+    Ok(())
+}
+
 pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
+    sanity(data)?;
     let ku = units.factor();
     let un = units.name();
     let imp = units == Units::Imperial;
     let fl = |v: f64| to_fixed(v / ku, if imp { 4 } else { 3 });
     let st = &data.stock;
-    let machine = data.machine.clone().unwrap_or_default();
+    let mut machine = data.machine.clone().unwrap_or_default();
+    // a speed or time factor of zero would make the time infinite
+    crate::machines::normalize(&mut machine);
     let mut limit_notes: Vec<String> = Vec::new();
     let limited;
     let data = if machine.rpm_min.is_some() || machine.rpm_max.is_some() || machine.feed_max.is_some() || machine.plunge_max.is_some() {
@@ -921,6 +945,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
 
         let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(pd);
         let nz = (depth / pd - 1e-9).ceil() as usize;
+        // a pass depth of a thousandth of the depth would write millions of passes (and run the computer out of memory)
+        if nz > 5000 { return Err(format!("Operation {}: a pass depth of {} {} for a depth of {} {} would take {} passes; raise the pass depth.", k + 1, num(pd / ku), un, num(fl(depth)), un, nz)); }
         let zs: Vec<f64> = (0..nz).map(|i| -(depth / nz as f64) * (i as f64 + 1.0)).collect();
         let tab_h = o.p.tab_h.unwrap_or(2.0);
         let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside" || kind == "online"); // open paths on a line are cut without tabs

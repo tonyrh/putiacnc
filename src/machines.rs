@@ -15,7 +15,8 @@ fn one() -> u32 { 1 }
 
 /// Positive numbers only, sensible defaults otherwise (same rules as the browser app).
 pub fn normalize(m: &mut Machine) {
-    let n = |x: f64, d: f64| if x.is_finite() && x > 0.0 { x } else { d };
+    // positive, and not so large that a time or size calculation overflows
+    let n = |x: f64, d: f64| if x.is_finite() && x > 0.0 && x <= 1e6 { x } else { d };
     if m.id.is_empty() { m.id = new_id("m"); }
     m.name = { let t: String = m.name.trim().chars().take(60).collect(); if t.is_empty() { "Machine".into() } else { t } };
     m.rapid = n(m.rapid, 2000.0);

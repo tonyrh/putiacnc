@@ -25,6 +25,7 @@ CI (`.github/workflows/ci.yml`) runs both on every push to `main` and every pull
   the `one_seed` test (ignored) shows it in detail.
 - **Feature tests** in `tests/`: `air.rs` (air cuts), `arcs.rs`, `checks_*.rs` (the toolpath checks), `lead.rs`,
   `limits.rs`, `relief.rs`, `tabs.rs`.
+- Hostile values (`tests/hostile.rs`): takes the sample projects and replaces numbers anywhere in them (zero, negative, tiny, 1e9, 1e300, a string, null), as a damaged or hand-edited file could. Whatever loads must never panic, abort, hang (30 s) or write NaN/inf into the G-code or the times, and the same project must give the same program twice and after save and load. 150 cases run with `cargo test`; `COUNT=3000 SEED=1000 cargo test --release --test hostile -- --ignored` runs more (3000 take about 35 s). The first runs found: a C++ exception from Clipper that aborted the whole program for points beyond 4.6e18, a 24 GB allocation from a pass depth of 1e-9, a 11 GB cutter table for a 1000 km tool, an integer overflow in number rounding, and infinite times from a machine speed of 0; each is a plain test in the same file.
 - **GUI tests** (`gui/src`) build an `App` without a window and drive it: undo scopes, groups, operations keeping
   their settings, the background generator.
 
