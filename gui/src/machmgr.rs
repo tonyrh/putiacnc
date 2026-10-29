@@ -307,10 +307,6 @@ fn form(ui: &mut Ui, app: &mut App) {
         let mut sw = m.spin_up_s();
         if crate::widgets::num(ui, [fw, 22.0], &mut sw, 0.0, 60.0, 0.5, 1, "").on_hover_text("How long the program waits after the spindle starts or changes speed before the tool touches anything. 0 = no wait.").changed() { m.spin_up = Some(sw.clamp(0.0, 60.0)); changed = true; }
         ui.end_row();
-        rlabel(ui, lw, "Return to X0 Y0");
-        let mut eh = m.end_home.unwrap_or(true);
-        if crate::widgets::check(ui, &mut eh, "").on_hover_text("At the end, after the spindle stops, move to X0 Y0 at safe Z. Switch it off when your End code parks the tool somewhere else.").changed() { m.end_home = Some(eh); changed = true; }
-        ui.end_row();
         rlabel(ui, lw, "Arcs (G2/G3)");
         let mut ar = m.arcs.unwrap_or(false);
         if crate::widgets::check(ui, &mut ar, "").on_hover_text("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
@@ -370,7 +366,7 @@ fn form(ui: &mut Ui, app: &mut App) {
     egui::Grid::new("mach_code").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
         for (lab, tip, slot) in [
             ("Start", "Written after the setup lines (units, absolute mode, work offset) and before the first tool is chosen: a warm-up, a probe, an M-code. One command per line.", &mut m.start_code),
-            ("End", "Written at the very end, after the spindle stops and the tool returns to X0 Y0 (if that is on), just before the program ends: park the tool, switch on a dust shoe or light. One command per line.", &mut m.end_code),
+            ("End", "Written at the very end, after the spindle stops and the tool returns to X0 Y0, just before the program ends: park the tool, switch on a dust shoe or light. One command per line.", &mut m.end_code),
         ] {
             rlabel(ui, lw, lab);
             let mut s = slot.clone().unwrap_or_default();
