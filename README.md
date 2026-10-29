@@ -97,7 +97,7 @@ The program is called `putiacnc`. Your tool and machine libraries are stored per
 # putiacnc-core
 
 The calculation core of PutiaCNC, in Rust: project model, geometry and GRBL G-code generation.
-It turns a project into GRBL G-code; the output is checked against reference G-code in the golden tests.
+It turns a project into GRBL G-code; its output is pinned by snapshot tests and checked by an independent G-code verifier.
 
 ## What's in it
 
@@ -111,7 +111,7 @@ It turns a project into GRBL G-code; the output is checked against reference G-c
 | `src/dxf.rs` | ASCII DXF import (lines, arcs, circles, polylines, splines, blocks). |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |
-| `tests/golden.rs` | Golden tests against reference G-code. |
+| `tests/golden.rs` | Golden tests: snapshots of the generator's own output. |
 | `tests/data/` | Eight projects with their reference G-code and time estimate. |
 
 Also in the core: SVG and DXF import (`src/svg.rs`, `src/dxf.rs`), shape helpers (`src/shapes.rs`), tool and machine libraries (`src/toollib.rs`, `src/machines.rs`) and the height-field simulation behind the 3D preview (`src/sim.rs`).
@@ -128,15 +128,14 @@ no-exec mount. Build elsewhere: `CARGO_TARGET_DIR=/tmp/putia-target cargo test`.
 
 ## Golden tests
 
-Each scenario in `tests/data` has `NAME.project.json` (a saved project),
-`NAME.expected.nc` (the reference G-code) and `NAME.meta.json` (units, time estimate).
-Five scenarios match line for line. The two with tiny rings in the centre of a circle
-(V-carve, two operations) are compared geometrically: the reference and this port keep slightly different
-vertices on the same curve (up to about 0.1 mm), and the tests allow that. The imperial scenario
-differs by 0.0001 in. on two lines because the reference was computed with a `hypot` that can differ from Rust's in the last bit.
+Each scenario in `tests/data` has `NAME.project.json` (a saved project), `NAME.snapshot.nc` (the reviewed
+G-code) and `NAME.snapshot.json` (units, time estimate). The test regenerates the G-code and compares it with the
+snapshot: same lines, coordinates within 0.0011 mm.
 
-To regenerate or add scenarios, save a project from the app and add
-its G-code and a meta file in the same format.
+When you change the generator on purpose, run `UPDATE_SNAPSHOTS=1 cargo test --test golden`, read
+`git diff tests/data` and commit what you accept. The snapshots started as the output of the old browser app
+(identical apart from the lift to safe Z, and extra finishing rings in the V-carve centre); they are
+now this project's own. To add a scenario, save a project from the app into `tests/data`, add a one-line test in `golden.rs` and run the update command.
 
 ## Notes
 

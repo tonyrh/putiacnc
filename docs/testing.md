@@ -10,10 +10,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 CI (`.github/workflows/ci.yml`) runs both on every push to `main` and every pull request.
 
 - **Unit tests** sit next to the code they test, in both crates.
-- **Golden tests** (`tests/golden.rs`): ten projects in `tests/data` are turned into G-code and compared with the
-  output of the original browser app, line by line (coordinates within a small tolerance, same line count, same
-  time estimate). They pin the toolpath maths. If one fails after a change you meant to make, check the diff by
-  eye before touching the expected file.
+- **Golden tests** (`tests/golden.rs`): eight projects in `tests/data` are turned into G-code and compared with
+  snapshots of this generator's own reviewed output (coordinates within 0.0011 mm, same lines, same time estimate).
+  They catch unintended changes. After a change you meant to make, run `UPDATE_SNAPSHOTS=1 cargo test --test golden`,
+  read `git diff tests/data` by eye, and commit what you accept. Whether the G-code is *right* is the job of
+  `verify_programs.rs`, which re-reads the text with an independent checker.
 - **Feature tests** in `tests/`: `air.rs` (air cuts), `arcs.rs`, `checks_*.rs` (the toolpath checks), `lead.rs`,
   `limits.rs`, `relief.rs`, `tabs.rs`.
 - **GUI tests** (`gui/src`) build an `App` without a window and drive it: undo scopes, groups, operations keeping

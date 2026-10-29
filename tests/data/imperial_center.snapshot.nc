@@ -1,6 +1,7 @@
 (PutiaCNC - GRBL)
 (Stock 7.874 x 5.9055 x 0.4724 in; XY0 = center of stock, Z0 = stock bottom + 0 in)
 G20 G90 G17
+G0 Z0.6693
 M3 S12000
 G4 P2
 (Operation 1: outside, tool 0.125 in)
