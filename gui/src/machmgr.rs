@@ -274,12 +274,18 @@ fn form(ui: &mut Ui, app: &mut App) {
     ui.add_space(2.0);
     egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, "G-code output for");
-        let cur = if m.post.as_deref() == Some("mach") { "Mach3 / LinuxCNC" } else { "GRBL" };
+        let cur = putiacnc_core::model::dialect_name(m.post.as_deref().unwrap_or(""));
         // both dropdowns of this block share one width that holds the longest choice
-        let gw = crate::widgets::combo_fit(ui, &["GRBL", "Mach3 / LinuxCNC", "mm", "inches"]).max(fw);
+        let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", "Mach3 / LinuxCNC", "mm", "inches"]).max(fw);
         egui::ComboBox::from_id_source("mach_post").width(gw).selected_text(cur).show_ui(ui, |ui| {
-            if ui.selectable_label(cur == "GRBL", "GRBL").clicked() { m.post = Some(String::new()); changed = true; }
-            if ui.selectable_label(cur != "GRBL", "Mach3 / LinuxCNC").on_hover_text("Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end").clicked() { m.post = Some("mach".into()); changed = true; }
+            for (id, name) in putiacnc_core::model::DIALECTS {
+                let tip = match id {
+                    "mach" => "Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end",
+                    "grblhal" | "fluidnc" => "Written like GRBL for now; the name is kept with the machine and shown in the G-code's first line",
+                    _ => "Tool changes as M0 with a message, G54 in the header and M2 at the end",
+                };
+                if ui.selectable_label(cur == name, name).on_hover_text(tip).clicked() { m.post = Some(id.to_string()); changed = true; }
+            }
         });
         ui.end_row();
         rlabel(ui, lw, "G-code units");

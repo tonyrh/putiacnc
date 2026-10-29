@@ -26,7 +26,7 @@ pub fn normalize(m: &mut Machine) {
     if let Some(s) = m.safe { m.safe = Some(if s.is_finite() && s > 0.0 { s.min(200.0) } else { 5.0 }); }
     for l in [&mut m.rpm_min, &mut m.rpm_max, &mut m.feed_max, &mut m.plunge_max] { if !l.is_none_or(|v| v.is_finite() && v > 0.0) { *l = None; } }
     if let (Some(a), Some(b)) = (m.rpm_min, m.rpm_max) { if a > b { m.rpm_min = Some(b); m.rpm_max = Some(a); } }
-    if let Some(p) = &m.post { if p != "mach" { m.post = Some(String::new()); } }
+    if let Some(p) = &m.post { if !crate::model::DIALECTS.iter().any(|d| d.0 == p) { m.post = Some(String::new()); } }
 }
 
 impl Default for Machines {

@@ -856,7 +856,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         notes.push(format!("⚠ The stock is larger than the machine work area ({} × {} × {} {}).", num(fl(machine.x)), num(fl(machine.y)), num(fl(machine.z)), un));
     }
     let mach = data.job.mach();
-    e.g.push(format!("(PutiaCNC - {})", if mach { "Mach3 / LinuxCNC" } else { "GRBL" }));
+    e.g.push(format!("(PutiaCNC - {})", data.job.dialect_name()));
     e.g.push(format!("(Stock {} x {} x {} {}; XY0 = {} of stock, Z0 = {})", num(fl(st.w)), num(fl(st.h)), num(fl(st.t)), un, zero_label(&st.zr),
         if st.zm == "top" { "top surface".to_string() } else { format!("stock bottom + {} {}", num(fl(st.zh)), un) }));
     if mach {

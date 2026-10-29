@@ -132,7 +132,14 @@ pub struct Job {
 impl Job {
     /// True for the Mach3 / LinuxCNC dialect.
     pub fn mach(&self) -> bool { self.post == "mach" }
+    /// The dialect as people name it, for the G-code's first comment and the G-code tab.
+    pub fn dialect_name(&self) -> &'static str { dialect_name(&self.post) }
 }
+
+/// The controllers a machine can be set to: "" = GRBL, "grblhal", "fluidnc" (both write what GRBL gets today), "mach".
+pub const DIALECTS: [(&str, &str); 4] = [("", "GRBL"), ("grblhal", "grblHAL"), ("fluidnc", "FluidNC"), ("mach", "Mach3 / LinuxCNC")];
+
+pub fn dialect_name(post: &str) -> &'static str { DIALECTS.iter().find(|d| d.0 == post).map_or("GRBL", |d| d.1) }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Machine {
@@ -142,7 +149,7 @@ pub struct Machine {
     pub tsc: f64,
     pub x: f64, pub y: f64, pub z: f64,
     #[serde(default)] pub notes: String,
-    /// G-code dialect of the machine: "" = GRBL, "mach" = Mach3 / LinuxCNC. `None` in machine lists saved before the setting moved here:
+    /// G-code dialect of the machine: "" = GRBL, "grblhal", "fluidnc" or "mach" = Mach3 / LinuxCNC. `None` in machine lists saved before the setting moved here:
     /// the first project that uses the machine then fills it in from its own settings.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub post: Option<String>,
     /// Number the G-code lines (N10, N20, ...) for controllers that want them.

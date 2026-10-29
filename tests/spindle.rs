@@ -80,3 +80,19 @@ fn every_program_ends_at_safe_z_over_x0_y0() {
         assert!((safe.parse::<f64>().unwrap() - (p.data.job.safe + zt)).abs() < 1e-3, "{name}: safe Z {safe}");
     }
 }
+
+#[test]
+fn grblhal_and_fluidnc_write_what_grbl_writes_under_their_own_name() {
+    use putiacnc_core::{generate, load_project, Units};
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/two_ops_toolchange.project.json");
+    let mut d = load_project(&std::fs::read_to_string(path).unwrap()).unwrap().data;
+    let grbl = generate(&d, Units::Metric).unwrap().lines;
+    for (post, name) in [("grblhal", "grblHAL"), ("fluidnc", "FluidNC")] {
+        d.job.post = post.into();
+        let l = generate(&d, Units::Metric).unwrap().lines;
+        assert_eq!(l.len(), grbl.len());
+        let diff: Vec<_> = l.iter().zip(&grbl).filter(|(a, b)| a != b).collect();
+        assert_eq!(diff.len(), 1, "{diff:?}");
+        assert_eq!(diff[0].0, &format!("(PutiaCNC - {name})"));
+    }
+}
