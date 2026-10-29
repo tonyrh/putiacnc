@@ -62,17 +62,17 @@ fn fit(p: &[[f64; 2]], k: f64) -> Option<([f64; 2], bool)> {
     let n = p.len();
     if n < 4 { return None; }
     let (c, r) = circle3(p[0], p[n / 2], p[n - 1])?;
-    if r < MIN_RADIUS * k || r > MAX_RADIUS * k { return None; }
+    if r < MIN_RADIUS / k || r > MAX_RADIUS / k { return None; }
     let mut sign = 0.0_f64;
     let mut sweep = 0.0_f64;
     for i in 0..n {
         let d = ((p[i][0] - c[0]).powi(2) + (p[i][1] - c[1]).powi(2)).sqrt();
-        if (d - r).abs() > ON_CIRCLE * k { return None; }
+        if (d - r).abs() > ON_CIRCLE / k { return None; }
         if i + 1 < n {
             let l = ((p[i + 1][0] - p[i][0]).powi(2) + (p[i + 1][1] - p[i][1]).powi(2)).sqrt();
             if l < 1e-9 { return None; }
             let sag = r - (r * r - l * l / 4.0).max(0.0).sqrt();
-            if sag > MAX_SAGITTA * k { return None; }
+            if sag > MAX_SAGITTA / k { return None; }
             let a0 = (p[i][1] - c[1]).atan2(p[i][0] - c[0]);
             let a1 = (p[i + 1][1] - c[1]).atan2(p[i + 1][0] - c[0]);
             let mut da = a1 - a0;
@@ -91,7 +91,7 @@ fn fixed(v: f64, dec: usize) -> f64 { let f = 10f64.powi(dec as i32); (v * f).ro
 fn txt(v: f64) -> String { let v = if v == 0.0 { 0.0 } else { v }; format!("{}", v) }
 
 /// Rewrite `lines` with arcs. `dec` is the number of decimals of the output, `k` the length of one output unit in mm (1 for mm, 25.4 for
-/// inches). Returns the new lines and how many arcs were written.
+/// inches); the limits above are in mm, so in output units they are divided by `k`. Returns the new lines and how many arcs were written.
 pub fn fit_arcs(lines: &[String], dec: usize, k: f64) -> (Vec<String>, usize) {
     let mut out: Vec<String> = Vec::with_capacity(lines.len());
     let mut pos: Option<[f64; 2]> = None;
@@ -141,7 +141,7 @@ pub fn fit_arcs(lines: &[String], dec: usize, k: f64) -> (Vec<String>, usize) {
                 let (ci, cj) = (fixed(c[0] - s[0], dec), fixed(c[1] - s[1], dec));
                 let r0 = (ci * ci + cj * cj).sqrt();
                 let r1 = ((e[0] - (s[0] + ci)).powi(2) + (e[1] - (s[1] + cj)).powi(2)).sqrt();
-                if (r0 - r1).abs() <= MAX_RADIUS_GAP * k {
+                if (r0 - r1).abs() <= MAX_RADIUS_GAP / k {
                     let mut l = format!("{} X{} Y{} I{} J{}", if cw { "G2" } else { "G3" }, txt(e[0]), txt(e[1]), txt(ci), txt(cj));
                     if let Some(f) = &run[a].1 { l += &format!(" F{f}"); }
                     out.push(l);

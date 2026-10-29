@@ -1161,6 +1161,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             start_code.len(), if start_code.len() == 1 { "" } else { "s" }, end_code.len(), if end_code.len() == 1 { "" } else { "s" }));
     }
     if data.job.numbered { e.g = number_lines(e.g); }
+    // last of all, the text itself is read back by a checker that shares nothing with the code above
+    notes.extend(crate::verify::hazards(&e.g));
     Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
 }
 

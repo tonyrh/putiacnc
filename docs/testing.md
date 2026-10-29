@@ -72,6 +72,8 @@ Things to know:
 
 The `Screenshots` workflow (started by hand from the Actions tab) does the same on Linux, macOS and Windows.
 
+`tests/verify_programs.rs` reads the generated G-code back with `verify::trace` (see `src/verify.rs`) for every sample project in many variants and fails on any warning or when the cutting length or depth read from the text differs from the generator's own figures. Add a variant there when a new option changes the text.
+
 ## Before a release
 
 1. Open a real project, generate the G-code, and look at the 3D preview from start to finish.
