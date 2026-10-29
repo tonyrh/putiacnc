@@ -38,14 +38,15 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
 /// The Spindle / Feed / Plunge / Stepover rows of a custom feeds block. A value that differs from the tool's turns blue (a lighter blue in
 /// the dark theme) and shows the tool's value and a reset button; the others keep following the tool. Feeds are shown in the speed unit
 /// `spd` (name, mm/min per unit) of the tool library window and stored in mm/min. Returns true when something changed.
-fn custom_rows(ui: &mut Ui, id: impl std::hash::Hash, cf: &mut putiacnc_core::model::CustomFeeds, t0: &putiacnc_core::model::Tool, l1: f32, sp: f32, accent: Color32, spd: (&str, f64)) -> bool {
+fn custom_rows(ui: &mut Ui, id: impl std::hash::Hash, cf: &mut putiacnc_core::model::CustomFeeds, t0: &putiacnc_core::model::Tool, l1: f32, sp: f32, accent: Color32, spd: (&str, f64), so_row: bool) -> bool {
     let mut changed = false;
     let (sname, fk) = (spd.0, spd.1.max(1e-9));
     let shown = |v: f64| { let t = format!("{:.3}", v); t.trim_end_matches('0').trim_end_matches('.').to_string() };
     egui::Grid::new(id).num_columns(5).spacing([sp, 6.0]).show(ui, |ui| {
         // name, unit text, the value, the tool's value, the factor from the shown unit to the stored one
         let rows: [(&str, &str, &mut Option<f64>, f64, f64); 4] = [("Spindle", "rpm", &mut cf.rpm, t0.rpm, 1.0), ("Feed", sname, &mut cf.feed, t0.feed, fk), ("Plunge", sname, &mut cf.plunge, t0.plunge, fk), ("Stepover", "%", &mut cf.so, t0.so, 1.0)];
-        for (name, unit, own, base, k) in rows {
+        // a 3D relief has its own stepover fields, so its block stops after Plunge
+        for (name, unit, own, base, k) in rows.into_iter().take(if so_row { 4 } else { 3 }) {
             rlabel(ui, l1, name);
             let ov = own.is_some();
             let mut v = own.unwrap_or(base) / k;
@@ -63,6 +64,27 @@ fn custom_rows(ui: &mut Ui, id: impl std::hash::Hash, cf: &mut putiacnc_core::mo
             ui.end_row();
         }
     });
+    changed
+}
+
+/// The blue of a value that differs from the tool's (a lighter one in the dark theme).
+fn custom_accent(ui: &Ui) -> Color32 {
+    if ui.visuals().dark_mode { let c = ui.visuals().hyperlink_color; let m = |a: u8| a + ((255 - a as u16) / 2) as u8; Color32::from_rgb(m(c.r()), m(c.g()), m(c.b())) } else { ui.visuals().hyperlink_color }
+}
+
+/// "Custom feeds and speeds" for one step of a 3D relief (roughing or finishing): the checkbox and, when on, the indented block with
+/// Spindle, Feed and Plunge (the stepover has its own field in the step). Returns true when something changed.
+fn relief_custom(ui: &mut Ui, id: impl std::hash::Hash + Copy, cf: &mut Option<putiacnc_core::model::CustomFeeds>, t0: Option<&putiacnc_core::model::Tool>, l1: f32, sp: f32, spd: (&str, f64)) -> bool {
+    let mut changed = false;
+    let mut on = cf.is_some();
+    if crate::widgets::check(ui, &mut on, "Custom feeds and speeds").on_hover_text("Use other spindle speed and feeds than the tool's for this step only. Values you leave alone keep following the tool.").changed() {
+        *cf = if on { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
+        changed = true;
+    }
+    if let (Some(c), Some(t0)) = (cf.as_mut(), t0) {
+        let accent = custom_accent(ui);
+        ui.indent((id, "cfs_opts"), |ui| { changed |= custom_rows(ui, (id, "cfs"), c, t0, l1, sp, accent, spd, false); });
+    }
     changed
 }
 
@@ -515,6 +537,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.weak("mm");
                                 ui.weak("left for the finishing step");
                             });
+                            let t0 = p.tool2.as_deref().and_then(|tid| tools_ref.iter().find(|t| t.id == tid));
+                            changed |= relief_custom(ui, ("rough_cf", id), &mut p.custom2, t0, lw2, sp, spd);
                         }
                     });
                     // ---- finishing
@@ -540,6 +564,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.weak("of the tool diameter");
                                 if p.f_so.is_some() && reset_button(ui, "Use the tool's stepover") { p.f_so = None; changed = true; }
                             });
+                            let t0 = tools_ref.iter().find(|t| t.id == p.tool);
+                            changed |= relief_custom(ui, ("finish_cf", id), &mut p.custom, t0, lw2, sp, spd);
                         }
                     });
                     if p.r_off && p.f_off { ui.add_space(2.0); ui.colored_label(Color32::from_rgb(220, 120, 0), "Both steps are off: nothing will be cut."); }
@@ -799,12 +825,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.indent(("cfs_opts", id), |ui| {
                             if let (Some(cf), Some(t0)) = (p.custom.as_mut(), t1.as_ref()) {
                                 if two { ui.label(egui::RichText::new(format!("V-bit: {}", clean(&t0.name))).weak()); }
-                                changed |= custom_rows(ui, ("cfs", id), cf, t0, l1, sp, accent, spd);
+                                changed |= custom_rows(ui, ("cfs", id), cf, t0, l1, sp, accent, spd, true);
                             }
                             if let (Some(cf), Some(t0)) = (p.custom2.as_mut(), t2.as_ref()) {
                                 ui.add_space(4.0);
                                 ui.label(egui::RichText::new(format!("Flat end mill: {}", clean(&t0.name))).weak());
-                                changed |= custom_rows(ui, ("cfs2", id), cf, t0, l1, sp, accent, spd);
+                                changed |= custom_rows(ui, ("cfs2", id), cf, t0, l1, sp, accent, spd, true);
                             }
                         });
                     }
@@ -812,7 +838,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 ui.add_space(4.0);
                 if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
                     // what the machine will really run (its limits applied, after this operation's own values), with a warning when that differs
-                    let asked = match &p.custom { Some(cf) if p.kind != "relief" => cf.apply(t0), _ => t0.clone() };
+                    let asked = match &p.custom { Some(cf) if !(p.kind == "relief" && p.f_off) => cf.apply(t0), _ => t0.clone() };
                     let (t, warn) = match &machine_now { Some(m) => (m.hold(&asked), m.hold_text(&asked)), None => (asked.clone(), String::new()) };
                     let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
                     ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} mm/min · step {}% · {:.2} mm/pass",

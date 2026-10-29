@@ -141,3 +141,33 @@ fn real_model() {
     s.advance(&out.moves, out.moves.len());
     println!("simulate {:?}", t2.elapsed());
 }
+
+#[test]
+fn relief_roughing_and_finishing_take_their_own_custom_feeds_and_speeds() {
+    use putiacnc_core::model::CustomFeeds;
+    let plain = generate(&project(true), Units::Metric).unwrap().gcode();
+    let mut d = project(true);
+    // finishing is `custom`, roughing is `custom2`; a stepover given there is left to the relief's own fields
+    d.ops[0].p.custom = Some(CustomFeeds { rpm: Some(11111.0), feed: Some(777.0), plunge: Some(222.0), so: None });
+    d.ops[0].p.custom2 = Some(CustomFeeds { rpm: Some(9999.0), feed: Some(1333.0), plunge: Some(444.0), so: None });
+    let g = generate(&d, Units::Metric).unwrap().gcode();
+    assert_ne!(plain, g);
+    // the spindle speed is set before the comment of its step, so split where the finishing tool starts
+    let at = g.find("S11111").expect("finishing spindle start");
+    let (rough, fin) = g.split_at(at);
+    assert!(rough.contains("F1333") && rough.contains("F444") && rough.contains("S9999"), "roughing values");
+    assert!(!rough.contains("F777") && !rough.contains("S11111"), "not the finishing ones");
+    assert!(fin.contains("F777") && fin.contains("F222") && fin.contains("S11111"), "finishing values");
+    assert!(!fin.contains("F1333") && !fin.contains("S9999"), "not the roughing ones");
+    // roughing switched off: its block does nothing, the finishing one still applies
+    d.ops[0].p.r_off = true;
+    let g = generate(&d, Units::Metric).unwrap().gcode();
+    assert!(g.contains("F777") && !g.contains("F1333") && !g.contains("S9999"));
+    // finishing switched off: the roughing tool keeps its own values and the finishing block is not applied to it
+    let mut d = project(true);
+    d.ops[0].p.f_off = true;
+    d.ops[0].p.custom = Some(CustomFeeds { rpm: None, feed: Some(777.0), plunge: None, so: None });
+    assert_eq!(generate(&d, Units::Metric).unwrap().gcode(), { d.ops[0].p.custom = None; generate(&d, Units::Metric).unwrap().gcode() });
+    // an old project (no custom values) is unchanged
+    assert_eq!(plain, generate(&project(true), Units::Metric).unwrap().gcode());
+}

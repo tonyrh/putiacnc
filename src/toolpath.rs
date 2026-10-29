@@ -642,7 +642,7 @@ pub fn relief_depth(data: &ProjectData, p: &crate::model::OpParams) -> f64 {
     }
 }
 
-fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, o: &Operation, k: usize, mach: bool, sz_init: f64) -> Result<(), String> {
+fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, machine: &Machine, o: &Operation, k: usize, mach: bool, sz_init: f64) -> Result<(), String> {
     use crate::relief::{finish_lines, Field, Footprint, Rough};
     let pre = format!("Op {}: ", k + 1);
     let un = if e.imp { "in" } else { "mm" };
@@ -660,6 +660,10 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         (None, false) => return Err(format!("Operation {}: choose a finishing tool (Manage… to create one)", k + 1)),
     };
     if !o.p.f_off && !(tool.dia > 0.0 && tool.so > 0.0 && tool.feed > 0.0 && tool.plunge > 0.0) { return Err(format!("Operation {}: check the finishing tool's values", k + 1)); }
+    // custom feeds and speeds: the finishing tool's are `custom`, the roughing tool's `custom2` (the stepovers have their own fields)
+    let (tool_own, rough_own);
+    let tool = match &o.p.custom { Some(cf) if !o.p.f_off => { tool_own = custom_tool(cf, tool, machine, notes, &pre, "finishing"); &tool_own } _ => tool };
+    let rough = match (&o.p.custom2, rough) { (Some(cf), Some(rt)) => { rough_own = custom_tool(cf, rt, machine, notes, &pre, "roughing"); Some(&rough_own) } (_, r) => r };
     let leave = o.p.r_leave.unwrap_or(RELIEF_LEAVE).clamp(0.0, 5.0);
     let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };
     let sz = data.job.safe + z0;
@@ -845,7 +849,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         e.oi = k;
         let pre = format!("Op {}: ", k + 1);
         if o.p.kind == "relief" {
-            relief_op(&mut e, &mut ts, &mut notes, data, o, k, mach, sz_init)?;
+            relief_op(&mut e, &mut ts, &mut notes, data, &machine, o, k, mach, sz_init)?;
             any = true;
             continue;
         }
