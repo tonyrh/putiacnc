@@ -59,12 +59,13 @@ fn settle(a: &mut App) -> Result<(), String> {
         if !a.gen_stale() { break; }
         std::thread::sleep(std::time::Duration::from_millis(2));
     }
-    if a.gen_stale() { return Err("the toolpath never settled".into()); }
     if t0.elapsed().as_secs() >= 5 {
         let d = &a.project.data;
         eprintln!("SLOW {:?}: stock {}x{}, {} shapes, ops {:?}", t0.elapsed(), d.stock.w, d.stock.h, d.loops.len(), d.ops.iter().map(|o| (o.p.kind.clone(), o.p.depth, o.p.tool.clone())).collect::<Vec<_>>());
+        if let (Some(dir), Ok(j)) = (std::env::var_os("FUZZ_DUMP"), putiacnc_core::save_project(&a.project)) { let _ = std::fs::write(std::path::Path::new(&dir).join(format!("slow-{}.json", t0.elapsed().as_secs())), j); }
         for t in &d.tools { eprintln!("  tool {} {} dia {} so {} pd {}", t.id, t.name, t.dia, t.so, t.pd); }
     }
+    if a.gen_stale() { return Err("the toolpath never settled".into()); }
     if let Some(o) = &a.output {
         if let Some(l) = o.lines.iter().find(|l| { let t = l.to_ascii_lowercase(); !t.starts_with('(') && (t.contains("nan") || t.contains("inf")) }) { return Err(format!("G-code with a non-number: {l}")); }
         if !o.time_min.is_finite() { return Err("the time is not finite".into()); }
@@ -257,6 +258,7 @@ fn attempt(seed: u64, skip: &[usize]) -> Result<(), String> {
 
 /// Leaves out steps one at a time for as long as the sequence still goes wrong in the same way, so the report is short.
 fn shrink(seed: u64, first: &str) -> (Vec<usize>, String) {
+    if first.contains("never settled") { return (vec![], first.to_string()); }
     let kind = |e: &str| e.split(['(', '\n', ':']).next().unwrap_or("").chars().filter(|c| !c.is_ascii_digit()).collect::<String>();
     let want = kind(first);
     let mut skip: Vec<usize> = vec![];

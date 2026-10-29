@@ -76,6 +76,13 @@ pub fn boolean(kind: BoolKind, subject: &[Path], clip: &[Path]) -> Vec<Path> {
 pub fn offset(paths: &[Path], delta: f64, arc_tolerance: f64) -> Vec<Path> {
     // the offset moves every point by delta, and the arcs of a round join need a sensible tolerance
     if paths.is_empty() || !in_range(paths) || !delta.is_finite() || delta.abs() > 1e18 || !arc_tolerance.is_finite() || arc_tolerance <= 0.0 { return vec![]; }
+    // Vertices that lie on the line between their neighbours (to 1.4 thousandths of a millimetre) add nothing to the shape, but a
+    // drawing made of many overlapping copies can reach Clipper's offset with thousands of them, and it then takes minutes
+    // (one project: 83 s for 19,000 points, 1 s once cleaned to 800).
+    // Only for big inputs: small ones are offset as they are, so ordinary programs do not change by a hair.
+    let cleaned: Vec<Path>;
+    let paths = if paths.iter().map(|p| p.len()).sum::<usize>() > 4000 { cleaned = clean(paths, 1.415); &cleaned[..] } else { paths };
+    if paths.is_empty() { return vec![]; }
     let raw = to_raw(paths);
     let out = unsafe { c::offset(2.0, arc_tolerance, c::JoinType_jtRound, c::EndType_etClosedPolygon, polygons_of(&raw), delta) };
     let _keep = (&raw.paths, &raw.cpaths);

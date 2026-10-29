@@ -2,3 +2,4 @@ target/
 *.AppImage
 putiacnc-gui.zip
 /shot-sweep/
+__pycache__/

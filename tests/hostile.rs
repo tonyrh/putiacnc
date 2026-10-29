@@ -154,3 +154,15 @@ fn the_clipping_library_is_never_given_points_it_would_throw_on() {
     assert!(putiacnc_core::clip::simplify_even_odd(std::slice::from_ref(&far)).is_empty());
     assert!(putiacnc_core::clip::boolean(putiacnc_core::clip::BoolKind::Union, &[far], &[]).is_empty());
 }
+
+#[test]
+fn a_drawing_of_many_overlapping_copies_does_not_make_the_offset_take_minutes() {
+    // found by the random action sequences: 20 shapes with overlapping inlays made one Clipper offset take 83 s (19,000 points,
+    // 462 polygons); with its input cleaned it takes about a second
+    let p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/slow_inlay.json");
+    let d = load_project(&std::fs::read_to_string(p).unwrap()).unwrap().data;
+    let t = std::time::Instant::now();
+    let o = generate(&d, Units::Metric).unwrap();
+    assert!(!o.lines.is_empty());
+    assert!(t.elapsed().as_secs() < 30, "took {:?}", t.elapsed());
+}
