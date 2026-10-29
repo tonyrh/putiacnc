@@ -597,6 +597,43 @@ mod history_tests {
         assert_eq!((a.project.data.loops.len(), a.project.data.stock.w), (0, w0));
     }
 
+    /// Found by the random action sequences (fuzz.rs): the toolbar used to take back a whole mixed step, and the next menu undo then
+    /// put the removed operation back from a later snapshot.
+    #[test]
+    fn the_toolbar_takes_back_only_the_drawing_half_of_a_step_that_changed_both() {
+        let mut a = App::new(None);
+        a.project.data.loops.clear();
+        let w0 = a.project.data.stock.w;
+        a.project.data.loops.push(shapes::new_rect([10.0, 10.0], [30.0, 30.0], 0.0, 0));
+        a.hist.record(&a.project.data);
+        a.sel = [0].into_iter().collect();
+        let sel = a.sel.clone();
+        shapes::add_operation(&mut a.project.data, &sel, "outside"); // the shape joins the operation: drawing and project change together
+        a.hist.classify(&a.project.data);
+        a.hist.record(&a.project.data);
+        a.project.data.stock.w = w0 + 20.0;
+        a.hist.classify(&a.project.data);
+        a.do_undo_drawing();
+        assert_eq!(a.project.data.stock.w, w0 + 20.0, "the toolbar leaves the stock alone");
+        assert_eq!(a.project.data.ops.len(), 1, "and the operation");
+        assert_eq!(a.project.data.loops[0].op, 0, "the drawing half is back: the shape is out of the operation");
+        // everything from the menu: the stock, then the operation, and nothing comes back from a stale snapshot
+        a.do_undo(); a.do_undo();
+        assert_eq!((a.project.data.stock.w, a.project.data.ops.len()), (w0, 0));
+        assert!(!a.hist.can_undo(Scope::All));
+    }
+
+    #[test]
+    fn redo_after_the_operation_was_removed_leaves_no_shape_in_a_missing_operation() {
+        let mut d = putiacnc_core::shapes::blank_project().data;
+        d.loops.clear();
+        d.loops.push(shapes::new_rect([10.0, 10.0], [30.0, 30.0], 0.0, 7));
+        d.hidden_ops = vec![7];
+        d.act = 7;
+        shapes::repair_refs(&mut d);
+        assert_eq!((d.loops[0].op, d.hidden_ops.len(), d.act), (0, 0, 0));
+    }
+
     #[test]
     fn notes_edits_can_be_undone_from_the_menu_but_not_the_toolbar() {
         let mut a = App::new(None);

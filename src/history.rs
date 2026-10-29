@@ -80,7 +80,13 @@ impl History {
         let list = if undo { &mut self.undo } else { &mut self.redo };
         let Some(i) = Self::find(list, s) else { return false };
         let e = list.remove(i);
-        let kind = e.kind.unwrap_or(Kind::Both);
+        let mut kind = e.kind.unwrap_or(Kind::Both);
+        // the toolbar leaves the stock, operations and the rest alone: of a step that changed both, it takes back the drawing half, and
+        // the other half stays in the list for the Edit menu (taking the whole step would put a stale project back at the next undo)
+        if s == Scope::Drawing && kind == Kind::Both {
+            list.insert(i, Entry { snap: e.snap.clone(), kind: Some(Kind::Project) });
+            kind = Kind::Drawing;
+        }
         let before = cur.clone();
         restore(cur, e.snap, kind);
         let other = if undo { &mut self.redo } else { &mut self.undo };

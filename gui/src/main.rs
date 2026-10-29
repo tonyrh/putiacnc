@@ -35,6 +35,8 @@ mod viewcube;
 mod checkui;
 mod widgets;
 mod zoomcard;
+#[cfg(test)]
+mod fuzz;
 
 use app::App;
 use eframe::egui;
@@ -104,6 +106,13 @@ impl eframe::App for App {
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.gl_info.is_empty() { if let Some(gl) = frame.gl() { self.gl_info = about::gl_summary(gl); if std::env::var_os("PUTIACNC_PRINT_VERSION_INFO").is_some() { eprintln!("{}", about::version_info(ctx, &self.gl_info)); } } }
+        self.ui_frame(ctx);
+    }
+}
+
+impl App {
+    /// One frame of the whole window: everything `update` does except the OpenGL information (so tests can run frames without a window).
+    pub(crate) fn ui_frame(&mut self, ctx: &egui::Context) {
         let dropped: Option<String> = ctx.input(|i| i.raw.dropped_files.first().and_then(|f| f.path.as_ref().map(|p| p.display().to_string())));
         if let Some(p) = dropped {
             if App::is_drawing(&p) { self.import_file(&p); }

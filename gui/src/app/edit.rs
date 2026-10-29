@@ -84,6 +84,7 @@ impl App {
     }
 
     pub(super) fn after_history(&mut self) {
+        shapes::repair_refs(&mut self.project.data);
         let n = self.project.data.loops.len();
         self.sel.retain(|&i| i < n);
         self.apply_lib_tools();

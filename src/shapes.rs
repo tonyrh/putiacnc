@@ -597,6 +597,18 @@ pub fn rotate_selection(loops: &mut [LoopData], ops: &mut [Operation], sel: &std
     }
 }
 
+/// Makes every reference inside a project point at something that exists: a shape of an operation that is gone belongs to none, hidden
+/// and active operations that are gone are forgotten, and tabs on shapes that are gone are dropped. Undo and redo can bring back a step
+/// that was made when an operation still existed (Edit > Redo of a drawing step after the operation was removed), so it runs after them.
+pub fn repair_refs(d: &mut ProjectData) {
+    let ids: Vec<i64> = d.ops.iter().map(|o| o.id).collect();
+    for l in d.loops.iter_mut() { if l.op != 0 && !ids.contains(&l.op) { l.op = 0; } }
+    d.hidden_ops.retain(|h| ids.contains(h));
+    if d.act != 0 && !ids.contains(&d.act) { d.act = ids.first().copied().unwrap_or(0); }
+    let n = d.loops.len();
+    for o in d.ops.iter_mut() { if let Some(v) = o.p.tab_pts.as_mut() { v.retain(|t| t.l < n); } }
+}
+
 /// Keeps tab anchors right after shapes were deleted (`removed` = their indices, any order).
 pub fn tabs_after_delete(ops: &mut [Operation], removed: &[usize]) {
     for o in ops.iter_mut() {
