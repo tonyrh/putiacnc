@@ -46,9 +46,11 @@ fn region_of(data: &ProjectData, op: usize) -> Vec<Path> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Kind { TooDeep, Spoilboard, OutOfArea, ZTravel, RapidCut, Shank, Clamp, TooSmall, Overcut }
+pub enum Kind { TooDeep, Spoilboard, OutOfArea, ZTravel, RapidCut, Shank, Clamp, Holder, TooSmall, Overcut }
 
 impl Kind {
+    /// The findings that name clamps (`Finding::clamps`): the cutter or the holder runs into one.
+    pub fn about_clamps(self) -> bool { matches!(self, Kind::Clamp | Kind::Holder) }
     pub fn title(self) -> &'static str {
         match self {
             Kind::TooDeep => "Deeper than the cutting length",
@@ -58,6 +60,7 @@ impl Kind {
             Kind::RapidCut => "Rapid move through material",
             Kind::Shank => "Shank rubbing the walls",
             Kind::Clamp => "Tool hits a clamp",
+            Kind::Holder => "Tool holder hits a clamp",
             Kind::TooSmall => "Shape smaller than the tool",
             Kind::Overcut => "Tool cuts past the design",
         }
@@ -79,7 +82,7 @@ pub struct Finding {
     pub clamps: Vec<usize>,
 }
 
-fn tool_of(d: &ProjectData, op: usize, alt: bool) -> Option<&Tool> {
+pub fn tool_of(d: &ProjectData, op: usize, alt: bool) -> Option<&Tool> {
     let o = d.ops.get(op)?;
     let id = if alt { o.p.tool2.as_deref()? } else { o.p.tool.as_str() };
     d.tools.iter().find(|t| t.id == id)
@@ -88,6 +91,37 @@ fn tool_of(d: &ProjectData, op: usize, alt: bool) -> Option<&Tool> {
 fn op_name(d: &ProjectData, op: usize) -> String {
     let kind = d.ops.get(op).map(|o| match o.p.kind.as_str() { "outside" => "Profile outside", "inside" => "Profile inside", "online" => "Profile on the line", "pocket" => "Pocket", "vcarve" => "V-carve", "drill" => "Drill", "inlay" => "Inlay pocket", "plug" => "Inlay plug", "relief" => "3D relief", k => k }).unwrap_or("Operation");
     format!("Operation {} ({kind})", op + 1)
+}
+
+/// The tool holder as far as it is known: its radius and how far the tool tip sticks out below it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Holder { pub r: f64, pub stick: f64 }
+
+/// The holder of the tool in this slot of an operation (`alt` = the second tool), when both the machine's holder diameter and the
+/// tool's stick-out are known.
+pub fn holder_of(d: &ProjectData, op: usize, alt: bool) -> Option<Holder> {
+    let dia = d.machine.as_ref()?.holder.filter(|v| *v > 0.0)?;
+    let stick = tool_of(d, op, alt)?.stick;
+    if stick > 0.0 { Some(Holder { r: dia / 2.0, stick }) } else { None }
+}
+
+/// What of the tool is in a clamp's way.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Part { Cutter, Holder }
+
+/// Whether a tool whose tip is at `at` (x, y and z up from the stock's top) is in the way of the clamp: the cutter (radius `r`) when
+/// the tip is lower than the clamp's top, otherwise the holder when its underside is.
+pub fn clamp_contact(c: &crate::model::Clamp, at: [f64; 3], r: f64, h: Option<Holder>) -> Option<Part> {
+    clamp_contact_seg(c, at, at, r, h)
+}
+
+/// The same for a straight move from `a` to `b`.
+pub fn clamp_contact_seg(c: &crate::model::Clamp, a: [f64; 3], b: [f64; 3], r: f64, h: Option<Holder>) -> Option<Part> {
+    let low = a[2].min(b[2]);
+    if low <= c.height && seg_near_rect([a[0], a[1]], [b[0], b[1]], c, r) { return Some(Part::Cutter); }
+    let h = h?;
+    if low + h.stick <= c.height && seg_near_rect([a[0], a[1]], [b[0], b[1]], c, h.r) { return Some(Part::Holder); }
+    None
 }
 
 /// Does the segment from a to b come within r of the rectangle?
@@ -208,13 +242,16 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         let slot = m.op * 2 + m.alt as usize;
         let tool = tool_of(data, m.op, m.alt);
         let r = sim.tool_radius(slot);
+        let holder = holder_of(data, m.op, m.alt);
         let len = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt();
         let n = ((len / step).ceil() as usize).max(1);
         let at = |k: usize| { let f = k as f64 / n as f64; [m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, m.from[2] + (m.to[2] - m.from[2]) * f] };
 
         for (ci, c) in data.clamps.iter().enumerate() {
-            if m.from[2].min(m.to[2]) <= c.height && seg_near_rect([m.from[0], m.from[1]], [m.to[0], m.to[1]], c, r) {
-                note(&mut found, Kind::Clamp, i, m.to, format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y), Some(ci));
+            match clamp_contact_seg(c, m.from, m.to, r, holder) {
+                Some(Part::Cutter) => note(&mut found, Kind::Clamp, i, m.to, format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y), Some(ci)),
+                Some(Part::Holder) => note(&mut found, Kind::Holder, i, m.to, format!("{}: the tool holder runs into a clamp at {:.0}, {:.0} mm ({:.0} mm of the tool shows below it, the clamp stands {:.0} mm above the stock).", op_name(data, m.op), c.x, c.y, holder.map_or(0.0, |h| h.stick), c.height), Some(ci)),
+                None => {}
             }
         }
         if m.cut && !m.alt && !over_done.get(m.op).copied().unwrap_or(true) && m.from[2].min(m.to[2]) < -0.01 && matches!(kinds[m.op], "outside" | "inside" | "pocket") {
@@ -327,6 +364,67 @@ mod tests {
         // a clamp lower than the tool's path is passed over
         d.clamps[0].x = 40.0; d.clamps[0].height = -50.0;
         assert!(!kinds(&d).contains(&Kind::Clamp));
+    }
+
+    fn with_holder(d: &mut ProjectData, dia: f64, stick: f64) {
+        let mut m = crate::machines::Machines::from_json("{}").map(|l| l.resolve("").clone()).unwrap_or_else(|_| panic!("no machine"));
+        m.holder = Some(dia);
+        d.machine = Some(m);
+        d.tools[0].stick = stick;
+    }
+
+    #[test]
+    fn the_holder_hits_a_tall_clamp_that_the_cutter_passes() {
+        // the pocket is 15..45 mm wide; the clamp stands 7 mm beyond it, 20 mm high
+        let mut d = proj("pocket", 3.0);
+        d.clamps.push(crate::model::Clamp { x: 52.0, y: 15.0, w: 6.0, h: 10.0, height: 20.0 });
+        assert!(!kinds(&d).contains(&Kind::Holder) && !kinds(&d).contains(&Kind::Clamp), "the cutter alone is nowhere near");
+        // a holder 40 mm across (20 mm out from the tool) with 10 mm of tool below it: its underside is at 15 mm when the tool travels at 5
+        with_holder(&mut d, 40.0, 10.0);
+        let o = generate(&d, Units::Metric).unwrap();
+        let f = run(&d, &o);
+        let h = f.iter().find(|f| f.kind == Kind::Holder).expect("the holder runs into the clamp");
+        assert_eq!(h.clamps, vec![0]);
+        assert!(!f.iter().any(|f| f.kind == Kind::Clamp), "the cutter still misses it");
+        assert!(h.msg.contains("holder"), "{}", h.msg);
+        // a narrower holder does not reach it
+        with_holder(&mut d, 10.0, 10.0);
+        assert!(!kinds(&d).contains(&Kind::Holder));
+        // a tool that sticks out far enough keeps the holder above the clamp
+        with_holder(&mut d, 40.0, 40.0);
+        assert!(!kinds(&d).contains(&Kind::Holder));
+        // nothing known about the stick-out: not checked
+        with_holder(&mut d, 40.0, 0.0);
+        assert!(!kinds(&d).contains(&Kind::Holder));
+    }
+
+    #[test]
+    fn a_wide_holder_hits_a_clamp_on_moves_where_the_cutter_does_not() {
+        let mut d = proj("pocket", 3.0);
+        d.clamps.push(crate::model::Clamp { x: 40.0, y: 5.0, w: 10.0, h: 10.0, height: 20.0 });
+        with_holder(&mut d, 40.0, 10.0);
+        let o = generate(&d, Units::Metric).unwrap();
+        let f = run(&d, &o);
+        // each move is reported once, for the first part that touches: the cutter where it does, the holder on the other moves
+        let (c, h) = (f.iter().find(|f| f.kind == Kind::Clamp).unwrap(), f.iter().find(|f| f.kind == Kind::Holder).unwrap());
+        assert!(c.mv != h.mv, "{:?} {:?}", c.mv, h.mv);
+    }
+
+    #[test]
+    fn the_contact_of_one_position_follows_the_same_rule() {
+        let c = crate::model::Clamp { x: 10.0, y: 10.0, w: 10.0, h: 10.0, height: 20.0 };
+        let h = Some(Holder { r: 15.0, stick: 12.0 });
+        // beside the clamp, tip low: the cutter (r 2) touches only when it is within 2 mm
+        assert_eq!(clamp_contact(&c, [8.5, 15.0, 0.0], 2.0, h), Some(Part::Cutter));
+        assert_eq!(clamp_contact(&c, [7.0, 15.0, 0.0], 2.0, h), Some(Part::Holder), "the holder is 15 mm out, its underside at 12");
+        // the tip above the clamp's top by more than the stick-out: nothing
+        assert_eq!(clamp_contact(&c, [7.0, 15.0, 9.0], 2.0, h), None);
+        assert_eq!(clamp_contact(&c, [7.0, 15.0, 8.0], 2.0, h), Some(Part::Holder), "underside exactly at the clamp's top counts");
+        // without a holder only the cutter counts
+        assert_eq!(clamp_contact(&c, [7.0, 15.0, 0.0], 2.0, None), None);
+        // a move that passes the clamp is judged along its length
+        assert_eq!(clamp_contact_seg(&c, [0.0, 15.0, 30.0], [30.0, 15.0, 30.0], 2.0, h), None);
+        assert_eq!(clamp_contact_seg(&c, [0.0, 15.0, 5.0], [30.0, 15.0, 5.0], 2.0, h), Some(Part::Cutter));
     }
 
     #[test]

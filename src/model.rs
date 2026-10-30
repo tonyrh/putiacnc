@@ -172,6 +172,8 @@ pub struct Machine {
     #[serde(default, rename = "startCode", skip_serializing_if = "Option::is_none")] pub start_code: Option<String>,
     /// Lines of G-code written at the end, after the spindle stops and the tool returns to X0 Y0, just before the program ends.
     #[serde(default, rename = "endCode", skip_serializing_if = "Option::is_none")] pub end_code: Option<String>,
+    /// Diameter in mm of the tool holder (the collet nut or the spindle nose, whatever hangs lowest). `None` = not known (the holder is not checked).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub holder: Option<f64>,
 }
 
 impl Machine {
@@ -201,7 +203,7 @@ impl Machine {
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
-                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None }
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None, holder: None }
     }
 }
 
@@ -229,6 +231,8 @@ pub struct Tool {
     #[serde(default, skip_serializing_if = "is_zero")] pub flute: f64,
     /// Shank diameter in mm. 0 = the same as the cutter.
     #[serde(default, skip_serializing_if = "is_zero")] pub shank: f64,
+    /// Stick-out in mm: how far the tool tip is below the bottom of the holder (collet nut). 0 = not known (the holder is not checked).
+    #[serde(default, skip_serializing_if = "is_zero")] pub stick: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

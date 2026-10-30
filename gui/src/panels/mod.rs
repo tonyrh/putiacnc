@@ -329,7 +329,7 @@ pub fn clamp_bar(ui: &mut Ui, app: &mut App) {
     let (op_word, run_word, clamp_word) = (if ops.len() == 1 { "Operation" } else { "Operations" }, if ops.len() == 1 { "runs" } else { "run" }, if clamps.len() == 1 { "Clamp" } else { "Clamps" });
     let text = format!("{op_word} {} {run_word} into {clamp_word} {}. Move the clamp or change the drawing.", list(&ops), list(&clamps));
     // the first finding about a clamp, once the checks have listed them
-    let first = app.checks.iter().position(|f| f.kind == putiacnc_core::checks::Kind::Clamp && f.mv.is_some());
+    let first = app.checks.iter().position(|f| f.kind.about_clamps() && f.mv.is_some());
     let mut show = false;
     // the button at the right, the sign and the text in what is left; everything centred on the row's middle
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

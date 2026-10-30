@@ -142,6 +142,26 @@ fn a_machine_with_zero_speed_or_huge_factors_still_gives_a_finite_time() {
 }
 
 #[test]
+fn absurd_holder_sizes_and_stick_outs_give_a_finite_check_and_no_panic() {
+    use putiacnc_core::checks::{clamp_contact, holder_of, Holder};
+    for (holder, stick) in [(0.0, 10.0), (-5.0, 10.0), (30.0, 0.0), (30.0, -1.0), (1e300, 1e-300), (1e300, 1e300), (1e-300, 1e-300), (30.0, 1e300)] {
+        let mut d = sample("outside_holes");
+        d.clamps.push(putiacnc_core::model::Clamp { x: 124.0, y: 45.0, w: 14.0, h: 20.0, height: 25.0 });
+        d.machine.get_or_insert_with(Default::default).holder = Some(holder);
+        d.tools[0].stick = stick;
+        let o = generate(&d, Units::Metric).unwrap();
+        for f in checks::run(&d, &o) { assert!(f.at.iter().all(|v| v.is_finite()), "holder {holder}, stick {stick}: {:?}", f.at); }
+        let h = holder_of(&d, 0, false);
+        assert!(h.is_none_or(|h| h.r > 0.0 && h.stick > 0.0), "{h:?}");
+    }
+    // a holder or a position that is not a number never touches anything and never panics
+    let c = putiacnc_core::model::Clamp { x: 0.0, y: 0.0, w: 10.0, h: 10.0, height: 20.0 };
+    for v in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 1e300] {
+        let _ = clamp_contact(&c, [v, v, v], v, Some(Holder { r: v, stick: v }));
+    }
+}
+
+#[test]
 fn rounding_a_huge_number_does_not_panic() {
     for v in [1e22, 1e30, 1e300, -1e300, f64::MAX] { let _ = putiacnc_core::toolpath::to_fixed(v, 3); }
 }

@@ -539,9 +539,13 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     let mut d = t.shank / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.05 / k, 3, "").changed() { t.shank = (d * k).max(0.0); changed = true; }
                 });
+                cell!("Stick-out", uname, ui, {
+                    let mut d = t.stick / k;
+                    if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").on_hover_text("How far the tip sticks out below the holder. With the holder diameter in the machine settings, the holder is checked against the clamps.").changed() { t.stick = (d * k).max(0.0); changed = true; }
+                });
                 if n % 2 == 1 { ui.end_row(); }
             });
-            ui.add(egui::Label::new(egui::RichText::new("Cut length is how deep the flutes reach and shank dia. the bit above them; 0 means unknown and switches those checks off for this tool.").small().weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new("Cut length is how deep the flutes reach and shank dia. the bit above them; stick-out is how far the tip stands below the holder (the holder size is in the machine settings). 0 means unknown and switches those checks off for this tool.").small().weak()).wrap(true));
             if let Some(m) = &app.project.data.machine {
                 let warn = m.hold_text(&t);
                 if !warn.is_empty() {

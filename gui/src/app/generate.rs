@@ -99,7 +99,7 @@ impl App {
             Ok((v, f)) => {
                 if v == self.out_ver {
                     let mut hits: Vec<(usize, Vec<usize>)> = vec![];
-                    for x in f.iter().filter(|(_, x)| x.kind == putiacnc_core::checks::Kind::Clamp).map(|(_, x)| x) {
+                    for x in f.iter().filter(|(_, x)| x.kind.about_clamps()).map(|(_, x)| x) {
                         for &c in &x.clamps { match hits.iter_mut().find(|h| h.0 == c) { Some(h) => h.1.extend(x.op), None => hits.push((c, x.op.into_iter().collect())) } }
                     }
                     self.clamp_hits = hits;

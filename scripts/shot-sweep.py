@@ -38,6 +38,7 @@ STATES = [
     ("3d", "outside_holes", {"PUTIACNC_VIEW": "3d", "PUTIACNC_PLAY": "0.5"}, 7),
     ("3d-vbit", "vbit_profile", {"PUTIACNC_VIEW": "3d", "PUTIACNC_PLAY": "1"}, 7),
     ("3d-paused", "two_ops_toolchange", {"PUTIACNC_VIEW": "3d", "PUTIACNC_PLAY": "-1"}, 7),
+    ("3d-holder-hit", "holder_clamp.json", {"PUTIACNC_VIEW": "3d", "PUTIACNC_PLAY": "0.24"}, 7),
     ("tab-gcode", "two_ops_toolchange", {"PUTIACNC_TAB_GCODE": "1"}, 5),
     ("tab-notes", "outside_holes", {"PUTIACNC_TAB_NOTES": "1"}, 4),
     ("banner-error", "outside_holes", {"PUTIACNC_SHOW_ERR": "1"}, 4),
@@ -156,7 +157,7 @@ def main():
                 cmd = ["sh", os.path.join(HERE, "shot.sh"), "-w", size, "-t", theme, "-s", str(wait), "-b", binary, "-o", out]
                 for key, val in env.items():
                     cmd += ["-e", f"{key}={val}"]
-                cmd.append(os.path.join(DATA, proj + ".project.json"))
+                cmd.append(os.path.join(DATA, proj if proj.endswith(".json") else proj + ".project.json"))
                 r = subprocess.run(cmd, capture_output=True, text=True)
                 if r.returncode != 0 or not os.path.exists(out):
                     wrong.append((tag, [f"the screenshot failed: {r.stderr.strip()[:200]}"]))

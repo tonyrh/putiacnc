@@ -389,13 +389,26 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     });
     let sim = app.v3.sim.as_ref().unwrap();
 
-    // clamps: translucent red boxes from the table to their top
-    for c in app.v3_data().clamps.iter().filter(|_| app.show_clamps) {
+    // where the tool is now and which clamps it is in the way of (the cutter, or the holder when the machine and the tool say how big it is)
+    let now = tool_now(app);
+    let contacts: Vec<(usize, putiacnc_core::checks::Part)> = match &now {
+        Some(n) if app.show_clamps => {
+            let d = app.v3_data();
+            let r = putiacnc_core::checks::tool_of(d, n.op, n.alt).map_or(0.0, |t| t.dia / 2.0);
+            let h = putiacnc_core::checks::holder_of(d, n.op, n.alt);
+            d.clamps.iter().enumerate().filter_map(|(i, c)| putiacnc_core::checks::clamp_contact(c, n.tip, r, h).map(|p| (i, p))).collect()
+        }
+        _ => vec![],
+    };
+
+    // clamps: translucent red boxes from the table to their top; one the tool is in the way of turns solid
+    for (ci, c) in app.v3_data().clamps.iter().enumerate().filter(|_| app.show_clamps) {
+        let hit = contacts.iter().any(|(i, _)| *i == ci);
         let (z0, z1) = (-(app.v3_data().stock.t as f32), c.height as f32);
         let (x0, y0, x1, y1) = (c.x as f32, c.y as f32, (c.x + c.w) as f32, (c.y + c.h) as f32);
         let corner = |i: usize, z: f32| cam.p([if i == 1 || i == 2 { x1 } else { x0 }, if i >= 2 { y1 } else { y0 }, z]);
-        let fill = Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 70);
-        let edge = Stroke::new(1.5_f32, Color32::from_rgb(0xe0, 0x1b, 0x24));
+        let fill = Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, if hit { 185 } else { 70 });
+        let edge = Stroke::new(if hit { 2.5_f32 } else { 1.5_f32 }, Color32::from_rgb(0xe0, 0x1b, 0x24));
         for i in 0..4 {
             let j = (i + 1) % 4;
             if let (Some(a), Some(b), Some(c2), Some(d)) = (corner(i, z0), corner(j, z0), corner(j, z1), corner(i, z1)) {
@@ -458,8 +471,15 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let start = if done > 0 { st.cum.get(done - 1).copied().unwrap_or(0.0) } else { 0.0 };
             let f = if m.dt > 1e-12 { ((st.t - start) / m.dt).clamp(0.0, 1.0) } else { 1.0 };
             let tip: Vec<f32> = (0..3).map(|i| (m.from[i] + (m.to[i] - m.from[i]) * f) as f32).collect();
-            if let (Some(a), Some(b)) = (cam.p([tip[0], tip[1], tip[2]]), cam.p([tip[0], tip[1], tip[2] + 30.0])) {
+            // with the holder known the tool is drawn as long as it sticks out, and the holder above it
+            let holder = putiacnc_core::checks::holder_of(app.v3_data(), m.op, m.alt);
+            let cutter_hit = contacts.iter().any(|(_, p)| *p == putiacnc_core::checks::Part::Cutter);
+            let holder_hit = contacts.iter().any(|(_, p)| *p == putiacnc_core::checks::Part::Holder);
+            if let Some(hd) = holder { draw_holder(&painter, &cam, [tip[0], tip[1], tip[2] + hd.stick as f32], hd.r as f32, holder_hit || cutter_hit); }
+            let up = holder.map_or(30.0, |hd| hd.stick as f32);
+            if let (Some(a), Some(b)) = (cam.p([tip[0], tip[1], tip[2]]), cam.p([tip[0], tip[1], tip[2] + up])) {
                 let c = crate::theme::op_color(m.op, dark);
+                let c = if cutter_hit { Color32::from_rgb(0xe0, 0x1b, 0x24) } else { c };
                 // lighter while rapiding: the tool is not cutting
                 let c = if m.cut { c } else { c.gamma_multiply(0.55) };
                 // faded while the spindle is stopped (before it starts, during a pause, at the end)
@@ -530,9 +550,14 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         let st = &app.v3;
         let step = st.cum.partition_point(|&c| c <= st.t + 1e-12).min(rp_arc.moves.len().saturating_sub(1));
         let stop = st.stops.iter().find(|s| (s.0 - st.t).abs() < 1e-9 && !st.playing).map(|s| s.1.clone());
+        let touch = contacts.first().map(|(ci, p)| {
+            let what = if *p == putiacnc_core::checks::Part::Holder { "The tool holder" } else { "The tool" };
+            (format!("{what} runs into Clamp {}", ci + 1), "Move the clamp, raise the safe height or use a longer tool.".to_string(), 2u8)
+        });
         let msg = match (stop, rp_arc.info.get(step).map(|i| &i.kind)) {
-            (Some(m), _) => Some((format!("Paused: {m}"), "Press Play to continue".to_string(), true)),
-            (None, Some(putiacnc_core::replay::Kind::Wait(s))) if st.playing || st.t > 0.0 => Some((format!("Waiting {s} s for the spindle to reach speed"), String::new(), false)),
+            (Some(m), _) => Some((format!("Paused: {m}"), "Press Play to continue".to_string(), 1u8)),
+            _ if touch.is_some() => touch,
+            (None, Some(putiacnc_core::replay::Kind::Wait(s))) if st.playing || st.t > 0.0 => Some((format!("Waiting {s} s for the spindle to reach speed"), String::new(), 0u8)),
             _ => None,
         };
         if let Some((a, b, amber)) = msg {
@@ -542,7 +567,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let w = g1.size().x.max(g2.as_ref().map_or(0.0, |g| g.size().x)) + 24.0;
             let h = g1.size().y + g2.as_ref().map_or(0.0, |g| g.size().y + 2.0) + 14.0;
             let r = Rect::from_center_size(Pos2::new(rect.center().x, rect.bottom() - 70.0 - h / 2.0), Vec2::new(w, h));
-            painter.rect_filled(r, 8.0, if amber { Color32::from_rgba_unmultiplied(150, 100, 0, 225) } else { Color32::from_black_alpha(170) });
+            painter.rect_filled(r, 8.0, match amber { 2 => Color32::from_rgba_unmultiplied(170, 25, 30, 230), 1 => Color32::from_rgba_unmultiplied(150, 100, 0, 225), _ => Color32::from_black_alpha(170) });
             let y2 = r.min.y + 7.0 + g1.size().y + 2.0;
             painter.galley(Pos2::new(r.center().x - g1.size().x / 2.0, r.min.y + 7.0), g1, Color32::WHITE);
             if let Some(g) = g2 { painter.galley(Pos2::new(r.center().x - g.size().x / 2.0, y2), g, Color32::WHITE); }
@@ -808,4 +833,37 @@ fn draw_gl(res: &std::sync::Mutex<GlRes>, pending: &std::sync::Mutex<Option<(usi
         gl.use_program(None);
         gl.active_texture(glow::TEXTURE0);
     }
+}
+
+
+/// The tool tip's place now: the move in progress, at the point the cutter has got to.
+struct ToolNow { op: usize, alt: bool, tip: [f64; 3] }
+
+fn tool_now(app: &App) -> Option<ToolNow> {
+    let (st, o) = (&app.v3, &*app.v3.rp);
+    let done = st.sim.as_ref()?.done;
+    if !(done > 0 || st.t > 0.0) || done >= o.moves.len() { return None; }
+    let m = &o.moves[done];
+    let start = if done > 0 { st.cum.get(done - 1).copied().unwrap_or(0.0) } else { 0.0 };
+    let f = if m.dt > 1e-12 { ((st.t - start) / m.dt).clamp(0.0, 1.0) } else { 1.0 };
+    let tip = [0, 1, 2].map(|i| m.from[i] + (m.to[i] - m.from[i]) * f);
+    Some(ToolNow { op: m.op, alt: m.alt, tip })
+}
+
+/// The tool holder as a short cylinder whose underside is at `base`: translucent sides, a ring at each end. Red when it is in the way.
+fn draw_holder(painter: &egui::Painter, cam: &Cam, base: [f32; 3], r: f32, hit: bool) {
+    const N: usize = 28;
+    let height = (r * 2.0).clamp(12.0, 40.0);
+    let ring = |z: f32| -> Vec<Option<Pos2>> { (0..N).map(|i| { let a = i as f32 / N as f32 * std::f32::consts::TAU; cam.p([base[0] + r * a.cos(), base[1] + r * a.sin(), z]) }).collect() };
+    let (lo, hi) = (ring(base[2]), ring(base[2] + height));
+    let (fill, edge) = if hit { (Color32::from_rgba_unmultiplied(0xe0, 0x1b, 0x24, 70), Color32::from_rgb(0xe0, 0x1b, 0x24)) } else { (Color32::from_rgba_unmultiplied(130, 135, 150, 55), Color32::from_rgba_unmultiplied(90, 95, 110, 210)) };
+    for i in 0..N {
+        let j = (i + 1) % N;
+        if let (Some(a), Some(b), Some(c), Some(d)) = (lo[i], lo[j], hi[j], hi[i]) { painter.add(Shape::convex_polygon(vec![a, b, c, d], fill, Stroke::NONE)); }
+    }
+    for pts in [&lo, &hi] {
+        let v: Vec<Pos2> = pts.iter().flatten().copied().collect();
+        if v.len() == N { painter.add(Shape::closed_line(v, Stroke::new(1.4_f32, edge))); }
+    }
+    for i in (0..N).step_by(N / 4) { if let (Some(a), Some(b)) = (lo[i], hi[i]) { painter.line_segment([a, b], Stroke::new(1.0_f32, edge)); } }
 }
