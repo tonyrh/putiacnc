@@ -3,7 +3,7 @@
 Things we agreed to do, or decided to wait on. Newest thinking first; cross items off when done.
 
 ## Needs the maintainer
-- [ ] 3D preview with a very big toolpath (140,000 moves and more, e.g. a 3D relief, fine text, a small tool at a small stepover): drawing it takes 30 ms a frame at 140,000 moves and 115 ms at 770,000 (see docs/testing.md, `gui/src/perf.rs`), so orbiting is not smooth. The cost is egui drawing the lines on the CPU every frame. Drawing the toolpath with the GPU, as the wood already is (one vertex buffer, uploaded when the program changes, the camera as a uniform), would make it independent of the number of moves. Cheaper ideas that did not help: skipping steps shorter than a few pixels.
+- [x] 3D preview with a very big toolpath (140,000 moves and more): 30 ms a frame at 140,000 moves and 115 ms at 770,000 (see docs/testing.md, `gui/src/perf.rs`). Decided not to draw the toolpath on the GPU: it cannot be tested without a GPU, needs hand-written GL for the glow backend, and only matters for rare huge jobs. Skipping steps shorter than a few pixels did not help either.
 - [ ] Try the recent changes on real projects: operation eye, clamp fold and hide, warning signs in 3D, tool dialogs closing on Esc / right-click.
 - [ ] Air cut on the real GRBL 1.1 machine (nothing has been cut yet).
 
