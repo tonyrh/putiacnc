@@ -276,7 +276,7 @@ fn form(ui: &mut Ui, app: &mut App) {
     egui::Grid::new("mach_perf").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, format!("Rapid rate ({sname})"));
         let mut r = m.rapid / sfac;
-        if crate::widgets::num(ui, [fw, 22.0], &mut r, 0.01, 1.0e6, 10.0 / sfac, 3, "").changed() { m.rapid = (r * sfac).max(1.0); changed = true; }
+        if crate::widgets::num(ui, [fw, 22.0], &mut r, 0.01, 1.0e6, 10.0 / sfac, 3, "").tip("How fast the machine travels in its rapid (G0) moves. Used for the time estimate and the playback only: the G-code does not carry it, the controller moves at its own rapid speed.").changed() { m.rapid = (r * sfac).max(1.0); changed = true; }
         spacer(ui);
         // the whole control (label and box) sits flush with the right edge, like the checkbox and the button below
         ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
