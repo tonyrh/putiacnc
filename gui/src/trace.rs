@@ -1,5 +1,6 @@
 //! Import Bitmap: a picture is traced into closed shapes (see `putiacnc_core::bitmap`). The dialog shows the picture
 //! with the traced outlines on top, and the shapes are placed on the stock like any other imported drawing.
+use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Vec2};
 use putiacnc_core::bitmap::{Bitmap, Mode, Opts};
@@ -154,7 +155,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             let mut th = t.opts.threshold as i32;
             // the slider takes the rest of the row, up to the number box
             ui.spacing_mut().slider_width = (ui.available_width() - 64.0).max(80.0);
-            if ui.add(egui::Slider::new(&mut th, 1..=254)).on_hover_text("Pixels darker than this become part of the shape").changed() { t.opts.threshold = th as u8; changed = true; }
+            if ui.add(egui::Slider::new(&mut th, 1..=254)).tip("Pixels darker than this become part of the shape").changed() { t.opts.threshold = th as u8; changed = true; }
             ui.end_row();
         });
         ui.add_space(8.0);
@@ -167,22 +168,22 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.weak(format!("{hmm:.2} mm"));
             ui.end_row();
             crate::toolmgr::rlabel(ui, col1, "Edge trim");
-            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.trim_pct, 0.0, 45.0, 0.1, 1, "").on_hover_text("Ignore this part of every edge, for a scanner border or a frame").changed(); ui.weak("%"); });
+            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.trim_pct, 0.0, 45.0, 0.1, 1, "").tip("Ignore this part of every edge, for a scanner border or a frame").changed(); ui.weak("%"); });
             crate::toolmgr::rlabel(ui, col3, "Ignore specks");
-            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.speck_mm2, 0.0, 10000.0, 0.1, 1, "").on_hover_text("Shapes this small (or smaller) are left out").changed(); ui.weak("mm\u{b2}"); });
+            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.speck_mm2, 0.0, 10000.0, 0.1, 1, "").tip("Shapes this small (or smaller) are left out").changed(); ui.weak("mm\u{b2}"); });
             ui.end_row();
         });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
-            changed |= crate::widgets::check(ui, &mut t.opts.crop, "Crop to content").on_hover_text("Cut the picture down to the area that has something in it").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.crop, "Crop to content").tip("Cut the picture down to the area that has something in it").changed();
             ui.add_space(8.0);
-            changed |= crate::widgets::check(ui, &mut t.opts.invert, "Invert").on_hover_text("Trace the light areas instead of the dark ones").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.invert, "Invert").tip("Trace the light areas instead of the dark ones").changed();
             ui.add_space(8.0);
-            changed |= crate::widgets::check(ui, &mut t.opts.smooth, "Smooth curves").on_hover_text("Off keeps straight segments that follow the pixels").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.smooth, "Smooth curves").tip("Off keeps straight segments that follow the pixels").changed();
             // what the trace found, at the right end of the row
             let count = match &t.result { Some(Ok(i)) => i.loops.len(), _ => 0 };
             let (txt, tip) = if t.opts.mode == Mode::Outline { (format!("{count} outlines"), "Holes included") } else { (format!("{count} lines"), "Centre lines found") };
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.weak(txt).on_hover_text(tip); });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.weak(txt).tip(tip); });
         });
         if changed {
             t.dirty = true;

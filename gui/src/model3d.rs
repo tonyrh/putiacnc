@@ -1,5 +1,6 @@
 //! Import 3D model: STL and OBJ files do not say which way is up, so the dialog shows the model as a height map
 //! seen from above and lets the user pick the axis that points up (and turn the model upside down).
+use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2};
 use putiacnc_core::relief::{Mesh, Orient, Up};
@@ -84,10 +85,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             crate::toolmgr::rlabel(ui, lw, "Up axis");
             ui.horizontal(|ui| {
                 for (u, n) in [(Up::Z, "Z"), (Up::Y, "Y"), (Up::X, "X")] {
-                    if ui.selectable_label(t.orient.up == u, n).on_hover_text("The axis of the model that points towards the cutter").clicked() { t.orient.up = u; changed = true; }
+                    if ui.selectable_label(t.orient.up == u, n).tip("The axis of the model that points towards the cutter").clicked() { t.orient.up = u; changed = true; }
                 }
                 ui.add_space(10.0);
-                changed |= crate::widgets::check(ui, &mut t.orient.flip, "Upside down").on_hover_text("Look at the model from the other side").changed();
+                changed |= crate::widgets::check(ui, &mut t.orient.flip, "Upside down").tip("Look at the model from the other side").changed();
             });
             ui.end_row();
         });

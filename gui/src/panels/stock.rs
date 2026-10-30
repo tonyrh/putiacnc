@@ -1,4 +1,5 @@
 //! The Stock and Clamps cards of the project panel.
+use crate::widgets::Tip;
 use super::*;
 use putiacnc_core::model::ProjectData;
 
@@ -76,7 +77,7 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             let g = ui.painter().layout_no_wrap("keep-out zones".to_string(), egui::TextStyle::Body.resolve(ui.style()), ui.visuals().weak_text_color());
             let (r, resp) = ui.allocate_exact_size(egui::vec2(g.size().x, hg), egui::Sense::hover());
             ui.painter().galley(egui::pos2(r.min.x, r.max.y - g.size().y), g, ui.visuals().weak_text_color());
-            resp.on_hover_text("Rectangles on the table that the tool must not touch. X and Y are measured from the stock's lower-left corner; Width is the size along X, Length along Y, and Rise is how far the clamp stands above the stock top. The toolpath warnings check them");
+            resp.tip("Rectangles on the table that the tool must not touch. X and Y are measured from the stock's lower-left corner; Width is the size along X, Length along Y, and Rise is how far the clamp stands above the stock top. The toolpath warnings check them");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let tip = if *show_clamps { "Clamps are drawn in the drawing and the 3D preview. Click to hide them (the toolpath warnings still check them)" } else { "Clamps are hidden in the drawing and the 3D preview. Click to show them" };
                 if small_icon_button(ui, if *show_clamps { Icon::Eye } else { Icon::EyeOff }, true, tip).clicked() { *show_clamps = !*show_clamps; }

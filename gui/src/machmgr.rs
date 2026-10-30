@@ -1,5 +1,6 @@
 //! Machine manager: the list of machines (name, rapid rate, time correction, work area) and the
 //! dialog to edit them, like the browser app's "Machines" dialog.
+use crate::widgets::Tip;
 use crate::app::App;
 use crate::icons::{icon_button, Icon};
 use crate::toolmgr::{config_dir, rlabel};
@@ -282,9 +283,9 @@ fn form(ui: &mut Ui, app: &mut App) {
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
         let tip = "Multiplies the estimated time to account for acceleration and corners";
-        changed |= crate::widgets::num(&mut c, [60.0, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "").on_hover_text(tip).changed();
+        changed |= crate::widgets::num(&mut c, [60.0, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "").tip(tip).changed();
         c.add_space(8.0 - c.spacing().item_spacing.x);
-        c.add(egui::Label::new("Time correction ×").wrap(false)).on_hover_text(tip);
+        c.add(egui::Label::new("Time correction ×").wrap(false)).tip(tip);
         ui.end_row();
     });
     ui.add_space(2.0);
@@ -300,7 +301,7 @@ fn form(ui: &mut Ui, app: &mut App) {
                     "grblhal" | "fluidnc" => "Written like GRBL for now; the name is kept with the machine and shown in the G-code's first line",
                     _ => "Tool changes as M0 with a message, G54 in the header and M2 at the end",
                 };
-                if ui.selectable_label(cur == name, name).on_hover_text(tip).clicked() { m.post = Some(id.to_string()); changed = true; }
+                if ui.selectable_label(cur == name, name).tip(tip).clicked() { m.post = Some(id.to_string()); changed = true; }
             }
         });
         ui.end_row();
@@ -318,38 +319,41 @@ fn form(ui: &mut Ui, app: &mut App) {
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
             let mut c = ui.child_ui(flush_right(cell, 150.0), Layout::right_to_left(Align::Center));
         let mut nb = m.numbered.unwrap_or(false);
-        if crate::widgets::check(&mut c, &mut nb, "").on_hover_text("Number the G-code lines (N10, N20…), for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
-        c.add(egui::Label::new("Line numbers").wrap(false));
+        let nb_tip = "Number the G-code lines (N10, N20…), for controllers that want them";
+        if crate::widgets::check(&mut c, &mut nb, "").tip(nb_tip).changed() { m.numbered = Some(nb); changed = true; }
+        c.add(egui::Label::new("Line numbers").wrap(false)).tip(nb_tip);
         ui.end_row();
         rlabel(ui, lw, format!("Safe Z ({uname})"));
         let mut sz = m.safe.unwrap_or(5.0) / k;
-        if crate::widgets::num(ui, [fw, 22.0], &mut sz, 0.1 / k, 200.0 / k, 0.5 / k, 3, "").on_hover_text("Height above the stock where the tool travels between cuts").changed() { m.safe = Some((sz * k).clamp(0.1, 200.0)); changed = true; }
+        if crate::widgets::num(ui, [fw, 22.0], &mut sz, 0.1 / k, 200.0 / k, 0.5 / k, 3, "").tip("Height above the stock where the tool travels between cuts").changed() { m.safe = Some((sz * k).clamp(0.1, 200.0)); changed = true; }
         ui.end_row();
         rlabel(ui, lw, "Spindle wait (s)");
         let mut sw = m.spin_up_s();
-        if crate::widgets::num(ui, [fw, 22.0], &mut sw, 0.0, 60.0, 0.5, 1, "").on_hover_text("How long the program waits after the spindle starts or changes speed before the tool touches anything. 0 = no wait.").changed() { m.spin_up = Some(sw.clamp(0.0, 60.0)); changed = true; }
+        if crate::widgets::num(ui, [fw, 22.0], &mut sw, 0.0, 60.0, 0.5, 1, "").tip("How long the program waits after the spindle starts or changes speed before the tool touches anything. 0 = no wait.").changed() { m.spin_up = Some(sw.clamp(0.0, 60.0)); changed = true; }
         ui.end_row();
         rlabel(ui, lw, "Tool holder");
-        let hr = crate::widgets::check(ui, &mut m.holder_on, "").on_hover_text("Off by default. When on, give the holder's diameter here and each tool's stick-out in the tool manager: the warnings and the 3D preview then check the holder against the clamps and draw it.");
+        let holder_tip = "Off by default. When on, give the holder's diameter here and each tool's stick-out in the tool manager: the warnings and the 3D preview then check the holder against the clamps and draw it.";
+        let hr = crate::widgets::check(ui, &mut m.holder_on, "").tip(holder_tip);
         if hr.changed() { changed = true; }
         // the words sit after the box without taking any room from the grid, so the columns never move
-        ui.painter().text(egui::pos2(hr.rect.right() + 6.0, hr.rect.center().y), egui::Align2::LEFT_CENTER, "Check it against the clamps", egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
+        let words = ui.painter().text(egui::pos2(hr.rect.right() + 6.0, hr.rect.center().y), egui::Align2::LEFT_CENTER, "Check it against the clamps", egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
+        crate::widgets::tip_rect(ui, words, "holder words", holder_tip);
         ui.end_row();
         if m.holder_on {
             rlabel(ui, lw, format!("Holder dia. ({uname})"));
             let mut hd = m.holder.unwrap_or(0.0) / k;
-            if crate::widgets::num(ui, [fw, 22.0], &mut hd, 0.0, 1000.0 / k, 0.5 / k, 3, "").on_hover_text("Diameter of the collet nut or spindle nose, whatever hangs lowest. 0 = not known: not checked.").changed() { m.holder = if hd > 0.0 { Some((hd * k).min(1000.0)) } else { None }; changed = true; }
+            if crate::widgets::num(ui, [fw, 22.0], &mut hd, 0.0, 1000.0 / k, 0.5 / k, 3, "").tip("Diameter of the collet nut or spindle nose, whatever hangs lowest. 0 = not known: not checked.").changed() { m.holder = if hd > 0.0 { Some((hd * k).min(1000.0)) } else { None }; changed = true; }
             ui.end_row();
         }
         rlabel(ui, lw, "Arcs (G2/G3)");
         let mut ar = m.arcs.unwrap_or(false);
-        if crate::widgets::check(ui, &mut ar, "").on_hover_text("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
+        if crate::widgets::check(ui, &mut ar, "").tip("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
         spacer(ui);
         // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
         ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(flush_right(cell, 160.0), Layout::right_to_left(Align::Center));
-        if c.button("Copy test lines").on_hover_text("A half circle to send with the spindle off and the tool well above the work. If the machine draws it, it supports arcs.").clicked() {
+        if c.button("Copy test lines").tip("A half circle to send with the spindle off and the tool well above the work. If the machine draws it, it supports arcs.").clicked() {
             c.ctx().output_mut(|o| o.copied_text = "G21 G90 G17\nG0 X0 Y0\nG2 X10 Y0 I5 J0 F300\n".into());
             app.mach_msg = "Test lines copied. Send them with the spindle off and the tool well above the work: a half circle means arcs work, a straight move or an error means they don't.".into();
         }
@@ -361,7 +365,7 @@ fn form(ui: &mut Ui, app: &mut App) {
     let limits = egui::Grid::new("mach_limits").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         let lim = |ui: &mut Ui, v: &mut Option<f64>, f: f64, max: f64, step: f64| -> bool {
             let mut d = v.unwrap_or(0.0) / f;
-            let ch = crate::widgets::num(ui, [fw, 22.0], &mut d, 0.0, max / f, step / f, 3, "").on_hover_text("0 = no limit").changed();
+            let ch = crate::widgets::num(ui, [fw, 22.0], &mut d, 0.0, max / f, step / f, 3, "").tip("0 = no limit").changed();
             if ch { *v = if d > 0.0 { Some(d * f) } else { None }; }
             ch
         };
@@ -407,7 +411,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         ] {
             rlabel(ui, lw, lab);
             let mut s = slot.clone().unwrap_or_default();
-            let r = ui.add(egui::TextEdit::multiline(&mut s).code_editor().desired_rows(3).desired_width(aw - lw - sp + 8.0).hint_text(if lab == "Start" { "e.g. M3 S8000" } else { "e.g. G53 G0 X0 Y200" })).on_hover_text(tip);
+            let r = ui.add(egui::TextEdit::multiline(&mut s).code_editor().desired_rows(3).desired_width(aw - lw - sp + 8.0).hint_text(if lab == "Start" { "e.g. M3 S8000" } else { "e.g. G53 G0 X0 Y200" })).tip(tip);
             if r.changed() { *slot = if s.trim().is_empty() { None } else { Some(s) }; changed = true; }
             ui.end_row();
         }

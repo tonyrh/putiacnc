@@ -1,5 +1,6 @@
 //! Tool manager: tool libraries (several named sets), tool list and tool editor, like the
 //! browser app's "Tool library" dialog. Libraries live in the user's config directory.
+use crate::widgets::Tip;
 use crate::app::App;
 use crate::icons::{icon_button, paint_cutter, Icon};
 use eframe::egui::{self, Align, Color32, Layout, Sense, Ui};
@@ -290,7 +291,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                   let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - gd.size().x - 30.0, rect.max.y)));
                   clip.galley(egui::pos2(rect.min.x + 36.0, rect.center().y - gn.size().y / 2.0), gn, col);
                   ui.painter().galley(egui::pos2(rect.max.x - gd.size().x - 8.0, rect.center().y - gd.size().y / 2.0), gd, col);
-                  let resp = resp.on_hover_text(format!("{}\n{} \u{b7} \u{00d8}{}", t.name, shape_label(&t.shape), toollib::fmt_dia(t.dia, &t.sys, false)));
+                  let resp = resp.tip(format!("{}\n{} \u{b7} \u{00d8}{}", t.name, shape_label(&t.shape), toollib::fmt_dia(t.dia, &t.sys, false)));
                   if resp.clicked() { pick = Some(t.id.clone()); }
                 }
               });
@@ -543,7 +544,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 if holder_on {
                     cell!("Stick-out", uname, ui, {
                         let mut d = t.stick / k;
-                        if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").on_hover_text("How far the tip sticks out below the holder. With the holder diameter in the machine settings, the holder is checked against the clamps.").changed() { t.stick = (d * k).max(0.0); changed = true; }
+                        if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").tip("How far the tip sticks out below the holder. With the holder diameter in the machine settings, the holder is checked against the clamps.").changed() { t.stick = (d * k).max(0.0); changed = true; }
                     });
                 }
                 if n % 2 == 1 { ui.end_row(); }
@@ -555,7 +556,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
                     ui.add_space(4.0);
                     crate::checkui::warn_line(ui, col, &format!("\"{}\" holds this tool to {warn}.", m.name))
-                        .on_hover_text("The G-code uses the machine's limits, not the tool's values. Change them in Libraries → Machines.");
+                        .tip("The G-code uses the machine's limits, not the tool's values. Change them in Libraries → Machines.");
                 }
             }
             ui.add_space(8.0);
@@ -573,10 +574,12 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                             Some(Load::Heavy) => ("heavy: risk of a rough cut or a broken bit", if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xc0, 0x1c, 0x28) }),
                             _ => ("in the usual range", if dark { Color32::from_rgb(0x8f, 0xd1, 0x8a) } else { Color32::from_rgb(0x2a, 0x8a, 0x3e) }),
                         };
+                        // the help sits on both texts: a row that holds them would not get the pointer, the texts do
+                        let help = format!("Feed / (spindle speed x flutes). A usual range for wood and plastics at this size is {:.4} to {:.4} {unit_len}/tooth; adjust it for your material and machine.", lo / per, hi / per);
                         ui.horizontal(|ui| {
-                            ui.label(format!("{:.4} {unit_len}/tooth", c / per));
-                            ui.label(egui::RichText::new(txt).color(col));
-                        }).response.on_hover_text(format!("Feed / (spindle speed x flutes). A usual range for wood and plastics at this size is {:.4} to {:.4} {unit_len}/tooth; adjust it for your material and machine.", lo / per, hi / per));
+                            ui.label(format!("{:.4} {unit_len}/tooth", c / per)).tip(help.clone());
+                            ui.label(egui::RichText::new(txt).color(col)).tip(help);
+                        });
                     }
                     None => { ui.weak("set the spindle speed to see it"); }
                 }
@@ -584,7 +587,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 rlabel(ui, lw, "Removal");
                 let r = removal_rate(&t);
                 let txt = if app.tool_len_in { format!("{:.2} in³/min", r / 16387.064) } else { format!("{:.1} cm³/min", r / 1000.0) };
-                ui.weak(txt).on_hover_text("Material removed per minute by a cut as wide as the stepover and as deep as the maximum pass");
+                ui.weak(txt).tip("Material removed per minute by a cut as wide as the stepover and as deep as the maximum pass");
                 ui.end_row();
             });
             ui.add_space(8.0);
@@ -608,10 +611,4 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
 }
 
 /// Label right-aligned in a column of width `w`, so it sits next to its field.
-pub fn rlabel(ui: &mut Ui, w: f32, text: impl Into<String>) {
-    let text: String = text.into();
-    let font = egui::TextStyle::Body.resolve(ui.style());
-    let g = ui.painter().layout_no_wrap(text, font, ui.visuals().text_color());
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(w, 22.0), Sense::hover());
-    ui.painter().galley(egui::pos2(rect.max.x - g.size().x, rect.center().y - g.size().y / 2.0), g, ui.visuals().text_color());
-}
+pub fn rlabel(ui: &mut Ui, w: f32, text: impl Into<String>) -> egui::Response { crate::widgets::label_cell(ui, w, text) }

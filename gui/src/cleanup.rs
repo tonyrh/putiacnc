@@ -1,4 +1,5 @@
 //! Clean up drawing: join the pieces of broken outlines, remove duplicates and specks, and show the open ends.
+use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui;
 use putiacnc_core::cleanup::{self, Options};
@@ -67,10 +68,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.end_row();
         });
         ui.add_space(4.0);
-        crate::widgets::check(ui, &mut app.clean.join, "Join pieces whose ends meet").on_hover_text("Lines and curves drawn as separate pieces become one outline; a ring of pieces closes into a shape");
-        crate::widgets::check(ui, &mut app.clean.dups, "Remove duplicate shapes").on_hover_text("The same outline drawn twice would be cut twice");
-        crate::widgets::check(ui, &mut app.clean.tiny, "Remove empty and tiny shapes").on_hover_text("Shapes with no length, repeated points");
-        crate::widgets::check(ui, &mut app.show_open_ends, "Show loose ends on the drawing").on_hover_text("Red rings: nothing meets this end. Amber rings: another end is within the tolerance");
+        crate::widgets::check(ui, &mut app.clean.join, "Join pieces whose ends meet").tip("Lines and curves drawn as separate pieces become one outline; a ring of pieces closes into a shape");
+        crate::widgets::check(ui, &mut app.clean.dups, "Remove duplicate shapes").tip("The same outline drawn twice would be cut twice");
+        crate::widgets::check(ui, &mut app.clean.tiny, "Remove empty and tiny shapes").tip("Shapes with no length, repeated points");
+        crate::widgets::check(ui, &mut app.show_open_ends, "Show loose ends on the drawing").tip("Red rings: nothing meets this end. Amber rings: another end is within the tolerance");
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.button("Clean up").clicked() { apply = true; }

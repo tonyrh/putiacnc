@@ -1,4 +1,5 @@
 //! The project panel: stock, imports, shapes and operations.
+use crate::widgets::Tip;
 use super::*;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -26,10 +27,10 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
     ui.add_space(8.0);
     ui.horizontal(|ui| {
         if !aspect_fixed && crate::widgets::check_if(ui, !locked, &mut keep, "Keep proportions").changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
-        if let Some(l) = lock.as_mut() { crate::widgets::check(ui, l, "Lock").on_hover_text("Stops this drawing being moved, resized, rotated or flipped by accident"); }
+        if let Some(l) = lock.as_mut() { crate::widgets::check(ui, l, "Lock").tip("Stops this drawing being moved, resized, rotated or flipped by accident"); }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
-            if ui.add_enabled(!locked, egui::Button::new("Fit to stock")).on_hover_text("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
+            if ui.add_enabled(!locked, egui::Button::new("Fit to stock")).tip("Scale to the stock if it is bigger, and centre it").clicked() { *fit = true; }
         });
     });
     if moved || sized { Some([x + zero.0, y + zero.1, w, h]) } else { None }
@@ -77,7 +78,7 @@ fn custom_accent(ui: &Ui) -> Color32 {
 fn relief_custom(ui: &mut Ui, id: impl std::hash::Hash + Copy, cf: &mut Option<putiacnc_core::model::CustomFeeds>, t0: Option<&putiacnc_core::model::Tool>, l1: f32, sp: f32, spd: (&str, f64)) -> bool {
     let mut changed = false;
     let mut on = cf.is_some();
-    if crate::widgets::check(ui, &mut on, "Custom feeds and speeds").on_hover_text("Use other spindle speed and feeds than the tool's for this step only. Values you leave alone keep following the tool.").changed() {
+    if crate::widgets::check(ui, &mut on, "Custom feeds and speeds").tip("Use other spindle speed and feeds than the tool's for this step only. Values you leave alone keep following the tool.").changed() {
         *cf = if on { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
         changed = true;
     }
@@ -90,7 +91,7 @@ fn relief_custom(ui: &mut Ui, id: impl std::hash::Hash + Copy, cf: &mut Option<p
 
 /// The small round-arrow button that puts a field back to its default: a real button with the usual padding.
 pub(super) fn reset_button(ui: &mut Ui, tip: &str) -> bool {
-    ui.add_sized([26.0, ui.spacing().interact_size.y], egui::Button::new("↺")).on_hover_text(tip).clicked()
+    ui.add_sized([26.0, ui.spacing().interact_size.y], egui::Button::new("↺")).tip(tip).clicked()
 }
 
 /// The imported files (drawings and the 3D model) with their position and size, and what can be done with them.
@@ -123,9 +124,9 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
-                    if ui.add_enabled(!lock_now, egui::Button::new("Edit text")).on_hover_text("Change the words, font, size or place (double-click the text does the same)").clicked() { *act = Some((Some(g.id), GroupAct::EditText)); }
-                    if ui.add_enabled(!lock_now, egui::Button::new("To outlines")).on_hover_text("The letters become ordinary shapes you can edit point by point").clicked() { *act = Some((Some(g.id), GroupAct::ToOutlines)); }
-                    crate::widgets::check(ui, &mut lock_now, "Lock").on_hover_text("Stops this text being moved, resized, rotated or flipped by accident");
+                    if ui.add_enabled(!lock_now, egui::Button::new("Edit text")).tip("Change the words, font, size or place (double-click the text does the same)").clicked() { *act = Some((Some(g.id), GroupAct::EditText)); }
+                    if ui.add_enabled(!lock_now, egui::Button::new("To outlines")).tip("The letters become ordinary shapes you can edit point by point").clicked() { *act = Some((Some(g.id), GroupAct::ToOutlines)); }
+                    crate::widgets::check(ui, &mut lock_now, "Lock").tip("Stops this text being moved, resized, rotated or flipped by accident");
                 });
                 if lock_now != g.locked {
                     if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
@@ -161,10 +162,10 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
             ui.add_enabled_ui(!lock_now, |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
-                    if ui.button("↺ 90°").on_hover_text("Rotate 90° counter-clockwise").clicked() { turn = 90.0; }
-                    if ui.button("↻ 90°").on_hover_text("Rotate 90° clockwise").clicked() { turn = -90.0; }
-                    if ui.button("Flip H").on_hover_text("Mirror left to right").clicked() { flip.0 = true; }
-                    if ui.button("Flip V").on_hover_text("Mirror top to bottom").clicked() { flip.1 = true; }
+                    if ui.button("↺ 90°").tip("Rotate 90° counter-clockwise").clicked() { turn = 90.0; }
+                    if ui.button("↻ 90°").tip("Rotate 90° clockwise").clicked() { turn = -90.0; }
+                    if ui.button("Flip H").tip("Mirror left to right").clicked() { flip.0 = true; }
+                    if ui.button("Flip V").tip("Mirror top to bottom").clicked() { flip.1 = true; }
                 });
             });
             if turn != 0.0 || flip.0 || flip.1 {
@@ -286,7 +287,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     if ui.selectable_label(*id == mach_cur, name).clicked() && *id != mach_cur { mach_pick = Some(id.clone()); }
                 }
                 ui.separator();
-                if ui.selectable_label(false, "Manage machines…").on_hover_text("Create and edit machines").clicked() { open_machines = true; ui.close_menu(); }
+                if ui.selectable_label(false, "Manage machines…").tip("Create and edit machines").clicked() { open_machines = true; ui.close_menu(); }
             });
         });
         ui.weak(&mach_area);
@@ -347,7 +348,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
                 let selected = hi_ids.contains(&id);
-                let resp = resp.on_hover_text("Select this operation's shapes in the drawing");
+                let resp = resp.tip("Select this operation's shapes in the drawing");
                 let folded = collapsed.contains(&id);
                 let base = crate::theme::op_color(i, dark);
                 let fill = if selected { base } else if resp.hovered() { base.gamma_multiply(0.82) } else { base.gamma_multiply(0.66) };
@@ -368,7 +369,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let body = egui::TextStyle::Body.resolve(ui.style());
                 let small = egui::TextStyle::Small.resolve(ui.style());
                 let chev_rect = egui::Rect::from_min_size(rect.min, egui::vec2(30.0, rect.height()));
-                let chev = ui.interact(chev_rect, ui.id().with(("op_fold", id)), egui::Sense::click()).on_hover_text(if folded { "Show the settings" } else { "Hide the settings" });
+                let chev = ui.interact(chev_rect, ui.id().with(("op_fold", id)), egui::Sense::click()).tip(if folded { "Show the settings" } else { "Hide the settings" });
                 if chev.hovered() { ui.painter().rect_filled(chev_rect.shrink2(egui::vec2(3.0, 8.0)), 5.0, ink.gamma_multiply(0.18)); }
                 paint_icon(ui.painter(), if folded { Icon::ChevR } else { Icon::ChevD }, egui::pos2(rect.min.x + 15.0, rect.center().y), ink, 0.62);
                 paint_icon(ui.painter(), kind_icon, egui::pos2(rect.min.x + 42.0, rect.center().y), ink, 0.6);
@@ -425,7 +426,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.horizontal(|ui| {
                             ui.weak("No shapes yet");
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.add_enabled(to_move > 0, egui::Button::new("Use selected shapes")).on_hover_text("Put the shapes selected in the drawing into this operation").clicked() { act_use = Some(id); }
+                                if ui.add_enabled(to_move > 0, egui::Button::new("Use selected shapes")).tip("Put the shapes selected in the drawing into this operation").clicked() { act_use = Some(id); }
                             });
                         });
                     }
@@ -490,7 +491,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             if got.is_some() { ui.close_menu(); } else if crate::widgets::click_inside_popup(ui) { keep = true; } // a click on "Metric" / "Imperial" leaves it open
                         });
                         if keep { crate::widgets::reopen_combo(ui, src); }
-                        combo.response.on_hover_text(tip);
+                        combo.response.tip(tip);
                         got
                     };
                     let lw2 = tw_of(ui, "Stepover").max(tw_of(ui, "Pass")).max(tw_of(ui, "Leave")).max(tw_of(ui, "Tool"));
@@ -500,7 +501,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         let mut on = !p.r_off;
-                        if crate::widgets::check(ui, &mut on, egui::RichText::new("Roughing").strong()).on_hover_text("Removes the bulk with a flat end mill, leaving a little for the finishing step").changed() { p.r_off = !on; changed = true; }
+                        if crate::widgets::check(ui, &mut on, egui::RichText::new("Roughing").strong()).tip("Removes the bulk with a flat end mill, leaving a little for the finishing step").changed() { p.r_off = !on; changed = true; }
                         if on {
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = sp;
@@ -545,7 +546,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     egui::Frame::group(ui.style()).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         let mut on = !p.f_off;
-                        if crate::widgets::check(ui, &mut on, egui::RichText::new("Finishing").strong()).on_hover_text("Follows the surface line by line, usually with a ball nose").changed() { p.f_off = !on; changed = true; }
+                        if crate::widgets::check(ui, &mut on, egui::RichText::new("Finishing").strong()).tip("Follows the surface line by line, usually with a ball nose").changed() { p.f_off = !on; changed = true; }
                         if on {
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = sp;
@@ -586,7 +587,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let rest = ui.available_width() - ramp_w;
                             if rest > 0.0 { ui.add_space(rest); }
                             changed |= crate::widgets::check_if(ui, p.lead.is_none() || !["outside", "inside"].contains(&p.kind.as_str()), &mut p.ramp, "Ramp in")
-                                .on_hover_text(if p.kind == "pocket" { "Eases the tool down along each ring of the pocket instead of plunging straight down" } else { "Eases the tool down along the first pass (not needed with a lead-in arc)" }).changed();
+                                .tip(if p.kind == "pocket" { "Eases the tool down along each ring of the pocket instead of plunging straight down" } else { "Eases the tool down along the first pass (not needed with a lead-in arc)" }).changed();
                         }
                     });
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
@@ -601,13 +602,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let cur = elide(ui, &cur, tool_w - 30.0);
                             let (r2, pk2) = crate::toolpick::picker(ui, ("optool2", id), tool_w, cur, p.tool2.as_deref(), &job_tools, &tools, |t| t.shape == "flat");
                             match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.tool2 = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
-                            r2.on_hover_text(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
+                            r2.tip(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
                             if p.kind == "plug" || p.kind == "inlay" {
                                 let rest = ui.available_width() - ramp_w;
                                 if rest > 0.0 { ui.add_space(rest); }
                                 let pocket = p.kind == "inlay";
                                 changed |= crate::widgets::check(ui, &mut p.ramp, "Ramp in")
-                                    .on_hover_text(if pocket { "Eases the flat end mill down along each ring that clears the pocket floor instead of plunging" } else { "Eases the flat end mill down along the cut-out of the plug instead of plunging" }).changed();
+                                    .tip(if pocket { "Eases the flat end mill down along each ring that clears the pocket floor instead of plunging" } else { "Eases the flat end mill down along the cut-out of the plug instead of plunging" }).changed();
                             }
                         });
                         if p.kind == "plug" {
@@ -617,13 +618,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 rlabel(ui, l1, "Gap");
                                 let mut g = p.fit.unwrap_or(0.05);
                                 if dv_w(ui, 54.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
-                                ui.weak("mm").on_hover_text("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
+                                ui.weak("mm").tip("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
                                 ui.weak("smaller than the pocket, for glue");
                             });
                             // the plug can be cut from a piece of its own (a second G-code file, its own work zero)
                             ui.add_space(2.0);
                             let mut on = p.piece.is_some();
-                            if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Cut from a separate piece").on_hover_text("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() }).inner {
+                            if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Cut from a separate piece").tip("The plug is cut from its own piece of stock, with its own G-code file and work zero. Use it when the plug is another wood than the pocket's.").changed() }).inner {
                                 piece_act = Some((prev_id, id, if on { Some(putiacnc_core::model::PlugPiece { same: true, ..putiacnc_core::pieces::default_piece(&main_stock) }) } else { None }));
                             }
                             if let Some(pc) = p.piece.as_mut() {
@@ -636,7 +637,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
                                     let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
                                     let fw = ((ui.available_width() - la - lb - 2.0 * mm - 6.0 * sp) / 2.0).clamp(46.0, 110.0);
-                                    changed |= crate::widgets::check(ui, &mut pc.same, "Replaces the main stock").on_hover_text("The main stock is taken off the machine and this piece put in its place: same size and same work zero, so only Z may need setting again. Switch it off to give the piece its own size and zero.").changed();
+                                    changed |= crate::widgets::check(ui, &mut pc.same, "Replaces the main stock").tip("The main stock is taken off the machine and this piece put in its place: same size and same work zero, so only Z may need setting again. Switch it off to give the piece its own size and zero.").changed();
                                     ui.add_space(2.0);
                                     let same = pc.same;
                                     let mut col5_x = 0.0_f32;
@@ -732,7 +733,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                       ui.indent(("tab_opts", id), |ui| {
                         let manual = p.tab_pts.is_some();
                         ui.horizontal(|ui| {
-                            ui.label("Placement").on_hover_text("Automatic spaces the tabs evenly; manual lets you put each one where you want it");
+                            ui.label("Placement").tip("Automatic spaces the tabs evenly; manual lets you put each one where you want it");
                             let (c, _) = crate::zoomcard::seg2(ui, ["Automatic", "Manual"], ["", "Starts from the evenly spaced tabs, which you can then move, add or remove"], manual as usize);
                             if c == Some(0) && manual {
                                 p.tab_pts = None;
@@ -756,18 +757,18 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             // with all three fields the spare width is spread between them; with two they sit together
                             let gap = if manual { 24.0 } else { ((ui.available_width() - fixed) / (groups - 1.0)).max(4.0) };
                             if !manual {
-                                ui.label("Count").on_hover_text("Number of holding tabs, spread evenly along the outline");
+                                ui.label("Count").tip("Number of holding tabs, spread evenly along the outline");
                                 if dv_w(ui, 30.0, &mut n, 1.0, 50.0, "") { p.tab_n = Some(n.round()); changed = true; }
                                 ui.spacing_mut().item_spacing.x = 1.0;
                                 if spin_arrows(ui, &mut n, 1.0, 50.0) { p.tab_n = Some(n.round()); changed = true; }
                                 ui.spacing_mut().item_spacing.x = sp;
                                 ui.add_space(gap);
                             }
-                            ui.label("Width").on_hover_text("Length of each tab along the outline");
+                            ui.label("Width").tip("Length of each tab along the outline");
                             if dv_w(ui, fw, &mut w, 0.5, 100.0, "") { p.tab_w = Some(w); changed = true; }
                             ui.weak("mm");
                             ui.add_space(gap);
-                            ui.label("Height").on_hover_text("How tall each tab is, measured up from the bottom of the cut");
+                            ui.label("Height").tip("How tall each tab is, measured up from the bottom of the cut");
                             if dv_w(ui, fw, &mut h, 0.2, 100.0, "") { p.tab_h = Some(h); changed = true; }
                             ui.weak("mm");
                         });
@@ -782,7 +783,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.weak(format!("{} tab{}", tp.len(), if tp.len() == 1 { "" } else { "s" }));
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.add_space(6.0);
-                                    if !tp.is_empty() && ui.button("Clear").on_hover_text("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
+                                    if !tp.is_empty() && ui.button("Clear").tip("Remove all tabs of this operation").clicked() { tp.clear(); changed = true; }
                                 });
                             });
                         }
@@ -793,7 +794,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.horizontal(|ui| {
                         let mut on = p.lead.is_some();
                         ui.add_space(6.0);
-                        if crate::widgets::check(ui, &mut on, "Lead-in / out").on_hover_text("Enters and leaves the cut along an arc on the waste side, so the tool does not plunge on the line or leave a mark where it stops").changed() {
+                        if crate::widgets::check(ui, &mut on, "Lead-in / out").tip("Enters and leaves the cut along an arc on the waste side, so the tool does not plunge on the line or leave a mark where it stops").changed() {
                             let dia = tools.iter().find(|t| t.id == p.tool).map(|t| t.dia).unwrap_or(3.0);
                             p.lead = if on { Some(dia.max(1.0)) } else { None };
                             changed = true;
@@ -806,10 +807,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                 }
-                changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, "Air cut (run without cutting)").on_hover_text("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
+                changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, "Air cut (run without cutting)").tip("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
                 {
                     let mut on = p.pause.is_some();
-                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Pause afterwards").on_hover_text("When this operation is done the tool lifts, the spindle stops and the program waits until you resume it: flip the stock, move a clamp, clear the chips.").changed() }).inner {
+                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Pause afterwards").tip("When this operation is done the tool lifts, the spindle stops and the program waits until you resume it: flip the stock, move a clamp, clear the chips.").changed() }).inner {
                         p.pause = if on { Some(String::new()) } else { None };
                         changed = true;
                     }
@@ -824,7 +825,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if p.kind != "relief" {
                     let two = matches!(p.kind.as_str(), "inlay" | "plug");
                     let mut on = p.custom.is_some() || p.custom2.is_some();
-                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Custom feeds and speeds").on_hover_text("Use other spindle speed, feeds and stepover than the tool's for this operation only. Values you leave alone keep following the tool.").changed() }).inner {
+                    if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Custom feeds and speeds").tip("Use other spindle speed, feeds and stepover than the tool's for this operation only. Values you leave alone keep following the tool.").changed() }).inner {
                         p.custom = if on { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
                         p.custom2 = if on && two { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
                         changed = true;
@@ -857,7 +858,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     if !warn.is_empty() {
                         let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
                         crate::checkui::warn_line(ui, col, &format!("Held to the machine's limits: {warn}."))
-                            .on_hover_text("The G-code uses the limited values. Change the limits in Libraries → Machines, or the tool's values in the tool library.");
+                            .tip("The G-code uses the limited values. Change the limits in Libraries → Machines, or the tool's values in the tool library.");
                     }
                 }
             });

@@ -63,7 +63,7 @@ pub(super) fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[
             if ui.selectable_label(cur == k, *l).clicked() && cur != k { *cur = k.to_string(); ch = true; }
         }
     });
-    if !tip.is_empty() { r.response.clone().on_hover_text(tip); }
+    if !tip.is_empty() { { use crate::widgets::Tip; r.response.clone().tip(tip); } }
     (ch, r.response.rect)
 }
 

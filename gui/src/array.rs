@@ -1,4 +1,5 @@
 //! Array / copy dialog: repeat the selected shapes in a grid or around a circle.
+use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui;
 use putiacnc_core::shapes;
@@ -131,7 +132,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         if a.circular {
             ui.add_space(4.0);
-            crate::widgets::check(ui, &mut a.rotate, "Turn the copies").on_hover_text("Off: the copies keep their orientation and only move round the circle");
+            crate::widgets::check(ui, &mut a.rotate, "Turn the copies").tip("Off: the copies keep their orientation and only move round the circle");
         }
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "array").map(|(_, m)| m);
         if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
@@ -140,7 +141,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.add_enabled(n > 0, egui::Button::new("Apply")).clicked() { apply = true; }
             if ui.button("Cancel").clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                crate::widgets::check(ui, &mut app.preview_on, "Preview").on_hover_text("Show the result in the drawing while you change the values");
+                crate::widgets::check(ui, &mut app.preview_on, "Preview").tip("Show the result in the drawing while you change the values");
             });
         });
         });

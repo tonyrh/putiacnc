@@ -40,6 +40,8 @@ mod zoomcard;
 mod fuzz;
 #[cfg(test)]
 mod perf;
+#[cfg(test)]
+mod tips;
 
 use app::App;
 use eframe::egui;

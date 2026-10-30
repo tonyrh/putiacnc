@@ -142,3 +142,82 @@ pub fn check(ui: &mut Ui, on: &mut bool, label: impl Into<egui::WidgetText>) -> 
 pub fn check_if(ui: &mut Ui, enabled: bool, on: &mut bool, label: impl Into<egui::WidgetText>) -> Response {
     ui.add_enabled_ui(enabled, |ui| check(ui, on, label)).inner
 }
+
+/// A label that has been drawn and is waiting for the field beside it, so that the field's hover help can be shown on the label too.
+#[derive(Clone)]
+struct PendingLabel { resp: Response, frame: u64 }
+
+fn pending_id() -> egui::Id { egui::Id::new("label_waiting_for_its_field") }
+
+/// A right-aligned label for a row of a form; the field that follows (and gets its help through [`Tip::tip`]) shares that help with it.
+pub fn label_cell(ui: &mut Ui, w: f32, text: impl Into<String>) -> Response {
+    let text: String = text.into();
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    let g = ui.painter().layout_no_wrap(text.clone(), font, ui.visuals().text_color());
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 22.0), Sense::hover());
+    ui.painter().galley(egui::pos2(rect.max.x - g.size().x, rect.center().y - g.size().y / 2.0), g, ui.visuals().text_color());
+    wait_for_field(ui.ctx(), &resp, &text);
+    resp
+}
+
+/// Remembers a label until the field next to it asks for its hover help.
+pub fn wait_for_field(ctx: &egui::Context, label: &Response, _text: &str) {
+    let frame = ctx.frame_nr();
+    ctx.data_mut(|d| d.insert_temp(pending_id(), PendingLabel { resp: label.clone(), frame }));
+    #[cfg(test)]
+    tiplog::label(ctx, label.rect, _text);
+}
+
+/// Whether `field` is the control that belongs to `label`: on the same row, right after it.
+fn beside(label: egui::Rect, field: egui::Rect) -> bool {
+    field.left() >= label.right() - 1.0 && field.left() - label.right() <= 40.0 && label.center().y >= field.top() - 3.0 && label.center().y <= field.bottom() + 3.0
+}
+
+/// Hover help for a control and for the label beside it.
+pub trait Tip {
+    /// Like `on_hover_text`, and the label drawn just before this control in the same row shows the same help.
+    fn tip(self, text: impl Into<egui::WidgetText>) -> Response;
+}
+
+impl Tip for Response {
+    fn tip(self, text: impl Into<egui::WidgetText>) -> Response {
+        let text: egui::WidgetText = text.into();
+        let ctx = self.ctx.clone();
+        let mut paired = None;
+        if let Some(p) = ctx.data(|d| d.get_temp::<PendingLabel>(pending_id())) {
+            if p.frame == ctx.frame_nr() && p.resp.layer_id == self.layer_id && beside(p.resp.rect, self.rect) {
+                ctx.data_mut(|d| d.remove::<PendingLabel>(pending_id()));
+                paired = Some(p.resp.rect);
+                p.resp.on_hover_text(text.clone());
+            }
+        }
+        #[cfg(test)]
+        tiplog::field(&ctx, self.rect, paired, text.text());
+        let _ = paired;
+        // a greyed-out control keeps its help too, as its label does
+        if self.enabled { self.on_hover_text(text) } else { self.on_disabled_hover_text(text) }
+    }
+}
+
+/// Hover help over a rectangle that is not a widget, such as words painted next to a checkbox.
+pub fn tip_rect(ui: &mut Ui, rect: egui::Rect, salt: &str, text: impl Into<egui::WidgetText>) -> Response {
+    let r = ui.interact(rect, ui.id().with(("tip_rect", salt)), Sense::hover());
+    #[cfg(test)]
+    { let t: egui::WidgetText = text.into(); tiplog::painted(ui.ctx(), rect, t.text()); r.on_hover_text(t) }
+    #[cfg(not(test))]
+    r.on_hover_text(text)
+}
+
+/// What the tests need to know: every label, every control with help and which label got that help too.
+#[cfg(test)]
+pub mod tiplog {
+    use eframe::egui::{self, Rect};
+    #[derive(Clone, Default, Debug)]
+    pub struct Log { pub labels: Vec<(Rect, String)>, pub fields: Vec<(Rect, Option<Rect>, String)>, pub painted: Vec<(Rect, String)> }
+    fn id() -> egui::Id { egui::Id::new("tip_log_for_tests") }
+    fn with(ctx: &egui::Context, f: impl FnOnce(&mut Log)) { ctx.data_mut(|d| f(d.get_temp_mut_or_default::<Log>(id()))) }
+    pub fn label(ctx: &egui::Context, r: Rect, t: &str) { with(ctx, |l| l.labels.push((r, t.to_string()))) }
+    pub fn field(ctx: &egui::Context, r: Rect, label: Option<Rect>, t: &str) { with(ctx, |l| l.fields.push((r, label, t.to_string()))) }
+    pub fn painted(ctx: &egui::Context, r: Rect, t: &str) { with(ctx, |l| l.painted.push((r, t.to_string()))) }
+    pub fn take(ctx: &egui::Context) -> Log { ctx.data_mut(|d| d.remove_temp::<Log>(id())).unwrap_or_default() }
+}

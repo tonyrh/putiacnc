@@ -1,4 +1,5 @@
 //! Text tool: click where the text starts, type it, pick a font and place it as cuttable outlines.
+use crate::widgets::Tip;
 use crate::app::{App, Mode};
 use eframe::egui;
 use putiacnc_core::model::LoopData;
@@ -493,7 +494,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                             }
                         }
                         if resp.clicked() { t.sel = i; t.picked = true; picked = true; }
-                        resp.on_hover_text(&label);
+                        resp.tip(&label);
                     }
                     if !any { ui.weak("No font matches."); }
                 });
@@ -524,7 +525,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let grid = |id: &'static str| egui::Grid::new(id).num_columns(2).spacing([10.0, 8.0]);
         let sum_spacing = format!("kerning {} · letters {} · words {}", if t.kerning { "on" } else { "off" }, crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct));
         section(ui, &mut t.sections, "spacing", "Spacing", &sum_spacing, |ui| {
-            crate::widgets::check(ui, &mut t.kerning, "Kerning").on_hover_text("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
+            crate::widgets::check(ui, &mut t.kerning, "Kerning").tip("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
             ui.add_space(4.0);
             grid("text_spacing").show(ui, |ui| {
                 crate::toolmgr::rlabel(ui, lw, "Letters");
@@ -551,7 +552,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     ui.selectable_value(&mut t.flow, Flow::Arc, "Along an arc");
                     ui.selectable_value(&mut t.flow, Flow::Vertical, "Stacked, top to bottom");
                 }).response;
-                if !ui.memory(|m| m.any_popup_open()) { flow_resp.on_hover_text("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there"); }
+                if !ui.memory(|m| m.any_popup_open()) { flow_resp.tip("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there"); }
                 ui.end_row();
                 if t.flow == Flow::Straight {
                     crate::toolmgr::rlabel(ui, lw, "Width");
@@ -559,7 +560,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                         crate::widgets::check(ui, &mut t.fit_on, "Fit to");
                         ui.add_enabled_ui(t.fit_on, |ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.fit_w, 1.0, 5000.0, 1.0, 1, ""); });
                         ui.weak("mm");
-                    }).response.on_hover_text("Sets the height so the longest line is exactly this wide");
+                    }).response.tip("Sets the height so the longest line is exactly this wide");
                     ui.end_row();
                 }
                 if t.flow == Flow::Arc {
@@ -570,7 +571,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     ui.horizontal(|ui| {
                         crate::widgets::num(ui, [60.0, 24.0], &mut t.arc_deg, -360.0, 720.0, 1.0, 1, "");
                         ui.weak("° (90 top, 270 bottom)");
-                    }).response.on_hover_text("Where the text sits round the circle: 0 is the right, 90 the top, 180 the left, 270 the bottom");
+                    }).response.tip("Where the text sits round the circle: 0 is the right, 90 the top, 180 the left, 270 the bottom");
                     ui.end_row();
                     crate::toolmgr::rlabel(ui, lw, "Letters");
                     ui.horizontal(|ui| {
@@ -615,7 +616,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     ui.label("Y");
                     crate::widgets::num(ui, [50.0, 24.0], &mut t.shadow[1], -100.0, 100.0, 0.1, 2, "");
                     ui.weak("mm; 0 and 0 = none");
-                }).response.on_hover_text("A second copy of the letters, moved by this much. Give it an operation of its own (for example a shallower V-carve) to cut a drop shadow");
+                }).response.tip("A second copy of the letters, moved by this much. Give it an operation of its own (for example a shallower V-carve) to cut a drop shadow");
                 ui.end_row();
             });
         });
