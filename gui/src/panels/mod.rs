@@ -53,7 +53,12 @@ pub(super) fn spin_arrows(ui: &mut Ui, v: &mut f64, lo: f64, hi: f64) -> bool {
 }
 
 pub(super) fn dv_w(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> bool {
-    crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix).changed()
+    dv_r(ui, w, v, lo, hi, suffix).changed()
+}
+
+/// Like [`dv_w`], returning the field's response (to give it help).
+pub(super) fn dv_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> egui::Response {
+    crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix)
 }
 
 pub(super) fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(&str, &str)], prefix: &str, tip: &str) -> (bool, egui::Rect) {

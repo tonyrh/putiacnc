@@ -394,3 +394,34 @@ fn the_text_and_trace_windows_show_help_on_labels_and_fields() {
     a.trace.open = true;
     check_scene("trace", &mut a, true);
 }
+
+/// The pass depth of an operation explains itself on its label and on its field (a peck for a drill).
+#[test]
+fn the_pass_depth_has_help_on_its_label_and_its_field() {
+    for (kind, word, tip) in [
+        ("pocket", "Pass", "Maximum depth of a single pass: the cut goes down in passes of this depth until the full depth is reached"),
+        ("outside", "Pass", "Maximum depth of a single pass: the cut goes down in passes of this depth until the full depth is reached"),
+        ("drill", "Peck", "Depth of one peck: the drill goes this deep, lifts to clear the chips and goes in again until the full depth is reached"),
+    ] {
+        let mut a = project();
+        a.sel = (0..a.project.data.loops.len()).collect();
+        let sel = a.sel.clone();
+        let _ = shapes::add_operation(&mut a.project.data, &sel, kind);
+        open_last_op(&mut a);
+        let mut rig = Rig::new();
+        rig.settle(&mut a);
+        tiplog::take(&rig.ctx);
+        rig.pointer = None;
+        let out = rig.ctx.run(egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)), time: Some(9.0), ..Default::default() }, |ctx| a.ui_frame(ctx));
+        let log = tiplog::take(&rig.ctx);
+        let mut at = vec![];
+        for c in &out.shapes { spots(&c.shape, &mut at); }
+        let label = at.iter().find(|(_, t)| t == word).unwrap_or_else(|| panic!("[{kind}] \"{word}\" is not drawn")).0;
+        let field = log.fields.iter().find(|(_, _, t)| t == tip).unwrap_or_else(|| panic!("[{kind}] no control has the pass depth help")).0;
+        for (what, p) in [("label", label), ("field", field.center())] {
+            rig.away(&mut a);
+            let shown = rig.hover(&mut a, p);
+            assert!(show(&shown, tip), "[{kind}] hovering the {what} at {p:?} shows no help");
+        }
+    }
+}

@@ -515,7 +515,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, lw2, "Pass");
                                 let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
-                                if dv_w(ui, 48.0, &mut v, 0.01, 1000.0, "") { p.pass_depth = Some(v); changed = true; }
+                                if dv_r(ui, 48.0, &mut v, 0.01, 1000.0, "").tip("Maximum depth of a single pass of the clearing and cut-out tool: it goes down in passes of this depth until the full depth is reached").changed() { p.pass_depth = Some(v); changed = true; }
                                 ui.weak("mm");
                                 let n = ((p.depth / p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001)) - 1e-9).ceil().max(1.0) as usize;
                                 ui.weak(format!("{n} layer{}", if n == 1 { "" } else { "s" }));
@@ -703,9 +703,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         changed |= dv_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
                         ui.weak("mm");
                         ui.add_space(gap);
-                        ui.label(if p.kind == "drill" { "Peck" } else { "Pass" });
+                        let pass_tip = if p.kind == "drill" { "Depth of one peck: the drill goes this deep, lifts to clear the chips and goes in again until the full depth is reached" } else { "Maximum depth of a single pass: the cut goes down in passes of this depth until the full depth is reached" };
+                        ui.label(if p.kind == "drill" { "Peck" } else { "Pass" }).tip(pass_tip);
                         let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
-                        if dv_w(ui, fw, &mut v, 0.01, 1000.0, "") {
+                        if dv_r(ui, fw, &mut v, 0.01, 1000.0, "").tip(pass_tip).changed() {
                             p.pass_depth = if tool_pd.is_some_and(|t| (t - v).abs() < 1e-9) { None } else { Some(v) };
                             changed = true;
                         }
