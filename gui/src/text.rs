@@ -465,6 +465,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             // a long name is shortened, so the box keeps its width
             let cur = crate::widgets::combo_elide(ui, &cur, 190.0);
             let mut keep = false;
+            // PUTIACNC_FONT_LIST[=text]: the font list stays open, filtered by the text (for screenshots)
+            if let Ok(q) = std::env::var("PUTIACNC_FONT_LIST") { if t.filter.is_empty() && q != "1" { t.filter = q; } crate::widgets::reopen_combo(ui, "text_font"); }
             egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
                 let mut picked = false;
                 ui.set_min_width(NAME_W as f32 + 40.0);
@@ -483,14 +485,17 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                             let v = ui.style().interact_selectable(&resp, t.sel == i);
                             if t.sel == i || resp.hovered() { ui.painter().rect(rect, v.rounding, if t.sel == i { ui.visuals().selection.bg_fill } else { v.weak_bg_fill }, egui::Stroke::NONE); }
                             let col = if t.sel == i { ui.visuals().selection.stroke.color } else { ui.visuals().text_color() };
+                            // whatever is drawn stays inside the row, beside the scroll bar
+                            let row = rect.shrink2(egui::vec2(0.0, 0.0)).with_max_x(rect.max.x - 14.0);
+                            let painter = ui.painter().with_clip_rect(row.intersect(ui.clip_rect()));
                             match t.name_preview(ui.ctx(), i) {
                                 Some(tex) => {
                                     let ppp = ui.ctx().pixels_per_point();
                                     let sz = tex.size_vec2() / ppp;
                                     let r = egui::Rect::from_min_size(egui::pos2(rect.min.x + 6.0, rect.center().y - sz.y / 2.0), sz);
-                                    ui.painter().image(tex.id(), r, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), col);
+                                    painter.image(tex.id(), r, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), col);
                                 }
-                                None => { ui.painter().text(egui::pos2(rect.min.x + 6.0, rect.center().y), egui::Align2::LEFT_CENTER, &label, egui::TextStyle::Button.resolve(ui.style()), col); }
+                                None => { painter.text(egui::pos2(rect.min.x + 6.0, rect.center().y), egui::Align2::LEFT_CENTER, crate::widgets::elide_text(ui, &label, row.width() - 12.0), egui::TextStyle::Button.resolve(ui.style()), col); }
                             }
                         }
                         if resp.clicked() { t.sel = i; t.picked = true; picked = true; }

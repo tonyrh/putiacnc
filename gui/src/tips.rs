@@ -425,3 +425,22 @@ fn the_pass_depth_has_help_on_its_label_and_its_field() {
         }
     }
 }
+
+/// A font name too long for its row in the font list is cut with an ellipsis and fits; a short one is left alone.
+#[test]
+fn a_long_name_is_cut_to_fit_its_row() {
+    let ctx = egui::Context::default();
+    let _ = ctx.run(egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(600.0, 300.0))), ..Default::default() }, |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let font = egui::TextStyle::Button.resolve(ui.style());
+            let width = |s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), font.clone(), egui::Color32::WHITE).size().x);
+            for name in ["Noto Sans Tamil Condensed Medium Condensed", "Noto Sans Tamil ExtraCondensed SemiBold Condensed", "A", "", "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"] {
+                for max in [60.0_f32, 150.0, 260.0] {
+                    let cut = crate::widgets::elide_text(ui, name, max);
+                    assert!(width(&cut) <= max + 0.01, "\"{cut}\" is {} wide, room for {max}", width(&cut));
+                    if width(name) <= max { assert_eq!(cut, name); } else { assert!(cut.ends_with('…') && cut.len() > 1 || cut == "…", "{cut:?}"); }
+                }
+            }
+        });
+    });
+}
