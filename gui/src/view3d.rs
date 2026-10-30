@@ -614,9 +614,17 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         painter.text(c + Vec2::new(24.0, 0.0), egui::Align2::LEFT_CENTER, format!("Preparing 3D preview… {pct}%"), FontId::proportional(13.0), Color32::WHITE);
     }
     if let Some(e) = &app.gen_error {
-        let col = Color32::from_rgb(0xe0, 0x1b, 0x24);
-        let g = painter.layout(e.clone(), FontId::proportional(13.0), col, (rect.width() - 24.0).max(100.0));
-        painter.galley(rect.left_top() + Vec2::new(12.0, 10.0), g, col);
+        // framed like the message bars: the panel colour, the error icon, and the same softer red (plain red on the dark canvas is hard to read)
+        let col = if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xa5, 0x1d, 0x2d) };
+        let g = painter.layout(e.clone(), FontId::proportional(13.0), col, (rect.width() - 24.0 - 44.0 - 150.0).max(100.0));
+        let r = Rect::from_min_size(rect.left_top() + Vec2::new(12.0, 10.0), g.size() + Vec2::new(44.0, 20.0));
+        painter.rect_filled(r, 8.0, app.theme.header());
+        painter.rect_stroke(r, 8.0, Stroke::new(1.0_f32, col.gamma_multiply(0.55)));
+        let c = Pos2::new(r.left() + 20.0, r.top() + 10.0 + 9.0);
+        painter.circle_filled(c, 8.0, col);
+        painter.line_segment([c + Vec2::new(0.0, -3.5), c + Vec2::new(0.0, 1.0)], Stroke::new(1.8_f32, Color32::WHITE));
+        painter.circle_filled(c + Vec2::new(0.0, 4.0), 1.1, Color32::WHITE);
+        painter.galley(r.left_top() + Vec2::new(36.0, 10.0), g, col);
     } else if rp_arc.moves.is_empty() {
         painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, "No toolpaths yet: add an operation to preview the cut", FontId::proportional(13.0), ui.visuals().weak_text_color());
     }
