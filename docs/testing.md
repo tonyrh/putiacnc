@@ -106,3 +106,18 @@ The `Screenshots` workflow (started by hand from the Actions tab) does the same 
 1. Open a real project, generate the G-code, and look at the 3D preview from start to finish.
 2. Cut something small with every operation type that changed since the last release, on the real machine.
 3. For anything near clamps or tool changes, check the first move of each operation in a sender with the spindle off.
+
+## Trying the pauses (`M0`) on a real machine
+
+`tests/data/hardware_m0_aircut.project.json` (made by `cargo run --release --example m0check -- <out.json>`, checked by `tests/hardware_m0.rs`) is a small project for the first time a program with pauses runs on a real machine. Stock 100 x 80 x 12 mm, zero at the lower-left corner, top surface. Every operation is an air cut: the tool stays 10 mm above the stock (the lowest cutting move is 7 mm above its top), so nothing is cut and a crash is not possible as long as Z0 is set to the stock top or higher. About 2.6 minutes.
+
+1. Operation 1, the small tool (1/8"): a rectangle outside. Then a **Pause afterwards**: `M5`, then `M0 ; TEST 1: spindle off, tool up. Press Resume`.
+2. Operation 2, the same tool: a circular pocket. Starts again after the pause.
+3. Operation 3, the 6 mm tool: a rectangle outside. Before it, the **tool change**: `M5`, then `M0 ; Change tool to 6 mm, then touch off Z0 and resume`.
+
+On the machine (gSender): load the file, set X0 Y0 at the lower-left corner and Z0 at the top of the stock (or a few cm above it; then it is still an air cut), start. What to look at:
+- At each `M0` the spindle stops, the tool is up (Z at the safe height plus the 10 mm of air), and gSender shows the message (it reads the `;` comment) and waits.
+- Resume continues without a jump: the spindle starts, waits 2 s (`G4 P2`) and the next operation begins with a rapid at height, not a plunge.
+- The first line of the file (the summary comments) is ignored.
+- With the 6 mm tool nothing changes in how it behaves; touching Z0 again is the reminder only.
+Write down what a pause looks like in your sender (does it show the message, does it ask for confirmation, does Resume need a second press) so the wording can be adjusted.
