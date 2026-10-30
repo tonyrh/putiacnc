@@ -33,6 +33,7 @@ mod update;
 mod view3d;
 mod viewcube;
 mod checkui;
+mod timeui;
 mod widgets;
 mod zoomcard;
 #[cfg(test)]
@@ -185,6 +186,7 @@ impl App {
         shortcuts::window(ctx, self);
         about::window(ctx, self);
         checkui::window(ctx, self);
+        timeui::window(ctx, self);
         combine::dialog(ctx, self);
         array::dialog(ctx, self);
         corners::dialog(ctx, self);

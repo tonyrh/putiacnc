@@ -75,6 +75,7 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
 }
 
 pub fn status_bar(ui: &mut Ui, app: &mut App) {
+    let mut toggle_time = false;
     ui.horizontal(|ui| {
         crate::checkui::chip(ui, app);
         // a generation that takes a moment shows itself; quick ones (most) do not, so the bar does not flicker
@@ -90,7 +91,9 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
                 // the plug pieces are cut too: they count towards the totals
                 let (mut tm, mut ct, mut cl, mut ln) = (o.time_min, o.cut_time_min, o.cut_len_mm, o.lines.len());
                 for pp in &app.pieces { tm += pp.output.time_min; ct += pp.output.cut_time_min; cl += pp.output.cut_len_mm; ln += pp.output.lines.len(); }
-                ui.label(format!("Estimated time {}", fmt_time(tm)));
+                // the time opens its breakdown by operation
+                let r = ui.add(egui::Label::new(format!("Estimated time {}", fmt_time(tm))).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Click to see where the time goes, operation by operation");
+                if r.clicked() { toggle_time = true; }
                 ui.separator();
                 ui.label(format!("cutting {}", fmt_time(ct)));
                 ui.separator();
@@ -116,4 +119,5 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
             }
         }
     });
+    if toggle_time { app.time_open = !app.time_open; }
 }

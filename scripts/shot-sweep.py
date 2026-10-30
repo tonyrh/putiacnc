@@ -52,6 +52,7 @@ STATES = [
     ("dialog-corners", "outside_holes", {"PUTIACNC_SHOW_CORNERS": "1", "PUTIACNC_SELECT": "0"}, 4),
     ("dialog-offset", "outside_holes", {"PUTIACNC_SHOW_OFFSET": "1", "PUTIACNC_SELECT": "0"}, 4),
     ("dialog-clean", "outside_holes", {"PUTIACNC_SHOW_CLEAN": "1"}, 4),
+    ("dialog-time", "two_ops_toolchange", {"PUTIACNC_SHOW_TIME": "1"}, 5),
     ("dialog-checks", "outside_holes", {"PUTIACNC_SHOW_CHECKS": "1"}, 6),
     ("hidden-panels", "outside_holes", {"PUTIACNC_HIDE": "left,right"}, 4),
 ]

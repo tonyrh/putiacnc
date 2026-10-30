@@ -44,6 +44,32 @@ pub struct Output {
 
 impl Output {
     pub fn gcode(&self) -> String { self.lines.join("\n") }
+
+    /// Where the estimated time goes, per operation (the index in the project's list): cutting moves, and moves between cuts.
+    /// The time the moves do not account for is the wait for the spindle. Pauses for the operator and tool changes by hand
+    /// take no time here, as in `time_min`. `n_ops` makes the list at least that long.
+    pub fn timing(&self, n_ops: usize) -> Timing {
+        let n = self.moves.iter().map(|m| m.op + 1).max().unwrap_or(0).max(n_ops);
+        let mut ops = vec![OpTime::default(); n];
+        for m in &self.moves {
+            if m.cut { ops[m.op].cut += m.dt; } else { ops[m.op].travel += m.dt; }
+        }
+        let moved: f64 = ops.iter().map(|o| o.cut + o.travel).sum();
+        Timing { ops, waits: (self.time_min - moved).max(0.0) }
+    }
+}
+
+/// Minutes one operation takes: cutting, and moving between cuts (rapids, plunges, retracts).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct OpTime { pub cut: f64, pub travel: f64 }
+impl OpTime { pub fn total(&self) -> f64 { self.cut + self.travel } }
+
+/// The estimated time, split up. `ops` plus `waits` add up to the output's `time_min`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Timing {
+    pub ops: Vec<OpTime>,
+    /// Minutes waiting for the spindle to come up to speed.
+    pub waits: f64,
 }
 
 // ---------- number formatting identical to JavaScript's +n.toFixed(d) and String(n) ----------
