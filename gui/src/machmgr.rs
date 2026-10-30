@@ -255,6 +255,17 @@ fn form(ui: &mut Ui, app: &mut App) {
     let gap = 20.0_f32;
     let aw = 2.0 * (lw + fw) + gap + 4.0 * sp;
     let spacer = |ui: &mut Ui| { ui.allocate_exact_size(egui::vec2(gap, 1.0), Sense::hover()); };
+    // The right edge of the form's last column, measured where the limit fields end (below, last frame's value until they are drawn):
+    // what sits flush right on a row above them lines up with those fields, whatever the grids' own column widths come to.
+    let edge_id = egui::Id::new("mach_form_right_edge");
+    let edge: Option<f32> = ui.ctx().data(|d| d.get_temp(edge_id));
+    // The three controls at the right end of a row (Time correction, Line numbers, Copy test lines) stop a little short of that edge,
+    // so they do not crowd the scroll bar; the window keeps its size.
+    const RIGHT_MARGIN: f32 = 20.0;
+    let flush_right = |cell: egui::Rect, w: f32| {
+        let right = edge.unwrap_or(cell.right()) - RIGHT_MARGIN;
+        egui::Rect::from_min_max(egui::pos2(right - w, cell.top()), egui::pos2(right, cell.bottom()))
+    };
 
     egui::Grid::new("mach_name").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, "Name");
@@ -266,9 +277,14 @@ fn form(ui: &mut Ui, app: &mut App) {
         let mut r = m.rapid / sfac;
         if crate::widgets::num(ui, [fw, 22.0], &mut r, 0.01, 1.0e6, 10.0 / sfac, 3, "").changed() { m.rapid = (r * sfac).max(1.0); changed = true; }
         spacer(ui);
-        rlabel(ui, lw, "Time correction ×");
-        changed |= crate::widgets::num(ui, [60.0, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "")
-            .on_hover_text("Multiplies the estimated time to account for acceleration and corners").changed();
+        // the whole control (label and box) sits flush with the right edge, like the checkbox and the button below
+        ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
+        let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let tip = "Multiplies the estimated time to account for acceleration and corners";
+        changed |= crate::widgets::num(&mut c, [60.0, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "").on_hover_text(tip).changed();
+        c.add_space(8.0 - c.spacing().item_spacing.x);
+        c.add(egui::Label::new("Time correction ×").wrap(false)).on_hover_text(tip);
         ui.end_row();
     });
     ui.add_space(2.0);
@@ -300,10 +316,10 @@ fn form(ui: &mut Ui, app: &mut App) {
         // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
         ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
-        let mut c = ui.child_ui(egui::Rect::from_min_max(egui::pos2(cell.right() - 285.0, cell.top()), egui::pos2(cell.right(), cell.bottom())), Layout::right_to_left(Align::Center));
+            let mut c = ui.child_ui(flush_right(cell, 150.0), Layout::right_to_left(Align::Center));
         let mut nb = m.numbered.unwrap_or(false);
-        if crate::widgets::check(&mut c, &mut nb, "").on_hover_text("Number the G-code lines, for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
-        c.add(egui::Label::new("Line numbers (N10, N20…)").wrap(false));
+        if crate::widgets::check(&mut c, &mut nb, "").on_hover_text("Number the G-code lines (N10, N20…), for controllers that want them").changed() { m.numbered = Some(nb); changed = true; }
+        c.add(egui::Label::new("Line numbers").wrap(false));
         ui.end_row();
         rlabel(ui, lw, format!("Safe Z ({uname})"));
         let mut sz = m.safe.unwrap_or(5.0) / k;
@@ -314,7 +330,10 @@ fn form(ui: &mut Ui, app: &mut App) {
         if crate::widgets::num(ui, [fw, 22.0], &mut sw, 0.0, 60.0, 0.5, 1, "").on_hover_text("How long the program waits after the spindle starts or changes speed before the tool touches anything. 0 = no wait.").changed() { m.spin_up = Some(sw.clamp(0.0, 60.0)); changed = true; }
         ui.end_row();
         rlabel(ui, lw, "Tool holder");
-        if crate::widgets::check(ui, &mut m.holder_on, "Check it against the clamps").on_hover_text("Off by default. When on, give the holder's diameter here and each tool's stick-out in the tool manager: the warnings and the 3D preview then check the holder against the clamps and draw it.").changed() { changed = true; }
+        let hr = crate::widgets::check(ui, &mut m.holder_on, "").on_hover_text("Off by default. When on, give the holder's diameter here and each tool's stick-out in the tool manager: the warnings and the 3D preview then check the holder against the clamps and draw it.");
+        if hr.changed() { changed = true; }
+        // the words sit after the box without taking any room from the grid, so the columns never move
+        ui.painter().text(egui::pos2(hr.rect.right() + 6.0, hr.rect.center().y), egui::Align2::LEFT_CENTER, "Check it against the clamps", egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
         ui.end_row();
         if m.holder_on {
             rlabel(ui, lw, format!("Holder dia. ({uname})"));
@@ -329,7 +348,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
         ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
-        let mut c = ui.child_ui(egui::Rect::from_min_max(egui::pos2(cell.right() - 160.0, cell.top()), cell.max), Layout::right_to_left(Align::Center));
+        let mut c = ui.child_ui(flush_right(cell, 160.0), Layout::right_to_left(Align::Center));
         if c.button("Copy test lines").on_hover_text("A half circle to send with the spindle off and the tool well above the work. If the machine draws it, it supports arcs.").clicked() {
             c.ctx().output_mut(|o| o.copied_text = "G21 G90 G17\nG0 X0 Y0\nG2 X10 Y0 I5 J0 F300\n".into());
             app.mach_msg = "Test lines copied. Send them with the spindle off and the tool well above the work: a half circle means arcs work, a straight move or an error means they don't.".into();
@@ -339,7 +358,7 @@ fn form(ui: &mut Ui, app: &mut App) {
     ui.add_space(10.0);
     ui.weak("Limits (0 = no limit). A tool that asks for more is held to the limit in the G-code, with a warning.");
     ui.add_space(4.0);
-    egui::Grid::new("mach_limits").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+    let limits = egui::Grid::new("mach_limits").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         let lim = |ui: &mut Ui, v: &mut Option<f64>, f: f64, max: f64, step: f64| -> bool {
             let mut d = v.unwrap_or(0.0) / f;
             let ch = crate::widgets::num(ui, [fw, 22.0], &mut d, 0.0, max / f, step / f, 3, "").on_hover_text("0 = no limit").changed();
@@ -359,6 +378,9 @@ fn form(ui: &mut Ui, app: &mut App) {
         changed |= lim(ui, &mut m.plunge_max, sfac, 1.0e6, 10.0);
         ui.end_row();
     });
+    // remember where the last column ends; the rows above use it from the next frame on (one more frame if it moved)
+    let right = limits.response.rect.right();
+    if edge.is_none_or(|e| (e - right).abs() > 0.5) { ui.ctx().data_mut(|d| d.insert_temp(edge_id, right)); ui.ctx().request_repaint(); }
     ui.add_space(10.0);
     ui.weak("Max size of operation (work area)");
     ui.add_space(4.0);
