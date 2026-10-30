@@ -283,6 +283,16 @@ impl App {
         self.text.key.clear();
     }
 
+    /// Whether shape `i` is drawn faded because a preview stands in for it: a tool's ghost replaces it, or it is a letter of the text being edited
+    /// while the preview of the new settings shows.
+    pub fn dimmed_by_preview(&self, i: usize) -> bool {
+        if self.ghost.hide.contains(&i) { return true; }
+        match (self.text.open, self.text.edit, self.project.data.loops.get(i)) {
+            (true, Some(gid), Some(l)) => l.grp == Some(gid) && !self.text.preview.is_empty(),
+            _ => false,
+        }
+    }
+
     /// Drops the link to the settings: the letters stay as they are, as plain outlines.
     pub fn text_to_outlines(&mut self, gid: i64) {
         self.hist.record(&self.project.data);
@@ -432,7 +442,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     app.text.poll();
     if app.text.db.is_none() { app.text.load(ctx); }
     if let Some(gid) = app.text.edit_req {
-        if begin_edit(app, gid) { app.text.edit_req = None; } else { ctx.request_repaint_after(std::time::Duration::from_millis(100)); return; }
+        if begin_edit(app, gid) {
+            app.text.edit_req = None;
+            // PUTIACNC_EDIT_SIZE=mm: the height is changed as editing starts, so the preview differs from the text (for screenshots)
+            if let Some(h) = std::env::var("PUTIACNC_EDIT_SIZE").ok().and_then(|v| v.parse::<f64>().ok()) { app.text.size = h; }
+        } else { ctx.request_repaint_after(std::time::Duration::from_millis(100)); return; }
         if !app.text.open { return; }
     }
     // text starts at the XY zero until a position is clicked or typed
@@ -652,6 +666,40 @@ mod tests {
     }
 
     fn bbox(a: &App, gid: i64) -> [f64; 4] { shapes::bbox_many(a.project.data.loops.iter().filter(|l| l.grp == Some(gid))).unwrap() }
+
+    #[test]
+    fn the_text_being_edited_is_faded_while_its_preview_shows() {
+        let mut a = placed("Hi");
+        a.project.data.loops.push(shapes::new_circle([100.0, 100.0], 5.0, 0));
+        let gid = a.project.data.groups[0].id;
+        let n = a.project.data.loops.len();
+        let letters: Vec<usize> = (0..n).filter(|&i| a.project.data.loops[i].grp == Some(gid)).collect();
+        let other = n - 1;
+        assert!(!letters.is_empty() && !letters.contains(&other));
+        // nothing is faded while the text is just selected
+        assert!((0..n).all(|i| !a.dimmed_by_preview(i)));
+        a.edit_text(gid);
+        assert!(begin_edit(&mut a, gid));
+        a.text.refresh();
+        assert!(!a.text.preview.is_empty());
+        // editing: the letters of the text are faded, the other shapes are not
+        assert!(letters.iter().all(|&i| a.dimmed_by_preview(i)));
+        assert!(!a.dimmed_by_preview(other));
+        // no preview yet (nothing to compare with): nothing is faded
+        let keep = std::mem::take(&mut a.text.preview);
+        assert!(letters.iter().all(|&i| !a.dimmed_by_preview(i)));
+        a.text.preview = keep;
+        // another text placed fresh is not the one being edited
+        a.text.edit = None;
+        assert!(letters.iter().all(|&i| !a.dimmed_by_preview(i)), "a new text has no original to fade");
+        // closed again (Update or Cancel): back to normal
+        a.text.edit = Some(gid);
+        a.text.open = false;
+        assert!(letters.iter().all(|&i| !a.dimmed_by_preview(i)));
+        // a tool's own ghost still fades what it replaces
+        a.ghost.hide.insert(other);
+        assert!(a.dimmed_by_preview(other));
+    }
 
     #[test]
     fn placed_text_is_a_group_that_remembers_its_settings() {

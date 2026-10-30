@@ -624,7 +624,9 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         let opi = d.ops.iter().position(|o| o.id == l.op);
         let selected = app.sel.contains(&i);
         let col = if selected { th.shape_selected() } else { opi.map(|k| op_color(k, dark)).unwrap_or(th.shape_idle()) };
-        let col = if app.ghost.hide.contains(&i) { col.gamma_multiply(0.3) } else { col };
+        // a shape that a tool's preview replaces, or the text being edited while its preview shows, is drawn faded and thin: the preview stands out
+        let faded = app.dimmed_by_preview(i);
+        let col = if faded { col.gamma_multiply(0.3) } else { col };
         if shapes::is_point(l) {
             if let Some(b) = shapes::bbox(l) {
                 let s = to_s([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]);
@@ -637,7 +639,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         }
         let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
         if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
-        painter.add(egui::Shape::line(pts, Stroke::new(if editing_nodes == Some(i) { 3.0_f32 } else if selected { 2.5_f32 } else { 1.8_f32 }, if editing_nodes == Some(i) { th.accent } else { col })));
+        painter.add(egui::Shape::line(pts, Stroke::new(if faded { 1.2_f32 } else if editing_nodes == Some(i) { 3.0_f32 } else if selected { 2.5_f32 } else { 1.8_f32 }, if editing_nodes == Some(i) { th.accent } else { col })));
     }
     // the number of the operation on the shapes that belong to one, so the link does not rest on colour alone. Shapes of one operation
     // that lie close together (the letters of a text, a hole in its outline) share a single badge; huge drawings get none
@@ -880,7 +882,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         for l in &app.text.preview {
             let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
             if let Some(f) = pts.first().copied() { pts.push(f); }
-            painter.add(egui::Shape::line(pts, Stroke::new(1.5_f32, prev_col)));
+            painter.add(egui::Shape::line(pts, Stroke::new(2.2_f32, prev_col)));
         }
         if let Some(p) = app.text.pos {
             let c = to_s(p);

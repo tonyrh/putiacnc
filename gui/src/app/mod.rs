@@ -403,6 +403,8 @@ impl App {
         if let Ok(s) = std::env::var("PUTIACNC_PLACE_TEXT") {
             // places a text, turned a little, and optionally opens it for editing (for screenshots)
             a.text.content = s; a.text.sel = a.text.fonts.iter().position(|f| f.label == "Hack").unwrap_or(0); a.text.pos = Some([20.0, 30.0]); a.text.size = 15.0; a.text.angle = 20.0;
+            // PUTIACNC_PLACE_AT=x,y moves the placed text (mm)
+            if let Some(v) = std::env::var("PUTIACNC_PLACE_AT").ok().map(|s| s.split(',').filter_map(|t| t.parse::<f64>().ok()).collect::<Vec<_>>()).filter(|v| v.len() == 2) { a.text.pos = Some([v[0], v[1]]); }
             crate::text::place(&mut a);
             if std::env::var_os("PUTIACNC_EDIT_TEXT").is_some() { if let Some(g) = a.project.data.groups.last().map(|g| g.id) { a.edit_text(g); } }
         }
