@@ -38,6 +38,8 @@ mod widgets;
 mod zoomcard;
 #[cfg(test)]
 mod fuzz;
+#[cfg(test)]
+mod perf;
 
 use app::App;
 use eframe::egui;

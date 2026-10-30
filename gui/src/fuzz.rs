@@ -51,7 +51,7 @@ fn broken(a: &App) -> Vec<String> {
 }
 
 /// Waits for the toolpath of the current project, like the main loop does between frames.
-fn settle(a: &mut App) -> Result<(), String> {
+pub(crate) fn settle(a: &mut App) -> Result<(), String> {
     let t0 = std::time::Instant::now();
     for _ in 0..30000 {
         a.poll_generation();
