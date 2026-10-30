@@ -147,7 +147,8 @@ fn absurd_holder_sizes_and_stick_outs_give_a_finite_check_and_no_panic() {
     for (holder, stick) in [(0.0, 10.0), (-5.0, 10.0), (30.0, 0.0), (30.0, -1.0), (1e300, 1e-300), (1e300, 1e300), (1e-300, 1e-300), (30.0, 1e300)] {
         let mut d = sample("outside_holes");
         d.clamps.push(putiacnc_core::model::Clamp { x: 124.0, y: 45.0, w: 14.0, h: 20.0, height: 25.0 });
-        d.machine.get_or_insert_with(Default::default).holder = Some(holder);
+        let m = d.machine.get_or_insert_with(Default::default);
+        m.holder = Some(holder); m.holder_on = true;
         d.tools[0].stick = stick;
         let o = generate(&d, Units::Metric).unwrap();
         for f in checks::run(&d, &o) { assert!(f.at.iter().all(|v| v.is_finite()), "holder {holder}, stick {stick}: {:?}", f.at); }

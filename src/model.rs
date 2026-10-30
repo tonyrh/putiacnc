@@ -174,6 +174,8 @@ pub struct Machine {
     #[serde(default, rename = "endCode", skip_serializing_if = "Option::is_none")] pub end_code: Option<String>,
     /// Diameter in mm of the tool holder (the collet nut or the spindle nose, whatever hangs lowest). `None` = not known (the holder is not checked).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub holder: Option<f64>,
+    /// Check and draw the tool holder (switched off by default; the diameter above is kept while it is off).
+    #[serde(default, rename = "holderOn", skip_serializing_if = "is_false")] pub holder_on: bool,
 }
 
 impl Machine {
@@ -203,7 +205,7 @@ impl Machine {
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
-                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None, holder: None }
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None, holder: None, holder_on: false }
     }
 }
 

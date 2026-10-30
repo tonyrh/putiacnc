@@ -100,7 +100,8 @@ pub struct Holder { pub r: f64, pub stick: f64 }
 /// The holder of the tool in this slot of an operation (`alt` = the second tool), when both the machine's holder diameter and the
 /// tool's stick-out are known.
 pub fn holder_of(d: &ProjectData, op: usize, alt: bool) -> Option<Holder> {
-    let dia = d.machine.as_ref()?.holder.filter(|v| *v > 0.0)?;
+    let m = d.machine.as_ref().filter(|m| m.holder_on)?;
+    let dia = m.holder.filter(|v| *v > 0.0)?;
     let stick = tool_of(d, op, alt)?.stick;
     if stick > 0.0 { Some(Holder { r: dia / 2.0, stick }) } else { None }
 }
@@ -368,7 +369,7 @@ mod tests {
 
     fn with_holder(d: &mut ProjectData, dia: f64, stick: f64) {
         let mut m = crate::machines::Machines::from_json("{}").map(|l| l.resolve("").clone()).unwrap_or_else(|_| panic!("no machine"));
-        m.holder = Some(dia);
+        m.holder = Some(dia); m.holder_on = true;
         d.machine = Some(m);
         d.tools[0].stick = stick;
     }
@@ -396,6 +397,12 @@ mod tests {
         // nothing known about the stick-out: not checked
         with_holder(&mut d, 40.0, 0.0);
         assert!(!kinds(&d).contains(&Kind::Holder));
+        // the switch is off: nothing is checked, however big the holder, and the diameter is kept
+        with_holder(&mut d, 40.0, 10.0);
+        d.machine.as_mut().unwrap().holder_on = false;
+        assert!(!kinds(&d).contains(&Kind::Holder));
+        assert_eq!(d.machine.as_ref().unwrap().holder, Some(40.0));
+        assert!(holder_of(&d, 0, false).is_none());
     }
 
     #[test]
