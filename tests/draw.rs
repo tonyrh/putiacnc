@@ -456,3 +456,65 @@ fn the_pen_rests_after_going_down_when_asked_to() {
     let back = load_project(&serde_json::to_string(&g).unwrap()).unwrap();
     assert_eq!((back.data.ops[0].p.repeat, back.data.ops[0].p.dwell), (Some(2), Some(0.1)));
 }
+
+/// The sample sketch (thick circle, bar, wave, two crossing strokes) traced into the given mode, 100 mm wide.
+fn sketch(mode: putiacnc_core::bitmap::Mode) -> putiacnc_core::svg::Imported {
+    let bytes = std::fs::read(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/sketch.png")).unwrap();
+    let bmp = putiacnc_core::bitmap::Bitmap::load(&bytes).unwrap();
+    bmp.trace(&putiacnc_core::bitmap::Opts { mode, width_mm: 100.0, ..Default::default() }).unwrap()
+}
+
+/// Length of a shape's line in mm (a closed one comes back to its start).
+fn len_mm(l: &putiacnc_core::model::LoopData) -> f64 {
+    let p: Vec<[f64; 2]> = l.pts.chunks(2).map(|q| [q[0] as f64 / shapes::S, q[1] as f64 / shapes::S]).collect();
+    let mut t: f64 = p.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).sum();
+    if l.c == 1 && p.len() > 2 { t += (p[0][0] - p[p.len() - 1][0]).hypot(p[0][1] - p[p.len() - 1][1]); }
+    t
+}
+
+/// A pen drawing of the traced loops.
+fn sketch_job(loops: Vec<putiacnc_core::model::LoopData>) -> ProjectFile {
+    let mut f = pen_project();
+    f.data.loops = loops;
+    let sel: std::collections::BTreeSet<usize> = (0..f.data.loops.len()).collect();
+    f.data.ops.clear();
+    shapes::add_operation(&mut f.data, &sel, "draw");
+    f
+}
+
+#[test]
+fn a_centre_line_trace_is_drawn_by_the_pen_one_line_per_stroke() {
+    use putiacnc_core::bitmap::Mode;
+    let c = sketch(Mode::Centerline);
+    let o = sketch(Mode::Outline);
+    // the thick circle is one closed line, not the two edges an outline trace makes
+    assert_eq!(c.loops.iter().filter(|l| l.c == 1).count(), 1, "one closed line: the circle");
+    assert!(o.loops.iter().filter(|l| l.c == 1).count() >= 5, "outlines: the circle's two edges and the edge of each other stroke");
+    assert!(c.loops.iter().filter(|l| l.c == 0).count() >= 3, "the bar, the wave and the cross are open lines");
+    assert!(c.loops.iter().all(|l| len_mm(l) > 0.5 || l.c == 0), "no closed specks");
+    let f = sketch_job(c.loops.clone());
+    let l = generate(&f.data, Units::Metric).unwrap().lines;
+    assert!(!l.iter().any(|x| x.starts_with("M3") || x.starts_with("M5")));
+    assert!(verify::hazards(&l).is_empty(), "{:?}", verify::hazards(&l));
+    // the pen draws the centre lines once: their length is the ink, with no more than the short jumps between lines joined
+    let mine: f64 = c.loops.iter().map(len_mm).sum();
+    assert!((ink(&l) - mine).abs() < mine * 0.02 + 1.0, "ink {} for lines of {}", ink(&l), mine);
+    // the circle (radius 90 px of a 640 px picture drawn 100 mm wide, so about 14 mm) is about 88 mm round, the bar 47 mm
+    assert!(mine > 88.0 + 47.0 + 50.0, "{mine}");
+    // an outline trace, drawn the same way, goes round every edge: far more ink for the same picture
+    let fo = sketch_job(o.loops.clone());
+    let ink_o = ink(&generate(&fo.data, Units::Metric).unwrap().lines);
+    assert!(ink_o > ink(&l) * 1.6, "outlines {ink_o} against centre lines {}", ink(&l));
+    // for a dump to look at: PUTIA_DUMP=/tmp/sketch.project.json cargo test ...
+    if let Ok(p) = std::env::var("PUTIA_DUMP") { std::fs::write(p, serde_json::to_string(&f).unwrap()).unwrap(); }
+}
+
+#[test]
+fn centre_lines_have_no_stray_stubs_and_the_pen_lifts_few_times() {
+    use putiacnc_core::bitmap::Mode;
+    let c = sketch(Mode::Centerline);
+    let n = c.loops.len();
+    assert!(n <= 8, "{n} lines for a picture of 4 strokes (the cross splits into its arms): stubs or breaks?");
+    let l = generate(&sketch_job(c.loops).data, Units::Metric).unwrap().lines;
+    assert_eq!(plunges(&l), n, "one pen-down per line");
+}

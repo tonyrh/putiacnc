@@ -37,6 +37,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Pen colour per tool: a pen has an ink colour (colour button in the tool editor, saved as `color` "#rrggbb"); the 3D preview draws that pen's ink in it and the tool lists show a dot. It is for the screen only: the G-code does not change (the pen-change stop names the pen). The bundled pens have none (dark ink).
 - [x] Repeat count (1 to 20 passes over the whole drawing, `(Repeat n of N)` comments) and a pen-down rest (`G4 P<seconds>` after every pen-down; none when the pen stays down for a joined stroke) on the Draw operation.
 - [x] 2D pen width: the canvas draws a Draw operation's strokes as wide as the pen (at least one pixel, in the pen's ink colour if it has one, otherwise the operation's colour), so hatch spacing, overlaps and gaps show before drawing.
+- [x] Centre-line bitmap trace with the pen: checked that a centre-line trace of a sketch is drawn one line per stroke by a Draw operation (test with `tests/data/sketch.png`). Known: where two strokes cross, the trace leaves a bridge of about a millimetre between two junctions instead of one point (invisible in ink; "Join gaps" keeps the pen down over it).
 - [ ] Plotter mode, next: a servo or solenoid pen (`M3 S<angle>` / `M5` as a machine setting); try the pen test on the real machine and adjust the wording.
 
 ## Interface consistency (audit of 2026-10-26)
