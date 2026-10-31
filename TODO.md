@@ -77,7 +77,8 @@ Toolpath quality
 - [x] Dogbone corners (Fillet and chamfer window).
 - [x] Finger joints on rectangle edges (Edit menu).
 - [x] Box generator (Edit menu).
-- [ ] T-bone corners; box lids that slide or hinge, dividers.
+- [x] T-bone corners and box dividers.
+- [ ] Box lids that slide or hinge; dividers in both directions (they would need half-lap slots).
 - [ ] Adaptive clearing.
 - [ ] Nesting.
 

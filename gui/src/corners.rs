@@ -4,9 +4,9 @@ use crate::app::App;
 use eframe::egui;
 use putiacnc_core::shapes::{self, CornerKind};
 
-pub struct CornerTool { pub open: bool, pub chamfer: bool, pub size: f64, pub dog: bool, pub dia: f64, pub outside: bool, pub auto: bool }
+pub struct CornerTool { pub open: bool, pub chamfer: bool, pub size: f64, pub dog: bool, pub dia: f64, pub outside: bool, pub auto: bool, pub tbone: bool }
 
-impl Default for CornerTool { fn default() -> Self { CornerTool { open: false, chamfer: false, size: 2.0, dog: false, dia: 3.175, outside: false, auto: true } } }
+impl Default for CornerTool { fn default() -> Self { CornerTool { open: false, chamfer: false, size: 2.0, dog: false, dia: 3.175, outside: false, auto: true, tbone: false } } }
 
 impl App {
     /// True when something in the selection has a corner to round (circles and ellipses do not).
@@ -103,13 +103,13 @@ impl App {
 
     /// Adds a dogbone relief to each inside corner of the selected closed shapes, for a cutter of diameter `dia`.
     /// `outside` is for shapes that will be cut around (parts with a notch), otherwise for pockets and cut-outs.
-    pub fn dogbone_selection(&mut self, dia: f64, outside: bool) -> Option<String> {
+    pub fn dogbone_selection(&mut self, dia: f64, outside: bool, tbone: bool) -> Option<String> {
         let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).is_some_and(|l| l.closed())).collect();
         if idx.is_empty() { return Some("Select one or more closed shapes.".into()); }
         let op = self.project.data.loops[idx[0]].op;
         let cut = if outside { putiacnc_core::joints::Cut::Outside } else { putiacnc_core::joints::Cut::Inside };
         let refs: Vec<&putiacnc_core::model::LoopData> = idx.iter().map(|&i| &self.project.data.loops[i]).collect();
-        let Some((result, n)) = putiacnc_core::joints::dogbones(&refs, dia, cut, op) else {
+        let Some((result, n)) = putiacnc_core::joints::reliefs(&refs, dia, cut, op, if tbone { putiacnc_core::joints::Relief::TBone } else { putiacnc_core::joints::Relief::Dogbone }) else {
             return Some("There are no sharp inside corners that need a relief for this cutter.".into());
         };
         self.hist.record(&self.project.data);
@@ -127,7 +127,7 @@ impl App {
         d.loops.extend(result);
         self.sel = (start..self.project.data.loops.len()).collect();
         self.touch();
-        let mut note = format!("{n} dogbone{} added.", if n == 1 { "" } else { "s" });
+        let mut note = format!("{n} {}{} added.", if tbone { "T-bone" } else { "dogbone" }, if n == 1 { "" } else { "s" });
         if !texts.is_empty() { note.push_str(" The text is now plain outlines."); }
         Some(note)
     }
@@ -138,10 +138,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
-        let (dog, outside) = (app.corners.dog, app.corners.outside);
+        let (dog, outside, tbone) = (app.corners.dog, app.corners.outside, app.corners.tbone);
         let dia = cutter_dia(app.corners.auto, app.sel_cutter_dia(), app.corners.dia);
-        app.preview("corners", &[app.corners.chamfer as u64, crate::preview::bits(size), dog as u64, crate::preview::bits(dia), outside as u64],
-            move |a| if dog { a.dogbone_selection(dia, outside) } else { a.corner_selection(kind, size) });
+        app.preview("corners", &[app.corners.chamfer as u64, crate::preview::bits(size), dog as u64, crate::preview::bits(dia), outside as u64, tbone as u64],
+            move |a| if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) });
     }
     let pnote = app.ghost.note_of("corners").filter(|_| !app.sel.is_empty()).map(String::from);
     let n = app.sel.len();
@@ -160,7 +160,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
-        let lw = ["Corner", "Distance", "Radius", "Cutter"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let lw = ["Corner", "Distance", "Radius", "Cutter", "Relief"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("corner_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, lw, "Corner");
             ui.horizontal(|ui| {
@@ -177,6 +177,12 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.horizontal(|ui| {
                     let (c, _) = crate::zoomcard::seg2(ui, ["Inside", "Around"], ["For pockets and cut-outs: the shape is the hole", "For parts cut out around the outside, with a notch in them"], app.corners.outside as usize);
                     if let Some(i) = c { app.corners.outside = i == 1; }
+                });
+                ui.end_row();
+                crate::toolmgr::rlabel(ui, lw, "Relief");
+                ui.horizontal(|ui| {
+                    let (c, _) = crate::zoomcard::seg2(ui, ["Dogbone", "T-bone"], ["Along the diagonal, into both walls", "Straight into the longer wall only"], app.corners.tbone as usize);
+                    if let Some(i) = c { app.corners.tbone = i == 1; }
                 });
                 ui.end_row();
             } else {
@@ -203,10 +209,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if apply {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
-        let (dog, outside) = (app.corners.dog, app.corners.outside);
+        let (dog, outside, tbone) = (app.corners.dog, app.corners.outside, app.corners.tbone);
         let dia = cutter_dia(app.corners.auto, app.sel_cutter_dia(), app.corners.dia);
         app.ghost.clear();
-        if app.run_tool("corners", |a| if dog { a.dogbone_selection(dia, outside) } else { a.corner_selection(kind, size) }) { app.corners.open = false; }
+        if app.run_tool("corners", |a| if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) }) { app.corners.open = false; }
     }
     if close { app.corners.open = false; }
 }
@@ -245,7 +251,7 @@ mod tests {
     #[test]
     fn dogbones_replace_the_selected_shapes_and_undo_restores_them() {
         let mut a = app_with(vec![shapes::new_rect([0.0, 0.0], [30.0, 20.0], 0.0, 1)]);
-        let msg = a.dogbone_selection(3.0, false).unwrap();
+        let msg = a.dogbone_selection(3.0, false, false).unwrap();
         assert!(msg.starts_with("4 dogbones"), "{msg}");
         assert_eq!(a.project.data.loops.len(), 1);
         assert!(a.project.data.loops[0].pts.len() / 2 > 8);
@@ -253,7 +259,7 @@ mod tests {
         a.do_undo();
         assert_eq!(a.project.data.loops[0].rc, Some(0.0));
         let mut a = app_with(vec![shapes::new_circle([5.0, 5.0], 3.0, 1)]);
-        assert!(a.dogbone_selection(3.0, false).unwrap().contains("no sharp"));
+        assert!(a.dogbone_selection(3.0, false, false).unwrap().contains("no sharp"));
     }
 
     #[test]
