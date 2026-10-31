@@ -284,7 +284,17 @@ pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64
     let mut sk = 7.0_f32;
     let body: Vec<Pos2> = match shape {
         "ball" => { let mut v = vec![p(14.0, 22.0), p(14.0, 46.0)]; v.extend(arc(24.0, 46.0, 10.0, pi, 0.0)); v.push(p(34.0, 22.0)); v }
-        "pen" => vec![p(15.0, 22.0), p(15.0, 40.0), p(24.0, 66.0), p(33.0, 40.0), p(33.0, 22.0)],
+        "pen" => {
+            // `tip` is the line width in mm: a fine pen ends in a point, a marker in a rounded tip that grows with the width
+            let w = tip.max(0.05) as f32;
+            let hw = (5.0 + 4.0 * w.sqrt()).min(13.0);
+            if w < 0.8 {
+                vec![p(24.0 - hw, 22.0), p(24.0 - hw, 40.0), p(24.0, 66.0), p(24.0 + hw, 40.0), p(24.0 + hw, 22.0)]
+            } else {
+                let r = hw * (0.2 + 0.12 * w.min(3.0));
+                vec![p(24.0 - hw, 22.0), p(24.0 - hw, 50.0), p(24.0 - hw * 0.7, 58.0), p(24.0 - r, 63.0), p(24.0 + r, 63.0), p(24.0 + hw * 0.7, 58.0), p(24.0 + hw, 50.0), p(24.0 + hw, 22.0)]
+            }
+        }
         "bull" => vec![p(14.0, 22.0), p(14.0, 52.0), p(15.2, 55.0), p(18.0, 56.0), p(30.0, 56.0), p(32.8, 55.0), p(34.0, 52.0), p(34.0, 22.0)],
         "vbit" => {
             let hw = (40.0 * t).min(10.0);
