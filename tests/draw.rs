@@ -200,3 +200,24 @@ fn a_split_of_drawings_gives_a_file_per_operation_and_no_spindle_anywhere() {
     let per_tool = split::generate_files(&f.data, Units::Metric, split::Split::PerTool).unwrap();
     assert_eq!(per_tool.len(), 1, "both operations use the same pen, so they stay one file");
 }
+
+#[test]
+fn every_pen_of_the_pens_and_markers_library_draws() {
+    let (name, json) = putiacnc_core::toollib::BUNDLED.iter().find(|(n, _)| *n == "Pens and markers").expect("the library is built in");
+    let mut libs = putiacnc_core::toollib::ToolLibs::default();
+    libs.import(json).unwrap();
+    let lib = libs.libs.iter().find(|l| l.name == *name).unwrap();
+    assert!(lib.tools.len() >= 16);
+    for t in &lib.tools {
+        assert_eq!(t.shape, "pen", "{}", t.name);
+        assert!(t.dia > 0.0 && t.dia <= 3.0 && t.rpm == 0.0 && t.feed >= 1000.0 && t.plunge > 0.0, "{}", t.name);
+        assert!(t.name.chars().count() <= 24, "{}: a name that fits the tool list", t.name);
+        let mut f = pen_project();
+        f.data.tools = vec![t.clone()];
+        for o in f.data.ops.iter_mut() { o.p.tool = t.id.clone(); }
+        let l = generate(&f.data, Units::Metric).unwrap_or_else(|e| panic!("{}: {e}", t.name)).lines;
+        assert!(!l.iter().any(|x| x.starts_with("M3") || x.starts_with("M5")), "{}", t.name);
+        assert!(verify::hazards(&l).is_empty(), "{}: {:?}", t.name, verify::hazards(&l));
+        assert!(l.iter().any(|x| x.contains(&format!("F{}", t.feed))), "{} draws at its own speed", t.name);
+    }
+}

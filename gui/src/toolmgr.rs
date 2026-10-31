@@ -500,7 +500,12 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     if crate::widgets::num(ui, [72.0, 22.0], &mut r, 0.0, 50.0 / k, 0.05 / k, 3, uname).changed() { t.tip = (r * k).max(0.0); changed = true; }
                     side!(false);
                 }
-                if !pen {
+                if pen {
+                    // the picture takes the two right-hand cells of this row and the one above: keep them free of fields
+                    ui.label("");
+                    ui.label("");
+                    side!(false);
+                } else {
                     rlabel(ui, lw, "Flutes");
                     let mut fl = t.flutes as f64;
                     if crate::widgets::num(ui, [60.0, 22.0], &mut fl, 1.0, 12.0, 0.1, 0, "").changed() { t.flutes = fl.round() as u32; changed = true; }

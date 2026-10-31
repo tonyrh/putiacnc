@@ -148,7 +148,7 @@
    "tip": 0.0
   },
   {
-   "name": "Permanent marker, ultra fine 0.5 mm",
+   "name": "Marker 0.5 mm",
    "sys": "mm",
    "shape": "pen",
    "angle": 60.0,
@@ -159,12 +159,12 @@
    "plunge": 300,
    "so": 100.0,
    "pd": 1.0,
-   "notes": "Sharpie Ultra Fine style bullet tip: draws on paper, card, plastic and wood. The felt tip wears and spreads with pressure; touch it down gently.",
+   "notes": "Permanent marker, ultra fine (Sharpie style bullet tip): draws on paper, card, plastic and wood. The felt tip wears and spreads with pressure; touch it down gently.",
    "id": "pen010",
    "tip": 0.0
   },
   {
-   "name": "Permanent marker, fine 1.0 mm",
+   "name": "Marker 1.0 mm",
    "sys": "mm",
    "shape": "pen",
    "angle": 60.0,
@@ -175,12 +175,12 @@
    "plunge": 300,
    "so": 100.0,
    "pd": 1.0,
-   "notes": "Sharpie Fine style bullet tip: draws on paper, card, plastic and wood. The felt tip wears and spreads with pressure; touch it down gently.",
+   "notes": "Permanent marker, fine (Sharpie style bullet tip): draws on paper, card, plastic and wood. The felt tip wears and spreads with pressure; touch it down gently.",
    "id": "pen011",
    "tip": 0.0
   },
   {
-   "name": "Permanent marker, medium 1.5 mm",
+   "name": "Marker 1.5 mm",
    "sys": "mm",
    "shape": "pen",
    "angle": 60.0,
@@ -191,7 +191,7 @@
    "plunge": 300,
    "so": 100.0,
    "pd": 1.0,
-   "notes": "Sharpie Medium style bullet tip: draws on paper, card, plastic and wood. The felt tip wears and spreads with pressure; touch it down gently.",
+   "notes": "Permanent marker, medium (Sharpie style bullet tip): draws on paper, card, plastic and wood. The felt tip wears and spreads with pressure; touch it down gently.",
    "id": "pen012",
    "tip": 0.0
   },
