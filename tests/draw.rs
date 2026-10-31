@@ -236,3 +236,80 @@ fn single_line_text_is_followed_by_the_pen_stroke_by_stroke() {
     assert_eq!(downs, f.data.loops.len(), "one pen-down per stroke");
     assert!(verify::hazards(&l).is_empty(), "{:?}", verify::hazards(&l));
 }
+
+fn hatch_job(shapes_: Vec<putiacnc_core::model::LoopData>, h: putiacnc_core::model::Hatch) -> Vec<String> {
+    let mut f = pen_project();
+    f.data.loops = shapes_;
+    let sel: std::collections::BTreeSet<usize> = (0..f.data.loops.len()).collect();
+    f.data.ops.clear();
+    shapes::add_operation(&mut f.data, &sel, "draw");
+    f.data.ops[0].p.hatch = Some(h);
+    generate(&f.data, Units::Metric).unwrap().lines
+}
+
+/// Total length of the moves made with the pen down.
+fn ink(l: &[String]) -> f64 {
+    let (mut x, mut y, mut z, mut len) = (0.0, 0.0, 5.0, 0.0);
+    for s in l.iter().filter(|s| s.starts_with("G0") || s.starts_with("G1")) {
+        let v = |c: char| s.split_whitespace().find(|w| w.starts_with(c)).and_then(|w| w[1..].parse::<f64>().ok());
+        let (nx, ny, nz) = (v('X').unwrap_or(x), v('Y').unwrap_or(y), v('Z').unwrap_or(z));
+        if s.starts_with("G1") && nz.abs() < 1e-9 && z.abs() < 1e-9 { len += (nx - x).hypot(ny - y); }
+        (x, y, z) = (nx, ny, nz);
+    }
+    len
+}
+
+#[test]
+fn a_hatch_fills_a_rectangle_with_lines_one_pen_width_apart() {
+    use putiacnc_core::model::Hatch;
+    let r = shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0);
+    let pen = pen_project().data.tools[0].dia;
+    let plain = ink(&hatch_job(vec![r.clone()], Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: false }));
+    // 10 lines of 20 mm
+    assert!((plain - 200.0).abs() < 1.0, "{plain}");
+    let with_edge = ink(&hatch_job(vec![r.clone()], Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: true }));
+    assert!((with_edge - plain - 60.0).abs() < 1.0, "{with_edge}");
+    let crossed = ink(&hatch_job(vec![r.clone()], Hatch { angle: 30.0, gap: Some(1.0), cross: true, outline: false }));
+    let one = ink(&hatch_job(vec![r.clone()], Hatch { angle: 30.0, gap: Some(1.0), cross: false, outline: false }));
+    assert!(crossed > one * 1.8 && one > 190.0 && one < 210.0, "{one} {crossed}");
+    // without a gap the lines are one pen width apart
+    let dflt = ink(&hatch_job(vec![r], Hatch { angle: 0.0, gap: None, cross: false, outline: false }));
+    assert!((dflt - 200.0 / pen).abs() < 20.0 / pen + 20.0, "{dflt} for pen {pen}");
+}
+
+#[test]
+fn a_shape_inside_another_is_a_hole_in_the_fill() {
+    use putiacnc_core::model::Hatch;
+    let outer = shapes::new_rect([0.0, 0.0], [20.0, 20.0], 0.0, 0);
+    let inner = shapes::new_rect([5.0, 5.0], [15.0, 15.0], 0.0, 0);
+    let h = Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: false };
+    let full = ink(&hatch_job(vec![outer.clone()], h.clone()));
+    let ring = ink(&hatch_job(vec![outer, inner], h));
+    // the 10 x 10 hole takes 10 lines of 10 mm away
+    assert!((full - ring - 100.0).abs() < 1.0, "{full} {ring}");
+}
+
+#[test]
+fn open_lines_are_still_drawn_and_a_hatch_never_starts_the_spindle() {
+    use putiacnc_core::model::Hatch;
+    let line = shapes::new_poly(&[[0.0, 0.0], [10.0, 0.0]], false, 0).unwrap();
+    let l = hatch_job(vec![line], Hatch::default());
+    assert!((ink(&l) - 10.0).abs() < 1e-6);
+    assert!(!l.iter().any(|x| x.starts_with("M3") || x.starts_with("M5")));
+    assert!(verify::hazards(&l).is_empty());
+}
+
+#[test]
+fn the_fill_settings_survive_saving_and_old_projects_have_none() {
+    use putiacnc_core::model::Hatch;
+    let mut f = pen_project();
+    assert!(f.data.ops.iter().all(|o| o.p.hatch.is_none()), "the pen test has no fill");
+    let json = serde_json::to_string(&f).unwrap();
+    assert!(!json.contains("hatch"), "no fill, nothing saved");
+    f.data.ops[0].p.hatch = Some(Hatch { angle: 30.0, gap: Some(0.8), cross: true, outline: false });
+    let back = load_project(&serde_json::to_string(&f).unwrap()).unwrap();
+    assert_eq!(back.data.ops[0].p.hatch, f.data.ops[0].p.hatch);
+    // a fill saved with only some of its settings gets the usual ones for the rest
+    let part: Hatch = serde_json::from_str("{\"cross\":true}").unwrap();
+    assert!(part.outline && part.angle == 45.0 && part.gap.is_none() && part.cross);
+}

@@ -611,8 +611,39 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.weak("mm above Z0");
                             if p.lift.is_some() && reset_button(ui, "Back to 2 mm") { p.lift = None; changed = true; }
                         });
+                        ui.add_space(4.0);
+                        let mut fill = p.hatch.is_some();
+                        if crate::widgets::check(ui, &mut fill, "Fill closed shapes with lines").tip("Draws parallel lines across every closed shape, as close together as the pen's line width unless you set it. A shape inside another is left empty").changed() {
+                            p.hatch = if fill { Some(putiacnc_core::model::Hatch::default()) } else { None };
+                            changed = true;
+                        }
+                        let pen_w = tools.iter().find(|t| t.id == p.tool).map(|t| t.dia).unwrap_or(0.4);
+                        if let Some(h) = p.hatch.as_mut() {
+                            ui.add_space(4.0);
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw3, "Angle");
+                                changed |= dv_r(ui, 48.0, &mut h.angle, -180.0, 180.0, "").tip("Direction of the lines: 0 runs along X, 90 along Y").changed();
+                                ui.weak("degrees");
+                            });
+                            ui.add_space(4.0);
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw3, "Spacing");
+                                let mut v = h.gap.unwrap_or(pen_w);
+                                if dv_r(ui, 48.0, &mut v, 0.05, 20.0, "").tip("Distance between the lines. The pen's own line width makes them just touch; more leaves paper showing (a lighter shade)").changed() { h.gap = Some(v); changed = true; }
+                                ui.weak("mm");
+                                if h.gap.is_some() && reset_button(ui, "Back to the pen's line width") { h.gap = None; changed = true; }
+                            });
+                            ui.add_space(4.0);
+                            ui.horizontal(|ui| {
+                                ui.add_space(6.0);
+                                changed |= crate::widgets::check(ui, &mut h.cross, "Cross-hatch").tip("A second set of lines at right angles: darker and more even").changed();
+                                changed |= crate::widgets::check(ui, &mut h.outline, "Outline").tip("Also draw the edge of each shape").changed();
+                            });
+                        }
                         ui.add_space(2.0);
-                        ui.weak("Draws every outline once. Set Z0 on the surface of the paper.");
+                        ui.weak(if p.hatch.is_some() { "Open lines are drawn as they are." } else { "Draws every outline once. Set Z0 on the surface of the paper." });
                     }
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
                         ui.add_space(4.0);

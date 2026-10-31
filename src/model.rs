@@ -288,7 +288,26 @@ pub struct OpParams {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub custom2: Option<CustomFeeds>,
     /// Draw (pen): how far above the paper the pen travels between strokes, in mm; `None` = 2 mm (never above the safe height).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub lift: Option<f64>,
+    /// Draw (pen): fill the closed shapes with lines instead of drawing only their outlines; `None` = outlines only.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub hatch: Option<Hatch>,
 }
+
+/// How a Draw operation fills closed shapes: parallel lines (and a second set across them when `cross`).
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Hatch {
+    /// Direction of the lines, degrees counter-clockwise from the X axis.
+    #[serde(default = "d_hatch_angle")] pub angle: f64,
+    /// Distance between the lines in mm; `None` = the pen's line width (the ink just touches).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub gap: Option<f64>,
+    /// A second set of lines at right angles.
+    #[serde(default)] pub cross: bool,
+    /// Also draw the outline of every shape.
+    #[serde(default = "d_true")] pub outline: bool,
+}
+
+fn d_hatch_angle() -> f64 { 45.0 }
+
+impl Default for Hatch { fn default() -> Self { Hatch { angle: 45.0, gap: None, cross: false, outline: true } } }
 
 /// Spindle speed (rpm), cutting feed, plunge feed (mm/min) and stepover (% of the diameter) of one operation that differ from its tool's.
 /// `None` = follow the tool, so changing the tool's value later still reaches the operation.

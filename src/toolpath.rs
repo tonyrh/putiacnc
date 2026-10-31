@@ -718,6 +718,16 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
         let v = path_f(&p, false, closed);
         if v.len() >= 2 { strokes.push((v, closed)); }
     }
+    if let Some(h) = &o.p.hatch {
+        let gap = h.gap.filter(|g| *g > 0.0).unwrap_or(tool.dia).max(0.05);
+        let polys: Vec<Vec<[f64; 2]>> = strokes.iter().filter(|(_, c)| *c).map(|(v, _)| v.clone()).collect();
+        if polys.is_empty() { notes.push(format!("{}there are no closed shapes to fill.", pre)); }
+        let mut lines = hatch_lines(&polys, h.angle, gap);
+        if h.cross { lines.extend(hatch_lines(&polys, h.angle + 90.0, gap)); }
+        if lines.len() > 200_000 { return Err(format!("Operation {}: the fill would need {} lines; use a wider line spacing", k + 1, lines.len())); }
+        if !h.outline { strokes.retain(|(_, c)| !*c); }
+        strokes.extend(lines.into_iter().map(|l| (l, false)));
+    }
     if strokes.is_empty() { notes.push(format!("{}nothing to draw.", pre)); return Ok(()); }
     select_pen(e, ts, mach, tool, sz);
     e.g.push(format!("(Operation {}: draw with {}, pen down at {} {} below Z0, up at {} {} above it)", k + 1, tool_label(&tool.name), num(to_fixed(o.p.depth.max(0.0) / e.ku, e.dec())), if e.imp { "in" } else { "mm" }, num(to_fixed(lift / e.ku, e.dec())), if e.imp { "in" } else { "mm" }));
@@ -753,6 +763,40 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
     e.pn = 0;
     e.go("G0", None, None, Some(sz), 0.0);
     Ok(())
+}
+
+/// Parallel lines `gap` apart at `angle` degrees that fill the closed polygons (even-odd: a shape inside another is a hole).
+/// Each line is cut where it enters and leaves the shapes, so one is a list of two-point strokes.
+fn hatch_lines(polys: &[Vec<[f64; 2]>], angle: f64, gap: f64) -> Vec<Vec<[f64; 2]>> {
+    let (s, c) = angle.to_radians().sin_cos();
+    // into a frame where the lines are horizontal
+    let to = |p: [f64; 2]| [p[0] * c + p[1] * s, -p[0] * s + p[1] * c];
+    let from = |p: [f64; 2]| [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
+    let rot: Vec<Vec<[f64; 2]>> = polys.iter().map(|v| v.iter().map(|&p| to(p)).collect()).collect();
+    let (mut y0, mut y1) = (f64::MAX, f64::MIN);
+    for p in rot.iter().flatten() { y0 = y0.min(p[1]); y1 = y1.max(p[1]); }
+    let mut out = vec![];
+    if y0 > y1 { return out; }
+    let mut row = 0usize;
+    let mut y = y0 + gap / 2.0;
+    while y < y1 {
+        let mut xs: Vec<f64> = vec![];
+        for v in &rot {
+            for w in v.windows(2) {
+                let (a, b) = (w[0], w[1]);
+                // half-open at the lower end, so a corner on the line counts once
+                if (a[1] <= y) != (b[1] <= y) { xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); }
+            }
+        }
+        xs.sort_by(|a, b| a.total_cmp(b));
+        let mut segs: Vec<[f64; 2]> = xs.chunks_exact(2).filter(|p| p[1] - p[0] > 0.05).map(|p| [p[0], p[1]]).collect();
+        // every other line runs the other way, so the pen travels back and forth
+        if row % 2 == 1 { segs.reverse(); for s in &mut segs { s.reverse(); } }
+        for s in segs { out.push(vec![from([s[0], y]), from([s[1], y])]); }
+        row += 1;
+        y = y0 + gap / 2.0 + row as f64 * gap;
+    }
+    out
 }
 
 /// A pause the operator asked for after an operation: lift, stop the spindle (if there is one), wait.
