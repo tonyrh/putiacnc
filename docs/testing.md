@@ -58,7 +58,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_CONFIG_DIR` | Where preferences and libraries are read and written. `shot.sh` uses a throwaway folder. |
 | `PUTIACNC_WIN=WxH` | Window size (the smallest allowed is about 1354 wide). |
 | `PUTIACNC_THEME=light\|dark` | Overrides the desktop theme. |
-| `PUTIACNC_VIEW=3d` | Opens the 3D preview. |
+| `PUTIACNC_VIEW=3d` | Opens the 3D preview. `PUTIACNC_VIEW=split` opens the 2D + 3D split view. |
 | `PUTIACNC_PLAY=0..1` (or `-n`: at the n-th stop for the operator), `PUTIACNC_SPEED=n`, `PUTIACNC_T_FILE=path` | Playback position, speed index, or a file whose number sets the time. |
 | `PUTIACNC_PART=n`, `PUTIACNC_GCODE_PART=n` | The 3D view or the G-code tab shows plug piece n (1 = the first; 0 = the main stock). |
 | `PUTIACNC_ZOOM=f` | Scales the 3D camera distance. |

@@ -7,7 +7,12 @@ use putiacnc_core::sim::Sim;
 use putiacnc_core::toolpath::Move;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ViewTab { Design, Preview }
+pub enum ViewTab { Design, Split, Preview }
+
+impl ViewTab {
+    /// True when the 3D preview is on screen (alone or beside the drawing).
+    pub fn has3d(self) -> bool { self != ViewTab::Design }
+}
 
 pub const SPEEDS: [(f64, &str); 6] = [(1.0, "1×"), (5.0, "5×"), (20.0, "20×"), (60.0, "60×"), (200.0, "200×"), (1000.0, "1000×")];
 const MAX_CELLS: usize = 800_000;
@@ -260,7 +265,19 @@ pub fn tabs_badged<T: PartialEq + Copy>(ui: &mut Ui, theme: &crate::theme::Theme
 
 pub fn tab_strip(ui: &mut Ui, app: &mut App) {
     let theme = app.theme;
-    tabs(ui, &theme, &mut app.view_tab, &[(ViewTab::Design, "2D design"), (ViewTab::Preview, "3D preview")]);
+    tabs(ui, &theme, &mut app.view_tab, &[(ViewTab::Design, "2D design"), (ViewTab::Split, "2D + 3D"), (ViewTab::Preview, "3D preview")]);
+}
+
+/// The playback bar under the 3D side of the split view: play, the slider, the speed.
+pub fn split_bar(ui: &mut Ui, app: &mut App) {
+    let h = ui.spacing().interact_size.y;
+    ui.horizontal(|ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            speed_box(ui, app, 64.0);
+            let w = ui.available_width().max(0.0);
+            ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| play_bar(ui, app));
+        });
+    });
 }
 
 /// Painted play / pause / restart glyphs.

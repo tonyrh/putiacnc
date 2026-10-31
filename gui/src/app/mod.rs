@@ -249,6 +249,8 @@ pub struct App {
     pub fit_pending: bool,
     /// Fit the 3D view (menu or F key while the 3D preview is open).
     pub fit3d_pending: bool,
+    /// Where the 3D side of the split view was drawn last frame (None when the split is not showing).
+    pub split_rect: Option<eframe::egui::Rect>,
     pub drag: Drag,
     /// The selection shows rotate handles instead of resize handles (click a selected shape again).
     pub rotate_mode: bool,
@@ -312,7 +314,7 @@ impl App {
             imperial: false, gcode_part: 0, sel: BTreeSet::new(), collapsed: BTreeSet::new(), tab_edit: None, tab_drag: None, node_edit: None, node_sel: BTreeSet::new(), node_drag: NodeDrag::None, node_tol: 0.05, node_msg: String::new(), offset_open: false, clean: Default::default(), show_open_ends: false, notes: Vec::new(), tool_note: None, banner_level: None, tool_wins_seen: Vec::new(), offset_mm: 1.0, offset_inward: false, offset_keep: true, text: Default::default(), trace: Default::default(), model3d: Default::default(), combine_open: false, array: Default::default(), corners: Default::default(), fingers: Default::default(), boxgen: Default::default(), prefs: Default::default(), prefs_saved: Default::default(), shortcuts_open: false, about_open: false, gl_info: String::new(), zoom_act: None, empty_ops: vec![], about_icon: None, combine_op: shapes::BoolOp::Union, combine_keep: false, combine_swap: false, mode: Mode::Select, hist: History::default(), modified: false,
             gen_pending: true, gen_rx: None, gen_started: None, checks: vec![], checks_ver: 0, check_parts: vec![], clamp_hits: vec![], checks_rx: None, checks_open: std::env::var_os("PUTIACNC_SHOW_CHECKS").is_some(), time_open: std::env::var_os("PUTIACNC_SHOW_TIME").is_some(), check_sel: None, gen_ms: 0.0, show_toolpath: true, show_rapids: false, show_machine_area: true, show_rulers: true, show_axes: false, show_badges: true, show_clamps: true, tab: if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else if std::env::var_os("PUTIACNC_TAB_NOTES").is_some() { RightTab::Info } else { RightTab::Ops },
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, fit_extra: 0.0, view_touched: false, canvas_right: 0.0, canvas_left: 0.0, ghost: Default::default(), preview_on: true, bars_bottom: 0.0, align_btn: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
-            scale: 2.0, offset: Vec2::ZERO, fit_pending: true, fit3d_pending: false, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
+            scale: 2.0, offset: Vec2::ZERO, fit_pending: true, fit3d_pending: false, split_rect: None, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], last_title: String::new(),
             show_left: true, show_right: true, squeezed: (false, false), last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
@@ -327,7 +329,7 @@ impl App {
         a.modified = false;
         if let Ok(h) = std::env::var("PUTIACNC_HIDE") { a.show_left = !h.contains("left"); a.show_right = !h.contains("right"); a.show_machine_area = !h.contains("machine"); if h.contains("toolpaths") { a.show_toolpath = false; } }
         if std::env::var_os("PUTIACNC_SHOW_CONFIRM").is_some() { a.modified = true; a.pending = Some(Action::Quit); }
-        if std::env::var("PUTIACNC_VIEW").is_ok_and(|v| v == "3d") { a.view_tab = crate::view3d::ViewTab::Preview; }
+        match std::env::var("PUTIACNC_VIEW").as_deref() { Ok("3d") => a.view_tab = crate::view3d::ViewTab::Preview, Ok("split") => a.view_tab = crate::view3d::ViewTab::Split, _ => {} }
         // PUTIACNC_PART=n: the 3D view shows a separate piece of stock (1 = the first), 0 = the main stock
         if let Some(n) = std::env::var("PUTIACNC_PART").ok().and_then(|v| v.parse::<usize>().ok()) { a.v3.part = n; }
         // PUTIACNC_GCODE_PART=n: the G-code tab shows that piece (1 = the first plug piece)
@@ -895,4 +897,17 @@ impl App {
     }
     /// The setting `tool_speed` reads, for the "Speeds in" box to change.
     pub fn tool_speed_slot(&mut self) -> &mut usize { if self.tool_len_in { &mut self.tool_speed_in } else { &mut self.tool_speed_mm } }
+}
+
+
+impl App {
+    /// Shows the 3D preview: switches to it from the drawing, and leaves the split view as it is.
+    pub fn show_in_3d(&mut self) {
+        if self.view_tab == crate::view3d::ViewTab::Design { self.view_tab = crate::view3d::ViewTab::Preview; }
+    }
+
+    /// True when the pointer is over the 3D side of the split view: zoom and fit keys then belong to it, not to the drawing.
+    pub fn pointer_in_3d(&self, ctx: &eframe::egui::Context) -> bool {
+        self.split_rect.is_some_and(|r| ctx.pointer_hover_pos().is_some_and(|p| r.contains(p)))
+    }
 }

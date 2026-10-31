@@ -67,7 +67,7 @@ pub fn show_in_3d(app: &mut App, i: usize) {
     app.check_sel = Some(i);
     app.v3.part = app.check_parts.get(i).copied().unwrap_or(0);
     app.v3.goto_mv = Some(mv);
-    app.view_tab = crate::view3d::ViewTab::Preview;
+    app.show_in_3d();
     let st = &mut app.v3;
     st.playing = false;
 }

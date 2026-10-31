@@ -118,6 +118,27 @@ fn the_preview_of_a_busy_toolpath_keeps_a_usable_frame_time() {
 }
 
 #[test]
+fn the_split_view_with_a_busy_toolpath_costs_about_the_two_views_together() {
+    let release = !cfg!(debug_assertions);
+    let mut a = busy_project(if release { 12 } else { 4 });
+    crate::fuzz::settle(&mut a).expect("the toolpath settles");
+    let ctx = egui::Context::default();
+    let mut clock = 0.0;
+    let mut median_of = |a: &mut App, tab| {
+        a.view_tab = tab;
+        for _ in 0..20000 {
+            frame(&ctx, a, &mut clock);
+            if tab == crate::view3d::ViewTab::Design || (a.v3.sim.is_some() && !a.v3.catching_up && a.v3.ver == a.out_ver) { break; }
+        }
+        stats((0..40).map(|_| frame(&ctx, a, &mut clock)).collect()).median
+    };
+    let (d, p, sp) = (median_of(&mut a, crate::view3d::ViewTab::Design), median_of(&mut a, crate::view3d::ViewTab::Preview), median_of(&mut a, crate::view3d::ViewTab::Split));
+    eprintln!("idle frame, median: 2D {d:.1} ms, 3D {p:.1} ms, split {sp:.1} ms");
+    assert!(a.split_rect.is_some(), "the split view was drawn");
+    if release { assert!(sp < 1.5 * (d + p) + 20.0, "the split view costs {sp:.0} ms where the two views alone cost {d:.0} and {p:.0}"); }
+}
+
+#[test]
 #[ignore]
 fn frame_times_for_small_medium_and_large_toolpaths() {
     for n in [4, 12, 30, 60] {

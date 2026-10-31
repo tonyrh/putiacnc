@@ -174,8 +174,9 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             zact = crate::zoomcard::row(ui, "zoomcard3d", fit / app.v3.dist.max(1e-3), false, Vec2::new(30.0, 30.0), crate::zoomcard::ROW3_W - 2.0 * 30.0 - 2.0 * 4.0, 4.0);
         });
     });
-    let key_fit = ctx.input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ctx.wants_keyboard_input();
-    let act = zact.or_else(|| fit_click.then_some(crate::zoomcard::Act::Fit)).or_else(|| crate::zoomcard::keys(ctx)).or_else(|| (std::mem::take(&mut app.fit3d_pending) || key_fit).then_some(crate::zoomcard::Act::Fit));
+    let mine = app.view_tab != crate::view3d::ViewTab::Split || app.pointer_in_3d(ctx);
+    let key_fit = mine && ctx.input(|i| i.key_pressed(egui::Key::F) && !i.modifiers.command && !i.modifiers.alt) && !ctx.wants_keyboard_input();
+    let act = zact.or_else(|| fit_click.then_some(crate::zoomcard::Act::Fit)).or_else(|| if mine { crate::zoomcard::keys(ctx) } else { None }).or_else(|| (std::mem::take(&mut app.fit3d_pending) || key_fit).then_some(crate::zoomcard::Act::Fit));
     match act {
         Some(crate::zoomcard::Act::By(f)) => { app.v3.anim = None; app.v3.dist = (app.v3.dist / f).clamp(5.0, 20000.0); }
         Some(crate::zoomcard::Act::To(t)) => { app.v3.anim = None; app.v3.dist = (fit / t.max(1e-3)).clamp(5.0, 20000.0); }

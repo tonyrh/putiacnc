@@ -159,8 +159,10 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
 
     // the tool palette wrapped to another row (or back): frame the stock again below it, unless the view was moved by hand
     if !app.view_touched && (app.palette_extra - app.fit_extra).abs() > 0.5 { app.fit_pending = true; }
-    let key_act = crate::zoomcard::keys(&ctx);
-    if app.fit_pending || key_act == Some(crate::zoomcard::Act::Fit) || (!ctx.wants_keyboard_input() && ctx.input(|i| i.key_pressed(Key::F))) {
+    // beside the 3D view, the keys go to whichever the pointer is over
+    let mine = !app.pointer_in_3d(&ctx);
+    let key_act = if mine { crate::zoomcard::keys(&ctx) } else { None };
+    if app.fit_pending || key_act == Some(crate::zoomcard::Act::Fit) || (mine && !ctx.wants_keyboard_input() && ctx.input(|i| i.key_pressed(Key::F))) {
         let (scale, offset) = fit_view(app, rect);
         app.scale = scale; app.offset = offset;
         app.fit_pending = false; app.fit_extra = app.palette_extra; app.view_touched = false;

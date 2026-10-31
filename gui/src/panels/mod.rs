@@ -182,7 +182,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     if let Some(i) = clicked {
         app.v3.part = app.gcode_part;
         app.v3.goto_line = Some(i);
-        app.view_tab = crate::view3d::ViewTab::Preview;
+        app.show_in_3d();
     }
 }
 

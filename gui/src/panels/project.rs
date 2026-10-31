@@ -235,7 +235,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     // the buttons that add operations stay put above the list; only the list scrolls
     let mut add_kind: Option<&str> = None;
     // the eye only changes the 3D preview, so it is only there while that tab is open
-    let in3d = app.view_tab == crate::view3d::ViewTab::Preview;
+    let in3d = app.view_tab.has3d();
     if ops {
         let d = &app.project.data;
         let sel = &app.sel;
