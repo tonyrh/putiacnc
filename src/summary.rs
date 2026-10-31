@@ -71,6 +71,12 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
         rows.push(row("Start", t + ".", false));
     }
 
+    // a pen plotter: nothing spins
+    let plotter = l.iter().any(|x| x.starts_with("(Pen:")) && !l.iter().any(|x| x.starts_with("M3 "));
+    if plotter {
+        rows.push(row("Spindle", "Stays off: the pen draws. Put the paper under it, set Z0 on the paper's surface, and make sure the pen is held so that it can lift and lower by Z alone.".to_string(), false));
+    }
+
     // tools: the names from the operations, and where the program stops for a change
     let mut names: Vec<String> = Vec::new();
     if !piece {
@@ -106,16 +112,18 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     let pauses: Vec<String> = l.iter().filter_map(|x| crate::toolpath::stop_message(x)).filter(|m| !m.starts_with("Change tool to "))
         .map(|m| format!("\u{201c}{m}\u{201d}")).collect();
     if !pauses.is_empty() {
-        rows.push(row("Pauses", format!("The program stops {} time{} with the spindle off: {}. Resume it when you are ready; the spindle starts again by itself.", pauses.len(), if pauses.len() == 1 { "" } else { "s" }, pauses.join(", ")), false));
+        let tail = if plotter { "Resume it when you are ready." } else { "Resume it when you are ready; the spindle starts again by itself." };
+        let spindle_off = if plotter { "" } else { " with the spindle off" };
+        rows.push(row("Pauses", format!("The program stops {} time{}{}: {}. {}", pauses.len(), if pauses.len() == 1 { "" } else { "s" }, spindle_off, pauses.join(", "), tail), false));
     }
 
     // how deep, how much, how long
     let deepest = l.iter().filter(|x| x.starts_with("G1 ")).filter_map(|x| word(x, 'Z')).fold(f64::MAX, f64::min);
     let k = units.factor();
     let mut t = String::new();
-    if deepest < f64::MAX { t += &format!("Down to Z {} {}. ", crate::toolpath::num(deepest), un); }
-    t += &format!("{} {} of cutting, about {} in all.", crate::toolpath::num(crate::toolpath::to_fixed(out.cut_len_mm / k, if k == 1.0 { 0 } else { 1 })), un, duration(out.time_min));
-    rows.push(row("Cutting", t, false));
+    if deepest < f64::MAX { t += &format!("{} Z {} {}. ", if plotter { "Pen down at" } else { "Down to" }, crate::toolpath::num(deepest), un); }
+    t += &format!("{} {} of {}, about {} in all.", crate::toolpath::num(crate::toolpath::to_fixed(out.cut_len_mm / k, if k == 1.0 { 0 } else { 1 })), un, if plotter { "drawing" } else { "cutting" }, duration(out.time_min));
+    rows.push(row(if plotter { "Drawing" } else { "Cutting" }, t, false));
 
     // the end
     let tail = &l[l.len().saturating_sub(6)..];
@@ -144,7 +152,7 @@ pub fn add_header(out: &mut Output, data: &ProjectData, units: Units, piece: boo
     let rows = describe(data, out, units, piece);
     let mut head = vec!["(Summary, written by PutiaCNC)".to_string()];
     for r in &rows {
-        let text: String = crate::toolpath::tool_label(&r.text.replace(['\u{201c}', '\u{201d}'], "\"").replace('\u{2019}', "'"));
+        let text: String = crate::toolpath::tool_label(&r.text.replace(['\u{201c}', '\u{201d}'], "'").replace('\u{2019}', "'"));
         let mut first = true;
         let mut line = String::new();
         let mut flush = |line: &mut String, first: &mut bool| {

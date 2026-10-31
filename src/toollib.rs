@@ -4,9 +4,9 @@ use crate::model::{Operation, Tool};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-pub const SHAPES: [(&str, &str); 7] = [
+pub const SHAPES: [(&str, &str); 8] = [
     ("flat", "Flat end mill"), ("ball", "Ball nose"), ("bull", "Bull nose"),
-    ("vbit", "V-bit"), ("engrave", "Engraving bit"), ("taper", "Tapered ball nose"), ("arc", "Arc profile bit"),
+    ("vbit", "V-bit"), ("engrave", "Engraving bit"), ("taper", "Tapered ball nose"), ("arc", "Arc profile bit"), ("pen", "Pen / marker"),
 ];
 
 /// Ready-made libraries shipped inside the app: (library name, `putia-cnc-tools` file). The same files are in `libraries/`.
@@ -35,6 +35,7 @@ pub fn category(shape: &str) -> (usize, &'static str) {
         "ball" | "taper" => (2, "Ball-nose & tapered bits"),
         "vbit" | "engrave" => (3, "V-grooving & engraving bits"),
         "arc" => (4, "Decorative & profile bits"),
+        "pen" => (5, "Pens & markers"),
         _ => (0, "Straight bits"),
     }
 }
@@ -354,7 +355,7 @@ mod tests {
     use crate::model::OpParams;
 
     fn op(id: i64, tool: &str) -> Operation {
-        Operation { id, p: OpParams { kind: "outside".into(), dir: "climb".into(), depth: 1.0, ramp: true, tool: tool.into(), tabs: false, air: false, tab_n: None, tab_w: None, tab_h: None, tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None, piece: None, d_man: false, r_off: false, f_off: false, r_leave: None, r_so: None, f_so: None, pause: None, custom: None, custom2: None } }
+        Operation { id, p: OpParams { kind: "outside".into(), dir: "climb".into(), depth: 1.0, ramp: true, tool: tool.into(), tabs: false, air: false, tab_n: None, tab_w: None, tab_h: None, tab_pts: None, pass_depth: None, lead: None, tool2: None, fit: None, piece: None, d_man: false, r_off: false, f_off: false, r_leave: None, r_so: None, f_so: None, pause: None, custom: None, custom2: None, lift: None } }
     }
 
     #[test]
@@ -485,7 +486,7 @@ mod category_tests {
     use super::*;
     #[test]
     fn every_shape_has_a_group() {
-        for (k, _) in SHAPES { assert!(category(k).0 <= 4, "{k}"); }
+        for (k, _) in SHAPES { assert!(category(k).0 <= 5, "{k}"); }
         assert_ne!(category("vbit").1, category("flat").1);
     }
 }

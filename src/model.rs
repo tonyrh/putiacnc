@@ -242,7 +242,7 @@ pub struct Operation { pub id: i64, pub p: OpParams }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct OpParams {
-    /// outside, inside, online, pocket, vcarve, drill, inlay (pocket) or plug (inlay plug).
+    /// outside, inside, online, pocket, vcarve, drill, inlay (pocket), plug (inlay plug), relief or draw (a pen).
     #[serde(rename = "type", default = "d_outside")] pub kind: String,
     #[serde(default = "d_climb")] pub dir: String,
     pub depth: f64,
@@ -286,6 +286,8 @@ pub struct OpParams {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub custom: Option<CustomFeeds>,
     /// The same for the second tool (the flat end mill of an inlay); `None` = the tool's own.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub custom2: Option<CustomFeeds>,
+    /// Draw (pen): how far above the paper the pen travels between strokes, in mm; `None` = 2 mm (never above the safe height).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub lift: Option<f64>,
 }
 
 /// Spindle speed (rpm), cutting feed, plunge feed (mm/min) and stepover (% of the diameter) of one operation that differ from its tool's.

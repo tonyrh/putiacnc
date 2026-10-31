@@ -27,6 +27,8 @@ pub struct Sim {
     part: f64,
     /// Per operation: its moves are left out of the replay.
     pub skip: Vec<bool>,
+    /// Operations that draw with a pen: they take nothing off the stock.
+    draws: Vec<bool>,
 }
 
 impl Sim {
@@ -56,7 +58,7 @@ impl Sim {
                 None => (0.0, vec![0.0]),
             }
         }).collect();
-        Sim { nx, ny, cell, w: st.w, h: st.h, t: st.t, z: vec![0.0; nx * ny], done: 0, tools, tip: [0.0, 0.0, 10.0], rev: 0, part: 0.0, skip: vec![] }
+        Sim { nx, ny, cell, w: st.w, h: st.h, t: st.t, z: vec![0.0; nx * ny], done: 0, tools, tip: [0.0, 0.0, 10.0], rev: 0, part: 0.0, skip: vec![], draws: data.ops.iter().map(|o| o.p.kind == "draw").collect() }
     }
 
     pub fn reset(&mut self) { self.z.iter_mut().for_each(|v| *v = 0.0); self.done = 0; self.part = 0.0; self.rev += 1; }
@@ -151,7 +153,7 @@ impl Sim {
     }
 
     fn stamp_move(&mut self, m: &Move, f0: f64, f1: f64) {
-        if !m.cut || f1 <= f0 || self.skip.get(m.op).copied().unwrap_or(false) { return; }
+        if !m.cut || f1 <= f0 || self.skip.get(m.op).copied().unwrap_or(false) || self.draws.get(m.op).copied().unwrap_or(false) { return; }
         let slot = m.op * 2 + m.alt as usize;
         // when the cutter never gets lower further out (almost every tool), the move is swept in level pieces: one piece for a level move,
         // pieces at most 0.01 mm apart in height for a ramp (each cut at its lower end, so a ramp is never left too high), and one piece at

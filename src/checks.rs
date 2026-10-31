@@ -149,7 +149,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
     let mut deepest: Vec<Option<(f64, usize)>> = vec![None; data.ops.len()];
     let mut lowest: Option<(f64, usize)> = None;
     for (i, m) in out.moves.iter().enumerate() {
-        if !m.cut { continue; }
+        if !m.cut || data.ops.get(m.op).is_some_and(|o| o.p.kind == "draw") { continue; }
         let z = m.from[2].min(m.to[2]);
         if let Some(d) = deepest.get_mut(m.op) { if d.is_none_or(|(v, _)| z < v) { *d = Some((z, i)); } }
         if lowest.is_none_or(|(v, _)| z < v) { lowest = Some((z, i)); }

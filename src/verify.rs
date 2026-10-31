@@ -71,11 +71,14 @@ pub fn trace(lines: &[String]) -> Trace {
     let (mut spindle, mut spindle_s): (bool, Option<f64>) = (false, None);
     let mut feed: Option<f64> = None;
     let mut seen_sideways = false;
+    // a pen plotter draws with the spindle off: the program says so with a comment, until the next M3
+    let mut pen = false;
 
     for (n, raw) in lines.iter().enumerate() {
         let line_no = n + 1;
         // (the text of a comment may say anything, so only the part before one is looked at)
         let code = raw.split(['(', ';']).next().unwrap_or("");
+        if raw.contains("(Pen:") { pen = true; }
         if code.len() >= 3 && (code.contains("NaN") || code.contains("nan") || code.contains("inf") || code.contains("Inf")) { flag("nan", line_no); continue; }
         let w = words(raw);
         let g: Vec<i64> = w.iter().filter(|x| x.0 == 'G').map(|x| x.1.round() as i64).collect();
@@ -91,6 +94,7 @@ pub fn trace(lines: &[String]) -> Trace {
         }
         if m.contains(&3) || m.contains(&4) {
             spindle = true;
+            pen = false;
             if !spindle_s.is_some_and(|s| s > 0.0) { flag("s0", line_no); }
         }
         if m.contains(&5) || m.contains(&2) || m.contains(&30) { spindle = false; }
@@ -112,7 +116,7 @@ pub fn trace(lines: &[String]) -> Trace {
             if pos[2].is_none() && z.is_none() { flag("nolift", line_no); }
         }
         if cut {
-            if !spindle { flag("spindle", line_no); }
+            if !spindle && !pen { flag("spindle", line_no); }
             if mode == 1 && !feed.is_some_and(|f| f > 0.0) { flag("feed", line_no); }
         }
         let to = [x.map(|v| v * k).or(pos[0]), y.map(|v| v * k).or(pos[1]), z.map(|v| v * k).or(pos[2])];

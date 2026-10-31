@@ -645,7 +645,7 @@ pub fn stop_message(line: &str) -> Option<&str> {
 /// Which tool is in the spindle, and the Mach3 / LinuxCNC tool numbers (in order of first use).
 #[derive(Default)]
 /// `r` is the spindle speed that is running; `None` while the spindle is stopped (the next tool selection starts it again).
-struct ToolSt { d: Option<f64>, r: Option<f64>, t: Option<String>, ids: Vec<String> }
+struct ToolSt { d: Option<f64>, r: Option<f64>, t: Option<String>, ids: Vec<String>, spun: bool }
 
 /// Emit what it takes to start cutting with `tool`: spindle start, or a tool change when another tool was in.
 fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, dia_txt: &str, un: &str) {
@@ -655,6 +655,7 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
     let tname = tool_label(&tool.name);
     let m6 = format!("T{} M6 (Tool {}: {})", tno, tno, tname);
     let rpm = tool.rpm;
+    st.spun = true;
     match st.d {
         None => {
             if mach { e.g.push(m6); } else { e.g.push(format!("(Tool: {})", tname)); }
@@ -672,6 +673,98 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
         _ => {}
     }
     st.d = Some(tool.dia); st.r = Some(rpm); st.t = Some(tool.id.clone()); e.lf = None;
+}
+
+/// Emit what it takes to start drawing with a pen: no spindle, ever. A tool change when another tool was in (the spindle stops first
+/// if it ever ran), and a marker line the checker reads so that it does not call the moves "cutting with the spindle off".
+fn select_pen(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64) {
+    if !st.ids.contains(&tool.id) { st.ids.push(tool.id.clone()); }
+    let tno = st.ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
+    let tname = tool_label(&tool.name);
+    let m6 = format!("T{} M6 (Tool {}: {})", tno, tno, tname);
+    match &st.t {
+        None => { if mach { e.g.push(m6); } else { e.g.push(format!("(Tool: {})", tname)); } }
+        Some(t) if *t != tool.id => {
+            e.go("G0", None, None, Some(sz), 0.0);
+            if st.spun { e.g.push("M5".into()); }
+            if mach { e.g.push(m6); }
+            else { e.g.push(stop_line(false, &format!("Change tool to the pen {}, then touch off Z0 on the paper and resume", tname))); e.g.push(format!("(Tool: {})", tname)); }
+        }
+        _ => {}
+    }
+    e.g.push("(Pen: the spindle stays off)".into());
+    st.d = Some(tool.dia); st.r = None; st.t = Some(tool.id.clone()); e.lf = None;
+}
+
+/// A Draw operation: the pen follows the outline of every shape once, down at Z0 (a little below it for a spring-loaded holder),
+/// lifted a few millimetres between strokes. The strokes are ordered nearest first so the pen travels as little as it can.
+fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, o: &Operation, k: usize, mach: bool, mine: &[&LoopData]) -> Result<(), String> {
+    let pre = format!("Op {}: ", k + 1);
+    let tool = data.tools.iter().find(|t| t.id == o.p.tool).ok_or_else(|| format!("Operation {}: choose a pen (Manage… to create one)", k + 1))?;
+    if tool.shape != "pen" { return Err(format!("Operation {}: Draw needs a pen or marker; choose one in Manage… (type: Pen / marker)", k + 1)); }
+    if !(tool.feed > 0.0 && tool.plunge > 0.0) { return Err(format!("Operation {}: check the pen's draw speed and pen-down speed", k + 1)); }
+    let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };
+    let sz = data.job.safe + z0;
+    let down = z0 - o.p.depth.max(0.0);
+    let lift = o.p.lift.filter(|v| *v > 0.0).unwrap_or(2.0).min(data.job.safe.max(0.1));
+    let up = z0 + lift;
+    // what is drawn: every outline, closed or open; a drill point has none
+    let mut strokes: Vec<(Vec<[f64; 2]>, bool)> = vec![];
+    for l in mine {
+        let n = l.pts.len() / 2;
+        if n < 2 { continue; }
+        let p = l.path();
+        let closed = l.closed() && n > 2;
+        let v = path_f(&p, false, closed);
+        if v.len() >= 2 { strokes.push((v, closed)); }
+    }
+    if strokes.is_empty() { notes.push(format!("{}nothing to draw.", pre)); return Ok(()); }
+    select_pen(e, ts, mach, tool, sz);
+    e.g.push(format!("(Operation {}: draw with {}, pen down at {} {} below Z0, up at {} {} above it)", k + 1, tool_label(&tool.name), num(to_fixed(o.p.depth.max(0.0) / e.ku, e.dec())), if e.imp { "in" } else { "mm" }, num(to_fixed(lift / e.ku, e.dec())), if e.imp { "in" } else { "mm" }));
+    e.go("G0", None, None, Some(sz), 0.0);
+    let mut here = [e.cur[0], e.cur[1]];
+    let mut todo = strokes;
+    let mut idx = 0;
+    while !todo.is_empty() {
+        // the stroke whose start (or end, for an open path; or any corner, for a closed one) is nearest the pen
+        let d2 = |a: [f64; 2]| (a[0] - here[0]).powi(2) + (a[1] - here[1]).powi(2);
+        let mut best = (f64::MAX, 0usize, 0usize, false); // distance, stroke, start vertex, reversed
+        for (i, (v, closed)) in todo.iter().enumerate() {
+            if *closed { for (j, q) in v.iter().enumerate().take(v.len() - 1) { let d = d2(*q); if d < best.0 { best = (d, i, j, false); } } }
+            else {
+                let (a, b) = (d2(v[0]), d2(v[v.len() - 1]));
+                if a < best.0 { best = (a, i, 0, false); }
+                if b < best.0 { best = (b, i, 0, true); }
+            }
+        }
+        let (_, i, j, rev) = best;
+        let (mut v, closed) = todo.remove(i);
+        if closed { v.pop(); v.rotate_left(j); let a = v[0]; v.push(a); }
+        if rev { v.reverse(); }
+        idx += 1;
+        e.pn = idx;
+        let a = v[0];
+        e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+        e.go("G1", None, None, Some(down), tool.plunge);
+        for q in &v[1..] { e.go("G1", Some(q[0]), Some(q[1]), Some(down), tool.feed); }
+        e.go("G0", None, None, Some(up), 0.0);
+        here = *v.last().expect("a stroke has points");
+    }
+    e.pn = 0;
+    e.go("G0", None, None, Some(sz), 0.0);
+    Ok(())
+}
+
+/// A pause the operator asked for after an operation: lift, stop the spindle (if there is one), wait.
+fn op_pause(e: &mut Em, ts: &mut ToolSt, o: &Operation, k: usize, mach: bool, sz: f64) {
+    if let Some(msg) = &o.p.pause {
+        let msg: String = msg.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect::<String>().trim().chars().take(80).collect();
+        e.go("G0", None, None, Some(sz), 0.0);
+        if ts.spun { e.g.push("M5".into()); }
+        e.g.push(stop_line(mach, &if msg.is_empty() { format!("Operation {} done: resume when ready", k + 1) } else { msg }));
+        ts.r = None;
+        e.lf = None;
+    }
 }
 
 /// Trace closed rings with a V-bit, each at its own depth (the tip's Z).
@@ -945,8 +1038,15 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             if mine.len() < n { notes.push(format!("{}{} drill point(s) skipped: only Drill operations use points.", pre, n - mine.len())); }
         }
         if mine.is_empty() { notes.push(format!("Op {} has no shapes.", k + 1)); continue; }
+        if o.p.kind == "draw" {
+            draw_op(&mut e, &mut ts, &mut notes, data, o, k, mach, &mine)?;
+            op_pause(&mut e, &mut ts, o, k, mach, data.job.safe + if o.p.air || data.job.air { 10.0 } else { 0.0 });
+            any = true;
+            continue;
+        }
         let tool = data.tools.iter().find(|t| t.id == o.p.tool)
             .ok_or_else(|| format!("Operation {}: choose a tool (Manage… to create one)", k + 1))?;
+        if tool.shape == "pen" { return Err(format!("Operation {}: a pen only draws; use a Draw operation for it, or choose a cutting tool", k + 1)); }
         // this operation's own feeds and speeds, held to the machine's limits like the tool's
         let tool_own;
         let tool = match &o.p.custom {
@@ -1230,18 +1330,12 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             e.lead_skipped = 0;
         }
         // a pause the operator asked for: lift, stop the spindle, wait; the next operation starts the spindle again
-        if let Some(msg) = &o.p.pause {
-            let msg: String = msg.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect::<String>().trim().chars().take(80).collect();
-            e.go("G0", None, None, Some(sz), 0.0);
-            e.g.push("M5".into());
-            e.g.push(stop_line(mach, &if msg.is_empty() { format!("Operation {} done: resume when ready", k + 1) } else { msg }));
-            ts.r = None;
-            e.lf = None;
-        }
+        op_pause(&mut e, &mut ts, o, k, mach, sz);
         any = true;
     }
     if !any { return Err(format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" "))); }
-    e.g.push("M5".into()); e.g.push("G0 X0 Y0".into()); e.g.push(if mach { "M30" } else { "M2" }.into());
+    if ts.spun { e.g.push("M5".into()); }
+    e.g.push("G0 X0 Y0".into()); e.g.push(if mach { "M30" } else { "M2" }.into());
     let cut_len: f64 = e.moves.iter().filter(|m| m.cut).map(|m| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt()).sum();
     if machine.arcs == Some(true) {
         let (lines, n) = crate::arcs::fit_arcs(&e.g, e.dec(), ku);
