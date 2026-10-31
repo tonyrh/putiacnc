@@ -13,10 +13,11 @@ pub struct FingerTool {
     pub clearance: f64,
     pub dogbone: bool,
     pub dia: f64,
+    pub auto: bool,
 }
 
 impl Default for FingerTool {
-    fn default() -> Self { FingerTool { open: false, edges: [Edge::Tabs, Edge::Flat, Edge::Flat, Edge::Flat], width: 10.0, clearance: 0.05, dogbone: false, dia: 3.175 } }
+    fn default() -> Self { FingerTool { open: false, edges: [Edge::Tabs, Edge::Flat, Edge::Flat, Edge::Flat], width: 10.0, clearance: 0.05, dogbone: false, dia: 3.175, auto: true } }
 }
 
 const NAMES: [&str; 4] = ["Bottom", "Right", "Top", "Left"];
@@ -66,7 +67,8 @@ impl App {
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.fingers.open { app.ghost.clear_if("fingers"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "fingers") { app.tool_note = None; } return; }
     let ft = &app.fingers;
-    let (edges, width, clearance, dog) = (ft.edges, ft.width, ft.clearance, ft.dogbone.then_some(ft.dia));
+    let dia = crate::corners::cutter_dia(ft.auto, app.sel_cutter_dia(), ft.dia);
+    let (edges, width, clearance, dog) = (ft.edges, ft.width, ft.clearance, ft.dogbone.then_some(dia));
     let key: Vec<u64> = edges.iter().map(|e| *e as u64).chain([crate::preview::bits(width), crate::preview::bits(clearance), crate::preview::bits(dog.unwrap_or(0.0))]).collect();
     app.preview("fingers", &key, move |a| a.finger_selection(edges, width, clearance, dog));
     let pnote = app.ghost.note_of("fingers").filter(|_| !app.sel.is_empty()).map(String::from);
@@ -101,9 +103,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.horizontal(|ui| { crate::widgets::num(ui, [70.0, 24.0], &mut app.fingers.clearance, 0.0, 2.0, 0.01, 2, "").tip("How much wider a slot is than its tab, for the cutting kerf and a sliding fit"); ui.weak("mm"); });
             ui.end_row();
             if app.fingers.dogbone {
-                crate::toolmgr::rlabel(ui, lw, "Cutter");
-                ui.horizontal(|ui| { crate::widgets::num(ui, [70.0, 24.0], &mut app.fingers.dia, 0.1, 50.0, 0.25, 3, ""); ui.weak("mm"); });
-                ui.end_row();
+                let (od, tools) = (app.sel_cutter_dia(), app.cutter_choices());
+                let c = &mut app.fingers;
+                crate::corners::cutter_row(ui, lw, &mut c.dia, &mut c.auto, od, &tools);
             }
         });
         crate::widgets::check(ui, &mut app.fingers.dogbone, "Dogbones in the slots").tip("A small round relief in each slot corner so a round cutter leaves room for the square tab");
@@ -121,7 +123,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     });
     if apply {
         let ft = &app.fingers;
-        let (edges, width, clearance, dog) = (ft.edges, ft.width, ft.clearance, ft.dogbone.then_some(ft.dia));
+        let dia = crate::corners::cutter_dia(ft.auto, app.sel_cutter_dia(), ft.dia);
+        let (edges, width, clearance, dog) = (ft.edges, ft.width, ft.clearance, ft.dogbone.then_some(dia));
         app.ghost.clear();
         if app.run_tool("fingers", |a| a.finger_selection(edges, width, clearance, dog)) { app.fingers.open = false; }
     }

@@ -5,10 +5,10 @@ use eframe::egui;
 use putiacnc_core::joints::{self, BoxSpec};
 use putiacnc_core::shapes;
 
-pub struct BoxTool { pub open: bool, pub w: f64, pub d: f64, pub h: f64, pub finger: f64, pub clearance: f64, pub lid: bool, pub dogbone: bool, pub dia: f64, pub cut: bool }
+pub struct BoxTool { pub open: bool, pub w: f64, pub d: f64, pub h: f64, pub finger: f64, pub clearance: f64, pub lid: bool, pub dogbone: bool, pub dia: f64, pub cut: bool, pub auto: bool }
 
 impl Default for BoxTool {
-    fn default() -> Self { BoxTool { open: false, w: 120.0, d: 80.0, h: 50.0, finger: 10.0, clearance: 0.05, lid: false, dogbone: false, dia: 3.175, cut: true } }
+    fn default() -> Self { BoxTool { open: false, w: 120.0, d: 80.0, h: 50.0, finger: 10.0, clearance: 0.05, lid: false, dogbone: false, dia: 3.175, cut: true, auto: true } }
 }
 
 impl App {
@@ -53,7 +53,8 @@ impl App {
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.boxgen.open { app.ghost.clear_if("box"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "box") { app.tool_note = None; } return; }
     let spec = |a: &App| BoxSpec { w: a.boxgen.w, d: a.boxgen.d, h: a.boxgen.h, t: a.project.data.stock.t, finger: a.boxgen.finger, clearance: a.boxgen.clearance, lid: a.boxgen.lid };
-    let (s, dog, cut) = (spec(app), app.boxgen.dogbone.then_some(app.boxgen.dia), app.boxgen.cut);
+    let dia = crate::corners::cutter_dia(app.boxgen.auto, app.inherited_cutter_dia(), app.boxgen.dia);
+    let (s, dog, cut) = (spec(app), app.boxgen.dogbone.then_some(dia), app.boxgen.cut);
     let key: Vec<u64> = [s.w, s.d, s.h, s.t, s.finger, s.clearance, dog.unwrap_or(0.0)].iter().map(|v| crate::preview::bits(*v)).chain([s.lid as u64, cut as u64]).collect();
     app.preview("box", &key, move |a| a.add_box(s, dog, cut));
     let pnote = app.ghost.note_of("box").map(String::from);
@@ -83,9 +84,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             }
             if app.boxgen.dogbone {
-                crate::toolmgr::rlabel(ui, lw, "Cutter");
-                ui.horizontal(|ui| { crate::widgets::num(ui, [70.0, 24.0], &mut app.boxgen.dia, 0.1, 50.0, 0.25, 3, ""); ui.weak("mm"); });
-                ui.end_row();
+                let (od, tools) = (app.inherited_cutter_dia(), app.cutter_choices());
+                let c = &mut app.boxgen;
+                crate::corners::cutter_row(ui, lw, &mut c.dia, &mut c.auto, od, &tools);
             }
         });
         ui.add_space(4.0);
@@ -104,7 +105,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
     });
     if apply {
-        let (s, dog, cut) = (spec(app), app.boxgen.dogbone.then_some(app.boxgen.dia), app.boxgen.cut);
+        let dia = crate::corners::cutter_dia(app.boxgen.auto, app.inherited_cutter_dia(), app.boxgen.dia);
+        let (s, dog, cut) = (spec(app), app.boxgen.dogbone.then_some(dia), app.boxgen.cut);
         app.ghost.clear();
         if app.run_tool("box", |a| a.add_box(s, dog, cut)) { app.boxgen.open = false; }
     }

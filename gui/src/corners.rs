@@ -4,9 +4,9 @@ use crate::app::App;
 use eframe::egui;
 use putiacnc_core::shapes::{self, CornerKind};
 
-pub struct CornerTool { pub open: bool, pub chamfer: bool, pub size: f64, pub dog: bool, pub dia: f64, pub outside: bool }
+pub struct CornerTool { pub open: bool, pub chamfer: bool, pub size: f64, pub dog: bool, pub dia: f64, pub outside: bool, pub auto: bool }
 
-impl Default for CornerTool { fn default() -> Self { CornerTool { open: false, chamfer: false, size: 2.0, dog: false, dia: 3.175, outside: false } } }
+impl Default for CornerTool { fn default() -> Self { CornerTool { open: false, chamfer: false, size: 2.0, dog: false, dia: 3.175, outside: false, auto: true } } }
 
 impl App {
     /// True when something in the selection has a corner to round (circles and ellipses do not).
@@ -54,7 +54,53 @@ impl App {
     }
 }
 
+/// The diameter reliefs are cut for: the tool's when `auto` and there is one, else the typed one.
+pub fn cutter_dia(auto: bool, op_dia: Option<f64>, typed: f64) -> f64 { if auto { op_dia.unwrap_or(typed) } else { typed } }
+
+/// The "Cutter" row of a dialog that makes dogbones: a check to follow the operation's tool, else a typed diameter or one picked from a tool.
+pub fn cutter_row(ui: &mut egui::Ui, lw: f32, dia: &mut f64, auto: &mut bool, op_dia: Option<f64>, tools: &[(String, f64)]) {
+    crate::toolmgr::rlabel(ui, lw, "Cutter");
+    ui.vertical(|ui| {
+        crate::widgets::check(ui, auto, "Tool of the operation").tip("Take the diameter from the tool of the operation these shapes are cut in, so the reliefs always match the cutter");
+        if *auto {
+            match op_dia { Some(d) => { ui.weak(format!("{d} mm")); } None => { ui.weak("Not in an operation yet: using the size below."); } }
+        }
+        if !*auto || op_dia.is_none() {
+            ui.horizontal(|ui| {
+                crate::widgets::num(ui, [70.0, 24.0], dia, 0.1, 50.0, 0.25, 3, "");
+                ui.weak("mm");
+                egui::ComboBox::from_id_source("dog_tool").selected_text("from tool").width(110.0).show_ui(ui, |ui| {
+                    for (n, d) in tools { if ui.selectable_label(false, format!("{n} ({d} mm)")).clicked() { *dia = *d; } }
+                });
+            });
+        }
+    });
+    ui.end_row();
+}
+
 impl App {
+    fn tool_dia(&self, id: &str) -> Option<f64> {
+        self.project.data.tools.iter().find(|t| t.id == id && t.shape != "pen" && t.dia > 0.0).map(|t| t.dia)
+    }
+
+    /// The cutter diameter of the operation the selected shapes are in (the first shape that is in one).
+    pub fn sel_cutter_dia(&self) -> Option<f64> {
+        let d = &self.project.data;
+        self.sel.iter().filter_map(|&i| d.loops.get(i)).filter(|l| l.op != 0)
+            .find_map(|l| d.ops.iter().find(|o| o.id == l.op).and_then(|o| self.tool_dia(&o.p.tool)))
+    }
+
+    /// The cutter diameter a new operation would start with: the last operation's tool, else the first cutter.
+    pub fn inherited_cutter_dia(&self) -> Option<f64> {
+        let d = &self.project.data;
+        d.ops.last().and_then(|o| self.tool_dia(&o.p.tool)).or_else(|| d.tools.iter().find(|t| t.shape != "pen" && t.dia > 0.0).map(|t| t.dia))
+    }
+
+    /// The tools of the project as (name, diameter) for a picker.
+    pub fn cutter_choices(&self) -> Vec<(String, f64)> {
+        self.project.data.tools.iter().filter(|t| t.dia > 0.0 && t.shape != "pen").map(|t| (t.name.clone(), t.dia)).collect()
+    }
+
     /// Adds a dogbone relief to each inside corner of the selected closed shapes, for a cutter of diameter `dia`.
     /// `outside` is for shapes that will be cut around (parts with a notch), otherwise for pockets and cut-outs.
     pub fn dogbone_selection(&mut self, dia: f64, outside: bool) -> Option<String> {
@@ -92,7 +138,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
-        let (dog, dia, outside) = (app.corners.dog, app.corners.dia, app.corners.outside);
+        let (dog, outside) = (app.corners.dog, app.corners.outside);
+        let dia = cutter_dia(app.corners.auto, app.sel_cutter_dia(), app.corners.dia);
         app.preview("corners", &[app.corners.chamfer as u64, crate::preview::bits(size), dog as u64, crate::preview::bits(dia), outside as u64],
             move |a| if dog { a.dogbone_selection(dia, outside) } else { a.corner_selection(kind, size) });
     }
@@ -123,16 +170,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
             ui.end_row();
             if app.corners.dog {
-                crate::toolmgr::rlabel(ui, lw, "Cutter");
-                ui.horizontal(|ui| {
-                    crate::widgets::num(ui, [70.0, 24.0], &mut app.corners.dia, 0.1, 50.0, 0.25, 3, "");
-                    ui.weak("mm");
-                    let tools: Vec<(String, f64)> = app.project.data.tools.iter().filter(|t| t.dia > 0.0).map(|t| (t.name.clone(), t.dia)).collect();
-                    egui::ComboBox::from_id_source("dog_tool").selected_text("from tool").width(110.0).show_ui(ui, |ui| {
-                        for (n, d) in tools { if ui.selectable_label(false, format!("{n} ({d} mm)")).clicked() { app.corners.dia = d; } }
-                    });
-                });
-                ui.end_row();
+                let (od, tools) = (app.sel_cutter_dia(), app.cutter_choices());
+                let c = &mut app.corners;
+                cutter_row(ui, lw, &mut c.dia, &mut c.auto, od, &tools);
                 crate::toolmgr::rlabel(ui, lw, "Cut");
                 ui.horizontal(|ui| {
                     let (c, _) = crate::zoomcard::seg2(ui, ["Inside", "Around"], ["For pockets and cut-outs: the shape is the hole", "For parts cut out around the outside, with a notch in them"], app.corners.outside as usize);
@@ -163,7 +203,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if apply {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
-        let (dog, dia, outside) = (app.corners.dog, app.corners.dia, app.corners.outside);
+        let (dog, outside) = (app.corners.dog, app.corners.outside);
+        let dia = cutter_dia(app.corners.auto, app.sel_cutter_dia(), app.corners.dia);
         app.ghost.clear();
         if app.run_tool("corners", |a| if dog { a.dogbone_selection(dia, outside) } else { a.corner_selection(kind, size) }) { app.corners.open = false; }
     }
@@ -213,6 +254,27 @@ mod tests {
         assert_eq!(a.project.data.loops[0].rc, Some(0.0));
         let mut a = app_with(vec![shapes::new_circle([5.0, 5.0], 3.0, 1)]);
         assert!(a.dogbone_selection(3.0, false).unwrap().contains("no sharp"));
+    }
+
+    #[test]
+    fn the_dogbone_cutter_follows_the_tool_of_the_operation() {
+        let mut a = app_with(vec![shapes::new_rect([0.0, 0.0], [30.0, 20.0], 0.0, 0)]);
+        // not in an operation: the typed size
+        assert_eq!(a.sel_cutter_dia(), None);
+        assert_eq!(cutter_dia(true, a.sel_cutter_dia(), 3.175), 3.175);
+        a.project.data.tools[0].dia = 6.0;
+        a.project.data.tools[0].shape = "flat".into();
+        let sel = a.sel.clone();
+        shapes::add_operation(&mut a.project.data, &sel, "pocket");
+        let id = a.project.data.tools[0].id.clone();
+        a.project.data.ops[0].p.tool = id;
+        assert_eq!(a.sel_cutter_dia(), Some(6.0));
+        assert_eq!(cutter_dia(true, a.sel_cutter_dia(), 3.175), 6.0);
+        assert_eq!(cutter_dia(false, a.sel_cutter_dia(), 3.175), 3.175);
+        // change the operation's tool and the reliefs follow
+        a.project.data.tools[0].dia = 4.0;
+        assert_eq!(a.sel_cutter_dia(), Some(4.0));
+        assert_eq!(a.inherited_cutter_dia(), Some(4.0));
     }
 
     #[test]
