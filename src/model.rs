@@ -235,7 +235,22 @@ pub struct Tool {
     #[serde(default, skip_serializing_if = "is_zero")] pub shank: f64,
     /// Stick-out in mm: how far the tool tip is below the bottom of the holder (collet nut). 0 = not known (the holder is not checked).
     #[serde(default, skip_serializing_if = "is_zero")] pub stick: f64,
+    /// Pen: the colour of its ink as "#rrggbb" (shown in the 3D preview and the tool lists); `None` = the usual dark ink.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub color: Option<String>,
 }
+
+impl Tool {
+    /// The ink colour of a pen as red, green and blue, if it has a valid one.
+    pub fn ink_rgb(&self) -> Option<[u8; 3]> {
+        let h = self.color.as_deref()?.strip_prefix('#')?;
+        if h.len() != 6 || !h.is_ascii() { return None; }
+        let v = u32::from_str_radix(h, 16).ok()?;
+        Some([(v >> 16) as u8, (v >> 8) as u8, v as u8])
+    }
+}
+
+/// "#rrggbb" for a colour.
+pub fn hex_rgb(c: [u8; 3]) -> String { format!("#{:02x}{:02x}{:02x}", c[0], c[1], c[2]) }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Operation { pub id: i64, pub p: OpParams }

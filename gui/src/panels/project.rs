@@ -90,7 +90,7 @@ fn relief_custom(ui: &mut Ui, id: impl std::hash::Hash + Copy, cf: &mut Option<p
 }
 
 /// The small round-arrow button that puts a field back to its default: a real button with the usual padding.
-pub(super) fn reset_button(ui: &mut Ui, tip: &str) -> bool {
+pub(crate) fn reset_button(ui: &mut Ui, tip: &str) -> bool {
     ui.add_sized([26.0, ui.spacing().interact_size.y], egui::Button::new("↺")).tip(tip).clicked()
 }
 

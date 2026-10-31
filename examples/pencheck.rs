@@ -13,7 +13,7 @@ fn main() {
     d.tools = vec![Tool {
         id: "tpentest1".into(), name: "Fine pen 0.5 mm".into(), sys: "mm".into(), shape: "pen".into(), angle: 60.0, flutes: 1, dia: 0.5, rpm: 0.0,
         feed: 1500.0, plunge: 300.0, so: 100.0, pd: 1.0, notes: "A pen held by the router clamp: it moves up and down by Z alone.".into(),
-        tip: 0.0, arc: 0.0, concave: false, flute: 0.0, shank: 0.0, stick: 0.0,
+        tip: 0.0, arc: 0.0, concave: false, flute: 0.0, shank: 0.0, stick: 0.0, color: None,
     }];
     let tool = d.tools[0].id.clone();
     // the same drawing twice: a rectangle, a circle and a zigzag line (an open path)

@@ -88,7 +88,7 @@ pub fn normalize_tool(t: &mut Tool) {
 
 #[allow(clippy::too_many_arguments)]
 fn tool(name: &str, sys: &str, shape: &str, angle: f64, dia: f64, flutes: u32, rpm: f64, feed: f64, plunge: f64, so: f64, pd: f64, notes: &str) -> Tool {
-    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes, dia, rpm, feed, plunge, so, pd, notes: notes.into(), tip: 0.0, arc: 0.0, concave: false, flute: 0.0, shank: 0.0, stick: 0.0 }
+    Tool { id: new_id("t"), name: name.into(), sys: sys.into(), shape: shape.into(), angle, flutes, dia, rpm, feed, plunge, so, pd, notes: notes.into(), tip: 0.0, arc: 0.0, concave: false, flute: 0.0, shank: 0.0, stick: 0.0, color: None }
 }
 
 /// The tools most hobby routers use (fresh ids on every call). The speeds are cautious starting points for

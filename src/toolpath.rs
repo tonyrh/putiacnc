@@ -1671,7 +1671,7 @@ mod tests {
 
     #[test]
     fn cone_radius_grows_with_depth() {
-        let t = Tool { id: "t".into(), name: "v".into(), sys: "mm".into(), shape: "vbit".into(), angle: 90.0, flutes: 2, dia: 6.0, rpm: 1.0, feed: 1.0, plunge: 1.0, so: 40.0, pd: 1.0, notes: String::new(), tip: 0.0, arc: 0.0, concave: false, flute: 0.0, shank: 0.0, stick: 0.0 };
+        let t = Tool { id: "t".into(), name: "v".into(), sys: "mm".into(), shape: "vbit".into(), angle: 90.0, flutes: 2, dia: 6.0, rpm: 1.0, feed: 1.0, plunge: 1.0, so: 40.0, pd: 1.0, notes: String::new(), tip: 0.0, arc: 0.0, concave: false, flute: 0.0, shank: 0.0, stick: 0.0, color: None };
         let g = ToolGeo::new(&t);
         assert!((g.r_at(1.5) - 1.5).abs() < 1e-9);
         assert!((g.r_at(10.0) - 3.0).abs() < 1e-9);

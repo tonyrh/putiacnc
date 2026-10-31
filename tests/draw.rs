@@ -380,3 +380,25 @@ fn an_edge_two_shapes_share_is_drawn_once() {
     shapes::add_operation(&mut g.data, &sel, "draw");
     assert!((ink(&generate(&g.data, Units::Metric).unwrap().lines) - 80.0).abs() < 1e-6);
 }
+
+#[test]
+fn a_pens_ink_colour_is_saved_read_back_and_does_not_change_the_gcode() {
+    use putiacnc_core::model::hex_rgb;
+    let mut f = pen_project();
+    assert_eq!(f.data.tools[0].ink_rgb(), None, "no colour unless set");
+    let before = generate(&f.data, Units::Metric).unwrap().lines;
+    assert!(!serde_json::to_string(&f).unwrap().contains("color"), "nothing saved without a colour");
+    f.data.tools[0].color = Some("#d62828".into());
+    assert_eq!(f.data.tools[0].ink_rgb(), Some([0xd6, 0x28, 0x28]));
+    assert_eq!(hex_rgb([0xd6, 0x28, 0x28]), "#d62828");
+    let back = load_project(&serde_json::to_string(&f).unwrap()).unwrap();
+    assert_eq!(back.data.tools[0].ink_rgb(), Some([0xd6, 0x28, 0x28]));
+    assert_eq!(generate(&f.data, Units::Metric).unwrap().lines, before, "colour is for the screen only");
+    // a duplicate keeps it
+    assert_eq!(putiacnc_core::toollib::new_tool_from(Some(&f.data.tools[0]), true, "mm").color, f.data.tools[0].color);
+    // anything that is not #rrggbb is no colour
+    for bad in ["red", "#12345", "#12345g", "d62828", "#d6282", "#é62828"] {
+        f.data.tools[0].color = Some(bad.into());
+        assert_eq!(f.data.tools[0].ink_rgb(), None, "{bad}");
+    }
+}

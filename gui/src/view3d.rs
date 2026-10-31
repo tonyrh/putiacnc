@@ -441,11 +441,13 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             run.clear();
         };
         // a pen leaves ink: a line as wide as the pen, on the paper, as far as the replay has got
-        let pen_dia: Vec<Option<f64>> = app.v3_data().ops.iter().map(|op| {
+        let pen_dia: Vec<Option<(f64, Color32)>> = app.v3_data().ops.iter().map(|op| {
             if op.p.kind != "draw" { return None; }
-            app.v3_data().tools.iter().find(|t| t.id == op.p.tool).map(|t| t.dia)
+            app.v3_data().tools.iter().find(|t| t.id == op.p.tool).map(|t| {
+                let c = t.ink_rgb().unwrap_or(crate::toolmgr::DEFAULT_INK);
+                (t.dia, Color32::from_rgb(c[0], c[1], c[2]))
+            })
         }).collect();
-        let ink_col = Color32::from_rgb(24, 28, 48);
         let ink_w = |at: [f32; 3], dia: f64| -> f32 {
             match (cam.p(at), cam.p([at[0] + dia as f32, at[1], at[2]])) { (Some(a), Some(b)) => a.distance(b).clamp(2.0, 40.0), _ => 1.6 }
         };
@@ -460,7 +462,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         for (i, m) in o.moves.iter().enumerate() {
             if sim.skip.get(m.op).copied().unwrap_or(false) { flush(&mut run, run_key); run_key = None; continue; }
             let executed = i < done;
-            if let Some(dia) = pen_dia.get(m.op).copied().flatten() {
+            if let Some((dia, ink_col)) = pen_dia.get(m.op).copied().flatten() {
                 // only the moves along the paper draw (not the pen going down or up), and only those the replay has reached
                 let sideways = (m.to[0] - m.from[0]).abs() + (m.to[1] - m.from[1]).abs() > 1e-9;
                 if m.cut && sideways && (executed || i == done && (done > 0 || app.v3.t > 0.0)) {

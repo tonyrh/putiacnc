@@ -7,6 +7,9 @@ use eframe::egui::{self, Align, Color32, Layout, Sense, Ui};
 use putiacnc_core::toollib::{self, has_angle, shape_label, ToolLibs, SHAPES, SPEED_UNITS};
 use std::path::PathBuf;
 
+/// The ink shown for a pen with no colour of its own.
+pub const DEFAULT_INK: [u8; 3] = [24, 28, 48];
+
 pub fn config_dir() -> Option<PathBuf> {
     if let Some(d) = std::env::var_os("PUTIACNC_CONFIG_DIR") { return Some(PathBuf::from(d)); }
     if let Some(x) = std::env::var_os("XDG_CONFIG_HOME") { return Some(PathBuf::from(x).join("putiacnc")); }
@@ -275,6 +278,11 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
                   let col = if sel { Color32::WHITE } else { vis.text_color() };
                   let ic = egui::Rect::from_center_size(egui::pos2(rect.min.x + 18.0, rect.center().y), egui::vec2(16.0, 24.0));
                   paint_cutter(ui.painter(), ic, &t.shape, t.angle, if t.shape == "pen" { t.dia } else { t.tip / (t.dia / 2.0).max(1e-6) }, (t.arc / (t.dia / 2.0).max(1e-6), t.concave), if sel { Color32::WHITE } else { vis.text_color() });
+                  // the ink of a pen, as a dot at the foot of its picture
+                  if let Some(c) = t.ink_rgb().filter(|_| t.shape == "pen") {
+                      let at = egui::pos2(ic.max.x + 2.0, ic.max.y - 4.0);
+                      ui.painter().circle(at, 4.5, Color32::from_rgb(c[0], c[1], c[2]), egui::Stroke::new(1.0_f32, col.gamma_multiply(0.8)));
+                  }
                   let font = egui::TextStyle::Body.resolve(ui.style());
                   let dia = format!("Ø{}", toollib::fmt_dia(t.dia, &t.sys, false));
                   let gd = ui.painter().layout_no_wrap(dia, font.clone(), col.gamma_multiply(0.7));
@@ -502,8 +510,13 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 }
                 if pen {
                     // the picture takes the two right-hand cells of this row and the one above: keep them free of fields
-                    ui.label("");
-                    ui.label("");
+                    rlabel(ui, lw, "Ink colour");
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 8.0;
+                        let mut rgb = t.ink_rgb().unwrap_or(DEFAULT_INK);
+                        if ui.color_edit_button_srgb(&mut rgb).on_hover_text("The colour of the ink: shown in the 3D preview and next to the pen in the lists. It does not change the G-code").changed() { t.color = Some(putiacnc_core::model::hex_rgb(rgb)); changed = true; }
+                        if t.color.is_some() && crate::panels::reset_button(ui, "Back to the usual dark ink") { t.color = None; changed = true; }
+                    });
                     side!(false);
                 } else {
                     rlabel(ui, lw, "Flutes");
