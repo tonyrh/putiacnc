@@ -157,7 +157,7 @@ pub fn generate_files(data: &ProjectData, units: Units, mode: Split) -> Result<V
         }
         out.lines = lines;
         crate::summary::add_header(&mut out, &d, units, false);
-        prev_tool = Some(main.ops[last].p.tool.clone()).filter(|_| !two_tools(&main.ops[last]));
+        prev_tool = if two_tools(&main.ops[last]) { None } else { Some(main.ops[last].p.tool.clone()) };
         files.push(SplitFile { ops: g.clone(), suffix, label, out });
     }
     Ok(files)

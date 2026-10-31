@@ -29,7 +29,7 @@ pub fn file_list(app: &App, mode: Split, name: &str) -> Vec<(String, f64)> {
 
 pub fn window(ctx: &egui::Context, app: &mut App) {
     // a split being made: keep the frames coming until the files are written
-    if app.split_job.is_some() { if app.poll_split() { ctx.request_repaint_after(std::time::Duration::from_millis(50)); } }
+    if app.split_job.is_some() && app.poll_split() { ctx.request_repaint_after(std::time::Duration::from_millis(50)); }
     if !app.export_open { return; }
     let name = if app.project.name.trim().is_empty() { "output".to_string() } else { app.project.name.trim().to_string() };
     let (mut close, mut go) = (false, false);
