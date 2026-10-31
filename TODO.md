@@ -74,7 +74,8 @@ Things that make a real job easier
 
 Toolpath quality
 - [x] Better path ordering (fewer and shorter rapids): done, always on.
-- [ ] Dogbone / T-bone corners and a finger / box-joint generator.
+- [x] Dogbone corners (Fillet and chamfer window).
+- [ ] T-bone corners and a finger / box-joint generator.
 - [ ] Adaptive clearing.
 - [ ] Nesting.
 
