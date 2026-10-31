@@ -84,12 +84,8 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     if app.tab == RightTab::Ops { ops_panel(ui, app); return; }
     if app.tab == RightTab::Info { notes_panel(ui, app); return; }
     if app.tab == RightTab::Gcode {
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing.x = 18.0;
-            if crate::widgets::check(ui, &mut app.imperial, "Inches (G20)").on_hover_text("Write the G-code in inches instead of millimetres").changed() { app.gen_pending = true; }
-        });
         let (d, n) = (app.project.data.job.dialect_name(), app.project.data.job.numbered);
-        ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
+        ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, units, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
         ui.add_space(4.0);
         // plug pieces have a file of their own: choose which one to read
         if app.gcode_part > app.pieces.len() && !app.gen_stale() { app.gcode_part = 0; }
