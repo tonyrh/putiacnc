@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, Check, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Minus, Persp, Ortho, Offset, Array }
+pub enum Icon { Pen, Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, Check, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Minus, Persp, Ortho, Offset, Array }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -113,6 +113,12 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
             // a pocket with a plug beside it
             painter.rect_stroke(Rect::from_center_size(p(-6.0, 0.0), Vec2::new(11.0, 16.0) * s), 1.5 * s, st);
             painter.rect_filled(Rect::from_center_size(p(7.0, 0.0), Vec2::new(10.0, 13.0) * s), 1.5 * s, fg.gamma_multiply(0.55));
+        }
+        Icon::Pen => {
+            // a pen drawing a line: the body slanted, the tip on the stroke
+            line(vec![p(-9.0, 8.0), p(-2.0, 8.0), p(9.0, 8.0)]);
+            closed(vec![p(-6.0, 5.0), p(5.0, -6.0), p(8.0, -3.0), p(-3.0, 8.0)]);
+            painter.circle_filled(p(-6.0, 6.5), 1.6 * s, fg.gamma_multiply(0.8));
         }
         Icon::Drill => {
             // a hole seen from above, with the bit going in
@@ -278,6 +284,7 @@ pub fn paint_cutter(painter: &egui::Painter, rect: Rect, shape: &str, angle: f64
     let mut sk = 7.0_f32;
     let body: Vec<Pos2> = match shape {
         "ball" => { let mut v = vec![p(14.0, 22.0), p(14.0, 46.0)]; v.extend(arc(24.0, 46.0, 10.0, pi, 0.0)); v.push(p(34.0, 22.0)); v }
+        "pen" => vec![p(15.0, 22.0), p(15.0, 40.0), p(24.0, 66.0), p(33.0, 40.0), p(33.0, 22.0)],
         "bull" => vec![p(14.0, 22.0), p(14.0, 52.0), p(15.2, 55.0), p(18.0, 56.0), p(30.0, 56.0), p(32.8, 55.0), p(34.0, 52.0), p(34.0, 22.0)],
         "vbit" => {
             let hw = (40.0 * t).min(10.0);

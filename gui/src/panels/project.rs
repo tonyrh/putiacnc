@@ -261,6 +261,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         ui.horizontal(|ui| {
             let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Inlay, "Inlay", "Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)", None)).inner;
             if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some("inlay"); }
+            let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Pen, "Draw", "Add a Draw operation: a pen follows the outlines of the selected shapes (for a plotter: choose a pen tool)", None)).inner;
+            if !has_sel { r.on_disabled_hover_text("Select the shapes first"); } else if r.clicked() { add_kind = Some("draw"); }
             let has_model = d.relief.is_some();
             let r = ui.add_enabled_ui(has_model, |ui| icon_text_button(ui, Icon::Relief, "3D relief", "Carve the imported 3D model: roughing, then a finishing pass that follows the surface", None)).inner;
             if !has_model { r.on_disabled_hover_text("Import a 3D model first (File > Import 3D model)"); } else if r.clicked() { add_kind = Some("relief"); }
@@ -345,7 +347,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let sy = ui.spacing().item_spacing.y;
             let card_hdr: (egui::Rect, bool, Color32);
             {
-                let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, _ => Icon::Profile };
+                let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, "draw" => Icon::Pen, _ => Icon::Profile };
                 let (rect, resp) = ui.allocate_exact_size(egui::vec2(lw, 40.0), egui::Sense::click());
                 let selected = hi_ids.contains(&id);
                 let resp = resp.tip("Select this operation's shapes in the drawing");
@@ -435,7 +437,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let bf = egui::TextStyle::Body.resolve(ui.style());
                 let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
                 // 2 x 2 grid: Type | Cut  /  Tool | Depth
-                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle")).max(tw_of(ui, "Stepover"));
+                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle")).max(tw_of(ui, "Stepover")).max(tw_of(ui, "Pen down"));
                 let l3 = tw_of(ui, "Cut").max(tw_of(ui, "Pass"));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
                 let cw = tw_of(ui, "Conventional") + 44.0;
@@ -443,10 +445,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp, 10.0]).show(ui, |ui| {
                     rlabel(ui, l1, "Type");
                     let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
-                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", "V-carve"), "drill" => ("drill", "Drill"), "inlay" => ("inlay", "Inlay pocket"), "plug" => ("plug", "Inlay plug"), "relief" => ("relief", "3D relief"), _ => ("pocket", "Pocket") }];
+                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", "V-carve"), "drill" => ("drill", "Drill"), "inlay" => ("inlay", "Inlay pocket"), "plug" => ("plug", "Inlay plug"), "relief" => ("relief", "3D relief"), "draw" => ("draw", "Draw (pen)"), _ => ("pocket", "Pocket") }];
                     changed |= combo_w(ui, lc + 10.0, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { "Profile: cut outside, inside or on the line" } else { "Operation type" });
                     rlabel(ui, l3, "Cut");
-                    ui.add_enabled_ui(p.kind != "drill" && p.kind != "relief", |ui| {
+                    ui.add_enabled_ui(p.kind != "drill" && p.kind != "relief" && p.kind != "draw", |ui| {
                         let (c, _) = combo_w2(ui, cw + 10.0, &format!("dir{id}"), &mut p.dir, DIRS, "", "Cut direction: climb or conventional");
                         changed |= c;
                     });
@@ -481,9 +483,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let mut keep = false;
                         let combo = egui::ComboBox::from_id_source(src).width(w).height(420.0).selected_text(name).show_ui(ui, |ui| {
                             for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
-                                if !tools_ref.iter().any(|t| t.sys == sys && (!flat_only || t.shape == "flat")) { continue; }
+                                if !tools_ref.iter().any(|t| t.sys == sys && t.shape != "pen" && (!flat_only || t.shape == "flat")) { continue; }
                                 ui.weak(label);
-                                for t in tools_ref.iter().filter(|t| t.sys == sys && (!flat_only || t.shape == "flat")) {
+                                for t in tools_ref.iter().filter(|t| t.sys == sys && t.shape != "pen" && (!flat_only || t.shape == "flat")) {
                                     let dia = putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true);
                                     if ui.selectable_label(cur == t.id, format!("{}  ({})", clean(&t.name), dia)).clicked() { got = Some(t.id.clone()); }
                                 }
@@ -574,14 +576,14 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         // an inlay ramps with its flat end mill, so the checkbox of the plug is on the Flat row, and the pocket has none
-                        let has_ramp = !matches!(p.kind.as_str(), "vcarve" | "drill" | "relief" | "inlay" | "plug");
+                        let has_ramp = !matches!(p.kind.as_str(), "vcarve" | "drill" | "relief" | "inlay" | "plug" | "draw");
                         // the room for "Ramp in" is kept even when it is not shown, so the selector is the same width in every operation
                         let ramp_w = tw_of(ui, "Ramp in") + 30.0;
                         let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
                         rlabel(ui, l1, if p.kind == "relief" { "Finish" } else { "Tool" });
                         let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                         let cur = elide(ui, &cur, tool_w - 30.0);
-                        let (_, pk) = crate::toolpick::picker(ui, ("optool", id), tool_w, cur, Some(p.tool.as_str()), &job_tools, &tools, |_| true);
+                        let (_, pk) = crate::toolpick::picker(ui, ("optool", id), tool_w, cur, Some(p.tool.as_str()), &job_tools, &tools, |t| (t.shape == "pen") == (p.kind == "draw"));
                         match pk { Some(crate::toolpick::Picked::Tool(t)) => { p.tool = t; changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
                         if has_ramp {
                             let rest = ui.available_width() - ramp_w;
@@ -590,6 +592,28 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 .tip(if p.kind == "pocket" { "Eases the tool down along each ring of the pocket instead of plunging straight down" } else { "Eases the tool down along the first pass (not needed with a lead-in arc)" }).changed();
                         }
                     });
+                    if p.kind == "draw" {
+                        // a pen: down at the paper (or a little into it, for a spring-loaded holder), up a few millimetres between strokes
+                        let lw3 = l1;
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
+                            rlabel(ui, lw3, "Pen down");
+                            changed |= dv_r(ui, 48.0, &mut p.depth, 0.0, 20.0, "").tip("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press").changed();
+                            ui.weak("mm below Z0");
+                        });
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
+                            rlabel(ui, lw3, "Pen up");
+                            let mut v = p.lift.unwrap_or(2.0);
+                            if dv_r(ui, 48.0, &mut v, 0.1, 50.0, "").tip("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it").changed() { p.lift = Some(v); changed = true; }
+                            ui.weak("mm above Z0");
+                            if p.lift.is_some() && reset_button(ui, "Back to 2 mm") { p.lift = None; changed = true; }
+                        });
+                        ui.add_space(2.0);
+                        ui.weak("Draws every outline once. Set Z0 on the surface of the paper.");
+                    }
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
@@ -687,6 +711,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     }
                     // depth, per-operation pass depth (no override = the tool's own value) and the resulting pass count
+                    if p.kind != "draw" {
                     let inlay = p.kind == "inlay" || p.kind == "plug" || p.kind == "relief";
                     // an inlay clears and cuts out with its second tool, so the pass depth is that tool's
                     let tool_pd = if inlay { p.tool2.as_deref().and_then(|id| tool_pd_of(&tools, id)).or_else(|| tool_pd_of(&tools, &p.tool)) } else { tool_pd_of(&tools, &p.tool) };
@@ -721,8 +746,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.weak(if p.kind == "drill" { format!("{n} peck{}", if n == 1 { "" } else { "s" }) } else { format!("{n} pass{}", if n == 1 { "" } else { "es" }) });
                         });
                     });
+                    }
                 }
-                if p.depth > stock_t + 1e-6 {
+                if p.depth > stock_t + 1e-6 && p.kind != "draw" {
                     ui.add_space(2.0);
                     let col = if ui.visuals().dark_mode { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(190, 100, 0) };
                     crate::checkui::warn_line(ui, col, &format!("Depth is more than the stock thickness ({} mm): the cutter would go through into the spoilboard.", stock_t));
@@ -808,7 +834,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                 }
-                changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, "Air cut (run without cutting)").tip("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
+                changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, if p.kind == "draw" { "Air run (pen 10 mm above the paper)" } else { "Air cut (run without cutting)" }).tip("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
                 {
                     let mut on = p.pause.is_some();
                     if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Pause afterwards").tip("When this operation is done the tool lifts, the spindle stops and the program waits until you resume it: flip the stock, move a clamp, clear the chips.").changed() }).inner {
@@ -823,7 +849,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     }
                 }
                 // this operation's own spindle speed, feeds and stepover: one block for the tool, and for an inlay one for each of its two tools
-                if p.kind != "relief" {
+                if p.kind != "relief" && p.kind != "draw" {
                     let two = matches!(p.kind.as_str(), "inlay" | "plug");
                     let mut on = p.custom.is_some() || p.custom2.is_some();
                     if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Custom feeds and speeds").tip("Use other spindle speed, feeds and stepover than the tool's for this operation only. Values you leave alone keep following the tool.").changed() }).inner {
@@ -849,7 +875,11 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     }
                 }
                 ui.add_space(4.0);
-                if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
+                if p.kind == "draw" {
+                    if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
+                        ui.weak(format!("Pen · line {} · draws at {} mm/min · pen down at {} mm/min", putiacnc_core::toollib::fmt_dia(t0.dia, &t0.sys, true), t0.feed, t0.plunge));
+                    }
+                } else if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
                     // what the machine will really run (its limits applied, after this operation's own values), with a warning when that differs
                     let asked = match &p.custom { Some(cf) if !(p.kind == "relief" && p.f_off) => cf.apply(t0), _ => t0.clone() };
                     let (t, warn) = match &machine_now { Some(m) => (m.hold(&asked), m.hold_text(&asked)), None => (asked.clone(), String::new()) };

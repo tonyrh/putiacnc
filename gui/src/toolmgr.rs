@@ -444,7 +444,9 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
             let aw = ui.available_width() - 10.0;
-            let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")).max(crate::panels::tw(ui, "Arc radius")) + 2.0;
+            let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")).max(crate::panels::tw(ui, "Arc radius")).max(crate::panels::tw(ui, "Line width")).max(crate::panels::tw(ui, "Draw speed")) + 2.0;
+            // a pen has a line width and two speeds: no spindle, flutes, stepover or depth per pass
+            let pen = t.shape == "pen";
             // wide enough for the longest shape name, or the dropdown pushes the form (and the window) wider every frame
             let fw = SHAPES.iter().map(|(_, l)| crate::panels::tw(ui, l) + 34.0).fold(120.0_f32, f32::max).max(crate::widgets::combo_fit(ui, &SHAPES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 4.0);
             let sp = 8.0_f32; // label-to-field gap
@@ -498,10 +500,12 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     if crate::widgets::num(ui, [72.0, 22.0], &mut r, 0.0, 50.0 / k, 0.05 / k, 3, uname).changed() { t.tip = (r * k).max(0.0); changed = true; }
                     side!(false);
                 }
-                rlabel(ui, lw, "Flutes");
-                let mut fl = t.flutes as f64;
-                if crate::widgets::num(ui, [60.0, 22.0], &mut fl, 1.0, 12.0, 0.1, 0, "").changed() { t.flutes = fl.round() as u32; changed = true; }
-                side!(false);
+                if !pen {
+                    rlabel(ui, lw, "Flutes");
+                    let mut fl = t.flutes as f64;
+                    if crate::widgets::num(ui, [60.0, 22.0], &mut fl, 1.0, 12.0, 0.1, 0, "").changed() { t.flutes = fl.round() as u32; changed = true; }
+                    side!(false);
+                }
                 let holder_on = app.project.data.machine.as_ref().is_some_and(|m| m.holder_on);
                 let mut n = 0;
                 let (fu, uw) = (60.0_f32, fw - 60.0 - 8.0);
@@ -515,24 +519,25 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     });
                     n += 1; if n % 2 == 0 { $ui.end_row(); } else { $ui.allocate_exact_size(egui::vec2(gap, 1.0), Sense::hover()); }
                 }}; }
-                cell!("Diameter", uname, ui, {
+                cell!(if pen { "Line width" } else { "Diameter" }, uname, ui, {
                     let mut d = t.dia / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.01 / k, 1000.0 / k, 0.05 / k, 4, "").changed() { t.dia = d * k; t.sys = if app.tool_len_in { "in" } else { "mm" }.into(); changed = true; }
                 });
-                cell!("Spindle", "rpm", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.rpm, 0.0, 100000.0, 50.0, 0, "").changed(); });
-                cell!("Feed", sname, ui, {
+                if !pen { cell!("Spindle", "rpm", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.rpm, 0.0, 100000.0, 50.0, 0, "").changed(); }); }
+                cell!(if pen { "Draw speed" } else { "Feed" }, sname, ui, {
                     let mut f = t.feed / fspd;
                     if crate::widgets::num(ui, [fu, 22.0], &mut f, 0.001, 100000.0, 1.0 / fspd.max(1.0), 3, "").changed() { t.feed = f * fspd; changed = true; }
                 });
-                cell!("Plunge", sname, ui, {
+                cell!(if pen { "Pen down" } else { "Plunge" }, sname, ui, {
                     let mut f = t.plunge / fspd;
                     if crate::widgets::num(ui, [fu, 22.0], &mut f, 0.001, 100000.0, 1.0 / fspd.max(1.0), 3, "").changed() { t.plunge = f * fspd; changed = true; }
                 });
-                cell!("Stepover", "%", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.so, 1.0, 100.0, 0.5, 1, "").changed(); });
-                cell!("Max pass", uname, ui, {
+                if !pen { cell!("Stepover", "%", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.so, 1.0, 100.0, 0.5, 1, "").changed(); }); }
+                if !pen { cell!("Max pass", uname, ui, {
                     let mut d = t.pd / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.01 / k, 1000.0 / k, 0.05 / k, 4, "").changed() { t.pd = d * k; changed = true; }
-                });
+                }); }
+                if !pen {
                 cell!("Cut length", uname, ui, {
                     let mut d = t.flute / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").changed() { t.flute = (d * k).max(0.0); changed = true; }
@@ -541,7 +546,8 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     let mut d = t.shank / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.05 / k, 3, "").changed() { t.shank = (d * k).max(0.0); changed = true; }
                 });
-                if holder_on {
+                }
+                if holder_on && !pen {
                     cell!("Stick-out", uname, ui, {
                         let mut d = t.stick / k;
                         if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").tip("How far the tip sticks out below the holder. With the holder diameter in the machine settings, the holder is checked against the clamps.").changed() { t.stick = (d * k).max(0.0); changed = true; }
@@ -549,6 +555,9 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 }
                 if n % 2 == 1 { ui.end_row(); }
             });
+            if pen {
+                ui.add(egui::Label::new(egui::RichText::new("A pen has no spindle. Line width is how wide its line is; draw speed is how fast it moves on the paper and pen down is how fast it lowers.").weak()).wrap(true));
+            } else {
             ui.add(egui::Label::new(egui::RichText::new(format!("Cut length is how deep the flutes reach and shank dia. the bit above them{}; 0 means unknown and switches those checks off for this tool.", if app.project.data.machine.as_ref().is_some_and(|m| m.holder_on) { ", stick-out how far the tip stands below the holder" } else { "" })).small().weak()).wrap(true));
             if let Some(m) = &app.project.data.machine {
                 let warn = m.hold_text(&t);
@@ -590,6 +599,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 ui.weak(txt).tip("Material removed per minute by a cut as wide as the stepover and as deep as the maximum pass");
                 ui.end_row();
             });
+            }
             ui.add_space(8.0);
             egui::Grid::new("tool_form_notes").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
                 rlabel(ui, lw, "Notes");

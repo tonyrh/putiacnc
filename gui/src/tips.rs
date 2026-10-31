@@ -354,7 +354,7 @@ fn the_small_dialogs_show_help_on_labels_and_fields() {
 
 #[test]
 fn every_operation_card_shows_help_on_labels_and_fields() {
-    for kind in ["outside", "inside", "online", "pocket", "vcarve", "drill", "inlay", "plug"] {
+    for kind in ["outside", "inside", "online", "pocket", "vcarve", "drill", "inlay", "plug", "draw"] {
         let mut a = project();
         a.sel = (0..a.project.data.loops.len()).collect();
         let sel = a.sel.clone();

@@ -131,7 +131,8 @@ fn sequence(seed: u64, frames: bool, skip: &[usize]) -> Result<(), String> {
             11 => { a.group_selection(); "group" }
             12 => { a.ungroup_selection(); "ungroup" }
             13 | 14 => {
-                let kind = KINDS[r.below(KINDS.len() - 1)].0; // not the 3D relief: it needs a model
+                let kinds: Vec<&str> = KINDS.iter().map(|k| k.0).filter(|k| *k != "relief").collect(); // not the 3D relief: it needs a model
+                let kind = kinds[r.below(kinds.len())];
                 a.hist.record(&a.project.data);
                 let sel = a.sel.clone();
                 let _ = shapes::add_operation(&mut a.project.data, &sel, kind);

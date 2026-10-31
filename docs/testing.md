@@ -122,3 +122,12 @@ On the machine (gSender): load the file, set X0 Y0 at the lower-left corner and 
 - The first line of the file (the summary comments) is ignored.
 - With the 6 mm tool nothing changes in how it behaves; touching Z0 again is the reminder only.
 Write down what a pause looks like in your sender (does it show the message, does it ask for confirmation, does Resume need a second press) so the wording can be adjusted.
+
+## Trying the pen on a real machine
+
+`tests/data/hardware_pen_test.project.json` (made by `cargo run --release --example pencheck -- <out.json>`, checked by `tests/draw.rs`) draws a rectangle, a circle and a zigzag line with a 0.5 mm pen, twice:
+
+1. Operation 1 is an **air run**: the pen travels 10 mm above where the paper will be. Then a pause (`M0 ; TEST 1 done in the air. Put paper under the pen, set Z0 on it. Resume`).
+2. Operation 2 draws the same shapes for real: pen down at Z0, up 2 mm between strokes.
+
+On the machine: put no paper under the pen for the first run, start, and watch that the pen lifts and lowers by Z alone and never touches anything. At the pause put the paper (about 100 x 80 mm) under the pen and set Z0 on its surface (a spring-loaded holder: set it so the spring is just compressed), then resume. If the line is faint or the pen skips, set "Pen down" to 0.5 to 1 mm; if it drags between strokes, raise "Pen up".

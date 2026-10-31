@@ -154,6 +154,41 @@ mod tests {
     }
 
     #[test]
+    fn a_pen_project_lists_and_writes_its_files_without_a_spindle() {
+        let mut a = app("hardware_pen_test.project.json");
+        assert!(a.can_split());
+        let per = file_list(&a, Split::PerOperation, "plot");
+        assert_eq!(per.iter().map(|f| f.0.as_str()).collect::<Vec<_>>(), ["plot-1-draw.nc", "plot-2-draw.nc"]);
+        assert_eq!(file_list(&a, Split::PerTool, "plot").len(), 1, "one pen, one file");
+        a.export_split = Split::PerOperation;
+        let dir = std::env::temp_dir().join(format!("putia-pen-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        a.finish_dialog(crate::app::DlgKind::ExportGcode, dir.join("plot.nc"));
+        for _ in 0..200 { if !a.poll_split() { break; } std::thread::sleep(std::time::Duration::from_millis(20)); }
+        for n in ["plot-1-draw.nc", "plot-2-draw.nc"] {
+            let t = std::fs::read_to_string(dir.join(n)).unwrap_or_else(|e| panic!("{n}: {e} {:?}", a.error));
+            assert!(!t.lines().any(|l| l.starts_with("M3") || l.starts_with("M5") || l.starts_with("G4")), "{n}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cutting_operations_do_not_offer_a_pen_and_a_draw_operation_takes_one() {
+        let mut a = app("hardware_pen_test.project.json");
+        assert!(a.project.data.tools.iter().any(|t| t.shape == "pen"));
+        let mut cutter = putiacnc_core::shapes::blank_project().data.tools[0].clone();
+        cutter.id = "tcutter".into();
+        a.project.data.tools.push(cutter);
+        a.project.data.loops.push(putiacnc_core::shapes::new_rect([5.0, 5.0], [9.0, 9.0], 0.0, 0));
+        let n = a.project.data.loops.len();
+        let sel: std::collections::BTreeSet<usize> = [n - 1].into_iter().collect();
+        let _ = putiacnc_core::shapes::add_operation(&mut a.project.data, &sel, "pocket");
+        let o = a.project.data.ops.last().unwrap();
+        assert_eq!(o.p.kind, "pocket");
+        assert!(a.project.data.tools.iter().any(|t| t.id == o.p.tool && t.shape != "pen"), "a cutter, not the pen");
+    }
+
+    #[test]
     fn the_choice_is_remembered_in_the_settings() {
         let mut a = App::new(None);
         a.export_split = Split::PerTool;
