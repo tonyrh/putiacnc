@@ -813,11 +813,25 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         // gets long does it fade, to say it is out of date
         let fade = if app.gen_started.is_some_and(|t| t.elapsed().as_secs_f32() > 0.4) { 0.35 } else { 1.0 };
         if let Some(o) = &app.output {
+            // a pen draws a line as wide as the pen, in its ink colour when it has one: so the 2D view shows what the paper will get
+            let pens: Vec<Option<(f64, Option<Color32>)>> = app.project.data.ops.iter().map(|op| {
+                if op.p.kind != "draw" { return None; }
+                app.project.data.tools.iter().find(|t| t.id == op.p.tool).map(|t| (t.dia, t.ink_rgb().map(|c| Color32::from_rgb(c[0], c[1], c[2]))))
+            }).collect();
             for m in &o.moves {
                 if !m.cut && !app.show_rapids { continue; }
                 if m.from[0] == m.to[0] && m.from[1] == m.to[1] { continue; }
+                let (a, b) = (to_s([m.from[0], m.from[1]]), to_s([m.to[0], m.to[1]]));
+                if let (true, Some((dia, ink))) = (m.cut, pens.get(m.op).copied().flatten()) {
+                    // opaque, so the joints of a long line do not show as darker beads; rounded ends make the corners meet
+                    let c = ink.unwrap_or_else(|| op_color(m.op, dark)).gamma_multiply(fade);
+                    let w = (dia as f32 * app.scale).max(1.0);
+                    painter.line_segment([a, b], Stroke::new(w, c));
+                    if w > 2.5 { painter.circle_filled(b, w / 2.0, c); }
+                    continue;
+                }
                 let col = if m.cut { op_color(m.op, dark).gamma_multiply(0.85 * fade) } else { th.rapid().gamma_multiply(fade) };
-                painter.line_segment([to_s([m.from[0], m.from[1]]), to_s([m.to[0], m.to[1]])], Stroke::new(1.0_f32, col));
+                painter.line_segment([a, b], Stroke::new(1.0_f32, col));
             }
         }
         // the toolpath of each separate piece, in the piece's own frame: drawn where the piece sits in the drawing
