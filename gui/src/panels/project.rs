@@ -614,6 +614,22 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
+                            rlabel(ui, lw3, "Repeat");
+                            let mut v = p.repeat.unwrap_or(1) as f64;
+                            if dv_r(ui, 48.0, &mut v, 1.0, 20.0, "").tip("How many times the whole drawing is gone over: a darker, more even line from a thin or dry pen. Passes that do not line up exactly make the line a little wider").changed() { let n = v.round().clamp(1.0, 20.0) as u32; p.repeat = if n > 1 { Some(n) } else { None }; changed = true; }
+                            ui.weak(if p.repeat.unwrap_or(1) == 1 { "time" } else { "times" });
+                        });
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
+                            rlabel(ui, lw3, "Rest");
+                            let mut v = p.dwell.unwrap_or(0.0);
+                            if dv_r(ui, 48.0, &mut v, 0.0, 30.0, "").tip("How long the pen rests on the paper after it goes down, before the line starts: for gel pens and markers whose ink needs a moment to flow, and for a spring-loaded holder to settle. It is added to every stroke, so many strokes take longer").changed() { p.dwell = if v > 0.0 { Some(v) } else { None }; changed = true; }
+                            ui.weak("s after pen down");
+                        });
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, "Join gaps");
                             let mut on = p.join.is_some();
                             if crate::widgets::check(ui, &mut on, "under").tip("When the next stroke starts this close to where the last one ended, the pen stays down and draws a short line across instead of lifting. Saves time with single-line text and dashed lines; the marks it leaves are as long as the gap").changed() { p.join = if on { Some(0.5) } else { None }; changed = true; }

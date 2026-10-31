@@ -308,6 +308,10 @@ pub struct OpParams {
     /// Draw (pen): when the next stroke starts closer than this (mm) to where the last one ended, the pen stays down and draws a line
     /// across instead of lifting; `None` = always lift. (The lines of a fill are joined on their own.)
     #[serde(default, skip_serializing_if = "Option::is_none")] pub join: Option<f64>,
+    /// Draw (pen): how many times the whole drawing is gone over (a darker, more even line); `None` = once.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub repeat: Option<u32>,
+    /// Draw (pen): seconds the pen rests on the paper after going down, before the stroke starts (ink flow, dots, a spring holder settling); `None` = none.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub dwell: Option<f64>,
 }
 
 /// How a Draw operation fills closed shapes: parallel lines (and a second set across them when `cross`).

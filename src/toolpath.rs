@@ -740,12 +740,16 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
     e.go("G0", None, None, Some(sz), 0.0);
     let join_under = o.p.join.filter(|v| *v > 0.0).unwrap_or(0.0);
     let mut here = [e.cur[0], e.cur[1]];
-    let mut todo = strokes;
+    let reps = o.p.repeat.unwrap_or(1).clamp(1, 20);
+    let dwell = o.p.dwell.filter(|v| *v > 0.0).map(|v| v.min(30.0));
     let mut idx = 0;
     // whether the pen is down at `here`, and whether the stroke it just drew was a line of the fill
     let (mut pen_down, mut last_fill) = (false, false);
     // the direction back along the last stroke from its end (into the shape, for a line of the fill)
     let mut back = [0.0, 0.0];
+    for rep in 0..reps {
+    if reps > 1 { e.g.push(format!("(Repeat {} of {})", rep + 1, reps)); }
+    let mut todo = strokes.clone();
     while !todo.is_empty() {
         // the stroke whose start (or end, for an open path; or any corner, for a closed one) is nearest the pen
         let d2 = |a: [f64; 2]| (a[0] - here[0]).powi(2) + (a[1] - here[1]).powi(2);
@@ -774,6 +778,7 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
             if pen_down { e.go("G0", None, None, Some(up), 0.0); }
             if d > 1e-9 || !pen_down { e.go("G0", Some(a[0]), Some(a[1]), None, 0.0); }
             e.go("G1", None, None, Some(down), tool.plunge);
+            if let Some(w) = dwell { e.g.push(format!("G4 P{}", num(to_fixed(w, 2)))); }
         }
         for q in &v[1..] { e.go("G1", Some(q[0]), Some(q[1]), Some(down), tool.feed); }
         pen_down = true;
@@ -784,6 +789,7 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
             back = [(p[0] - q[0]) / l, (p[1] - q[1]) / l];
         }
         here = *v.last().expect("a stroke has points");
+    }
     }
     if pen_down { e.go("G0", None, None, Some(up), 0.0); }
     e.pn = 0;

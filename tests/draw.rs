@@ -402,3 +402,57 @@ fn a_pens_ink_colour_is_saved_read_back_and_does_not_change_the_gcode() {
         assert_eq!(f.data.tools[0].ink_rgb(), None, "{bad}");
     }
 }
+
+fn square_job(repeat: Option<u32>, dwell: Option<f64>) -> Vec<String> {
+    let mut f = pen_project();
+    f.data.loops = vec![shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0), shapes::new_poly(&[[40.0, 10.0], [60.0, 10.0]], false, 0).unwrap()];
+    let sel: std::collections::BTreeSet<usize> = (0..2).collect();
+    f.data.ops.clear();
+    shapes::add_operation(&mut f.data, &sel, "draw");
+    f.data.ops[0].p.repeat = repeat;
+    f.data.ops[0].p.dwell = dwell;
+    generate(&f.data, Units::Metric).unwrap().lines
+}
+
+#[test]
+fn a_repeat_count_goes_over_the_whole_drawing_again() {
+    let once = square_job(None, None);
+    let thrice = square_job(Some(3), None);
+    assert_eq!(plunges(&thrice), 3 * plunges(&once));
+    assert!((ink(&thrice) - 3.0 * ink(&once)).abs() < 1e-6);
+    assert_eq!(thrice.iter().filter(|x| x.starts_with("(Repeat ")).count(), 3);
+    assert!(thrice.iter().any(|x| x == "(Repeat 3 of 3)"));
+    assert!(once.iter().all(|x| !x.starts_with("(Repeat")), "once needs no label");
+    assert!(verify::hazards(&thrice).is_empty(), "{:?}", verify::hazards(&thrice));
+    // zero and absurd counts are brought into range
+    assert_eq!(plunges(&square_job(Some(0), None)), plunges(&once));
+    assert_eq!(plunges(&square_job(Some(500), None)), 20 * plunges(&once));
+}
+
+#[test]
+fn the_pen_rests_after_going_down_when_asked_to() {
+    let none = square_job(None, None);
+    assert!(none.iter().all(|x| !x.starts_with("G4")));
+    let l = square_job(None, Some(0.25));
+    let waits: Vec<usize> = l.iter().enumerate().filter(|(_, x)| x.as_str() == "G4 P0.25").map(|(i, _)| i).collect();
+    assert_eq!(waits.len(), plunges(&l), "one rest per pen-down");
+    for i in waits { assert!(l[i - 1].starts_with("G1 Z"), "the rest follows the pen going down: {}", l[i - 1]); }
+    assert!(!l.iter().any(|x| x.starts_with("M3") || x.starts_with("M5")));
+    assert!(verify::hazards(&l).is_empty(), "{:?}", verify::hazards(&l));
+    // no rest when the pen stays down (a joined stroke): the zigzag of a fill has one rest, not one per line
+    let mut f = pen_project();
+    f.data.loops = vec![shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0)];
+    let sel: std::collections::BTreeSet<usize> = (0..1).collect();
+    f.data.ops.clear();
+    shapes::add_operation(&mut f.data, &sel, "draw");
+    f.data.ops[0].p.hatch = Some(putiacnc_core::model::Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: false });
+    f.data.ops[0].p.dwell = Some(0.1);
+    let h = generate(&f.data, Units::Metric).unwrap().lines;
+    assert_eq!(h.iter().filter(|x| x.starts_with("G4")).count(), 1);
+    // saved and read back
+    let mut g = pen_project();
+    g.data.ops[0].p.repeat = Some(2);
+    g.data.ops[0].p.dwell = Some(0.1);
+    let back = load_project(&serde_json::to_string(&g).unwrap()).unwrap();
+    assert_eq!((back.data.ops[0].p.repeat, back.data.ops[0].p.dwell), (Some(2), Some(0.1)));
+}
