@@ -304,6 +304,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         // ---- operations --------------------------------------------------------------
         // the operation list, its buttons row and the editor frame all share this width
         let lw = ui.available_width();
+        if let Some(why) = add_kind.and_then(|k| shapes::tool_missing(d, k)) {
+            // nothing to make the operation with: say so, rather than make one that cannot work
+            let now = ui.input(|i| i.time);
+            ui.ctx().data_mut(|x| x.insert_temp(egui::Id::new("status_note"), (why.to_string(), now)));
+            add_kind = None;
+        }
         if let Some(kind) = add_kind {
             let moved = shapes::add_operation(d, sel, kind);
             changed = true;

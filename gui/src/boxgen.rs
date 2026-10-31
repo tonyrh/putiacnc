@@ -42,7 +42,9 @@ impl App {
         self.project.data.loops.extend(made);
         self.sel = (start..self.project.data.loops.len()).collect();
         let mut note = format!("{} plates added{}", panels.len(), if dogs > 0 { format!(", with {dogs} {}", if matches!(dogbone, Some((_, Relief::TBone))) { "T-bones" } else { "dogbones" }) } else { String::new() });
-        if cut {
+        if cut && shapes::tool_missing(&self.project.data, "outside").is_some() {
+            note.push_str(", but no outside cut: the tool list has only pens");
+        } else if cut {
             // one operation round the outside of every plate, as deep as the material is thick and a little more so it cuts through
             let sel = self.sel.clone();
             shapes::add_operation(&mut self.project.data, &sel, "outside");

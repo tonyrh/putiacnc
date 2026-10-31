@@ -678,6 +678,18 @@ pub fn blank_project() -> ProjectFile {
 
 // ---------------------------------------------------------------- adding operations
 
+/// Why an operation of this kind cannot be made with the tools in the project: Draw needs a pen, everything else a cutter.
+/// `None` when the right kind of tool is there.
+pub fn tool_missing(d: &ProjectData, kind: &str) -> Option<&'static str> {
+    let pens = d.tools.iter().filter(|t| t.shape == "pen").count();
+    if kind == "draw" {
+        if pens == 0 { return Some("There is no pen in the tool list. Add one in Manage tools, or switch to a library that has pens (Libraries menu)."); }
+    } else if pens == d.tools.len() {
+        return Some("The tool list has only pens, and a pen can only draw. Use Draw for it, or switch to a library with cutters (Libraries menu).");
+    }
+    None
+}
+
 /// The Profile, Pocket, V-carve, Drill, Inlay and 3D relief buttons: a new operation (inheriting the settings of the
 /// last one) that takes over the selected shapes. Returns the operations those shapes were in before (one entry per
 /// shape that moved), so the caller can say so.
@@ -1361,5 +1373,18 @@ mod add_operation_tests {
         assert!((b[0] - 65.0).abs() < 0.01 && (b[2] - 110.0).abs() < 0.01, "{b:?}");
         let p = d.loops[2].path();
         assert!(p.iter().any(|q| q[1] == 30_000 && (q[0] as f64 / 1000.0 - 105.0).abs() < 0.01), "{p:?}");
+    }
+
+    #[test]
+    fn a_tool_list_of_only_pens_or_only_cutters_cannot_make_the_other_operations() {
+        let mut d = blank_project().data;
+        assert!(tool_missing(&d, "outside").is_none());
+        assert!(tool_missing(&d, "draw").is_some(), "a cutter-only list has no pen");
+        let mut pen = d.tools[0].clone();
+        pen.shape = "pen".into();
+        assert!(tool_missing(&{ let mut e = d.clone(); e.tools = vec![pen.clone()]; e }, "pocket").unwrap().contains("only pens"));
+        assert!(tool_missing(&{ let mut e = d.clone(); e.tools = vec![pen.clone()]; e }, "draw").is_none());
+        d.tools.push(pen);
+        assert!(tool_missing(&d, "draw").is_none() && tool_missing(&d, "outside").is_none());
     }
 }
