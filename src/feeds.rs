@@ -7,6 +7,8 @@ use crate::model::{Machine, Tool};
 pub struct Material {
     pub id: &'static str,
     pub label: &'static str,
+    /// The stock appearance that matches it (an id of the GUI's appearance list).
+    pub look: &'static str,
     /// Chip-load factor against the generic range in `toollib::chip_load_range` (1 = soft wood).
     chip: f64,
     /// Usual spindle speed window, rpm.
@@ -22,13 +24,13 @@ pub struct Material {
 }
 
 pub const MATERIALS: [Material; 7] = [
-    Material { id: "softwood", label: "Softwood (pine, spruce)", chip: 1.0, rpm: (10000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &[] },
-    Material { id: "hardwood", label: "Hardwood (oak, beech, walnut)", chip: 0.75, rpm: (10000.0, 20000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &["Hard wood burns when the feed is too slow: do not go below the suggested feed."] },
-    Material { id: "plywood", label: "Plywood", chip: 0.85, rpm: (12000.0, 24000.0), plunge: 0.35, so: 40.0, pass: 0.45, notes: &["Glue layers dull a cutter quickly; a downcut or compression bit keeps the top edge clean."] },
-    Material { id: "mdf", label: "MDF / chipboard", chip: 1.0, rpm: (12000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &["MDF dust is fine and unhealthy: use dust extraction and a mask."] },
-    Material { id: "acrylic", label: "Acrylic / plastic", chip: 0.6, rpm: (8000.0, 16000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &["Use a single-flute or O-flute cutter and keep it moving: a pause melts the plastic. Blow the chips away."] },
-    Material { id: "aluminium", label: "Aluminium", chip: 0.3, rpm: (6000.0, 14000.0), plunge: 0.2, so: 25.0, pass: 0.15, notes: &["Use a cutter made for aluminium (1 to 3 flutes, upcut) with lubricant or an air blast. Light cuts only; try it on scrap first."] },
-    Material { id: "foam", label: "Foam / wax", chip: 1.4, rpm: (12000.0, 24000.0), plunge: 0.5, so: 50.0, pass: 1.0, notes: &["Only sharp cutters; keep the chips clear or they clog the flutes."] },
+    Material { id: "softwood", label: "Softwood (pine, spruce)", look: "wood", chip: 1.0, rpm: (10000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &[] },
+    Material { id: "hardwood", label: "Hardwood (oak, beech, walnut)", look: "darkwood", chip: 0.75, rpm: (10000.0, 20000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &["Hard wood burns when the feed is too slow: do not go below the suggested feed."] },
+    Material { id: "plywood", label: "Plywood", look: "plywood", chip: 0.85, rpm: (12000.0, 24000.0), plunge: 0.35, so: 40.0, pass: 0.45, notes: &["Glue layers dull a cutter quickly; a downcut or compression bit keeps the top edge clean."] },
+    Material { id: "mdf", label: "MDF / chipboard", look: "mdf", chip: 1.0, rpm: (12000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &["MDF dust is fine and unhealthy: use dust extraction and a mask."] },
+    Material { id: "acrylic", label: "Acrylic / plastic", look: "acrylic", chip: 0.6, rpm: (8000.0, 16000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &["Use a single-flute or O-flute cutter and keep it moving: a pause melts the plastic. Blow the chips away."] },
+    Material { id: "aluminium", label: "Aluminium", look: "metal", chip: 0.3, rpm: (6000.0, 14000.0), plunge: 0.2, so: 25.0, pass: 0.15, notes: &["Use a cutter made for aluminium (1 to 3 flutes, upcut) with lubricant or an air blast. Light cuts only; try it on scrap first."] },
+    Material { id: "foam", label: "Foam / wax", look: "foam", chip: 1.4, rpm: (12000.0, 24000.0), plunge: 0.5, so: 50.0, pass: 1.0, notes: &["Only sharp cutters; keep the chips clear or they clog the flutes."] },
 ];
 
 pub fn material(id: &str) -> Option<&'static Material> { MATERIALS.iter().find(|m| m.id == id) }

@@ -68,7 +68,9 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
                 opts.extend(putiacnc_core::feeds::MATERIALS.iter().map(|m| (m.id, m.label)));
                 if !opts.iter().any(|(k, _)| *k == d.stock.cut) { d.stock.cut.clear(); }
                 let w = crate::widgets::combo_fit(ui, &opts.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
-                let (c, _) = combo_w2(ui, w, "stock_cut", &mut d.stock.cut, &opts, "", "What you are cutting. An operation's Suggest button uses it to fill in spindle speed, feeds, stepover and depth per pass");
+                let (c, _) = combo_w2(ui, w, "stock_cut", &mut d.stock.cut, &opts, "", "What you are cutting. An operation's Suggest button uses it to fill in spindle speed, feeds, stepover and depth per pass. The stock's look changes to match; change Appearance afterwards if you like");
+                // choosing a material gives the stock the matching look
+                if c { if let Some(m) = putiacnc_core::feeds::material(&d.stock.cut) { d.stock.mat = m.look.into(); } }
                 *changed |= c;
             });
         });
@@ -139,4 +141,23 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             });
         });
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_material_has_a_look_in_the_appearance_list_and_the_list_has_no_repeats() {
+        for m in putiacnc_core::feeds::MATERIALS.iter() {
+            assert!(MATERIALS.iter().any(|(k, _)| *k == m.look), "{} has look {:?}", m.id, m.look);
+        }
+        for (i, (k, _)) in MATERIALS.iter().enumerate() { assert!(MATERIALS.iter().skip(i + 1).all(|(o, _)| o != k), "{k} twice"); }
+        // each look has colours of its own in both themes (an unknown name would read as light wood)
+        for dark in [false, true] {
+            let th = crate::theme::Theme { dark, accent: eframe::egui::Color32::BLUE, size: 14.0 };
+            let wood = th.material("wood").top;
+            for (k, _) in MATERIALS.iter().filter(|(k, _)| *k != "wood") { assert_ne!(th.material(k).top, wood, "{k} looks like light wood (dark: {dark})"); }
+        }
+    }
 }

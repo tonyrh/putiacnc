@@ -85,7 +85,7 @@ impl Theme {
     pub fn border(&self) -> Color32 { if self.dark { rgb(0x44, 0x44, 0x44) } else { rgb(0xd5, 0xd5, 0xd5) } }
     pub fn text(&self) -> Color32 { if self.dark { rgb(0xff, 0xff, 0xff) } else { rgb(0x2e, 0x2e, 0x32) } }
     pub fn grid(&self) -> Color32 { if self.dark { rgb(0x2a, 0x2a, 0x2a) } else { rgb(0xec, 0xec, 0xec) } }
-    /// Colours of the stock for a material ("wood", "darkwood", "metal" or "foam"; anything else reads as wood):
+    /// Colours of the stock for a material ("wood", "darkwood", "plywood", "mdf", "acrylic", "metal", "foam" or "paper"; anything else reads as wood):
     /// 2D fill and outline, and the top and side faces in the 3D view.
     pub fn material(&self, mat: &str) -> Material {
         let c = |r, g, b| rgb(r, g, b);
@@ -94,6 +94,14 @@ impl Theme {
             ("metal", true) => Material { fill: c(0x3a, 0x3e, 0x44), stroke: c(0x8c, 0x93, 0x9c), top: c(170, 176, 186), side: c(120, 126, 136), grain: 0.0, rings: 0.0, brush: 1.0 },
             ("foam", false) => Material { fill: c(0x3a, 0x3b, 0x3f), stroke: c(0x1c, 0x1c, 0x1e), top: c(78, 79, 84), side: c(54, 55, 59), grain: 1.0, rings: 0.0, brush: 0.0 },
             ("foam", true) => Material { fill: c(0x46, 0x47, 0x4b), stroke: c(0x84, 0x85, 0x8a), top: c(88, 89, 94), side: c(62, 63, 68), grain: 1.0, rings: 0.0, brush: 0.0 },
+            ("plywood", false) => Material { fill: c(0xf2, 0xe6, 0xc8), stroke: c(0xb0, 0x94, 0x5a), top: c(236, 214, 168), side: c(200, 172, 120), grain: 0.0, rings: 0.35, brush: 0.0 },
+            ("plywood", true) => Material { fill: c(0x66, 0x58, 0x3e), stroke: c(0xc0, 0xa8, 0x78), top: c(214, 188, 140), side: c(166, 138, 96), grain: 0.0, rings: 0.35, brush: 0.0 },
+            ("mdf", false) => Material { fill: c(0xcf, 0xb8, 0x98), stroke: c(0x8a, 0x70, 0x4c), top: c(176, 140, 104), side: c(140, 108, 76), grain: 0.45, rings: 0.0, brush: 0.0 },
+            ("mdf", true) => Material { fill: c(0x4e, 0x40, 0x30), stroke: c(0xa8, 0x8c, 0x66), top: c(166, 130, 96), side: c(126, 96, 68), grain: 0.45, rings: 0.0, brush: 0.0 },
+            ("acrylic", false) => Material { fill: c(0xd6, 0xec, 0xf2), stroke: c(0x6a, 0xa0, 0xb0), top: c(190, 226, 236), side: c(120, 170, 186), grain: 0.0, rings: 0.0, brush: 0.0 },
+            ("acrylic", true) => Material { fill: c(0x2c, 0x44, 0x4c), stroke: c(0x6a, 0xa8, 0xb8), top: c(170, 214, 226), side: c(100, 150, 166), grain: 0.0, rings: 0.0, brush: 0.0 },
+            ("paper", false) => Material { fill: c(0xfb, 0xfa, 0xf4), stroke: c(0xb8, 0xb4, 0xa4), top: c(250, 248, 240), side: c(214, 210, 198), grain: 0.0, rings: 0.0, brush: 0.0 },
+            ("paper", true) => Material { fill: c(0x4a, 0x4a, 0x46), stroke: c(0xa8, 0xa6, 0x9a), top: c(236, 234, 226), side: c(200, 196, 186), grain: 0.0, rings: 0.0, brush: 0.0 },
             ("darkwood", false) => Material { fill: c(0xb9, 0x9a, 0x7e), stroke: c(0x5e, 0x40, 0x2a), top: c(112, 76, 52), side: c(78, 52, 34), grain: 0.0, rings: 1.0, brush: 0.0 },
             ("darkwood", true) => Material { fill: c(0x2e, 0x21, 0x19), stroke: c(0x9a, 0x76, 0x56), top: c(112, 76, 52), side: c(78, 52, 34), grain: 0.0, rings: 1.0, brush: 0.0 },
             (_, false) => Material { fill: c(0xe9, 0xdb, 0xc3), stroke: c(0xa0, 0x7c, 0x45), top: c(226, 190, 142), side: c(190, 150, 104), grain: 0.0, rings: 1.0, brush: 0.0 },
