@@ -108,7 +108,7 @@ impl App {
 
     /// Closes the windows of the tools that work on the selection.
     pub fn close_tool_windows(&mut self) {
-        self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false;
+        self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false; self.fingers.open = false;
     }
 
     /// Shows `msg` in the banner at the given level.
@@ -143,6 +143,7 @@ impl App {
             ToolWin::Corners => self.corners.open,
             ToolWin::Combine => self.combine_open,
             ToolWin::Clean => self.clean.open,
+            ToolWin::Fingers => self.fingers.open,
         }
     }
 
@@ -153,7 +154,7 @@ impl App {
 
     /// Safety net for any way of opening a tool window: when more than one is open, the one opened last stays.
     pub fn one_tool_window(&mut self) {
-        const ALL: [ToolWin; 6] = [ToolWin::Align, ToolWin::Offset, ToolWin::Array, ToolWin::Corners, ToolWin::Combine, ToolWin::Clean];
+        const ALL: [ToolWin; 7] = [ToolWin::Align, ToolWin::Offset, ToolWin::Array, ToolWin::Corners, ToolWin::Combine, ToolWin::Clean, ToolWin::Fingers];
         let open: Vec<ToolWin> = ALL.into_iter().filter(|w| self.tool_window_open(*w)).collect();
         if open.len() > 1 {
             let newest = open.iter().copied().find(|w| !self.tool_wins_seen.contains(w)).unwrap_or(open[open.len() - 1]);
@@ -174,6 +175,7 @@ impl App {
             ToolWin::Corners => self.corners.open = true,
             ToolWin::Combine => self.combine_open = true,
             ToolWin::Clean => { self.clean.open = true; self.clean.msg.clear(); }
+            ToolWin::Fingers => self.fingers.open = true,
         }
     }
 

@@ -85,7 +85,7 @@ pub fn dogbones(loops: &[&LoopData], tool_dia: f64, cut: Cut, op: i64) -> Option
     }
     if caps.is_empty() { return None; }
     let count = caps.len();
-    let caps = clip::simplify_even_odd(&caps.iter().map(|c| c.clone()).collect::<Vec<_>>());
+    let caps = clip::simplify_even_odd(&caps.to_vec());
     // the capsules were joined with the even-odd rule only to merge overlaps: orient them as regions again
     let caps: Vec<Path> = caps.into_iter().collect();
     let res = clip::boolean(if cut == Cut::Inside { BoolKind::Union } else { BoolKind::Difference }, &region, &caps);
@@ -93,6 +93,75 @@ pub fn dogbones(loops: &[&LoopData], tool_dia: f64, cut: Cut, op: i64) -> Option
         c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect(),
     }).collect();
     if out.is_empty() { None } else { Some((out, count)) }
+}
+
+/// What an edge of a plate does at a finger joint.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Edge {
+    /// Left straight.
+    #[default]
+    Flat,
+    /// Fingers stand out of the edge (the first and last are at the corners).
+    Tabs,
+    /// Notches go into the edge, in the places where the other plate's tabs are.
+    Slots,
+}
+
+/// How the fingers are cut.
+#[derive(Clone, Copy, Debug)]
+pub struct Fingers {
+    /// Wanted width of a finger, mm. The edge gets an odd number of equal fingers as close to this as fits.
+    pub width: f64,
+    /// How far tabs stand out and slots go in: the thickness of the material, mm.
+    pub depth: f64,
+    /// Extra room in the slots, mm: each slot is this much wider than its tab.
+    pub clearance: f64,
+}
+
+/// The number of fingers an edge of `len` mm gets for a wanted width: odd, at least 3, and the fingers as close to `width` as possible.
+pub fn finger_count(len: f64, width: f64) -> usize {
+    let n = (len / width.max(1e-6)).round().max(1.0) as usize;
+    let n = if n.is_multiple_of(2) { n + 1 } else { n };
+    // of the two odd counts either side of the ideal, the one that gives the width nearer to the wanted
+    let alt = n.saturating_sub(2).max(3);
+    let best = if (len / alt as f64 - width).abs() < (len / n as f64 - width).abs() { alt } else { n };
+    best.max(3)
+}
+
+/// Outline of the rectangle `bx` = [min x, min y, max x, max y] with finger joint edges, counter-clockwise from the bottom left corner
+/// (edges in the order bottom, right, top, left). `None` when the rectangle or the fingers are degenerate.
+pub fn finger_outline(bx: [f64; 4], edges: [Edge; 4], f: Fingers) -> Option<Vec<[f64; 2]>> {
+    let (w, h) = (bx[2] - bx[0], bx[3] - bx[1]);
+    if !(w > 0.0 && h > 0.0 && f.width > 0.0 && f.depth > 0.0 && f.clearance >= 0.0) { return None; }
+    let corners = [[bx[0], bx[1]], [bx[2], bx[1]], [bx[2], bx[3]], [bx[0], bx[3]]];
+    let mut out: Vec<[f64; 2]> = Vec::new();
+    for e in 0..4 {
+        let (p, q) = (corners[e], corners[(e + 1) % 4]);
+        let len = (q[0] - p[0]).hypot(q[1] - p[1]);
+        let (ux, uy) = ((q[0] - p[0]) / len, (q[1] - p[1]) / len);
+        // outward is to the right of the direction of travel for a counter-clockwise outline
+        let (nx, ny) = (uy, -ux);
+        let at = |s: f64, o: f64| [p[0] + ux * s + nx * o, p[1] + uy * s + ny * o];
+        out.push(p);
+        if edges[e] == Edge::Flat { continue; }
+        if f.depth * 2.0 >= (if e % 2 == 0 { h } else { w }) { return None; }
+        let n = finger_count(len, f.width);
+        let fw = len / n as f64;
+        for k in (0..n).step_by(2) {
+            let (a, b) = (fw * k as f64, fw * (k + 1) as f64);
+            match edges[e] {
+                Edge::Tabs => { out.push(at(a, 0.0)); out.push(at(a, f.depth)); out.push(at(b, f.depth)); out.push(at(b, 0.0)); }
+                _ => {
+                    let (a, b) = ((a - f.clearance / 2.0).max(0.0), (b + f.clearance / 2.0).min(len));
+                    out.push(at(a, 0.0)); out.push(at(a, -f.depth)); out.push(at(b, -f.depth)); out.push(at(b, 0.0));
+                }
+            }
+        }
+    }
+    // a corner that lies in a slot or at the foot of a tab is repeated
+    out.dedup_by(|a, b| (a[0] - b[0]).abs() < 1e-9 && (a[1] - b[1]).abs() < 1e-9);
+    if out.len() > 1 && (out[0][0] - out[out.len() - 1][0]).abs() < 1e-9 && (out[0][1] - out[out.len() - 1][1]).abs() < 1e-9 { out.pop(); }
+    Some(out)
 }
 
 #[cfg(test)]
@@ -163,5 +232,52 @@ mod tests {
         assert!(dogbones(&[], 3.0, Cut::Inside, 0).is_none());
         let line = crate::shapes::new_poly(&[[0.0, 0.0], [5.0, 5.0]], false, 0).unwrap();
         assert!(dogbones(&[&line], 3.0, Cut::Inside, 0).is_none());
+    }
+
+    #[test]
+    fn finger_counts_are_odd_and_near_the_wanted_width() {
+        assert_eq!(finger_count(100.0, 10.0), 11);
+        assert_eq!(finger_count(100.0, 12.0), 9);
+        assert_eq!(finger_count(100.0, 9.0), 11);
+        assert_eq!(finger_count(5.0, 10.0), 3);
+        for len in [20.0, 37.5, 80.0, 123.4] { for w in [3.0, 6.0, 10.0] { assert_eq!(finger_count(len, w) % 2, 1); } }
+    }
+
+    fn poly(pts: &[[f64; 2]]) -> Path { pts.iter().map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect() }
+
+    #[test]
+    fn tabs_fit_the_slots_of_the_plate_they_meet_with_the_clearance_to_spare() {
+        let f = Fingers { width: 10.0, depth: 3.0, clearance: 0.1 };
+        // plate A (above the line y = 0) has tabs on its bottom edge, standing out below it; plate B (below the line) has slots in its top edge
+        let a = finger_outline([0.0, 0.0, 90.0, 40.0], [Edge::Tabs, Edge::Flat, Edge::Flat, Edge::Flat], f).unwrap();
+        let b = finger_outline([0.0, -40.0, 90.0, 0.0], [Edge::Flat, Edge::Flat, Edge::Slots, Edge::Flat], f).unwrap();
+        // 9 fingers: 5 tabs, 5 slots
+        assert_eq!(a.len(), 4 + 5 * 4 - 2, "{}", a.len());
+        let (pa, pb) = (poly(&a), poly(&b));
+        let ra = clip::simplify_even_odd(std::slice::from_ref(&pa));
+        let rb = clip::simplify_even_odd(std::slice::from_ref(&pb));
+        let both = clip::boolean(BoolKind::Intersect, &ra, &rb);
+        let overlap: f64 = both.iter().map(|p| clip::area(p)).sum::<f64>().abs() / (S * S);
+        assert!(overlap < 1e-6, "the plates overlap by {overlap} mm2");
+        // what is left of the slots round the tabs is the clearance: 0.05 mm each side of a tab (end slots touch one wall only at the corners)
+        let area = |p: &Path| clip::area(p).abs() / (S * S);
+        let (aa, ab) = (area(&pa), area(&pb));
+        assert!((aa - (90.0 * 40.0 + 5.0 * 10.0 * 3.0)).abs() < 1e-3, "{aa}");
+        assert!((ab - (90.0 * 40.0 - (5.0 * 10.0 * 3.0 + 3.0 * (4.0 * 0.1) + 2.0 * 0.05 * 3.0 * 0.0 + 0.0))).abs() < 1.0, "{ab}");
+        let gap = 90.0 * 40.0 - ab - 5.0 * 10.0 * 3.0;
+        assert!(gap > 0.0 && gap < 5.0 * 0.1 * 3.0 + 1e-6, "clearance area {gap}");
+    }
+
+    #[test]
+    fn a_plate_with_all_four_edges_cut_is_a_simple_closed_outline() {
+        let f = Fingers { width: 8.0, depth: 3.0, clearance: 0.0 };
+        let o = finger_outline([0.0, 0.0, 60.0, 40.0], [Edge::Tabs, Edge::Slots, Edge::Tabs, Edge::Slots], f).unwrap();
+        let p = poly(&o);
+        let r = clip::simplify_even_odd(std::slice::from_ref(&p));
+        assert_eq!(r.len(), 1, "the outline crosses itself");
+        assert!(clip::area(&p) > 0.0, "counter-clockwise");
+        // too thin to cut
+        assert!(finger_outline([0.0, 0.0, 60.0, 5.0], [Edge::Tabs, Edge::Flat, Edge::Tabs, Edge::Flat], f).is_none());
+        assert!(finger_outline([0.0, 0.0, 60.0, 40.0], [Edge::Flat; 4], f).unwrap().len() == 4);
     }
 }

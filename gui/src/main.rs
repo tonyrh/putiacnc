@@ -13,6 +13,7 @@ mod canvas;
 mod cleanup;
 mod combine;
 mod corners;
+mod fingers;
 mod csd;
 mod dynin;
 mod icons;
@@ -196,6 +197,7 @@ impl App {
         combine::dialog(ctx, self);
         array::dialog(ctx, self);
         corners::dialog(ctx, self);
+        fingers::dialog(ctx, self);
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
         model3d::dialog(ctx, self);
