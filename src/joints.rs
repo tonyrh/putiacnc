@@ -209,26 +209,45 @@ pub struct BoxSpec {
     pub clearance: f64,
     /// A top plate as well; without it the box is open.
     pub lid: bool,
-    /// Plates standing inside the box, evenly spaced, held in slots of the plates they meet.
-    pub dividers: usize,
-    /// True: the dividers are parallel to the left and right plates (they split the width). False: parallel to the front and back (they split the depth).
-    pub dividers_x: bool,
+    /// Plates standing inside the box, parallel to the left and right plates (splitting the width), evenly spaced, held in slots of the plates they meet.
+    pub div_w: usize,
+    /// Plates parallel to the front and back, splitting the depth. Where they cross the others each is slotted halfway (a half-lap).
+    pub div_d: usize,
 }
 
 /// One plate: its size and its outline in its own frame, counter-clockwise, with the lower left corner of its box at (0, 0).
 #[derive(Clone, Debug)]
 pub struct Panel { pub side: Side, pub w: f64, pub h: f64, pub outline: Vec<[f64; 2]>, /// Slots cut right through the plate, for the tabs of dividers.
-    pub holes: Vec<Vec<[f64; 2]>> }
+    pub holes: Vec<Vec<[f64; 2]>>,
+    /// For a divider: (true when it splits the width, where it starts along that axis in mm from the outside).
+    pub pos: Option<(bool, f64)> }
 
 fn rect_path(x0: f64, y0: f64, x1: f64, y1: f64) -> Path { poly_path(&[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) }
 fn poly_path(p: &[[f64; 2]]) -> Path { p.iter().map(|q| [(q[0] * S).round() as i64, (q[1] * S).round() as i64]).collect() }
 
-/// Where each divider starts along the axis it is spaced on (the width for `dividers_x`, else the depth), mm from the outside.
-pub fn divider_positions(b: BoxSpec) -> Vec<f64> {
-    let span = if b.dividers_x { b.w } else { b.d };
-    let n = b.dividers as f64;
-    let cw = (span - 2.0 * b.t - n * b.t) / (n + 1.0);
-    (1..=b.dividers).map(|j| b.t + j as f64 * cw + (j as f64 - 1.0) * b.t).collect()
+/// Where each of `n` dividers starts along an axis of outside length `span`, mm from the outside.
+pub fn divider_positions(span: f64, n: usize, t: f64) -> Vec<f64> {
+    let nf = n as f64;
+    let cw = (span - 2.0 * t - nf * t) / (nf + 1.0);
+    (1..=n).map(|j| t + j as f64 * cw + (j as f64 - 1.0) * t).collect()
+}
+
+/// `spans` without the parts that lie in the `cut` intervals (leftovers under half a millimetre are dropped).
+fn spans_minus(spans: Vec<(f64, f64)>, cut: &[(f64, f64)]) -> Vec<(f64, f64)> {
+    let mut out = Vec::new();
+    for sp in spans {
+        let mut cur = vec![sp];
+        for &(e0, e1) in cut {
+            cur = cur.into_iter().flat_map(|(a, b)| if e1 <= a || e0 >= b { vec![(a, b)] } else {
+                let mut v = Vec::new();
+                if e0 > a { v.push((a, e0)); }
+                if e1 < b { v.push((e1, b)); }
+                v
+            }).collect();
+        }
+        out.extend(cur.into_iter().filter(|(a, b)| b - a > 0.5));
+    }
+    out
 }
 
 /// The even-numbered finger spans (start, end) of an odd number of equal fingers fitted into [from, to].
@@ -247,13 +266,14 @@ pub fn box_panels(b: BoxSpec) -> Result<Vec<Panel>, String> {
     let t = b.t;
     if !(t > 0.0 && b.finger > 0.0 && b.clearance >= 0.0) { return Err("The thickness and the finger width must be above zero.".into()); }
     if b.w < 4.0 * t || b.d < 4.0 * t || b.h < 4.0 * t { return Err(format!("The box must be at least {} mm in every direction for {} mm material.", 4.0 * t, t)); }
-    if b.dividers > 0 {
+    for (n, la, lb) in [(b.div_w, b.d, b.w), (b.div_d, b.w, b.d)] {
+        if n == 0 { continue; }
         if b.h < 6.0 * t { return Err(format!("Dividers need a box at least {} mm high for {} mm material.", 6.0 * t, t)); }
-        let (la, lb) = if b.dividers_x { (b.d, b.w) } else { (b.w, b.d) };
         if la < 6.0 * t { return Err("The box is too short for dividers.".into()); }
-        let cw = (lb - 2.0 * t - b.dividers as f64 * t) / (b.dividers as f64 + 1.0);
+        let cw = (lb - 2.0 * t - n as f64 * t) / (n as f64 + 1.0);
         if cw < 2.0 * t { return Err("The dividers are too close together: the compartments must be at least twice the material thickness.".into()); }
     }
+    let (xs_list, ys_list) = (divider_positions(b.w, b.div_w, t), divider_positions(b.d, b.div_d, t));
     let sides: Vec<Side> = if b.lid { vec![Side::Bottom, Side::Top, Side::Front, Side::Back, Side::Left, Side::Right] } else { vec![Side::Bottom, Side::Front, Side::Back, Side::Left, Side::Right] };
     // the plate that owns the corner cube where three plates (one of each pair of axes) would meet
     let corner_owner = |z: Option<Side>, y: Side, x: Side| -> Side { [z, Some(y), Some(x)].into_iter().flatten().min_by_key(|s| s.rank()).unwrap() };
@@ -310,32 +330,48 @@ pub fn box_panels(b: BoxSpec) -> Result<Vec<Panel>, String> {
         let pts = cut[0].iter().map(|q| [q[0] as f64 / S, q[1] as f64 / S]).collect();
         // slots for the tabs of the dividers
         let mut holes = Vec::new();
-        if b.dividers > 0 {
-            let c = b.clearance / 2.0;
-            let zs = even_spans(2.0 * t, b.h - 2.0 * t, b.finger);
-            for xs in divider_positions(b) {
-                let (a0, a1) = (xs - c, xs + t + c);
-                match (side, b.dividers_x) {
-                    (Side::Front | Side::Back, true) | (Side::Left | Side::Right, false) => for (z0, z1) in &zs { holes.push(rect_pts(a0, z0 - c, a1, z1 + c)); },
-                    (Side::Bottom, true) => for (y0, y1) in even_spans(2.0 * t, b.d - 2.0 * t, b.finger) { holes.push(rect_pts(a0, y0 - c, a1, y1 + c)); },
-                    (Side::Bottom, false) => for (x0, x1) in even_spans(2.0 * t, b.w - 2.0 * t, b.finger) { holes.push(rect_pts(x0 - c, a0, x1 + c, a1)); },
-                    _ => {}
-                }
+        let c = b.clearance / 2.0;
+        let zs = even_spans(2.0 * t, b.h - 2.0 * t, b.finger);
+        let x_foot: Vec<(f64, f64)> = xs_list.iter().map(|x| (x - 2.0 * c, x + t + 2.0 * c)).collect();
+        for &xs in &xs_list {
+            match side {
+                Side::Front | Side::Back => for (z0, z1) in &zs { holes.push(rect_pts(xs - c, z0 - c, xs + t + c, z1 + c)); },
+                Side::Bottom => for (y0, y1) in even_spans(2.0 * t, b.d - 2.0 * t, b.finger) { holes.push(rect_pts(xs - c, y0 - c, xs + t + c, y1 + c)); },
+                _ => {}
             }
         }
-        out.push(Panel { side, w, h, outline: pts, holes });
+        for &ys in &ys_list {
+            match side {
+                Side::Left | Side::Right => for (z0, z1) in &zs { holes.push(rect_pts(ys - c, z0 - c, ys + t + c, z1 + c)); },
+                // the tabs of these dividers stop short of the ones they cross
+                Side::Bottom => for (x0, x1) in spans_minus(even_spans(2.0 * t, b.w - 2.0 * t, b.finger), &x_foot) { holes.push(rect_pts(x0 - c, ys - c, x1 + c, ys + t + c)); },
+                _ => {}
+            }
+        }
+        out.push(Panel { side, w, h, outline: pts, holes, pos: None });
     }
-    // the dividers: a body between the plates it meets, with tabs into their slots
-    if b.dividers > 0 {
-        let (la, hd) = (if b.dividers_x { b.d } else { b.w }, b.h - t);
+    // the dividers: a body between the plates it meets, with tabs into their slots, and half-lap slots where they cross
+    let hd = b.h - t;
+    let zmid = t + (hd - t) / 2.0;
+    let c = b.clearance / 2.0;
+    let empty: Vec<Path> = Vec::new();
+    for (split_w, la, here, across) in [(true, b.d, &xs_list, &ys_list), (false, b.w, &ys_list, &xs_list)] {
+        let tabs = if split_w { even_spans(2.0 * t, la - 2.0 * t, b.finger) } else {
+            let foot: Vec<(f64, f64)> = across.iter().map(|x| (x - 2.0 * c, x + t + 2.0 * c)).collect();
+            spans_minus(even_spans(2.0 * t, la - 2.0 * t, b.finger), &foot)
+        };
         let mut parts: Vec<Path> = vec![rect_path(t, t, la - t, hd)];
-        for (y0, y1) in even_spans(2.0 * t, la - 2.0 * t, b.finger) { parts.push(rect_path(y0, 0.0, y1, t)); }
+        for (y0, y1) in tabs { parts.push(rect_path(y0, 0.0, y1, t)); }
         for (z0, z1) in even_spans(2.0 * t, b.h - 2.0 * t, b.finger) { parts.push(rect_path(0.0, z0, t, z1)); parts.push(rect_path(la - t, z0, la, z1)); }
-        let empty: Vec<Path> = Vec::new();
-        let u = clip::boolean(BoolKind::Union, &parts, &empty);
-        if u.len() != 1 { return Err("A divider came out in pieces: try a different finger width.".into()); }
-        let pts: Vec<[f64; 2]> = u[0].iter().map(|q| [q[0] as f64 / S, q[1] as f64 / S]).collect();
-        for _ in 0..b.dividers { out.push(Panel { side: Side::Divider, w: la, h: hd, outline: pts.clone(), holes: Vec::new() }); }
+        let mut body = clip::boolean(BoolKind::Union, &parts, &empty);
+        if !across.is_empty() {
+            // the dividers splitting the width keep the lower half where they cross, the others the upper half
+            let slots: Vec<Path> = across.iter().map(|&a| if split_w { rect_path(a - c, zmid - c / 2.0, a + t + c, hd + 1.0) } else { rect_path(a - c, t - 1.0, a + t + c, zmid + c / 2.0) }).collect();
+            body = clip::boolean(BoolKind::Difference, &body, &slots);
+        }
+        if body.len() != 1 { return Err("A divider came out in pieces: try a different finger width.".into()); }
+        let pts: Vec<[f64; 2]> = body[0].iter().map(|q| [q[0] as f64 / S, q[1] as f64 / S]).collect();
+        for &st in here.iter() { out.push(Panel { side: Side::Divider, w: la, h: hd, outline: pts.clone(), holes: Vec::new(), pos: Some((split_w, st)) }); }
     }
     Ok(out)
 }
@@ -485,11 +521,11 @@ mod tests {
     fn check_box(b: BoxSpec) {
         let ps = box_panels(b).unwrap();
         let t = b.t;
-        let divs = divider_positions(b);
+        let (xl, yl) = (divider_positions(b.w, b.div_w, t), divider_positions(b.d, b.div_d, t));
         let wall = |x: f64, y: f64, z: f64| {
             let in_x = x < t || x > b.w - t; let in_y = y < t || y > b.d - t;
             let bottom = z < t; let top = b.lid && z > b.h - t;
-            let div = divs.iter().any(|&d| if b.dividers_x { x > d && x < d + t && y > t && y < b.d - t && z > t && z < b.h - t } else { y > d && y < d + t && x > t && x < b.w - t && z > t && z < b.h - t });
+            let div = z > t && z < b.h - t && (xl.iter().any(|&d| x > d && x < d + t && y > t && y < b.d - t) || yl.iter().any(|&d| y > d && y < d + t && x > t && x < b.w - t));
             in_x || in_y || bottom || top || div
         };
         let (mut bad, mut cells) = (0, 0);
@@ -505,7 +541,7 @@ mod tests {
                 Side::Right => x > b.w - t && hit(p, y, z),
                 Side::Bottom => z < t && hit(p, x, y),
                 Side::Top => z > b.h - t && hit(p, x, y),
-                Side::Divider => divs.iter().any(|&d| if b.dividers_x { x > d && x < d + t && hit(p, y, z) } else { y > d && y < d + t && hit(p, x, z) }),
+                Side::Divider => match p.pos { Some((true, d)) => x > d && x < d + t && hit(p, y, z), Some((false, d)) => y > d && y < d + t && hit(p, x, z), None => false },
             }).count();
             let want = if wall(x, y, z) { 1 } else { 0 };
             let n = if n > 0 && !wall(x, y, z) { 99 } else { n };
@@ -517,25 +553,25 @@ mod tests {
 
     #[test]
     fn the_plates_of_a_closed_box_fill_its_walls_exactly() {
-        check_box(BoxSpec { w: 96.0, d: 56.0, h: 36.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true, dividers: 0, dividers_x: true });
+        check_box(BoxSpec { w: 96.0, d: 56.0, h: 36.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true, div_w: 0, div_d: 0 });
     }
 
     #[test]
     fn the_plates_of_an_open_box_fill_its_walls_exactly() {
-        check_box(BoxSpec { w: 96.0, d: 56.0, h: 33.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, dividers: 0, dividers_x: true });
+        check_box(BoxSpec { w: 96.0, d: 56.0, h: 33.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, div_w: 0, div_d: 0 });
         // sizes that do not divide evenly into fingers still have no overlap or gap
-        check_box(BoxSpec { w: 100.0, d: 61.0, h: 40.0, t: 3.0, finger: 9.0, clearance: 0.0, lid: true, dividers: 0, dividers_x: true });
+        check_box(BoxSpec { w: 100.0, d: 61.0, h: 40.0, t: 3.0, finger: 9.0, clearance: 0.0, lid: true, div_w: 0, div_d: 0 });
     }
 
     #[test]
     fn a_box_too_small_for_its_material_is_refused() {
-        assert!(box_panels(BoxSpec { w: 10.0, d: 56.0, h: 30.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true, dividers: 0, dividers_x: true }).is_err());
-        assert!(box_panels(BoxSpec { w: 50.0, d: 50.0, h: 30.0, t: 0.0, finger: 10.0, clearance: 0.0, lid: true, dividers: 0, dividers_x: true }).is_err());
+        assert!(box_panels(BoxSpec { w: 10.0, d: 56.0, h: 30.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true, div_w: 0, div_d: 0 }).is_err());
+        assert!(box_panels(BoxSpec { w: 50.0, d: 50.0, h: 30.0, t: 0.0, finger: 10.0, clearance: 0.0, lid: true, div_w: 0, div_d: 0 }).is_err());
     }
 
     #[test]
     fn layout_wraps_rows() {
-        let ps = box_panels(BoxSpec { w: 60.0, d: 40.0, h: 30.0, t: 3.0, finger: 10.0, clearance: 0.1, lid: true, dividers: 0, dividers_x: true }).unwrap();
+        let ps = box_panels(BoxSpec { w: 60.0, d: 40.0, h: 30.0, t: 3.0, finger: 10.0, clearance: 0.1, lid: true, div_w: 0, div_d: 0 }).unwrap();
         assert_eq!(ps.len(), 6);
         let pos = layout(&ps, 5.0, 150.0);
         assert!(pos.iter().all(|p| p[0] + 1.0 > 0.0));
@@ -561,13 +597,26 @@ mod tests {
     #[test]
     fn dividers_sit_in_slots_and_fill_their_place_exactly() {
         // two dividers splitting the width, with a lid; and one splitting the depth, open
-        check_box(BoxSpec { w: 99.0, d: 66.0, h: 36.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true, dividers: 1, dividers_x: true });
-        check_box(BoxSpec { w: 99.0, d: 63.0, h: 39.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, dividers: 1, dividers_x: false });
-        let ps = box_panels(BoxSpec { w: 120.0, d: 80.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: false, dividers: 2, dividers_x: true }).unwrap();
+        check_box(BoxSpec { w: 99.0, d: 66.0, h: 36.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true, div_w: 1, div_d: 0 });
+        check_box(BoxSpec { w: 99.0, d: 63.0, h: 39.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, div_w: 0, div_d: 1 });
+        let ps = box_panels(BoxSpec { w: 120.0, d: 80.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: false, div_w: 2, div_d: 0 }).unwrap();
         assert_eq!(ps.iter().filter(|p| p.side == Side::Divider).count(), 2);
         assert!(ps.iter().find(|p| p.side == Side::Front).unwrap().holes.len() >= 2);
         // too crowded or too low
-        assert!(box_panels(BoxSpec { w: 40.0, d: 80.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, dividers: 4, dividers_x: true }).is_err());
-        assert!(box_panels(BoxSpec { w: 120.0, d: 80.0, h: 15.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, dividers: 1, dividers_x: true }).is_err());
+        assert!(box_panels(BoxSpec { w: 40.0, d: 80.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, div_w: 4, div_d: 0 }).is_err());
+        assert!(box_panels(BoxSpec { w: 120.0, d: 80.0, h: 15.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, div_w: 1, div_d: 0 }).is_err());
+    }
+
+    #[test]
+    fn dividers_in_both_directions_cross_in_half_laps() {
+        // one each way, closed and open; two by one, with clearance zero so every cell can be checked
+        check_box(BoxSpec { w: 99.0, d: 63.0, h: 36.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true, div_w: 1, div_d: 1 });
+        check_box(BoxSpec { w: 129.0, d: 63.0, h: 39.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false, div_w: 2, div_d: 1 });
+        // with clearance the plates still come out whole
+        let ps = box_panels(BoxSpec { w: 120.0, d: 80.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: false, div_w: 2, div_d: 2 }).unwrap();
+        assert_eq!(ps.iter().filter(|p| p.side == Side::Divider).count(), 4);
+        // a crossing divider has a slot cut in from one edge: its outline is not just a rectangle with tabs
+        let (a, b) = (ps.iter().find(|p| p.pos.is_some_and(|q| q.0)).unwrap(), ps.iter().find(|p| p.pos.is_some_and(|q| !q.0)).unwrap());
+        assert!(a.outline.len() > 20 && b.outline.len() > 20);
     }
 }

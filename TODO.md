@@ -78,7 +78,8 @@ Toolpath quality
 - [x] Finger joints on rectangle edges (Edit menu).
 - [x] Box generator (Edit menu).
 - [x] T-bone corners and box dividers.
-- [ ] Box lids that slide or hinge; dividers in both directions (they would need half-lap slots).
+- [x] Box dividers in both directions (half-lap crossings).
+- [ ] Box lids that slide or hinge.
 - [ ] Adaptive clearing.
 - [ ] Nesting.
 

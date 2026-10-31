@@ -5,10 +5,10 @@ use eframe::egui;
 use putiacnc_core::joints::{self, BoxSpec, Relief};
 use putiacnc_core::shapes;
 
-pub struct BoxTool { pub open: bool, pub w: f64, pub d: f64, pub h: f64, pub finger: f64, pub clearance: f64, pub lid: bool, pub dogbone: bool, pub dia: f64, pub cut: bool, pub auto: bool, pub tbone: bool, pub dividers: usize, pub dividers_x: bool }
+pub struct BoxTool { pub open: bool, pub w: f64, pub d: f64, pub h: f64, pub finger: f64, pub clearance: f64, pub lid: bool, pub dogbone: bool, pub dia: f64, pub cut: bool, pub auto: bool, pub tbone: bool, pub div_w: usize, pub div_d: usize }
 
 impl Default for BoxTool {
-    fn default() -> Self { BoxTool { open: false, w: 120.0, d: 80.0, h: 50.0, finger: 10.0, clearance: 0.05, lid: false, dogbone: false, dia: 3.175, cut: true, auto: true, tbone: false, dividers: 0, dividers_x: true } }
+    fn default() -> Self { BoxTool { open: false, w: 120.0, d: 80.0, h: 50.0, finger: 10.0, clearance: 0.05, lid: false, dogbone: false, dia: 3.175, cut: true, auto: true, tbone: false, div_w: 0, div_d: 0 } }
 }
 
 impl App {
@@ -59,11 +59,11 @@ impl App {
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.boxgen.open { app.ghost.clear_if("box"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "box") { app.tool_note = None; } return; }
-    let spec = |a: &App| BoxSpec { w: a.boxgen.w, d: a.boxgen.d, h: a.boxgen.h, t: a.project.data.stock.t, finger: a.boxgen.finger, clearance: a.boxgen.clearance, lid: a.boxgen.lid, dividers: a.boxgen.dividers, dividers_x: a.boxgen.dividers_x };
+    let spec = |a: &App| BoxSpec { w: a.boxgen.w, d: a.boxgen.d, h: a.boxgen.h, t: a.project.data.stock.t, finger: a.boxgen.finger, clearance: a.boxgen.clearance, lid: a.boxgen.lid, div_w: a.boxgen.div_w, div_d: a.boxgen.div_d };
     let dia = crate::corners::cutter_dia(app.boxgen.auto, app.inherited_cutter_dia(), app.boxgen.dia);
     let relief = if app.boxgen.tbone { Relief::TBone } else { Relief::Dogbone };
     let (s, dog, cut) = (spec(app), app.boxgen.dogbone.then_some((dia, relief)), app.boxgen.cut);
-    let key: Vec<u64> = [s.w, s.d, s.h, s.t, s.finger, s.clearance, dog.map_or(0.0, |d| d.0)].iter().map(|v| crate::preview::bits(*v)).chain([s.lid as u64, cut as u64, s.dividers as u64, s.dividers_x as u64, app.boxgen.tbone as u64]).collect();
+    let key: Vec<u64> = [s.w, s.d, s.h, s.t, s.finger, s.clearance, dog.map_or(0.0, |d| d.0)].iter().map(|v| crate::preview::bits(*v)).chain([s.lid as u64, cut as u64, s.div_w as u64, s.div_d as u64, app.boxgen.tbone as u64]).collect();
     app.preview("box", &key, move |a| a.add_box(s, dog, cut));
     let pnote = app.ghost.note_of("box").map(String::from);
     let thick = app.project.data.stock.t;
@@ -100,12 +100,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(4.0);
         crate::widgets::check(ui, &mut app.boxgen.lid, "Lid (a top plate)").tip("Without it the box is open at the top");
         ui.horizontal(|ui| {
-            ui.label("Dividers");
-            let mut n = app.boxgen.dividers as f64;
-            if crate::widgets::num(ui, [50.0, 24.0], &mut n, 0.0, 10.0, 0.2, 0, "").changed() { app.boxgen.dividers = n.round().max(0.0) as usize; }
-            if app.boxgen.dividers > 0 {
-                let (c, _) = crate::zoomcard::seg2(ui, ["Split width", "Split depth"], ["Dividers parallel to the left and right plates", "Dividers parallel to the front and back plates"], (!app.boxgen.dividers_x) as usize);
-                if let Some(i) = c { app.boxgen.dividers_x = i == 0; }
+            for (label, tip, v) in [("Dividers across the width", "Plates parallel to the left and right plates, splitting the width", 0), ("across the depth", "Plates parallel to the front and back plates, splitting the depth; where they cross the others each is slotted halfway", 1)] {
+                ui.label(label);
+                let cur = if v == 0 { &mut app.boxgen.div_w } else { &mut app.boxgen.div_d };
+                let mut n = *cur as f64;
+                if crate::widgets::num(ui, [44.0, 24.0], &mut n, 0.0, 10.0, 0.2, 0, "").tip(tip).changed() { *cur = n.round().max(0.0) as usize; }
             }
         });
         ui.add_space(2.0);
@@ -145,7 +144,7 @@ mod tests {
         let mut a = App::new(None);
         a.project.data.stock.t = 3.0;
         a.project.data.loops = vec![shapes::new_rect([0.0, 0.0], [20.0, 20.0], 0.0, 0)];
-        let b = BoxSpec { w: 90.0, d: 60.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: false, dividers: 0, dividers_x: true };
+        let b = BoxSpec { w: 90.0, d: 60.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: false, div_w: 0, div_d: 0 };
         let msg = a.add_box(b, None, false).unwrap();
         assert!(msg.starts_with("5 plates"), "{msg}");
         assert_eq!(a.project.data.loops.len(), 6);
@@ -163,12 +162,12 @@ mod tests {
     fn dividers_and_tbones_come_with_the_box() {
         let mut a = App::new(None);
         a.project.data.stock.t = 3.0;
-        let b = BoxSpec { w: 120.0, d: 80.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: false, dividers: 2, dividers_x: true };
+        let b = BoxSpec { w: 120.0, d: 80.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: false, div_w: 2, div_d: 0 };
         let msg = a.add_box(b, Some((3.0, Relief::TBone)), false).unwrap();
         assert!(msg.starts_with("7 plates") && msg.contains("T-bones"), "{msg}");
         // the slots are holes inside the front and back plates: more shapes than plates
         assert!(a.project.data.loops.len() > 7);
-        assert!(a.add_box(BoxSpec { dividers: 15, ..b }, None, false).unwrap().contains("too close"));
+        assert!(a.add_box(BoxSpec { div_w: 15, ..b }, None, false).unwrap().contains("too close"));
     }
 
     #[test]
@@ -176,7 +175,7 @@ mod tests {
         let mut a = App::new(None);
         a.project.data.stock.t = 3.0;
         let n_ops = a.project.data.ops.len();
-        let b = BoxSpec { w: 90.0, d: 60.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: true, dividers: 0, dividers_x: true };
+        let b = BoxSpec { w: 90.0, d: 60.0, h: 40.0, t: 3.0, finger: 10.0, clearance: 0.05, lid: true, div_w: 0, div_d: 0 };
         assert!(a.add_box(b, None, true).unwrap().contains("outside cut"));
         let d = &a.project.data;
         assert_eq!(d.ops.len(), n_ops + 1);
