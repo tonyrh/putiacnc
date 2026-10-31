@@ -150,7 +150,7 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
             ui.add_space(4.0);
             for (i, (name, json)) in toollib::BUNDLED.iter().enumerate() {
                 let have = app.tool_libs.libs.iter().any(|l| l.name == *name);
-                let txt = format!("{name}  ({} bits){}", toollib::bundled_count(json), if have { "  \u{b7} added" } else { "" });
+                let txt = format!("{name}  ({} {}){}", toollib::bundled_count(json), if json.contains("\"shape\": \"pen\"") { "pens" } else { "bits" }, if have { "  \u{b7} added" } else { "" });
                 if ui.add_sized([ui.available_width(), 26.0], egui::Button::new(txt)).clicked() { pick = Some(i); }
                 ui.add_space(2.0);
             }

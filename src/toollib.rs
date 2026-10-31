@@ -18,6 +18,7 @@ pub const BUNDLED: &[(&str, &str)] = &[
     ("Freud router bits", include_str!("../libraries/freud.json")),
     ("Generic CNC bits", include_str!("../libraries/generic.json")),
     ("Whiteside CNC bits", include_str!("../libraries/whiteside.json")),
+    ("Pens and markers", include_str!("../libraries/pens.json")),
 ];
 
 /// Number of tools in a bundled file, without parsing it.
@@ -35,7 +36,7 @@ pub fn category(shape: &str) -> (usize, &'static str) {
         "ball" | "taper" => (2, "Ball-nose & tapered bits"),
         "vbit" | "engrave" => (3, "V-grooving & engraving bits"),
         "arc" => (4, "Decorative & profile bits"),
-        "pen" => (5, "Pens & markers"),
+        "pen" => (5, "Pens"),
         _ => (0, "Straight bits"),
     }
 }
@@ -348,7 +349,8 @@ mod tests {
             let lib = l.libs.last().unwrap();
             let names: std::collections::HashSet<_> = lib.tools.iter().map(|t| t.name.clone()).collect();
             assert_eq!(names.len(), n, "tool names in {} must be unique", name);
-            assert!(lib.tools.iter().all(|t| t.dia >= 1.0 && t.dia < 101.0 && t.feed > 0.0 && t.rpm <= 12000.0));
+            assert!(lib.tools.iter().all(|t| (t.dia >= 1.0 || t.shape == "pen") && t.dia < 101.0 && t.feed > 0.0 && t.rpm <= 12000.0));
+            assert!(lib.tools.iter().all(|t| t.shape != "pen" || (t.dia >= 0.05 && t.dia <= 5.0 && t.rpm == 0.0 && t.plunge > 0.0)), "{name}: a pen has a line width and no spindle");
         }
         assert!(l.libs.iter().any(|lib| lib.tools.iter().any(|t| t.shape == "vbit" && (t.angle - 135.0).abs() < 0.01)));
     }

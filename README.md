@@ -45,7 +45,7 @@ The workspace has two crates:
 - Toolpath warnings run in the background: too deep for the cutter, cutting into the table, outside the machine area, rapids through material, shank rubbing, clamps (keep-out zones you can drag), and cuts that stray from your drawing. The G-code is always written; the warnings only inform.
 
 **Tools and machines**
-- Tool libraries with imperial and metric bits, a chip-load estimate, search, and ready-made libraries (CMT, Amana, Bosch, Freud, Whiteside, Diablo, generic) in `libraries/`.
+- Tool libraries with imperial and metric bits, a chip-load estimate, search, and ready-made libraries (CMT, Amana, Bosch, Freud, Whiteside, Diablo, generic, and pens and markers for plotting) in `libraries/`.
 - Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files.
 
 **Everything else**
