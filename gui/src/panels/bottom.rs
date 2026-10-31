@@ -40,6 +40,10 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
         }
         return;
     }
+    let split = app.view_tab == crate::view3d::ViewTab::Split;
+    // beside the 3D view one bar does both jobs: the drawing's options on the left, playback in the middle, the view toggles on the right
+    // (when the window is too narrow for that, playback gets a row of its own under them)
+    let two_rows = split && ui.available_width() < 800.0;
     ui.horizontal(|ui| {
         crate::widgets::check(ui, &mut app.grid_on, "Grid");
         crate::widgets::num(ui, [72.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, " mm").on_hover_text("Grid size (also the snap step)");
@@ -49,12 +53,28 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
             crate::widgets::check(ui, &mut app.osnap_on, "To shapes").on_hover_text("The pointer jumps to the corners, midpoints, centres and crossings of shapes, and to the stock");
         });
         // view toggles on the right (right-to-left, so listed in reverse)
+        let h = ui.spacing().interact_size.y;
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             guides_menu(ui, app);
             crate::widgets::check(ui, &mut app.show_rapids, "Rapids");
             crate::widgets::check(ui, &mut app.show_toolpath, "Toolpaths");
+            if split && !two_rows {
+                crate::view3d::speed_box(ui, app, 64.0);
+                let w = ui.available_width().max(0.0);
+                ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
+            }
         });
     });
+    if two_rows {
+        ui.horizontal(|ui| {
+            let h = ui.spacing().interact_size.y;
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                crate::view3d::speed_box(ui, app, 64.0);
+                let w = ui.available_width().max(0.0);
+                ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
+            });
+        });
+    }
 }
 
 /// The "Guides" drop-up in the bottom bar: a button with a painted arrow (a text arrow is a box in some fonts) whose panel opens upwards

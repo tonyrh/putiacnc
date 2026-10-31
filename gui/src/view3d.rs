@@ -268,18 +268,6 @@ pub fn tab_strip(ui: &mut Ui, app: &mut App) {
     tabs(ui, &theme, &mut app.view_tab, &[(ViewTab::Design, "2D design"), (ViewTab::Split, "2D + 3D"), (ViewTab::Preview, "3D preview")]);
 }
 
-/// The playback bar under the 3D side of the split view: play, the slider, the speed.
-pub fn split_bar(ui: &mut Ui, app: &mut App) {
-    let h = ui.spacing().interact_size.y;
-    ui.horizontal(|ui| {
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            speed_box(ui, app, 64.0);
-            let w = ui.available_width().max(0.0);
-            ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| play_bar(ui, app));
-        });
-    });
-}
-
 /// Painted play / pause / restart glyphs.
 fn glyph_button(ui: &mut Ui, kind: u8, tip: &str) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(26.0), Sense::click());

@@ -182,7 +182,6 @@ impl App {
             let w = ctx.available_rect().width();
             let r = egui::SidePanel::right("split3d").resizable(true).default_width((w * 0.45).max(260.0)).width_range(220.0..=(w - 260.0).max(221.0))
                 .frame(egui::Frame::none().fill(self.theme.view())).show(ctx, |ui| {
-                    egui::TopBottomPanel::bottom("split3d_bar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(8.0, 4.0))).show_inside(ui, |ui| view3d::split_bar(ui, self));
                     view3d::preview(ui, self);
                 });
             self.split_rect = Some(r.response.rect);
