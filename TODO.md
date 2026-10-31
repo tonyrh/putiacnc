@@ -53,7 +53,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 
 ## Release 0.3.2
 - [x] README screenshots refreshed (`docs/screenshot-2d.png`, `docs/screenshot-3d.png`; project built by `examples/docproject.rs`).
-- [x] Demo video replaced (`docs/demo.mp4` and the one embedded in the README); the unused GIF was removed. The sound was taken out of `docs/demo.mp4` (the website uses that file). The copy embedded in the README is a GitHub upload and still has sound until it is uploaded again.
+- [x] Demo video replaced (`docs/demo.mp4` and the one embedded in the README); the unused GIF was removed. The sound was taken out of `docs/demo.mp4` (the website uses that file). The copy embedded in the README was uploaded again without sound.
 - [x] Maintainer tags and publishes (0.3.2 is out).
 
 ## Project page
