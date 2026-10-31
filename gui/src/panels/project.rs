@@ -612,6 +612,17 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             if p.lift.is_some() && reset_button(ui, "Back to 2 mm") { p.lift = None; changed = true; }
                         });
                         ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
+                            rlabel(ui, lw3, "Join gaps");
+                            let mut on = p.join.is_some();
+                            if crate::widgets::check(ui, &mut on, "under").tip("When the next stroke starts this close to where the last one ended, the pen stays down and draws a short line across instead of lifting. Saves time with single-line text and dashed lines; the marks it leaves are as long as the gap").changed() { p.join = if on { Some(0.5) } else { None }; changed = true; }
+                            if let Some(v) = p.join.as_mut() {
+                                changed |= dv_r(ui, 48.0, v, 0.05, 20.0, "").changed();
+                                ui.weak("mm");
+                            }
+                        });
+                        ui.add_space(4.0);
                         let mut fill = p.hatch.is_some();
                         if crate::widgets::check(ui, &mut fill, "Fill closed shapes with lines").tip("Draws parallel lines across every closed shape, as close together as the pen's line width unless you set it. A shape inside another is left empty").changed() {
                             p.hatch = if fill { Some(putiacnc_core::model::Hatch::default()) } else { None };
@@ -643,7 +654,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             });
                         }
                         ui.add_space(2.0);
-                        ui.weak(if p.hatch.is_some() { "Open lines are drawn as they are." } else { "Draws every outline once. Set Z0 on the surface of the paper." });
+                        ui.weak(if p.hatch.is_some() { "Open lines are drawn as they are. The lines of the fill are joined into a zigzag." } else { "Draws every outline once (an edge two shapes share too). Set Z0 on the surface of the paper." });
                     }
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
                         ui.add_space(4.0);

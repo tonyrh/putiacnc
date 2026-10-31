@@ -290,6 +290,9 @@ pub struct OpParams {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub lift: Option<f64>,
     /// Draw (pen): fill the closed shapes with lines instead of drawing only their outlines; `None` = outlines only.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub hatch: Option<Hatch>,
+    /// Draw (pen): when the next stroke starts closer than this (mm) to where the last one ended, the pen stays down and draws a line
+    /// across instead of lifting; `None` = always lift. (The lines of a fill are joined on their own.)
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub join: Option<f64>,
 }
 
 /// How a Draw operation fills closed shapes: parallel lines (and a second set across them when `cross`).

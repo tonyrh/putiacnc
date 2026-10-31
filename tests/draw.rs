@@ -265,13 +265,13 @@ fn a_hatch_fills_a_rectangle_with_lines_one_pen_width_apart() {
     let r = shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0);
     let pen = pen_project().data.tools[0].dia;
     let plain = ink(&hatch_job(vec![r.clone()], Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: false }));
-    // 10 lines of 20 mm
-    assert!((plain - 200.0).abs() < 1.0, "{plain}");
+    // 10 lines of 20 mm, and the 9 short joins between neighbouring ends
+    assert!((plain - 209.0).abs() < 1.0, "{plain}");
     let with_edge = ink(&hatch_job(vec![r.clone()], Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: true }));
     assert!((with_edge - plain - 60.0).abs() < 1.0, "{with_edge}");
     let crossed = ink(&hatch_job(vec![r.clone()], Hatch { angle: 30.0, gap: Some(1.0), cross: true, outline: false }));
     let one = ink(&hatch_job(vec![r.clone()], Hatch { angle: 30.0, gap: Some(1.0), cross: false, outline: false }));
-    assert!(crossed > one * 1.8 && one > 190.0 && one < 210.0, "{one} {crossed}");
+    assert!(crossed > one * 1.8 && one > 190.0 && one < 220.0, "{one} {crossed}");
     // without a gap the lines are one pen width apart
     let dflt = ink(&hatch_job(vec![r], Hatch { angle: 0.0, gap: None, cross: false, outline: false }));
     assert!((dflt - 200.0 / pen).abs() < 20.0 / pen + 20.0, "{dflt} for pen {pen}");
@@ -285,8 +285,8 @@ fn a_shape_inside_another_is_a_hole_in_the_fill() {
     let h = Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: false };
     let full = ink(&hatch_job(vec![outer.clone()], h.clone()));
     let ring = ink(&hatch_job(vec![outer, inner], h));
-    // the 10 x 10 hole takes 10 lines of 10 mm away
-    assert!((full - ring - 100.0).abs() < 1.0, "{full} {ring}");
+    // the 10 x 10 hole takes 10 lines of 10 mm away (the short joins along the edges differ a little)
+    assert!((full - ring - 100.0).abs() < 12.0, "{full} {ring}");
 }
 
 #[test]
@@ -312,4 +312,71 @@ fn the_fill_settings_survive_saving_and_old_projects_have_none() {
     // a fill saved with only some of its settings gets the usual ones for the rest
     let part: Hatch = serde_json::from_str("{\"cross\":true}").unwrap();
     assert!(part.outline && part.angle == 45.0 && part.gap.is_none() && part.cross);
+}
+
+fn plunges(l: &[String]) -> usize { l.iter().filter(|x| x.starts_with("G1 Z")).count() }
+
+#[test]
+fn the_lines_of_a_fill_are_joined_into_one_zigzag_without_lifting() {
+    use putiacnc_core::model::Hatch;
+    let r = shapes::new_rect([10.0, 10.0], [30.0, 20.0], 0.0, 0);
+    let l = hatch_job(vec![r.clone()], Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: false });
+    assert_eq!(plunges(&l), 1, "one zigzag, one pen-down");
+    // joins are drawn with the pen down: no lift between rows
+    let lifts = l.iter().filter(|x| x.starts_with("G0 Z")).count();
+    assert!(lifts <= 3, "{lifts}");
+}
+
+#[test]
+fn lines_with_a_hole_between_them_are_not_joined_across_it() {
+    use putiacnc_core::model::Hatch;
+    let outer = shapes::new_rect([0.0, 0.0], [20.0, 20.0], 0.0, 0);
+    let inner = shapes::new_rect([5.0, 5.0], [15.0, 15.0], 0.0, 0);
+    let l = hatch_job(vec![outer, inner], Hatch { angle: 0.0, gap: Some(1.0), cross: false, outline: false });
+    // 10 full rows of 20 mm and 10 rows of two 5 mm pieces make 300 mm of lines, plus at most a 1 mm join between neighbouring
+    // rows; a join across the 10 mm hole would add 10 mm each
+    let total = ink(&l);
+    assert!(total > 299.0 && total < 335.0, "{total}");
+}
+
+#[test]
+fn a_join_distance_keeps_the_pen_down_between_nearby_strokes() {
+    let a = shapes::new_poly(&[[0.0, 0.0], [10.0, 0.0]], false, 0).unwrap();
+    let b = shapes::new_poly(&[[10.4, 0.0], [20.0, 0.0]], false, 0).unwrap();
+    let c = shapes::new_poly(&[[40.0, 0.0], [50.0, 0.0]], false, 0).unwrap();
+    let run = |join: Option<f64>| {
+        let mut f = pen_project();
+        f.data.loops = vec![a.clone(), b.clone(), c.clone()];
+        let sel: std::collections::BTreeSet<usize> = (0..3).collect();
+        f.data.ops.clear();
+        shapes::add_operation(&mut f.data, &sel, "draw");
+        f.data.ops[0].p.join = join;
+        generate(&f.data, Units::Metric).unwrap().lines
+    };
+    assert_eq!(plunges(&run(None)), 3);
+    assert_eq!(plunges(&run(Some(1.0))), 2, "the first two are one line, the far one is not joined");
+    assert!((ink(&run(Some(1.0))) - ink(&run(None)) - 0.4).abs() < 1e-6, "the join is drawn");
+    let back = load_project(&serde_json::to_string(&{ let mut f = pen_project(); f.data.ops[0].p.join = Some(0.7); f }).unwrap()).unwrap();
+    assert_eq!(back.data.ops[0].p.join, Some(0.7));
+}
+
+#[test]
+fn an_edge_two_shapes_share_is_drawn_once() {
+    // two squares side by side share the edge x = 10
+    let l = shapes::new_rect([0.0, 0.0], [10.0, 10.0], 0.0, 0);
+    let r = shapes::new_rect([10.0, 0.0], [20.0, 10.0], 0.0, 0);
+    let mut f = pen_project();
+    f.data.loops = vec![l, r];
+    let sel: std::collections::BTreeSet<usize> = (0..2).collect();
+    f.data.ops.clear();
+    shapes::add_operation(&mut f.data, &sel, "draw");
+    let lines = generate(&f.data, Units::Metric).unwrap().lines;
+    // 2 squares of 40 mm round, minus the shared 10 mm
+    assert!((ink(&lines) - 70.0).abs() < 1e-6, "{}", ink(&lines));
+    // shapes that share nothing stay as they were: two separate loops
+    let mut g = pen_project();
+    g.data.loops = vec![shapes::new_rect([0.0, 0.0], [10.0, 10.0], 0.0, 0), shapes::new_rect([20.0, 0.0], [30.0, 10.0], 0.0, 0)];
+    g.data.ops.clear();
+    shapes::add_operation(&mut g.data, &sel, "draw");
+    assert!((ink(&generate(&g.data, Units::Metric).unwrap().lines) - 80.0).abs() < 1e-6);
 }

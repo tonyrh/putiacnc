@@ -718,28 +718,39 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
         let v = path_f(&p, false, closed);
         if v.len() >= 2 { strokes.push((v, closed)); }
     }
+    // an edge shared by two shapes is drawn once
+    let strokes = dedupe_edges(strokes);
+    let mut strokes: Vec<(Vec<[f64; 2]>, bool, bool)> = strokes.into_iter().map(|(v, c)| (v, c, false)).collect();
+    // the closed shapes and the line spacing, kept to check that a join between two lines of the fill stays inside the shapes
+    let mut fill: Option<(Vec<Vec<[f64; 2]>>, f64)> = None;
     if let Some(h) = &o.p.hatch {
         let gap = h.gap.filter(|g| *g > 0.0).unwrap_or(tool.dia).max(0.05);
-        let polys: Vec<Vec<[f64; 2]>> = strokes.iter().filter(|(_, c)| *c).map(|(v, _)| v.clone()).collect();
+        let polys: Vec<Vec<[f64; 2]>> = strokes.iter().filter(|(_, c, _)| *c).map(|(v, _, _)| v.clone()).collect();
         if polys.is_empty() { notes.push(format!("{}there are no closed shapes to fill.", pre)); }
         let mut lines = hatch_lines(&polys, h.angle, gap);
         if h.cross { lines.extend(hatch_lines(&polys, h.angle + 90.0, gap)); }
         if lines.len() > 200_000 { return Err(format!("Operation {}: the fill would need {} lines; use a wider line spacing", k + 1, lines.len())); }
-        if !h.outline { strokes.retain(|(_, c)| !*c); }
-        strokes.extend(lines.into_iter().map(|l| (l, false)));
+        if !h.outline { strokes.retain(|(_, c, _)| !*c); }
+        strokes.extend(lines.into_iter().map(|l| (l, false, true)));
+        fill = Some((polys, gap));
     }
     if strokes.is_empty() { notes.push(format!("{}nothing to draw.", pre)); return Ok(()); }
     select_pen(e, ts, mach, tool, sz);
     e.g.push(format!("(Operation {}: draw with {}, pen down at {} {} below Z0, up at {} {} above it)", k + 1, tool_label(&tool.name), num(to_fixed(o.p.depth.max(0.0) / e.ku, e.dec())), if e.imp { "in" } else { "mm" }, num(to_fixed(lift / e.ku, e.dec())), if e.imp { "in" } else { "mm" }));
     e.go("G0", None, None, Some(sz), 0.0);
+    let join_under = o.p.join.filter(|v| *v > 0.0).unwrap_or(0.0);
     let mut here = [e.cur[0], e.cur[1]];
     let mut todo = strokes;
     let mut idx = 0;
+    // whether the pen is down at `here`, and whether the stroke it just drew was a line of the fill
+    let (mut pen_down, mut last_fill) = (false, false);
+    // the direction back along the last stroke from its end (into the shape, for a line of the fill)
+    let mut back = [0.0, 0.0];
     while !todo.is_empty() {
         // the stroke whose start (or end, for an open path; or any corner, for a closed one) is nearest the pen
         let d2 = |a: [f64; 2]| (a[0] - here[0]).powi(2) + (a[1] - here[1]).powi(2);
         let mut best = (f64::MAX, 0usize, 0usize, false); // distance, stroke, start vertex, reversed
-        for (i, (v, closed)) in todo.iter().enumerate() {
+        for (i, (v, closed, _)) in todo.iter().enumerate() {
             if *closed { for (j, q) in v.iter().enumerate().take(v.len() - 1) { let d = d2(*q); if d < best.0 { best = (d, i, j, false); } } }
             else {
                 let (a, b) = (d2(v[0]), d2(v[v.len() - 1]));
@@ -748,21 +759,95 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
             }
         }
         let (_, i, j, rev) = best;
-        let (mut v, closed) = todo.remove(i);
+        let (mut v, closed, is_fill) = todo.remove(i);
         if closed { v.pop(); v.rotate_left(j); let a = v[0]; v.push(a); }
         if rev { v.reverse(); }
         idx += 1;
         e.pn = idx;
         let a = v[0];
-        e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
-        e.go("G1", None, None, Some(down), tool.plunge);
+        let d = best.0.sqrt();
+        // stay down and draw across when the gap is small enough (the lines of a fill: when the way across lies inside the shapes)
+        let join = pen_down && d > 1e-9 && (d <= join_under || (is_fill && last_fill && fill.as_ref().is_some_and(|(polys, gap)| d <= gap * 1.6 && chord_inside(polys, here, a, back, gap * 0.1))));
+        if join {
+            e.go("G1", Some(a[0]), Some(a[1]), Some(down), tool.feed);
+        } else {
+            if pen_down { e.go("G0", None, None, Some(up), 0.0); }
+            if d > 1e-9 || !pen_down { e.go("G0", Some(a[0]), Some(a[1]), None, 0.0); }
+            e.go("G1", None, None, Some(down), tool.plunge);
+        }
         for q in &v[1..] { e.go("G1", Some(q[0]), Some(q[1]), Some(down), tool.feed); }
-        e.go("G0", None, None, Some(up), 0.0);
+        pen_down = true;
+        last_fill = is_fill;
+        if v.len() >= 2 {
+            let (p, q) = (v[v.len() - 2], v[v.len() - 1]);
+            let l = (p[0] - q[0]).hypot(p[1] - q[1]).max(1e-12);
+            back = [(p[0] - q[0]) / l, (p[1] - q[1]) / l];
+        }
         here = *v.last().expect("a stroke has points");
     }
+    if pen_down { e.go("G0", None, None, Some(up), 0.0); }
     e.pn = 0;
     e.go("G0", None, None, Some(sz), 0.0);
     Ok(())
+}
+
+/// Whether the straight way from `a` to `b` lies inside the closed polygons (even-odd), judged at three points along it, each
+/// moved `nudge` along `inward` first: a line of the fill ends on the edge, and the way along the edge is as good as inside.
+fn chord_inside(polys: &[Vec<[f64; 2]>], a: [f64; 2], b: [f64; 2], inward: [f64; 2], nudge: f64) -> bool {
+    let inside = |p: [f64; 2]| -> bool {
+        let mut n = 0;
+        for v in polys { for w in v.windows(2) {
+            let (p0, p1) = (w[0], w[1]);
+            if (p0[1] > p[1]) != (p1[1] > p[1]) && p[0] < p0[0] + (p[1] - p0[1]) / (p1[1] - p0[1]) * (p1[0] - p0[0]) { n += 1; }
+        } }
+        n % 2 == 1
+    };
+    [0.25, 0.5, 0.75].iter().all(|t| inside([a[0] + (b[0] - a[0]) * t + inward[0] * nudge, a[1] + (b[1] - a[1]) * t + inward[1] * nudge]))
+}
+
+/// Draws an edge that two shapes share once: the strokes are cut into their segments, a segment met twice is kept once, and the
+/// segments are chained into strokes again. Strokes without a shared segment come back untouched.
+fn dedupe_edges(strokes: Vec<(Vec<[f64; 2]>, bool)>) -> Vec<(Vec<[f64; 2]>, bool)> {
+    use std::collections::{HashMap, HashSet};
+    let key = |p: [f64; 2]| ((p[0] * 1000.0).round() as i64, (p[1] * 1000.0).round() as i64);
+    let mut seen: HashSet<((i64, i64), (i64, i64))> = HashSet::new();
+    let mut dup = false;
+    let mut segs: Vec<([f64; 2], [f64; 2])> = vec![];
+    for (v, _) in &strokes {
+        for w in v.windows(2) {
+            let (a, b) = (key(w[0]), key(w[1]));
+            if a == b { continue; }
+            if seen.insert((a.min(b), a.max(b))) { segs.push((w[0], w[1])); } else { dup = true; }
+        }
+    }
+    if !dup { return strokes; }
+    let mut at: HashMap<(i64, i64), Vec<usize>> = HashMap::new();
+    for (i, s) in segs.iter().enumerate() { at.entry(key(s.0)).or_default().push(i); at.entry(key(s.1)).or_default().push(i); }
+    let mut used = vec![false; segs.len()];
+    let mut out = vec![];
+    // chains start where a line ends or branches; what is left is whole loops
+    let mut starts: Vec<usize> = (0..segs.len()).filter(|&i| at[&key(segs[i].0)].len() != 2 || at[&key(segs[i].1)].len() != 2).collect();
+    starts.extend(0..segs.len());
+    for s0 in starts {
+        if used[s0] { continue; }
+        // begin at the end of the segment that is a real end, if there is one
+        let (mut a, mut b) = segs[s0];
+        if at[&key(a)].len() == 2 && at[&key(b)].len() != 2 { std::mem::swap(&mut a, &mut b); }
+        used[s0] = true;
+        let mut v = vec![a, b];
+        loop {
+            let here = *v.last().expect("a chain has points");
+            let next = at[&key(here)].iter().copied().find(|&i| !used[i]);
+            let Some(i) = next else { break };
+            if at[&key(here)].len() != 2 { break; }
+            used[i] = true;
+            let (p, q) = segs[i];
+            v.push(if key(p) == key(here) { q } else { p });
+        }
+        let closed = v.len() > 3 && key(v[0]) == key(*v.last().expect("a chain has points"));
+        out.push((v, closed));
+    }
+    out
 }
 
 /// Parallel lines `gap` apart at `angle` degrees that fill the closed polygons (even-odd: a shape inside another is a hole).
