@@ -35,6 +35,12 @@ pub fn duration(min: f64) -> String {
 }
 
 /// `piece`: the program is for a separate plug piece, so what is read from the project (tool names, air cut) is left out.
+/// Whether the operation writes anything: it has shapes, or it is a relief. An operation with no shapes is skipped by the generator (as it is
+/// in a file of a split program, where the other operations keep their place in the list but have no shapes), so the summary leaves it out.
+fn runs(data: &ProjectData, o: &crate::model::Operation) -> bool {
+    if o.p.kind == "relief" { data.relief.is_some() } else { data.loops.iter().any(|l| l.op == o.id) }
+}
+
 pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> Vec<Row> {
     let un = units.name();
     // numbered programs ("N120 G0 Z5") are read without their numbers
@@ -69,7 +75,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     let mut names: Vec<String> = Vec::new();
     if !piece {
         let mut add = |id: &str| { if let Some(t) = data.tools.iter().find(|t| t.id == id) { if !names.contains(&t.name) { names.push(t.name.clone()); } } };
-        for o in &data.ops {
+        for o in data.ops.iter().filter(|o| runs(data, o)) {
             if o.p.kind == "relief" {
                 if !o.p.r_off { if let Some(t) = &o.p.tool2 { add(t); } }
                 if !o.p.f_off { add(&o.p.tool); }
@@ -122,7 +128,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
 
     // air cut: nothing is cut
     if !piece {
-        let air: Vec<String> = data.ops.iter().enumerate().filter(|(_, o)| o.p.air || data.job.air).map(|(i, _)| (i + 1).to_string()).collect();
+        let air: Vec<String> = data.ops.iter().enumerate().filter(|(_, o)| runs(data, o) && (o.p.air || data.job.air)).map(|(i, _)| (i + 1).to_string()).collect();
         if !air.is_empty() { rows.push(row("Air cut", format!("Operation{} {} run{} 10 mm above the stock: nothing is cut.", if air.len() == 1 { "" } else { "s" }, air.join(", "), if air.len() == 1 { "s" } else { "" }), true)); }
     }
 

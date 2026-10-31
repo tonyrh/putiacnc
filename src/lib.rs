@@ -18,6 +18,7 @@ pub mod relief;
 pub mod replay;
 pub mod shapes;
 pub mod sim;
+pub mod split;
 pub mod dxf;
 pub mod svg;
 pub mod text;
