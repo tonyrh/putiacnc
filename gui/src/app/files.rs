@@ -52,7 +52,7 @@ impl App {
         }
     }
 
-    pub(super) fn finish_dialog(&mut self, kind: DlgKind, mut p: std::path::PathBuf) {
+    pub(crate) fn finish_dialog(&mut self, kind: DlgKind, mut p: std::path::PathBuf) {
         self.remember_dir(kind, &p);
         match kind {
             DlgKind::Open => self.request(Action::Open(p.display().to_string())),
@@ -71,6 +71,16 @@ impl App {
                 // the drawing may have changed while the dialog was open
                 self.finish_generation();
                 if self.output.is_none() { self.error = Some(format!("Export failed: {}", self.gen_error.clone().unwrap_or_else(|| "there is no G-code.".into()))); }
+                let mode = if self.can_split() { self.export_split } else { putiacnc_core::split::Split::One };
+                if mode != putiacnc_core::split::Split::One {
+                    // the files are made on a worker, like the whole program is; the export window picks them up
+                    let data = self.project.data.clone();
+                    let units = if self.imperial { putiacnc_core::Units::Imperial } else { putiacnc_core::Units::Metric };
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    std::thread::spawn(move || { let _ = tx.send(putiacnc_core::split::generate_files(&data, units, mode)); });
+                    self.split_job = Some((rx, p));
+                    return;
+                }
                 let files = self.gcode_files(&p);
                 if !files.is_empty() {
                     let mut err = None;
@@ -250,9 +260,55 @@ impl App {
         v
     }
 
+    /// Export G-code: with two or more operations that can stand alone the export window asks how to split the program first.
+    /// The path of a split file: the chosen name with the file's ending before the extension.
+    pub fn split_path(path: &std::path::Path, suffix: &str) -> std::path::PathBuf {
+        let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = match path.extension() { Some(e) => format!("{stem}{suffix}.{}", e.to_string_lossy()), None => format!("{stem}{suffix}") };
+        path.with_file_name(name)
+    }
+
+    /// Picks up the split files when they are ready and writes them, with the plug pieces next to them.
+    pub fn poll_split(&mut self) -> bool {
+        let Some((rx, _)) = &self.split_job else { return false };
+        let res = match rx.try_recv() {
+            Ok(r) => r,
+            Err(std::sync::mpsc::TryRecvError::Empty) => return true,
+            Err(_) => Err("the split stopped without an answer.".to_string()),
+        };
+        let (_, path) = self.split_job.take().expect("a job");
+        match res {
+            Err(e) => self.error = Some(format!("Export failed: {e}")),
+            Ok(files) => {
+                let mut out: Vec<(std::path::PathBuf, String)> = files.iter().map(|f| (Self::split_path(&path, &f.suffix), f.out.gcode())).collect();
+                out.extend(self.gcode_files(&path).into_iter().skip(1));
+                let mut err = None;
+                for (p, t) in &out { if let Err(e) = std::fs::write(p, t) { err = Some(format!("Export failed: {e}")); break; } }
+                match err {
+                    Some(e) => self.error = Some(e),
+                    None => {
+                        let names: Vec<String> = out.iter().filter_map(|(p, _)| p.file_name().map(|n| n.to_string_lossy().into_owned())).collect();
+                        self.error = None;
+                        self.say(Level::Info, format!("Saved {} files: {}. Each file is complete: check the note at its top before you start it.", out.len(), names.join(", ")));
+                    }
+                }
+            }
+        }
+        false
+    }
+
     pub fn export_gcode_dialog(&mut self) {
         self.finish_generation();
         if self.output.is_none() { self.error = Some("Nothing to export: there is no G-code yet.".into()); return; }
+        if self.can_split() { self.export_open = true; } else { self.export_split = putiacnc_core::split::Split::One; self.choose_export_file(); }
+    }
+
+    pub fn can_split(&self) -> bool {
+        putiacnc_core::split::groups(&self.project.data, putiacnc_core::split::Split::PerOperation).len() >= 2
+    }
+
+    /// The file dialog of an export; the program is written when a name is chosen.
+    pub fn choose_export_file(&mut self) {
         let name = if self.project.name.trim().is_empty() { "output".to_string() } else { self.project.name.trim().to_string() };
         let dir = crate::prefs::existing_dir(&self.prefs.dir_gcode)
             .or_else(|| if self.path.is_empty() { None } else { std::path::Path::new(&self.path).parent().map(|d| d.to_path_buf()) })

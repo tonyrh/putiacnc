@@ -89,11 +89,33 @@ fn tool_name(data: &ProjectData, id: &str) -> String {
 }
 
 /// Makes the files of the program for `mode`. For `Split::One` that is the whole main job as one file.
+/// The label and the file name ending ("-2-pocket") of group `gi` of `n`.
+fn name(main: &ProjectData, g: &[usize], gi: usize, n: usize, mode: Split) -> (String, String) {
+    let width = main.ops.len().to_string().len();
+    let first = &main.ops[g[0]];
+    let tool_first = tool_name(main, &first.p.tool);
+    match mode {
+        Split::PerOperation => (format!("Operation {}: {}", g[0] + 1, first.p.kind), format!("-{:0w$}-{}", g[0] + 1, slug(&first.p.kind), w = width)),
+        Split::PerTool => {
+            let ops: Vec<String> = g.iter().map(|k| (k + 1).to_string()).collect();
+            (format!("{} (operation{} {})", tool_first, if g.len() == 1 { "" } else { "s" }, ops.join(", ")), format!("-{:0w$}-{}", gi + 1, slug(&tool_first), w = n.to_string().len()))
+        }
+        Split::One => ("Everything".to_string(), String::new()),
+    }
+}
+
+/// What a split would write, before anything is generated: the operations, the file name ending and the label of each file.
+pub fn plan(data: &ProjectData, mode: Split) -> Vec<(Vec<usize>, String, String)> {
+    let (main, _) = pieces::split(data);
+    let gs = groups(data, mode);
+    let n = gs.len();
+    gs.into_iter().enumerate().map(|(i, g)| { let (l, s) = name(&main, &g, i, n, mode); (g, s, l) }).collect()
+}
+
 pub fn generate_files(data: &ProjectData, units: Units, mode: Split) -> Result<Vec<SplitFile>, String> {
     let (main, _) = pieces::split(data);
     let gs = groups(data, mode);
     let n = gs.len();
-    let width = main.ops.len().to_string().len();
     let mut files: Vec<SplitFile> = vec![];
     let mut prev_tool: Option<String> = None;
     for (gi, g) in gs.iter().enumerate() {
@@ -112,14 +134,7 @@ pub fn generate_files(data: &ProjectData, units: Units, mode: Split) -> Result<V
 
         let first = &main.ops[g[0]];
         let tool_first = tool_name(&main, &first.p.tool);
-        let (label, suffix) = match mode {
-            Split::PerOperation => (format!("Operation {}: {}", g[0] + 1, first.p.kind), format!("-{:0w$}-{}", g[0] + 1, slug(&first.p.kind), w = width)),
-            Split::PerTool => {
-                let ops: Vec<String> = g.iter().map(|k| (k + 1).to_string()).collect();
-                (format!("{} (operation{} {})", tool_first, if g.len() == 1 { "" } else { "s" }, ops.join(", ")), format!("-{:0w$}-{}", gi + 1, slug(&tool_first), w = n.to_string().len()))
-            }
-            Split::One => ("Everything".to_string(), String::new()),
-        };
+        let (label, suffix) = name(&main, g, gi, n, mode);
 
         // what to do before this file, and what comes after it
         let mut top: Vec<String> = vec![];

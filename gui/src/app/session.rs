@@ -56,6 +56,7 @@ impl App {
         }
         if let Some(v) = p.mach_len_in { self.mach_len_in = v; }
         if let Some(v) = p.mach_speed_idx { self.mach_speed_idx = v; }
+        if let Some(v) = &p.export_split { self.export_split = putiacnc_core::split::Split::from_id(v); }
         self.prefs_saved = p.clone();
         self.prefs = p;
     }
@@ -84,6 +85,7 @@ impl App {
         s.tool_speed_idx_in = Some(self.tool_speed_in);
         s.mach_len_in = Some(self.mach_len_in);
         s.mach_speed_idx = Some(self.mach_speed_idx);
+        s.export_split = Some(self.export_split.id().to_string());
         if let Some(o) = self.trace.remember.clone() { s.trace = Some(o); }
         if let Some(o) = self.model3d.remember_obj { s.model_orient_obj = Some(o); }
         if let Some(o) = self.model3d.remember_stl { s.model_orient_stl = Some(o); }

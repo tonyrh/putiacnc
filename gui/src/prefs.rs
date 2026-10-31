@@ -41,6 +41,8 @@ pub struct Settings {
     pub tool_speed_idx_in: Option<usize>,
     pub mach_len_in: Option<bool>,
     pub mach_speed_idx: Option<usize>,
+    /// How the export window splits the program: "one", "tool" or "operation".
+    pub export_split: Option<String>,
     pub dir_project: Option<String>,
     pub dir_svg: Option<String>,
     pub dir_gcode: Option<String>,
