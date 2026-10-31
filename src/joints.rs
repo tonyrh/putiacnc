@@ -164,6 +164,116 @@ pub fn finger_outline(bx: [f64; 4], edges: [Edge; 4], f: Fingers) -> Option<Vec<
     Some(out)
 }
 
+/// The six plates of a box.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Side { Bottom, Top, Front, Back, Left, Right }
+
+impl Side {
+    pub fn name(self) -> &'static str {
+        match self { Side::Bottom => "Bottom", Side::Top => "Top", Side::Front => "Front", Side::Back => "Back", Side::Left => "Left", Side::Right => "Right" }
+    }
+    /// The plate that keeps a contested place wins: bottom and top over front and back over left and right.
+    fn rank(self) -> u8 { match self { Side::Bottom | Side::Top => 0, Side::Front | Side::Back => 1, _ => 2 } }
+}
+
+/// A box made of finger-jointed plates. Sizes are outside sizes in mm.
+#[derive(Clone, Copy, Debug)]
+pub struct BoxSpec {
+    pub w: f64, pub d: f64, pub h: f64,
+    /// Thickness of the material.
+    pub t: f64,
+    pub finger: f64,
+    pub clearance: f64,
+    /// A top plate as well; without it the box is open.
+    pub lid: bool,
+}
+
+/// One plate: its size and its outline in its own frame, counter-clockwise, with the lower left corner of its box at (0, 0).
+#[derive(Clone, Debug)]
+pub struct Panel { pub side: Side, pub w: f64, pub h: f64, pub outline: Vec<[f64; 2]> }
+
+fn rect_path(x0: f64, y0: f64, x1: f64, y1: f64) -> Path { poly_path(&[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) }
+fn poly_path(p: &[[f64; 2]]) -> Path { p.iter().map(|q| [(q[0] * S).round() as i64, (q[1] * S).round() as i64]).collect() }
+
+/// The plates of a box that fit together. Every joint along a box edge alternates between the two plates that meet there, an odd
+/// number of fingers from one end to the other, and each of the eight corners belongs to one plate only, so that nothing
+/// overlaps and nothing is missing (except the clearance).
+pub fn box_panels(b: BoxSpec) -> Result<Vec<Panel>, String> {
+    let t = b.t;
+    if !(t > 0.0 && b.finger > 0.0 && b.clearance >= 0.0) { return Err("The thickness and the finger width must be above zero.".into()); }
+    if b.w < 4.0 * t || b.d < 4.0 * t || b.h < 4.0 * t { return Err(format!("The box must be at least {} mm in every direction for {} mm material.", 4.0 * t, t)); }
+    let sides: Vec<Side> = if b.lid { vec![Side::Bottom, Side::Top, Side::Front, Side::Back, Side::Left, Side::Right] } else { vec![Side::Bottom, Side::Front, Side::Back, Side::Left, Side::Right] };
+    // the plate that owns the corner cube where three plates (one of each pair of axes) would meet
+    let corner_owner = |z: Option<Side>, y: Side, x: Side| -> Side { [z, Some(y), Some(x)].into_iter().flatten().min_by_key(|s| s.rank()).unwrap() };
+    let mut out = Vec::new();
+    for &side in &sides {
+        // size, and for each local edge (bottom, right, top, left) the neighbouring plate, and for each local corner
+        // (lower left, lower right, upper right, upper left) the owner of the corner cube
+        let (w, h, nb, owners): (f64, f64, [Option<Side>; 4], [Side; 4]) = {
+            let has = |s: Side| sides.contains(&s);
+            let zs = |bottom: bool| if bottom { Some(Side::Bottom) } else if has(Side::Top) { Some(Side::Top) } else { None };
+            match side {
+                Side::Front | Side::Back => {
+                    let (l, r) = (Side::Left, Side::Right);
+                    (b.w, b.h, [Some(Side::Bottom), Some(r), has(Side::Top).then_some(Side::Top), Some(l)],
+                        [corner_owner(zs(true), side, l), corner_owner(zs(true), side, r), corner_owner(zs(false), side, r), corner_owner(zs(false), side, l)])
+                }
+                Side::Left | Side::Right => {
+                    let (f, k) = (Side::Front, Side::Back);
+                    (b.d, b.h, [Some(Side::Bottom), Some(k), has(Side::Top).then_some(Side::Top), Some(f)],
+                        [corner_owner(zs(true), f, side), corner_owner(zs(true), k, side), corner_owner(zs(false), k, side), corner_owner(zs(false), f, side)])
+                }
+                Side::Bottom | Side::Top => {
+                    let z = Some(side);
+                    (b.w, b.d, [Some(Side::Front), Some(Side::Right), Some(Side::Back), Some(Side::Left)],
+                        [corner_owner(z, Side::Front, Side::Left), corner_owner(z, Side::Front, Side::Right), corner_owner(z, Side::Back, Side::Right), corner_owner(z, Side::Back, Side::Left)])
+                }
+            }
+        };
+        let mut notches: Vec<Path> = Vec::new();
+        // corner cubes that belong to another plate
+        let cs = [(0.0, 0.0), (w - t, 0.0), (w - t, h - t), (0.0, h - t)];
+        for (k, (x, y)) in cs.iter().enumerate() { if owners[k] != side { notches.push(rect_path(*x, *y, x + t, y + t)); } }
+        for e in 0..4 {
+            let Some(n) = nb[e] else { continue };
+            let len = if e % 2 == 0 { w } else { h };
+            let inner = len - 2.0 * t;
+            if inner <= 0.0 { return Err("The box is too small for this material.".into()); }
+            let cnt = finger_count(inner, b.finger);
+            let fw = inner / cnt as f64;
+            let owns_even = side.rank() < n.rank();
+            for k in 0..cnt {
+                if (k % 2 == 0) == owns_even { continue; }
+                let a = (t + fw * k as f64 - b.clearance / 4.0).max(t * 0.0);
+                let z = (t + fw * (k + 1) as f64 + b.clearance / 4.0).min(len);
+                notches.push(match e { 0 => rect_path(a, 0.0, z, t), 1 => rect_path(w - t, a, w, z), 2 => rect_path(a, h - t, z, h), _ => rect_path(0.0, a, t, z) });
+            }
+        }
+        let base = vec![rect_path(0.0, 0.0, w, h)];
+        let cut = if notches.is_empty() { base } else {
+            // all the notches run the same way round, so where they overlap (clearance) they add up rather than cancel
+            clip::boolean(BoolKind::Difference, &base, &notches)
+        };
+        if cut.len() != 1 { return Err("A plate came out in pieces: try a different finger width.".into()); }
+        let pts = cut[0].iter().map(|q| [q[0] as f64 / S, q[1] as f64 / S]).collect();
+        out.push(Panel { side, w, h, outline: pts });
+    }
+    Ok(out)
+}
+
+/// Places plates in rows no wider than `max_w`, `gap` apart: the lower left corner of each, relative to the first row's start.
+pub fn layout(panels: &[Panel], gap: f64, max_w: f64) -> Vec<[f64; 2]> {
+    let (mut x, mut y, mut row_h) = (0.0, 0.0, 0.0_f64);
+    let mut out = Vec::new();
+    for p in panels {
+        if x > 0.0 && x + p.w > max_w { x = 0.0; y += row_h + gap; row_h = 0.0; }
+        out.push([x, y]);
+        x += p.w + gap;
+        row_h = row_h.max(p.h);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -279,5 +389,74 @@ mod tests {
         // too thin to cut
         assert!(finger_outline([0.0, 0.0, 60.0, 5.0], [Edge::Tabs, Edge::Flat, Edge::Tabs, Edge::Flat], f).is_none());
         assert!(finger_outline([0.0, 0.0, 60.0, 40.0], [Edge::Flat; 4], f).unwrap().len() == 4);
+    }
+
+    fn inside(poly: &[[f64; 2]], x: f64, y: f64) -> bool {
+        let mut c = false;
+        let mut j = poly.len() - 1;
+        for i in 0..poly.len() {
+            let (a, b) = (poly[i], poly[j]);
+            if (a[1] > y) != (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0] { c = !c; }
+            j = i;
+        }
+        c
+    }
+
+    /// Every cell of the box's walls is filled by exactly one plate, and no cell elsewhere is.
+    fn check_box(b: BoxSpec) {
+        let ps = box_panels(b).unwrap();
+        let t = b.t;
+        let wall = |x: f64, y: f64, z: f64| {
+            let in_x = x < t || x > b.w - t; let in_y = y < t || y > b.d - t;
+            let bottom = z < t; let top = b.lid && z > b.h - t;
+            in_x || in_y || bottom || top
+        };
+        let (mut bad, mut cells) = (0, 0);
+        let step = 1.0;
+        let (nx, ny, nz) = ((b.w / step) as usize, (b.d / step) as usize, (b.h / step) as usize);
+        for i in 0..nx { for j in 0..ny { for k in 0..nz {
+            let (x, y, z) = ((i as f64 + 0.5) * step, (j as f64 + 0.5) * step, (k as f64 + 0.5) * step);
+            let n = ps.iter().filter(|p| match p.side {
+                Side::Front => y < t && inside(&p.outline, x, z),
+                Side::Back => y > b.d - t && inside(&p.outline, x, z),
+                Side::Left => x < t && inside(&p.outline, y, z),
+                Side::Right => x > b.w - t && inside(&p.outline, y, z),
+                Side::Bottom => z < t && inside(&p.outline, x, y),
+                Side::Top => z > b.h - t && inside(&p.outline, x, y),
+            }).count();
+            let want = if wall(x, y, z) { 1 } else { 0 };
+            cells += 1;
+            if n != want { bad += 1; }
+        }}}
+        assert_eq!(bad, 0, "{bad} of {cells} cells are overlapped or empty");
+    }
+
+    #[test]
+    fn the_plates_of_a_closed_box_fill_its_walls_exactly() {
+        check_box(BoxSpec { w: 96.0, d: 56.0, h: 36.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true });
+    }
+
+    #[test]
+    fn the_plates_of_an_open_box_fill_its_walls_exactly() {
+        check_box(BoxSpec { w: 96.0, d: 56.0, h: 33.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: false });
+        // sizes that do not divide evenly into fingers still have no overlap or gap
+        check_box(BoxSpec { w: 100.0, d: 61.0, h: 40.0, t: 3.0, finger: 9.0, clearance: 0.0, lid: true });
+    }
+
+    #[test]
+    fn a_box_too_small_for_its_material_is_refused() {
+        assert!(box_panels(BoxSpec { w: 10.0, d: 56.0, h: 30.0, t: 3.0, finger: 10.0, clearance: 0.0, lid: true }).is_err());
+        assert!(box_panels(BoxSpec { w: 50.0, d: 50.0, h: 30.0, t: 0.0, finger: 10.0, clearance: 0.0, lid: true }).is_err());
+    }
+
+    #[test]
+    fn layout_wraps_rows() {
+        let ps = box_panels(BoxSpec { w: 60.0, d: 40.0, h: 30.0, t: 3.0, finger: 10.0, clearance: 0.1, lid: true }).unwrap();
+        assert_eq!(ps.len(), 6);
+        let pos = layout(&ps, 5.0, 150.0);
+        assert!(pos.iter().all(|p| p[0] + 1.0 > 0.0));
+        assert!(pos.iter().any(|p| p[1] > 0.0), "narrow stock needs a second row");
+        let one = layout(&ps, 5.0, 10_000.0);
+        assert!(one.iter().all(|p| p[1] == 0.0));
     }
 }

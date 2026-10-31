@@ -12,6 +12,7 @@ mod array;
 mod canvas;
 mod cleanup;
 mod combine;
+mod boxgen;
 mod corners;
 mod fingers;
 mod csd;
@@ -198,6 +199,7 @@ impl App {
         array::dialog(ctx, self);
         corners::dialog(ctx, self);
         fingers::dialog(ctx, self);
+        boxgen::dialog(ctx, self);
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
         model3d::dialog(ctx, self);

@@ -76,7 +76,8 @@ Toolpath quality
 - [x] Better path ordering (fewer and shorter rapids): done, always on.
 - [x] Dogbone corners (Fillet and chamfer window).
 - [x] Finger joints on rectangle edges (Edit menu).
-- [ ] T-bone corners and a box generator that lays out all the panels.
+- [x] Box generator (Edit menu).
+- [ ] T-bone corners; box lids that slide or hinge, dividers.
 - [ ] Adaptive clearing.
 - [ ] Nesting.
 
