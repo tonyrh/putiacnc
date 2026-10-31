@@ -112,6 +112,8 @@ pub struct Relief {
 pub struct Stock {
     pub w: f64, pub h: f64, pub t: f64,
     #[serde(default = "d_wood")] pub mat: String,
+    /// What is being cut, for the feeds and speeds suggestion (an id of `feeds::MATERIALS`; empty = not set). Not the look of the stock: that is `mat`.
+    #[serde(default, skip_serializing_if = "String::is_empty")] pub cut: String,
     /// Work zero: ll, lr, ul, ur or c.
     #[serde(default = "d_ll")] pub zr: String,
     /// Z zero: "top" or "h" (height above the stock bottom, see `zh`).
@@ -176,6 +178,8 @@ pub struct Machine {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub holder: Option<f64>,
     /// Check and draw the tool holder (switched off by default; the diameter above is kept while it is off).
     #[serde(default, rename = "holderOn", skip_serializing_if = "is_false")] pub holder_on: bool,
+    /// How stiff the machine is, for the feeds and speeds suggestion: "light" (also when empty), "medium" or "heavy" (`feeds::RIGIDITY`).
+    #[serde(default, skip_serializing_if = "String::is_empty")] pub rigid: String,
 }
 
 impl Machine {
@@ -205,7 +209,7 @@ impl Machine {
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
-                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None, holder: None, holder_on: false }
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None, holder: None, holder_on: false, rigid: String::new() }
     }
 }
 
@@ -379,7 +383,7 @@ impl PlugPiece {
     }
 
     /// The piece as a stock of its own, with its lower-left corner at (0, 0).
-    pub fn stock(&self) -> Stock { Stock { w: self.w, h: self.h, t: self.t, mat: self.mat.clone(), zr: self.zr.clone(), zm: self.zm.clone(), zh: self.zh } }
+    pub fn stock(&self) -> Stock { Stock { w: self.w, h: self.h, t: self.t, mat: self.mat.clone(), cut: String::new(), zr: self.zr.clone(), zm: self.zm.clone(), zh: self.zh } }
 }
 
 /// A manually placed holding tab, anchored to a shape: `l` is the index of the shape in the project's

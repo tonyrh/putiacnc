@@ -323,6 +323,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let mut job_tools: Vec<String> = Vec::new();
         for o in &d.ops { for t in std::iter::once(&o.p.tool).chain(o.p.tool2.iter()) { if !t.is_empty() && !job_tools.contains(t) { job_tools.push(t.clone()); } } }
         let machine_now = d.machine.clone();
+        let cut_mat = d.stock.cut.clone();
         let mut act_remove: Option<usize> = None;
         let mut act_move: Option<(usize, i32)> = None;
         let mut act_use: Option<i64> = None;
@@ -919,6 +920,43 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let accent = if ui.visuals().dark_mode { { let c = ui.visuals().hyperlink_color; let m = |a: u8| a + ((255 - a as u16) / 2) as u8; Color32::from_rgb(m(c.r()), m(c.g()), m(c.b())) } } else { ui.visuals().hyperlink_color };
                         let t1 = tools.iter().find(|t| t.id == p.tool).cloned();
                         let t2 = p.tool2.as_ref().and_then(|tid| tools.iter().find(|t| &t.id == tid)).cloned();
+                        // numbers from the material: filled in as this operation's own values, to be changed freely
+                        let rigid = putiacnc_core::feeds::Rigidity::parse(machine_now.as_ref().map(|m| m.rigid.as_str()).unwrap_or(""));
+                        let mat = putiacnc_core::feeds::material(&cut_mat);
+                        ui.indent(("cfs_sug", id), |ui| {
+                            ui.horizontal(|ui| {
+                                let r = ui.add_enabled(mat.is_some() && t1.is_some(), egui::Button::new(match mat { Some(m) => format!("Suggest for {}", m.label.split(" (").next().unwrap_or(m.label).to_lowercase()), None => "Suggest from material".into() }));
+                                let r = if mat.is_none() { r.on_disabled_hover_text("Choose what you are cutting under Material in the Stock section first") } else { r.on_hover_text("Fills in spindle speed, feed, plunge and stepover (and the depth per pass) from the material, the tool and how stiff the machine is. A starting point for a test cut: change any value afterwards") };
+                                if r.clicked() {
+                                    let fill = |cf: &mut Option<putiacnc_core::model::CustomFeeds>, t0: &putiacnc_core::model::Tool| -> Option<putiacnc_core::feeds::Suggestion> {
+                                        let s = putiacnc_core::feeds::suggest(&cut_mat, t0, rigid, machine_now.as_ref())?;
+                                        *cf = Some(putiacnc_core::model::CustomFeeds { rpm: Some(s.rpm), feed: Some(s.feed), plunge: Some(s.plunge), so: Some(s.so) });
+                                        Some(s)
+                                    };
+                                    if let Some(t0) = t1.as_ref() {
+                                        if let Some(s) = fill(&mut p.custom, t0) {
+                                            // the depth per pass belongs to the cutting tool: not to a V-bit or a drill
+                                            if let (Some(v), false) = (s.pass, matches!(p.kind.as_str(), "drill" | "vcarve" | "inlay" | "plug")) { p.pass_depth = Some(v); }
+                                        }
+                                    }
+                                    if let Some(t0) = t2.as_ref() { fill(&mut p.custom2, t0); }
+                                    changed = true;
+                                }
+                            });
+                            // what the values make of the chip, against what is usual for this material
+                            if let (Some(m), Some(t0)) = (mat, t1.as_ref()) {
+                                let asked = p.custom.as_ref().map(|cf| cf.apply(t0)).unwrap_or_else(|| t0.clone());
+                                let held = machine_now.as_ref().map(|mc| mc.hold(&asked)).unwrap_or(asked);
+                                if let (Some(c), Some((lo, hi))) = (putiacnc_core::toollib::chip_load(&held), putiacnc_core::feeds::chip_range(&cut_mat, t0, rigid)) {
+                                    let (word, col) = if c < lo * 0.9 { ("light: it may rub and heat the cutter", None) } else if c > hi * 1.1 { ("heavy: more strain on the cutter and the machine", Some(true)) } else { ("in the usual range", None) };
+                                    let line = format!("Chip load {:.3} mm per tooth, {} (usual in {}: {:.3} to {:.3})", c, word, m.label.split(" (").next().unwrap_or(m.label).to_lowercase(), lo, hi);
+                                    match col { Some(_) => { crate::checkui::warn_line(ui, if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) }, &line); } None => { ui.weak(line); } }
+                                }
+                                if let Some(s) = putiacnc_core::feeds::suggest(&cut_mat, t0, rigid, machine_now.as_ref()) {
+                                    for n in s.notes.iter().filter(|n| !n.starts_with("A starting point")) { ui.add(egui::Label::new(egui::RichText::new(n).weak()).wrap(true)); }
+                                }
+                            }
+                        });
                         ui.indent(("cfs_opts", id), |ui| {
                             if let (Some(cf), Some(t0)) = (p.custom.as_mut(), t1.as_ref()) {
                                 if two { ui.label(egui::RichText::new(format!("V-bit: {}", clean(&t0.name))).weak()); }

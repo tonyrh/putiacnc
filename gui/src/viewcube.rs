@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn fitting_matches_the_old_top_view_rule() {
-        let stk = putiacnc_core::model::Stock { w: 200.0, h: 150.0, t: 12.0, mat: String::new(), zr: "ll".into(), zm: "top".into(), zh: 0.0 };
+        let stk = putiacnc_core::model::Stock { w: 200.0, h: 150.0, t: 12.0, mat: String::new(), cut: String::new(), zr: "ll".into(), zm: "top".into(), zh: 0.0 };
         let k = 2.0 * (35.0_f32.to_radians() * 0.5).tan() * 0.72;
         let d = fit_dist(-FRAC_PI_2, 1.57, &stk, 1.5, true);
         assert!((d - (200.0_f32 / 1.5).max(150.0) / k).abs() / d < 0.01, "{d}");

@@ -16,7 +16,7 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
         let stock_frame = egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
             ui.set_max_width(stock_w - 34.0);
             let fw = 62.0_f32;
-            let l1 = tw(ui, "Thickness").max(tw(ui, "XY zero")).max(tw(ui, "Appearance"));
+            let l1 = tw(ui, "Thickness").max(tw(ui, "XY zero")).max(tw(ui, "Appearance")).max(tw(ui, "Material"));
             let l3 = tw(ui, "Height").max(tw(ui, "Safe Z"));
             let mut col4_x = 0.0_f32;
             egui::Grid::new("stock_grid").num_columns(6).spacing([8.0, 10.0]).show(ui, |ui| {
@@ -59,6 +59,16 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
                 // as wide as the longest name, so the box does not change size with the choice
                 let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
                 let (c, _) = combo_w2(ui, mat_w, "stock_mat", &mut d.stock.mat, MATERIALS, "", "How the stock looks in the drawing and the 3D preview");
+                *changed |= c;
+            });
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                rlabel(ui, l1, "Material");
+                let mut opts: Vec<(&str, &str)> = vec![("", "Not set")];
+                opts.extend(putiacnc_core::feeds::MATERIALS.iter().map(|m| (m.id, m.label)));
+                if !opts.iter().any(|(k, _)| *k == d.stock.cut) { d.stock.cut.clear(); }
+                let w = crate::widgets::combo_fit(ui, &opts.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                let (c, _) = combo_w2(ui, w, "stock_cut", &mut d.stock.cut, &opts, "", "What you are cutting. An operation's Suggest button uses it to fill in spindle speed, feeds, stepover and depth per pass");
                 *changed |= c;
             });
         });

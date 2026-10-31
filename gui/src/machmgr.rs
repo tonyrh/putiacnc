@@ -386,6 +386,14 @@ fn form(ui: &mut Ui, app: &mut App) {
     let right = limits.response.rect.right();
     if edge.is_none_or(|e| (e - right).abs() > 0.5) { ui.ctx().data_mut(|d| d.insert_temp(edge_id, right)); ui.ctx().request_repaint(); }
     ui.add_space(10.0);
+    ui.horizontal(|ui| {
+        rlabel(ui, lw, "Rigidity");
+        let cur = putiacnc_core::feeds::RIGIDITY.iter().find(|r| r.0 == m.rigid).map(|r| r.1).unwrap_or(putiacnc_core::feeds::RIGIDITY[0].1);
+        egui::ComboBox::from_id_source("mach_rigid").selected_text(cur).show_ui(ui, |ui| {
+            for (k, l) in putiacnc_core::feeds::RIGIDITY { if ui.selectable_label(m.rigid == k || (m.rigid.is_empty() && k == "light"), l).clicked() { m.rigid = if k == "light" { String::new() } else { k.into() }; changed = true; } }
+        }).response.on_hover_text("How stiff the machine is: the feeds and speeds suggestion takes heavier chips and deeper cuts from a stiffer one. Start with light unless you know better");
+    });
+    ui.add_space(10.0);
     ui.weak("Max size of operation (work area)");
     ui.add_space(4.0);
     egui::Grid::new("mach_area").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {

@@ -68,7 +68,7 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 ## Long term ideas
 Things that make a real job easier
 - [ ] Setup sheet: a printable page or PDF with the stock, work zero, tools in order and estimated time (both files and both zeros for the two-piece inlay).
-- [ ] Feeds and speeds by material: chip-load rules from tool and material (ties in with the CMT tool data). The per-operation custom feeds and speeds are in; this would fill them in.
+- [x] Feeds and speeds by material: Material in the Stock section (softwood, hardwood, plywood, MDF, acrylic, aluminium, foam) and Rigidity in the machine editor (light, medium, heavy); "Suggest for <material>" in an operation's custom feeds fills in spindle speed, feed, plunge, stepover and depth per pass, and a line shows the chip load against the usual range. Numbers are typical hobby-router starting values (`src/feeds.rs`), not tool-maker data: to check against real cuts and adjust the table. Not yet: per-tool-maker chip-load data (CMT, Amana), surface-speed limits for big cutters beyond a simple rule, spindle power.
 - [ ] Surfacing / spoilboard flattening wizard.
 - [ ] Double-sided work: flip the piece with registration holes or dowels.
 
