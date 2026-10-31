@@ -221,3 +221,18 @@ fn every_pen_of_the_pens_and_markers_library_draws() {
         assert!(l.iter().any(|x| x.contains(&format!("F{}", t.feed))), "{} draws at its own speed", t.name);
     }
 }
+
+#[test]
+fn single_line_text_is_followed_by_the_pen_stroke_by_stroke() {
+    let mut f = pen_project();
+    f.data.loops = putiacnc_core::linetext::line_text_loops("futural", "Ciao, è così!", putiacnc_core::text::TextStyle::plain(8.0, 0.0, putiacnc_core::text::Align::Left), [10.0, 10.0], 0).unwrap();
+    assert!(f.data.loops.iter().all(|l| l.pts.len() >= 4));
+    let sel: std::collections::BTreeSet<usize> = (0..f.data.loops.len()).collect();
+    f.data.ops.clear();
+    shapes::add_operation(&mut f.data, &sel, "draw");
+    let l = generate(&f.data, Units::Metric).unwrap().lines;
+    assert!(!l.iter().any(|x| x.starts_with("M3") || x.starts_with("M5")));
+    let downs = l.iter().filter(|x| x.starts_with("G1 Z")).count();
+    assert_eq!(downs, f.data.loops.len(), "one pen-down per stroke");
+    assert!(verify::hazards(&l).is_empty(), "{:?}", verify::hazards(&l));
+}

@@ -19,6 +19,7 @@ The complete list of what the desktop app does. The README has the short version
   (90° is the top, 270° the bottom) and whether the letters face outwards or the centre, with a warning when the text is longer than
   the circle. Straight text can be fitted to a width: the height follows, and longer text gets smaller letters. Shadow adds a second,
   offset copy of the letters. All of it is saved with the text, so it stays editable.
+- Single-line text: the first fonts in the Font list ("Single line · Sans, Sans bold, Roman, Roman bold, Script, Cursive") are the Hershey single-stroke fonts built into the app (`src/linetext.rs`, data in `fonts/hershey`). Each letter is a few open strokes along its centre line instead of an outline, so a Draw operation makes the pen write the text once (a pocket or profile would only follow those lines as if they were cuts). Height is the capital height. Accented letters used in Italian, French, Spanish, German and Portuguese are put together from the plain letter and a mark; other characters are skipped. Kerning does not apply to these fonts.
 - Operations: profile (outside, inside, on the line), pocket, V-carve and drill (pecked, nearest hole first), each with its own tool,
   depth, pass depth (defaults to the tool's value), cut direction, ramp-in, air cut and holding tabs
   (automatic or placed by hand on the canvas) and tangent lead-in / lead-out arcs on profiles (the radius shrinks

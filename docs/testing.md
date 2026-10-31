@@ -76,7 +76,7 @@ variables below, and can be repeated. The same variables work when you start the
 | `PUTIACNC_SHOW_ERR[=warning|info]` | Shows a sample message in the banner: an error by default, or a warning or information. |
 | `PUTIACNC_DROPUP=snap_menu\|guides_menu` | Opens that drop-up menu of the bottom bar. |
 | `PUTIACNC_APPLY_NOTHING=array\|combine\|corners` | Opens that tool on a case where Apply changes nothing and presses Apply once, to see where its message goes. |
-| `PUTIACNC_PLACE_TEXT=..` (with `PUTIACNC_PLACE_AT=x,y`), `PUTIACNC_EDIT_TEXT` (with `PUTIACNC_EDIT_SIZE=mm`: the height changes as editing starts, so the preview differs from the text and the faded original shows), `PUTIACNC_FONT_LIST[=text]` (the font list stays open), `PUTIACNC_POLYGON=ring\|point`, `PUTIACNC_DYN=..`, `PUTIACNC_IMPORT2=file`, `PUTIACNC_RELIEF`, `PUTIACNC_TOOL_QUERY=..` | Sets up a tool mid-use. |
+| `PUTIACNC_TEXT_FONT=label` (with `PUTIACNC_SHOW_TEXT`: picks the font, e.g. `Single line · Roman`), `PUTIACNC_PLACE_TEXT=..` (with `PUTIACNC_PLACE_AT=x,y`), `PUTIACNC_EDIT_TEXT` (with `PUTIACNC_EDIT_SIZE=mm`: the height changes as editing starts, so the preview differs from the text and the faded original shows), `PUTIACNC_FONT_LIST[=text]` (the font list stays open), `PUTIACNC_POLYGON=ring\|point`, `PUTIACNC_DYN=..`, `PUTIACNC_IMPORT2=file`, `PUTIACNC_RELIEF`, `PUTIACNC_TOOL_QUERY=..` | Sets up a tool mid-use. |
 | `PUTIACNC_CHECK_SHOW=n`, `PUTIACNC_DEBUG_CHECKS` | Shows check result `n` in the 3D view; prints a summary of the checks. |
 | `PUTIACNC_PRINT_VERSION_INFO` | Prints the "Copy system info" text and carries on. |
 | `PUTIACNC_UPDATE_URL` | Where the update check looks (point it at a local file to test). |

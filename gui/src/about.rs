@@ -134,7 +134,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         egui::CollapsingHeader::new(egui::RichText::new("Notices").small().weak()).default_open(false).show(ui, |ui| {
             ui.add(egui::Label::new(egui::RichText::new("Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by them; the names only say which bits the ready-made libraries match. Dimensions come from the makers' published catalogs; feeds, speeds and notes are conservative starting values, not the makers' recommendations.").small().weak()).wrap(true));
             ui.add_space(4.0);
-            ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui. The GitHub logo is from GitHub\u{2019}s Octicons (MIT licence, copyright GitHub Inc.).").small().weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui. The single-line text fonts are the Hershey fonts (created by Dr. A. V. Hershey at the U.S. National Bureau of Standards; data format by James Hurt, Cognition, Inc.). The GitHub logo is from GitHub\u{2019}s Octicons (MIT licence, copyright GitHub Inc.).").small().weak()).wrap(true));
         });
         ui.add_space(6.0);
         });

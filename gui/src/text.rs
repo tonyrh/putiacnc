@@ -4,6 +4,7 @@ use crate::app::{App, Mode};
 use eframe::egui;
 use putiacnc_core::model::LoopData;
 use putiacnc_core::shapes;
+use putiacnc_core::linetext::line_text_loops;
 use putiacnc_core::text::{apply_affine, fit_affine, text_loops, Affine, Align, Flow, TextStyle};
 use std::sync::{mpsc, Arc};
 
@@ -12,6 +13,13 @@ pub struct FontEntry {
     pub label: String,
     /// None for the fonts built into the app (the label tells which one).
     id: Option<fontdb::ID>,
+    /// A single-line (stroke) font built into the app: its id in `putiacnc_core::linetext`.
+    line: Option<&'static str>,
+}
+
+/// The single-line fonts, first in the list.
+fn line_entries() -> Vec<FontEntry> {
+    putiacnc_core::linetext::fonts().into_iter().map(|(id, label)| FontEntry { label: label.into(), id: None, line: Some(id) }).collect()
 }
 
 pub struct TextTool {
@@ -74,10 +82,12 @@ fn builtin(name: &str) -> Option<Vec<u8>> {
 
 impl Default for TextTool {
     fn default() -> Self {
-        let fonts = vec![FontEntry { label: "Hack".into(), id: None }, FontEntry { label: "Ubuntu Light".into(), id: None }];
+        let mut fonts = line_entries();
+        let first_outline = fonts.len();
+        fonts.extend([FontEntry { label: "Hack".into(), id: None, line: None }, FontEntry { label: "Ubuntu Light".into(), id: None, line: None }]);
         TextTool {
             open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, arc_deg: 90.0, arc_in: false, fit_on: false, fit_w: 100.0, fit_key: String::new(), shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
-            fonts, sel: 0, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None, previews: Default::default(),
+            fonts, sel: first_outline, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None, previews: Default::default(),
         }
     }
 }
@@ -106,7 +116,7 @@ impl TextTool {
                 }
                 if f.stretch != fontdb::Stretch::Normal { label += " Condensed"; }
                 if f.style != fontdb::Style::Normal { label += " Italic"; }
-                Some(FontEntry { label, id: Some(f.id) })
+                Some(FontEntry { label, id: Some(f.id), line: None })
             }).collect();
             v.sort_by_key(|a| a.label.to_lowercase());
             v.dedup_by(|a, b| a.label == b.label);
@@ -122,14 +132,17 @@ impl TextTool {
             let first_time = !self.picked;
             self.found = Some(list.len());
             let mut all = list;
-            for b in ["Ubuntu Light", "Hack"] { all.push(FontEntry { label: b.into(), id: None }); }
+            for b in ["Ubuntu Light", "Hack"] { all.push(FontEntry { label: b.into(), id: None, line: None }); }
             all.sort_by_key(|a| a.label.to_lowercase());
-            self.fonts = all;
+            let mut fonts = line_entries();
+            let first_outline = fonts.len();
+            fonts.extend(all);
+            self.fonts = fonts;
             self.db = Some(db);
             self.rx = None;
             // keep the chosen font; a fresh tool starts on a plain, sturdy sans if there is one
             let want = if first_time { ["DejaVu Sans", "Liberation Sans", "Arial", "Noto Sans", "Cantarell"].iter().find(|w| self.fonts.iter().any(|f| f.label == **w)).map(|s| s.to_string()).or(current) } else { current };
-            self.sel = want.and_then(|w| self.fonts.iter().position(|f| f.label == w)).unwrap_or(0);
+            self.sel = want.and_then(|w| self.fonts.iter().position(|f| f.label == w)).unwrap_or(first_outline);
             self.key.clear();
             self.bytes_for = None;
             self.previews.clear();
@@ -140,6 +153,8 @@ impl TextTool {
     fn name_preview(&mut self, ctx: &egui::Context, i: usize) -> Option<egui::TextureHandle> {
         if let Some(p) = self.previews.get(&i) { return p.clone(); }
         let e = self.fonts.get(i)?.clone();
+        // the stroke fonts have no outlines to draw their names with
+        if e.line.is_some() { return None; }
         let ppp = ctx.pixels_per_point() as f64;
         let draw = |data: &[u8], idx: u32| putiacnc_core::text::name_bitmap(data, idx, &e.label, 17.0 * ppp, 11.0 * ppp, (NAME_W * ppp) as usize, (30.0 * ppp) as usize);
         let bmp = match e.id {
@@ -155,6 +170,24 @@ impl TextTool {
         if self.db.is_some() { self.previews.insert(i, tex.clone()); }
         tex
     }
+
+    /// The letters of `text` in the chosen font: None when the font cannot be loaded.
+    fn loops(&mut self, text: &str, style: TextStyle) -> Option<Result<Vec<LoopData>, String>> {
+        if let Some(id) = self.fonts.get(self.sel).and_then(|f| f.line) { return Some(line_text_loops(id, text, style, [0.0, 0.0], 0)); }
+        let (data, idx) = self.font_bytes()?;
+        Some(text_loops(&data, idx, text, style, [0.0, 0.0], 0))
+    }
+
+    /// Chooses the font with this label, if the list has it.
+    pub fn select_font(&mut self, label: &str) -> bool {
+        let Some(i) = self.fonts.iter().position(|f| f.label == label) else { return false };
+        self.sel = i;
+        self.picked = true;
+        true
+    }
+
+    /// Whether the chosen font draws single strokes (for a pen) rather than outlines.
+    pub fn is_line_font(&self) -> bool { self.fonts.get(self.sel).is_some_and(|f| f.line.is_some()) }
 
     fn font_bytes(&mut self) -> Option<(Vec<u8>, u32)> {
         if self.bytes_for != Some(self.sel) {
@@ -176,9 +209,9 @@ impl TextTool {
         let key = format!("{}|{}|{}|{}|{}|{}|{:?}", self.content, self.sel, self.letter_pct, self.word_pct, self.kerning, self.fit_w, self.align);
         if key == self.fit_key { return; }
         self.fit_key = key;
-        let Some((data, idx)) = self.font_bytes() else { return };
         let probe = TextStyle { size_mm: 10.0, spacing_mm: 10.0 * self.letter_pct / 100.0, word_spacing_mm: 10.0 * self.word_pct / 100.0, flow: Flow::Straight, align: Align::Left, shadow: [0.0, 0.0], ..self.style() };
-        if let Some(b) = text_loops(&data, idx, &self.content, probe, [0.0, 0.0], 0).ok().and_then(|l| shapes::bbox_many(l.iter())) {
+        let content = self.content.clone();
+        if let Some(b) = self.loops(&content, probe).and_then(|r| r.ok()).and_then(|l| shapes::bbox_many(l.iter())) {
             let w = b[2] - b[0];
             if w > 1e-6 && self.fit_w > 0.0 { self.size = (self.fit_w * 10.0 / w).clamp(0.5, 500.0); }
         }
@@ -193,9 +226,10 @@ impl TextTool {
         self.err = None;
         let Some(pos) = self.pos else { return };
         if self.content.trim().is_empty() { return; }
-        match self.font_bytes() {
+        let (content, style) = (self.content.clone(), self.style());
+        match self.loops(&content, style) {
             None => self.err = Some("This font could not be loaded.".into()),
-            Some((data, idx)) => match text_loops(&data, idx, &self.content, self.style(), [0.0, 0.0], 0) {
+            Some(r) => match r {
                 Ok(mut l) => {
                     if l.is_empty() { self.err = Some("This font has none of those letters.".into()); }
                     // set at the origin, then turned and moved: the same steps the editor takes back later
@@ -204,7 +238,7 @@ impl TextTool {
                     // text longer than the circle would run into its own start
                     if self.flow == Flow::Arc && self.err.is_none() {
                         let flat = TextStyle { flow: Flow::Straight, align: Align::Left, shadow: [0.0, 0.0], ..self.style() };
-                        if let Some(b) = text_loops(&data, idx, &self.content, flat, [0.0, 0.0], 0).ok().and_then(|f| shapes::bbox_many(f.iter())) {
+                        if let Some(b) = self.loops(&content, flat).and_then(|r| r.ok()).and_then(|f| shapes::bbox_many(f.iter())) {
                             let circle = std::f64::consts::TAU * self.radius.max(self.size);
                             if b[2] - b[0] > circle { self.err = Some(format!("The text is {:.0} mm long but the circle is only {:.0} mm round: the letters will overlap. Use a bigger radius or less text.", b[2] - b[0], circle)); }
                         }
@@ -364,7 +398,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     app.text.picked = true;
     app.text.bytes_for = None;
     let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, word_spacing_mm: spec.word_spacing, kerning: spec.kerning, align: spec.align, flow: spec.flow, radius_mm: spec.radius, arc_deg: spec.arc_deg, arc_in: spec.arc_in, shadow: spec.shadow };
-    let g0 = app.text.font_bytes().and_then(|(data, face)| text_loops(&data, face, &spec.content, style, [0.0, 0.0], 0).ok()).unwrap_or_default();
+    let g0 = app.text.loops(&spec.content, style).and_then(|r| r.ok()).unwrap_or_default();
     let now: Vec<&LoopData> = app.project.data.loops.iter().filter(|l| l.grp == Some(gid)).collect();
     let fit = fit_affine(&g0, &now).filter(|(_, res)| *res < 0.02);
     let Some((af, _)) = fit else {
@@ -542,9 +576,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
 
         // the rest folds away; each header says in grey what it is set to, and stays open or shut as the user left it
         let grid = |id: &'static str| egui::Grid::new(id).num_columns(2).spacing([10.0, 8.0]);
-        let sum_spacing = format!("kerning {} · letters {} · words {}", if t.kerning { "on" } else { "off" }, crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct));
+        let line_font = t.is_line_font();
+        let sum_spacing = if line_font { format!("letters {} · words {}", crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct)) }
+        else { format!("kerning {} · letters {} · words {}", if t.kerning { "on" } else { "off" }, crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct)) };
         section(ui, &mut t.sections, "spacing", "Spacing", &sum_spacing, |ui| {
-            crate::widgets::check(ui, &mut t.kerning, "Kerning").tip("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
+            ui.add_enabled_ui(!line_font, |ui| crate::widgets::check(ui, &mut t.kerning, "Kerning")).inner.tip("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
             ui.add_space(4.0);
             grid("text_spacing").show(ui, |ui| {
                 crate::toolmgr::rlabel(ui, lw, "Letters");
@@ -840,6 +876,28 @@ mod tests {
         a.text.refresh();
         let bottom = shapes::bbox_many(a.text.preview.iter()).unwrap();
         assert!(top != bottom, "moving the text round the circle changes the preview");
+    }
+
+    #[test]
+    fn single_line_fonts_are_listed_first_and_make_open_strokes_that_stay_editable() {
+        let mut a = App::new(None);
+        assert!(!a.text.is_line_font(), "a fresh tool starts on an outline font");
+        assert!(a.text.fonts[0].label.starts_with("Single line"));
+        a.text.sel = a.text.fonts.iter().position(|f| f.label == "Single line · Roman").unwrap();
+        assert!(a.text.is_line_font());
+        a.text.content = "Ciao è".into();
+        a.text.pos = Some([10.0, 20.0]);
+        a.text.size = 10.0;
+        place(&mut a);
+        let ls: Vec<&LoopData> = a.project.data.loops.iter().collect();
+        assert!(!ls.is_empty() && ls.iter().any(|l| l.c == 0), "open strokes");
+        assert_eq!(a.project.data.groups[0].text.as_ref().unwrap().font, "Single line · Roman");
+        let gid = a.project.data.groups[0].id;
+        a.edit_text(gid);
+        assert!(begin_edit(&mut a, gid));
+        assert_eq!(a.text.edit, Some(gid), "still text, not outlines");
+        assert!(a.text.is_line_font());
+        assert!(a.text.name_preview(&egui::Context::default(), a.text.sel).is_none());
     }
 
     #[test]

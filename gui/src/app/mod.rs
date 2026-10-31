@@ -403,6 +403,8 @@ impl App {
         }
         if let Ok(s) = std::env::var("PUTIACNC_SHOW_TEXT") {
             a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");
+            // PUTIACNC_TEXT_FONT picks a font of the list by its label (for screenshots)
+            if let Ok(l) = std::env::var("PUTIACNC_TEXT_FONT") { a.text.select_font(&l); }
         }
         if let Ok(s) = std::env::var("PUTIACNC_PLACE_TEXT") {
             // places a text, turned a little, and optionally opens it for editing (for screenshots)

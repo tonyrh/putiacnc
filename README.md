@@ -32,7 +32,7 @@ The workspace has two crates:
 ### Features
 
 **Drawing**
-- Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font (text stays editable).
+- Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font or in a built-in single-line font for pen drawing (text stays editable).
 - Import SVG, DXF, bitmaps (traced into outlines or centre lines), and STL / OBJ models for 3D relief.
 - Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), align, array, rotate, clean up broken outlines.
 

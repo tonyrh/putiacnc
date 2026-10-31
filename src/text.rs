@@ -202,7 +202,7 @@ pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, or
             if matches!(style.flow, Flow::ArcTop | Flow::ArcBottom | Flow::Arc) {
                 let r = style.radius_mm.max(style.size_mm);
                 let (deg, inside) = match style.flow { Flow::ArcTop => (90.0, false), Flow::ArcBottom => (270.0, true), _ => (style.arc_deg, style.arc_in) };
-                out.extend(merged.iter().map(|c| mk(&bend(c, origin, r, deg.to_radians(), inside))));
+                out.extend(merged.iter().map(|c| mk(&bend(c, origin, r, deg.to_radians(), inside, true))));
             } else {
                 out.extend(merged.iter().map(|c| mk(c)));
             }
@@ -277,14 +277,17 @@ pub fn name_bitmap(font: &[u8], face_index: u32, text: &str, px: f64, min_px: f6
 /// angle `phi` (radians, 0 = right, counter-clockwise, so pi/2 is the top). x along the baseline becomes distance along the
 /// circle and height above the baseline becomes distance from it: outwards (reading clockwise) or, with `inside`, towards the
 /// centre (reading counter-clockwise). Long edges are cut first so they bend too.
-fn bend(c: &[[i64; 2]], origin: [f64; 2], r: f64, phi: f64, inside: bool) -> Vec<[i64; 2]> {
+pub(crate) fn bend(c: &[[i64; 2]], origin: [f64; 2], r: f64, phi: f64, inside: bool, closed: bool) -> Vec<[i64; 2]> {
     let pts: Vec<[f64; 2]> = c.iter().map(|p| [p[0] as f64 / S, p[1] as f64 / S]).collect();
     let mut dense: Vec<[f64; 2]> = Vec::with_capacity(pts.len());
-    for i in 0..pts.len() {
+    // an open stroke has no edge from its last point back to its first
+    let edges = if closed { pts.len() } else { pts.len().saturating_sub(1) };
+    for i in 0..edges {
         let (a, b) = (pts[i], pts[(i + 1) % pts.len()]);
         let n = ((b[0] - a[0]).hypot(b[1] - a[1]) / 0.3).ceil().max(1.0) as usize;
         for k in 0..n { let t = k as f64 / n as f64; dense.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
     }
+    if !closed { if let Some(&l) = pts.last() { dense.push(l); } }
     let centre = [origin[0] - r * phi.cos(), origin[1] - r * phi.sin()];
     dense.iter().map(|p| {
         let (s, h) = (p[0] - origin[0], p[1] - origin[1]);

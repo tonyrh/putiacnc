@@ -21,6 +21,7 @@ pub mod sim;
 pub mod split;
 pub mod dxf;
 pub mod svg;
+pub mod linetext;
 pub mod text;
 pub mod toollib;
 pub mod toolpath;
