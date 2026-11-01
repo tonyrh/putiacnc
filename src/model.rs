@@ -393,6 +393,20 @@ impl PlugPiece {
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
 pub struct TabPt { pub l: usize, pub u: f64, pub v: f64 }
 
+/// The fingers cut into a rectangle (`joints::make_fingers`): shapes made by one cut share an `id`.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct FingerSpec {
+    pub id: i64,
+    /// Bottom, right, top, left: 0 flat, 1 tabs, 2 slots.
+    pub edges: [u8; 4],
+    pub width: f64,
+    pub clearance: f64,
+    /// The thickness (mm) the fingers were cut for.
+    pub depth: f64,
+    /// Cutter diameter of the dogbone reliefs, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub dog: Option<f64>,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct LoopData {
     /// 1 = closed.
@@ -408,6 +422,8 @@ pub struct LoopData {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub grp: Option<i64>,
     /// The group the user made with Edit > Group: shapes with the same number are selected, moved, scaled and turned together.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub ug: Option<i64>,
+    /// How the fingers of this shape were cut, so they can be cut again when the stock thickness changes.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub fj: Option<FingerSpec>,
     /// Flat list: X0, Y0, X1, Y1, ... in 1/1000 mm.
     pub pts: Vec<i64>,
 }

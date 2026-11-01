@@ -4,7 +4,7 @@
 //! in. A dogbone cuts a little further into the walls at the corner, with the cutter's centre going out to a point one radius
 //! from the corner, so the corner itself is reached.
 use crate::clip::{self, BoolKind, Path};
-use crate::model::LoopData;
+use crate::model::{FingerSpec, LoopData};
 use crate::shapes::S;
 
 /// Which corners get a relief.
@@ -113,7 +113,7 @@ pub fn reliefs(loops: &[&LoopData], tool_dia: f64, cut: Cut, op: i64, style: Rel
     let caps: Vec<Path> = caps.into_iter().collect();
     let res = clip::boolean(if cut == Cut::Inside { BoolKind::Union } else { BoolKind::Difference }, &region, &caps);
     let out: Vec<LoopData> = res.into_iter().filter(|p| p.len() >= 3).map(|p| LoopData {
-        c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect(),
+        c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect(),
     }).collect();
     if out.is_empty() { None } else { Some((out, count)) }
 }
@@ -193,6 +193,60 @@ pub fn finger_outline(bx: [f64; 4], edges: [Edge; 4], f: Fingers) -> Option<Vec<
     out.dedup_by(|a, b| (a[0] - b[0]).abs() < 1e-9 && (a[1] - b[1]).abs() < 1e-9);
     if out.len() > 1 && (out[0][0] - out[out.len() - 1][0]).abs() < 1e-9 && (out[0][1] - out[out.len() - 1][1]).abs() < 1e-9 { out.pop(); }
     Some(out)
+}
+
+impl Edge {
+    fn code(self) -> u8 { match self { Edge::Flat => 0, Edge::Tabs => 1, Edge::Slots => 2 } }
+    fn from_code(c: u8) -> Edge { match c { 1 => Edge::Tabs, 2 => Edge::Slots, _ => Edge::Flat } }
+}
+
+/// The shapes of the rectangle `bx` with fingers cut as `spec` says (and dogbones if it asks): the outline, or the pieces the dogbones
+/// leave of it, each remembering `spec` so that `refit` can cut them again. `None` when the fingers do not fit. The second value is the
+/// number of dogbones.
+pub fn make_fingers(bx: [f64; 4], spec: &FingerSpec, op: i64) -> Option<(Vec<LoopData>, usize)> {
+    let edges = spec.edges.map(Edge::from_code);
+    let pts = finger_outline(bx, edges, Fingers { width: spec.width, depth: spec.depth, clearance: spec.clearance })?;
+    let poly = crate::shapes::new_poly(&pts, true, op)?;
+    let (mut ls, n) = match spec.dog.and_then(|d| dogbones(&[&poly], d, Cut::Outside, op)) {
+        Some(r) => r,
+        None => (vec![poly], 0),
+    };
+    for l in ls.iter_mut() { l.fj = Some(spec.clone()); }
+    Some((ls, n))
+}
+
+/// What `refit` found.
+#[derive(Debug, PartialEq)]
+pub enum Refit {
+    /// The shapes cut again for the new thickness.
+    Done(Vec<LoopData>),
+    /// The shapes are no longer what the fingers made (resized, turned, edited): leave them alone.
+    Stale,
+    /// The fingers do not fit the new thickness.
+    Unfit,
+}
+
+/// Cuts the fingers of `group` (all the shapes that share one `FingerSpec`) again for a material `depth` mm thick. The shapes are only
+/// touched when they are still exactly what the first cut made (moving them is fine).
+pub fn refit(group: &[&LoopData], depth: f64) -> Refit {
+    let Some(spec) = group.first().and_then(|l| l.fj.clone()) else { return Refit::Stale };
+    let Some(bb) = crate::shapes::bbox_many(group.iter().copied()) else { return Refit::Stale };
+    let e = spec.edges;
+    let d = spec.depth;
+    // the rectangle the fingers were cut into: the tabs stand out of it
+    let base = [bb[0] + if e[3] == 1 { d } else { 0.0 }, bb[1] + if e[0] == 1 { d } else { 0.0 }, bb[2] - if e[1] == 1 { d } else { 0.0 }, bb[3] - if e[2] == 1 { d } else { 0.0 }];
+    let op = group[0].op;
+    let Some((old, _)) = make_fingers(base, &spec, op) else { return Refit::Stale };
+    let same = old.len() == group.len() && old.iter().all(|o| group.iter().any(|g| g.pts.len() == o.pts.len() && g.pts.iter().zip(&o.pts).all(|(a, b)| (a - b).abs() <= 3)));
+    if !same { return Refit::Stale; }
+    let new_spec = FingerSpec { depth, ..spec };
+    match make_fingers(base, &new_spec, op) {
+        Some((mut ls, _)) => {
+            for (l, g) in ls.iter_mut().zip(group.iter()) { l.grp = g.grp; l.ug = g.ug; }
+            Refit::Done(ls)
+        }
+        None => Refit::Unfit,
+    }
 }
 
 /// The six plates of a box.

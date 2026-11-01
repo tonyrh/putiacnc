@@ -10,7 +10,7 @@ fn to_i(v: f64) -> i64 { (v * S).round() as i64 }
 
 fn loop_from(pts: &[[f64; 2]], closed: bool, op: i64) -> LoopData {
     LoopData {
-        c: closed as u8, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None,
+        c: closed as u8, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None,
         pts: pts.iter().flat_map(|p| [to_i(p[0]), to_i(p[1])]).collect(),
     }
 }
@@ -518,7 +518,7 @@ pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
     let region = crate::clip::simplify_even_odd(&[l.path()]);
     let out = crate::clip::offset(&region, delta_mm * S, S * 0.01);
     crate::clip::thin(&out, S * 0.02).into_iter().map(|p| {
-        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
+        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
     }).collect()
 }
 
@@ -550,7 +550,7 @@ pub fn combine(shapes: &[&LoopData], op: BoolOp, swap: bool) -> Vec<LoopData> {
         }
     };
     let opid = list[0].op;
-    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
+    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
 }
 
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).

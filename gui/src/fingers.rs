@@ -2,7 +2,7 @@
 use crate::app::App;
 use crate::widgets::Tip;
 use eframe::egui;
-use putiacnc_core::joints::{self, Edge, Fingers};
+use putiacnc_core::joints::{self, Edge};
 use putiacnc_core::shapes;
 
 pub struct FingerTool {
@@ -34,20 +34,20 @@ impl App {
         let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).is_some_and(|l| l.rc.is_some() && l.closed())).collect();
         if idx.is_empty() { return Some("Select a rectangle first.".into()); }
         if edges.iter().all(|e| *e == Edge::Flat) { return Some("Choose Tabs or Slots for at least one edge.".into()); }
-        let f = Fingers { width, depth, clearance };
+        let mut next_id = self.project.data.loops.iter().filter_map(|l| l.fj.as_ref().map(|s| s.id)).max().unwrap_or(0);
+        let code = |e: Edge| match e { Edge::Flat => 0u8, Edge::Tabs => 1, Edge::Slots => 2 };
         let mut made: Vec<(usize, Vec<putiacnc_core::model::LoopData>)> = Vec::new();
         let mut dogs = 0;
         for &i in &idx {
             let l = &self.project.data.loops[i];
             let Some(bx) = shapes::bbox(l) else { continue };
-            let Some(pts) = joints::finger_outline(bx, edges, f) else {
+            next_id += 1;
+            let spec = putiacnc_core::model::FingerSpec { id: next_id, edges: edges.map(code), width, clearance, depth, dog: dogbone };
+            let Some((ls, n)) = joints::make_fingers(bx, &spec, l.op) else {
                 return Some(format!("The fingers do not fit: the rectangle must be more than twice the material thickness ({depth} mm) in both directions."));
             };
-            let Some(poly) = shapes::new_poly(&pts, true, l.op) else { continue };
-            match dogbone.and_then(|d| joints::dogbones(&[&poly], d, joints::Cut::Outside, l.op)) {
-                Some((ls, n)) => { dogs += n; made.push((i, ls)); }
-                None => made.push((i, vec![poly])),
-            }
+            dogs += n;
+            made.push((i, ls));
         }
         if made.is_empty() { return None; }
         self.hist.record(&self.project.data);
@@ -61,6 +61,38 @@ impl App {
         self.sel = (start..self.project.data.loops.len()).collect();
         self.touch();
         Some(if dogs > 0 { format!("Fingers cut, with {dogs} dogbone{}.", if dogs == 1 { "" } else { "s" }) } else { "Fingers cut.".into() })
+    }
+}
+
+impl App {
+    /// Cuts the fingers again for the stock's thickness, in every set of shapes made by the Fingers tool that was cut for another one.
+    /// Shapes that were changed since (resized, turned, edited) stay as they are and forget their fingers.
+    pub fn refit_fingers(&mut self) {
+        let t = self.project.data.stock.t;
+        let d = &self.project.data;
+        let mut ids: Vec<i64> = d.loops.iter().filter_map(|l| l.fj.as_ref().filter(|s| (s.depth - t).abs() > 1e-9).map(|s| s.id)).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        if ids.is_empty() { return; }
+        let mut changed = false;
+        let mut msg = None;
+        for id in ids {
+            let d = &self.project.data;
+            let idx: Vec<usize> = (0..d.loops.len()).filter(|&i| d.loops[i].fj.as_ref().is_some_and(|s| s.id == id)).collect();
+            let group: Vec<&putiacnc_core::model::LoopData> = idx.iter().map(|&i| &d.loops[i]).collect();
+            match joints::refit(&group, t) {
+                joints::Refit::Done(ls) if ls.len() == idx.len() => {
+                    let d = &mut self.project.data;
+                    for (&i, l) in idx.iter().zip(ls) { let op = d.loops[i].op; d.loops[i] = putiacnc_core::model::LoopData { op, ..l }; }
+                    changed = true;
+                }
+                joints::Refit::Done(_) => { for &i in &idx { self.project.data.loops[i].fj = None; } }
+                joints::Refit::Unfit => { msg = Some(format!("The fingers do not fit a material {t} mm thick: they stay as they were.")); }
+                joints::Refit::Stale => { for &i in &idx { self.project.data.loops[i].fj = None; } }
+            }
+        }
+        if changed { self.touch(); }
+        if let Some(m) = msg { if self.error.is_none() { self.error = Some(m); } }
     }
 }
 
@@ -165,5 +197,45 @@ mod tests {
         a.sel = [0].into_iter().collect();
         assert!(a.finger_selection([Edge::Flat; 4], 10.0, 0.0, None).unwrap().contains("at least one edge"));
         assert!(a.finger_selection([Edge::Tabs, Edge::Flat, Edge::Flat, Edge::Flat], 10.0, 0.0, None).unwrap().contains("do not fit"));
+    }
+
+    fn depth_of(a: &App) -> f64 {
+        // how far the tabs of the bottom edge stand out below the rectangle's lower edge
+        let b = shapes::bbox_many(a.project.data.loops.iter()).unwrap();
+        20.0 - b[1]
+    }
+
+    #[test]
+    fn changing_the_stock_thickness_cuts_the_fingers_again() {
+        let mut a = App::new(None);
+        a.project.data.stock.t = 3.0;
+        a.project.data.loops = vec![shapes::new_rect([10.0, 20.0], [70.0, 60.0], 0.0, 1)];
+        a.sel = [0].into_iter().collect();
+        a.finger_selection([Edge::Tabs, Edge::Flat, Edge::Slots, Edge::Flat], 10.0, 0.0, Some(3.0));
+        assert!((depth_of(&a) - 3.0).abs() < 1e-6);
+        a.project.data.stock.t = 6.0;
+        a.refit_fingers();
+        assert!((depth_of(&a) - 6.0).abs() < 1e-6, "{}", depth_of(&a));
+        // the same as cutting them for 6 mm in the first place
+        let mut b = App::new(None);
+        b.project.data.stock.t = 6.0;
+        b.project.data.loops = vec![shapes::new_rect([10.0, 20.0], [70.0, 60.0], 0.0, 1)];
+        b.sel = [0].into_iter().collect();
+        b.finger_selection([Edge::Tabs, Edge::Flat, Edge::Slots, Edge::Flat], 10.0, 0.0, Some(3.0));
+        let pts = |a: &App| a.project.data.loops.iter().map(|l| l.pts.clone()).collect::<Vec<_>>();
+        assert_eq!(pts(&a), pts(&b));
+        // a shape that was moved follows too; one that was resized is left alone
+        let d = &mut a.project.data;
+        for l in d.loops.iter_mut() { for c in l.pts.chunks_exact_mut(2) { c[0] += 5000; } }
+        d.stock.t = 4.0;
+        a.refit_fingers();
+        assert!((depth_of(&a) - 4.0).abs() < 1e-6);
+        let d = &mut a.project.data;
+        for l in d.loops.iter_mut() { for c in l.pts.chunks_exact_mut(2) { c[0] = c[0] * 11 / 10; } }
+        let before = a.project.data.loops.clone();
+        a.project.data.stock.t = 5.0;
+        a.refit_fingers();
+        assert_eq!(a.project.data.loops.iter().map(|l| &l.pts).collect::<Vec<_>>(), before.iter().map(|l| &l.pts).collect::<Vec<_>>());
+        assert!(a.project.data.loops.iter().all(|l| l.fj.is_none()));
     }
 }
