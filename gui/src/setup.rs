@@ -292,7 +292,9 @@ fn finish_step(ui: &mut egui::Ui, w: &Wizard) {
     let m = &w.machine;
     egui::Grid::new("setup_sum").num_columns(2).spacing([SP, 8.0]).show(ui, |ui| {
         key(ui, "Machine"); ui.label(m.name.trim()); ui.end_row();
-        key(ui, "Work area"); ui.label(format!("{:.0} \u{d7} {:.0} \u{d7} {:.0} mm", m.x, m.y, m.z)); ui.end_row();
+        key(ui, "Work area");
+        ui.label(if w.inches { format!("{:.1} \u{d7} {:.1} \u{d7} {:.1} in", m.x / 25.4, m.y / 25.4, m.z / 25.4) } else { format!("{:.0} \u{d7} {:.0} \u{d7} {:.0} mm", m.x, m.y, m.z) });
+        ui.end_row();
         key(ui, "G-code for"); ui.label(putiacnc_core::model::dialect_name(&m.post)); ui.end_row();
         key(ui, "Units"); ui.label(if w.inches { "Inches" } else { "Millimetres" }); ui.end_row();
         key(ui, "Tools"); ui.label(setup::starter_tools(ToolChoice { inch_sizes: w.inches, ..w.tools }).len().to_string()); ui.end_row();

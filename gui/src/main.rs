@@ -106,7 +106,13 @@ fn main() -> eframe::Result<()> {
         if let Ok(v) = std::env::var("PUTIACNC_COLLAPSE") { for n in v.split(',').filter_map(|s| s.parse::<usize>().ok()) { if let Some(o) = app.project.data.ops.get(n.saturating_sub(1)) { app.collapsed.insert(o.id); } } }
         // first run: no settings file yet (or an assistant that was never finished); PUTIACNC_SKIP_SETUP keeps tests and screenshots clean
         let first_run = !prefs::exists() || prefs::load().setup_done == Some(false);
-        if std::env::var_os("PUTIACNC_SHOW_SETUP").is_some() { app.setup.start(std::env::var("PUTIACNC_SHOW_SETUP").is_ok_and(|v| v != "again")); if let Some(i) = std::env::var("PUTIACNC_SETUP_PICK").ok().and_then(|v| v.parse().ok()) { app.setup.pick_machine(i); } app.setup.step = std::env::var("PUTIACNC_SETUP_STEP").ok().and_then(|v| v.parse().ok()).unwrap_or(0); }
+        if let Ok(v) = std::env::var("PUTIACNC_SHOW_SETUP") {
+            // =again: as run from the Help menu; PUTIACNC_SETUP_STEP / _INCHES / _PICK choose what the picture shows
+            app.setup.start(v != "again");
+            if std::env::var_os("PUTIACNC_SETUP_INCHES").is_some() { app.setup.inches = true; app.setup.machine.inches = true; }
+            if let Some(i) = std::env::var("PUTIACNC_SETUP_PICK").ok().and_then(|v| v.parse().ok()) { app.setup.pick_machine(i); }
+            app.setup.step = std::env::var("PUTIACNC_SETUP_STEP").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        }
         else if first_run && std::env::var_os("PUTIACNC_SKIP_SETUP").is_none() { app.setup.start(true); }
         theme::apply_fonts(&cc.egui_ctx);
         theme::apply_style(&cc.egui_ctx, &app.theme);
