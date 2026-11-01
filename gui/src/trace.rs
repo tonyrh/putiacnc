@@ -163,9 +163,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         egui::Grid::new("trace_grid2").num_columns(4).spacing([10.0, 8.0]).show(ui, |ui| {
             let (_, hmm) = t.bm.as_ref().map(|b| b.size_mm(&t.opts)).unwrap_or((0.0, 0.0));
             crate::toolmgr::rlabel(ui, col1, "Width");
-            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.width_mm, 1.0, 5000.0, 0.5, 2, "").changed(); ui.weak("mm"); });
+            ui.horizontal(|ui| { changed |= crate::widgets::len(ui, [66.0, 24.0], &mut t.opts.width_mm, 1.0, 5000.0, 0.5, 2, "").changed(); ui.weak(crate::widgets::len_unit(ui)); });
             crate::toolmgr::rlabel(ui, col3, "Height");
-            ui.weak(format!("{hmm:.2} mm"));
+            ui.weak(crate::widgets::fmt_len(ui, hmm));
             ui.end_row();
             crate::toolmgr::rlabel(ui, col1, "Edge trim");
             ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.trim_pct, 0.0, 45.0, 0.1, 1, "").tip("Ignore this part of every edge, for a scanner border or a frame").changed(); ui.weak("%"); });

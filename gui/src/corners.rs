@@ -63,14 +63,14 @@ pub fn cutter_row(ui: &mut egui::Ui, lw: f32, dia: &mut f64, auto: &mut bool, op
     ui.vertical(|ui| {
         crate::widgets::check(ui, auto, "Tool of the operation").tip("Take the diameter from the tool of the operation these shapes are cut in, so the reliefs always match the cutter");
         if *auto {
-            match op_dia { Some(d) => { ui.weak(format!("{d} mm")); } None => { ui.weak("Not in an operation yet: using the size below."); } }
+            match op_dia { Some(d) => { ui.weak(crate::widgets::fmt_len(ui, d)); } None => { ui.weak("Not in an operation yet: using the size below."); } }
         }
         if !*auto || op_dia.is_none() {
             ui.horizontal(|ui| {
-                crate::widgets::num(ui, [70.0, 24.0], dia, 0.1, 50.0, 0.25, 3, "");
-                ui.weak("mm");
+                crate::widgets::len(ui, [70.0, 24.0], dia, 0.1, 50.0, 0.25, 3, "");
+                ui.weak(crate::widgets::len_unit(ui));
                 egui::ComboBox::from_id_source("dog_tool").selected_text("from tool").width(110.0).show_ui(ui, |ui| {
-                    for (n, d) in tools { if ui.selectable_label(false, format!("{n} ({d} mm)")).clicked() { *dia = *d; } }
+                    for (n, d) in tools { if ui.selectable_label(false, format!("{n} ({})", crate::widgets::fmt_len(ui, *d))).clicked() { *dia = *d; } }
                 });
             });
         }
@@ -188,8 +188,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             } else {
                 crate::toolmgr::rlabel(ui, lw, if app.corners.chamfer { "Distance" } else { "Radius" });
                 ui.horizontal(|ui| {
-                    crate::widgets::num(ui, [70.0, 24.0], &mut app.corners.size, 0.01, 1000.0, 0.25, 2, "");
-                    ui.weak("mm");
+                    crate::widgets::len(ui, [70.0, 24.0], &mut app.corners.size, 0.01, 1000.0, 0.25, 2, "");
+                    ui.weak(crate::widgets::len_unit(ui));
                 });
                 ui.end_row();
             }

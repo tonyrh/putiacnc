@@ -979,15 +979,15 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 ui.add_space(4.0);
                 if p.kind == "draw" {
                     if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
-                        ui.weak(format!("Pen · line {} · draws at {} mm/min · pen down at {} mm/min", putiacnc_core::toollib::fmt_dia(t0.dia, &t0.sys, true), t0.feed, t0.plunge));
+                        ui.weak(format!("Pen · line {} · draws at {} · pen down at {}", putiacnc_core::toollib::fmt_dia(t0.dia, &t0.sys, true), crate::widgets::fmt_speed(ui, t0.feed), crate::widgets::fmt_speed(ui, t0.plunge)));
                     }
                 } else if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
                     // what the machine will really run (its limits applied, after this operation's own values), with a warning when that differs
                     let asked = match &p.custom { Some(cf) if !(p.kind == "relief" && p.f_off) => cf.apply(t0), _ => t0.clone() };
                     let (t, warn) = match &machine_now { Some(m) => (m.hold(&asked), m.hold_text(&asked)), None => (asked.clone(), String::new()) };
                     let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
-                    ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} mm/min · step {}% · {:.2} mm/pass",
-                        putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, t.feed, t.plunge, t.so, t.pd));
+                    ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} · step {}% · {}/pass",
+                        putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, crate::widgets::fmt_speed(ui, t.feed), crate::widgets::fmt_speed(ui, t.plunge), t.so, crate::widgets::fmt_len(ui, t.pd)));
                     if !warn.is_empty() {
                         let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
                         crate::checkui::warn_line(ui, col, &format!("Held to the machine's limits: {warn}."))

@@ -68,9 +68,9 @@ pub(super) fn tool_options_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
             if app.mode == Mode::Rect {
                 ui.label("Corner radius");
                 ui.add_space(6.0);
-                crate::widgets::num(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 2, "");
+                crate::widgets::len(ui, [56.0, 24.0], &mut app.rect_radius, 0.0, 500.0, 0.1, 2, "");
                 ui.add_space(2.0);
-                ui.weak("mm");
+                ui.weak(crate::widgets::len_unit(ui));
             }
           });
         });

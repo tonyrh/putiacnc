@@ -31,8 +31,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.end_row();
             crate::toolmgr::rlabel(ui, lw, "Distance");
             ui.horizontal(|ui| {
-                ui.add(egui::DragValue::new(&mut app.offset_mm).clamp_range(0.01..=500.0).speed(0.05));
-                ui.weak("mm");
+                crate::widgets::len(ui, [70.0, 24.0], &mut app.offset_mm, 0.01, 500.0, 0.05, 2, "");
+                ui.weak(crate::widgets::len_unit(ui));
             });
             ui.end_row();
         });

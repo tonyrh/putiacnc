@@ -12,6 +12,14 @@ pub fn set_inches(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_tem
 pub fn inches(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_inches"))).unwrap_or(false) }
 /// "mm" or "in", for the unit after a length field.
 pub fn len_unit(ui: &Ui) -> &'static str { if inches(ui) { "in" } else { "mm" } }
+/// The speed unit the app shows (name, mm/min per unit), kept in the context like the length unit.
+pub fn set_speed_unit(ctx: &egui::Context, u: (&'static str, f64)) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_speed"), u)); }
+/// A feed rate given in mm/min, in the shown speed unit with its name ("800 mm/min", "31.5 in/min").
+pub fn fmt_speed(ui: &Ui, mm_min: f64) -> String {
+    let (n, f) = ui.data(|d| d.get_temp::<(&'static str, f64)>(egui::Id::new("display_speed"))).unwrap_or(("mm/min", 1.0));
+    format!("{} {}", fmt_val(mm_min / f.max(1e-9), 2), n)
+}
+
 /// Whether inch fields show fractions (see `fmt_inch`).
 pub fn set_fractions(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_fractions"), on)); }
 fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_fractions"))).unwrap_or(false) }

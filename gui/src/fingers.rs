@@ -86,7 +86,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.label("Dogbones make room in the slot corners for a round cutter.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(if app.sel.is_empty() { "Select a rectangle first.".to_string() } else if has { format!("Depth {thick} mm: the thickness of the stock.") } else { "The selection has no rectangle.".to_string() });
+        ui.label(if app.sel.is_empty() { "Select a rectangle first.".to_string() } else if has { format!("Depth {}: the thickness of the stock.", crate::widgets::fmt_len(ui, thick)) } else { "The selection has no rectangle.".to_string() });
         ui.add_space(6.0);
         let lw = ["Bottom", "Finger width", "Clearance", "Cutter"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("finger_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
@@ -97,10 +97,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             }
             crate::toolmgr::rlabel(ui, lw, "Finger width");
-            ui.horizontal(|ui| { crate::widgets::num(ui, [70.0, 24.0], &mut app.fingers.width, 0.5, 500.0, 0.5, 2, ""); ui.weak("mm"); });
+            ui.horizontal(|ui| { crate::widgets::len(ui, [70.0, 24.0], &mut app.fingers.width, 0.5, 500.0, 0.5, 2, ""); ui.weak(crate::widgets::len_unit(ui)); });
             ui.end_row();
             crate::toolmgr::rlabel(ui, lw, "Clearance");
-            ui.horizontal(|ui| { crate::widgets::num(ui, [70.0, 24.0], &mut app.fingers.clearance, 0.0, 2.0, 0.01, 2, "").tip("How much wider a slot is than its tab, for the cutting kerf and a sliding fit"); ui.weak("mm"); });
+            ui.horizontal(|ui| { crate::widgets::len(ui, [70.0, 24.0], &mut app.fingers.clearance, 0.0, 2.0, 0.01, 2, "").tip("How much wider a slot is than its tab, for the cutting kerf and a sliding fit"); ui.weak(crate::widgets::len_unit(ui)); });
             ui.end_row();
             if app.fingers.dogbone {
                 let (od, tools) = (app.sel_cutter_dia(), app.cutter_choices());
