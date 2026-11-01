@@ -45,16 +45,18 @@ impl App {
         if let Some(v) = p.show_badges { self.show_badges = v; }
         if let Some(v) = p.show_clamps { self.show_clamps = v; }
         if let Some(v) = &p.text_sections { self.text.sections = v.iter().cloned().collect(); }
-        if let Some(v) = p.tool_len_in { self.tool_len_in = v; }
+        if let Some(v) = p.tool_len_in.or(p.mach_len_in) { self.disp_in = v; }
+        if let Some(v) = p.display_in { self.disp_in = v; }
+        // test hook: the display units ("in" or "mm")
+        if let Ok(u) = std::env::var("PUTIACNC_UNITS") { self.disp_in = u == "in"; }
         // older versions kept one unit for both views: an inch unit there is the one for the inch view
         if let Some(v) = p.tool_speed_idx { if v < 3 { self.tool_speed_mm = v; } else { self.tool_speed_in = v; } }
         if let Some(v) = p.tool_speed_idx_in { self.tool_speed_in = v; }
         // test hook: the unit n (and the lengths view it belongs to)
         if let Some(i) = std::env::var("PUTIACNC_SPEED_UNIT").ok().and_then(|v| v.parse::<usize>().ok()) {
-            self.tool_len_in = i >= 3;
+            self.disp_in = i >= 3;
             *self.tool_speed_slot() = i;
         }
-        if let Some(v) = p.mach_len_in { self.mach_len_in = v; }
         if let Some(v) = p.mach_speed_idx { self.mach_speed_idx = v; }
         if let Some(v) = &p.export_split { self.export_split = putiacnc_core::split::Split::from_id(v); }
         self.prefs_saved = p.clone();
@@ -80,10 +82,9 @@ impl App {
         s.show_badges = Some(self.show_badges);
         s.show_clamps = Some(self.show_clamps);
         s.text_sections = Some(self.text.sections.iter().cloned().collect());
-        s.tool_len_in = Some(self.tool_len_in);
+        s.display_in = Some(self.disp_in);
         s.tool_speed_idx = Some(self.tool_speed_mm);
         s.tool_speed_idx_in = Some(self.tool_speed_in);
-        s.mach_len_in = Some(self.mach_len_in);
         s.mach_speed_idx = Some(self.mach_speed_idx);
         s.export_split = Some(self.export_split.id().to_string());
         if let Some(o) = self.trace.remember.clone() { s.trace = Some(o); }

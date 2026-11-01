@@ -86,8 +86,7 @@ impl App {
             self.tool_libs.rename_current(&name);
         }
         self.machines.def = id.clone();
-        self.tool_len_in = w.inches;
-        self.mach_len_in = w.inches;
+        self.disp_in = w.inches;
         self.imperial = w.inches;
         self.set_machine(&id);
         self.apply_lib_tools();

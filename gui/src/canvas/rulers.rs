@@ -3,10 +3,10 @@ use super::*;
 
 pub(super) const RULER: f32 = 20.0;
 
-/// A tick spacing (mm) that keeps labels at least ~70 px apart, and how many minor ticks sit between two labels.
-pub(super) fn tick_step(scale: f32) -> (f64, usize) {
+/// A tick spacing, in the shown unit (`k` mm each), that keeps labels at least ~70 px apart, and how many minor ticks sit between two labels.
+pub(super) fn tick_step(scale: f32, k: f64) -> (f64, usize) {
     for (s, minor) in [(0.01, 5), (0.02, 4), (0.05, 5), (0.1, 5), (0.2, 4), (0.5, 5), (1.0, 5), (2.0, 4), (5.0, 5), (10.0, 5), (20.0, 4), (50.0, 5), (100.0, 5), (200.0, 4), (500.0, 5)] {
-        if s * scale as f64 >= 70.0 { return (s, minor); }
+        if s * k * scale as f64 >= 70.0 { return (s, minor); }
     }
     (1000.0, 5)
 }
@@ -28,8 +28,10 @@ pub(super) fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scal
     painter.rect_filled(top, 0.0, bg);
     painter.rect_filled(left, 0.0, bg);
     painter.rect_filled(Rect::from_min_size(rect.min, Vec2::splat(RULER)), 0.0, bg);
-    let (step, minor) = tick_step(scale);
-    let sub = step / minor as f64;
+    let k = crate::widgets::len_k(ui);
+    let (step, minor) = tick_step(scale, k);
+    let sub = step / minor as f64; // in the shown unit
+    let sub_mm = sub * k;
     let st = Stroke::new(1.0_f32, ink);
     let wtl = view.s2w(rect.left_top());
     let wbr = view.s2w(rect.right_bottom());
@@ -42,10 +44,10 @@ pub(super) fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scal
     }
     // horizontal ruler
     let top_p = painter.with_clip_rect(top);
-    let mut i = ((wtl[0] - zx) / sub).floor() as i64 - 1;
-    while (i as f64) * sub <= wbr[0] - zx + sub {
+    let mut i = ((wtl[0] - zx) / sub_mm).floor() as i64 - 1;
+    while (i as f64) * sub_mm <= wbr[0] - zx + sub_mm {
         let v = i as f64 * sub;
-        let x = view.w2s([v + zx, 0.0]).x;
+        let x = view.w2s([v * k + zx, 0.0]).x;
         let major = i.rem_euclid(minor as i64) == 0;
         let h = if major { RULER * 0.7 } else if i.rem_euclid(2) == 0 { RULER * 0.38 } else { RULER * 0.28 };
         top_p.line_segment([Pos2::new(x, top.max.y - h), Pos2::new(x, top.max.y)], st);
@@ -54,10 +56,10 @@ pub(super) fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scal
     }
     // vertical ruler
     let left_p = painter.with_clip_rect(left);
-    let mut j = ((wbr[1] - zy) / sub).floor() as i64 - 1;
-    while (j as f64) * sub <= wtl[1] - zy + sub {
+    let mut j = ((wbr[1] - zy) / sub_mm).floor() as i64 - 1;
+    while (j as f64) * sub_mm <= wtl[1] - zy + sub_mm {
         let v = j as f64 * sub;
-        let y = view.w2s([0.0, v + zy]).y;
+        let y = view.w2s([0.0, v * k + zy]).y;
         let major = j.rem_euclid(minor as i64) == 0;
         let h = if major { RULER * 0.7 } else if j.rem_euclid(2) == 0 { RULER * 0.38 } else { RULER * 0.28 };
         left_p.line_segment([Pos2::new(left.max.x - h, y), Pos2::new(left.max.x, y)], st);
@@ -79,26 +81,28 @@ pub(super) fn draw_rulers(painter: &egui::Painter, rect: Rect, view: &View, scal
     let ls = Stroke::new(1.0_f32, line);
     painter.line_segment([Pos2::new(rect.min.x, top.max.y), Pos2::new(rect.max.x, top.max.y)], ls);
     painter.line_segment([Pos2::new(left.max.x, rect.min.y), Pos2::new(left.max.x, rect.max.y)], ls);
-    painter.text(rect.min + Vec2::new(RULER / 2.0, RULER / 2.0), egui::Align2::CENTER_CENTER, "mm", egui::FontId::monospace(8.0), ink);
+    painter.text(rect.min + Vec2::new(RULER / 2.0, RULER / 2.0), egui::Align2::CENTER_CENTER, crate::widgets::len_unit(ui), egui::FontId::monospace(8.0), ink);
 }
 
 /// Graduated X and Y axes along the stock's lower and left edges, with the numbers outside the stock.
 pub(super) fn draw_axes(painter: &egui::Painter, view: &View, scale: f32, (sw, sh): (f64, f64), (zx, zy): (f64, f64), dark: bool, ui: &Ui) {
     let col = if dark { Color32::from_rgb(150, 200, 255) } else { Color32::from_rgb(30, 90, 170) };
     let font = egui::FontId::monospace(10.0);
-    let (step, minor) = tick_step(scale);
+    let k = crate::widgets::len_k(ui);
+    let (step, minor) = tick_step(scale, k);
     let sub = step / minor as f64;
+    let sub_mm = sub * k;
     let st = Stroke::new(1.0_f32, col);
-    for i in ((-zx) / sub).ceil() as i64..=((sw - zx) / sub).floor() as i64 {
+    for i in ((-zx) / sub_mm).ceil() as i64..=((sw - zx) / sub_mm).floor() as i64 {
         let v = i as f64 * sub;
-        let p = view.w2s([v + zx, 0.0]);
+        let p = view.w2s([v * k + zx, 0.0]);
         let major = i % minor as i64 == 0;
         painter.line_segment([p, p + Vec2::new(0.0, if major { 8.0 } else { 4.0 })], st);
         if major { painter.text(p + Vec2::new(0.0, 9.0), egui::Align2::CENTER_TOP, tick_label(v, step), font.clone(), col); }
     }
-    for j in ((-zy) / sub).ceil() as i64..=((sh - zy) / sub).floor() as i64 {
+    for j in ((-zy) / sub_mm).ceil() as i64..=((sh - zy) / sub_mm).floor() as i64 {
         let v = j as f64 * sub;
-        let p = view.w2s([0.0, v + zy]);
+        let p = view.w2s([0.0, v * k + zy]);
         let major = j % minor as i64 == 0;
         painter.line_segment([p, p - Vec2::new(if major { 8.0 } else { 4.0 }, 0.0)], st);
         if major { painter.text(p - Vec2::new(9.0, 0.0), egui::Align2::RIGHT_CENTER, tick_label(v, step), font.clone(), col); }
@@ -106,5 +110,5 @@ pub(super) fn draw_axes(painter: &egui::Painter, view: &View, scale: f32, (sw, s
     let (o, xe, ye) = (view.w2s([0.0, 0.0]), view.w2s([sw, 0.0]), view.w2s([0.0, sh]));
     painter.text(xe + Vec2::new(4.0, 0.0), egui::Align2::LEFT_CENTER, "X", egui::FontId::proportional(13.0), col);
     painter.text(ye - Vec2::new(0.0, 4.0), egui::Align2::CENTER_BOTTOM, "Y", egui::FontId::proportional(13.0), col);
-    let _ = (o, ui);
+    let _ = o;
 }

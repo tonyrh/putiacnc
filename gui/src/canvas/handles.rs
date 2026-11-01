@@ -141,7 +141,7 @@ pub(super) fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 let field = |ui: &mut Ui, label: &str, v: &mut f64, lo: f64, hi: f64| -> bool {
                     ui.label(label);
                     ui.add_space(4.0); // as far from its field as the labels in the Stock panel
-                    ui.add_enabled_ui(!locked, |ui| crate::widgets::num(ui, [66.0, 24.0], v, lo, hi, 0.25, 2, "").changed()).inner
+                    ui.add_enabled_ui(!locked, |ui| crate::widgets::len(ui, [66.0, 24.0], v, lo, hi, 0.25, 2, "").changed()).inner
                 };
                 geom |= field(ui, "X", &mut x, -100000.0, 100000.0);
                 ui.add_space(10.0);
@@ -150,7 +150,7 @@ pub(super) fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 geom |= field(ui, "W", &mut w, 0.01, 100000.0);
                 ui.add_space(10.0);
                 geom |= field(ui, "H", &mut h, 0.01, 100000.0);
-                ui.weak("mm");
+                ui.weak(crate::widgets::len_unit(ui));
             });
         });
     });

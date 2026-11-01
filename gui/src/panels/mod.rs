@@ -61,6 +61,12 @@ pub(super) fn dv_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &
     crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix)
 }
 
+/// Length versions of `dv_w` / `dv_r`: the value is in mm, the field shows the Display units.
+pub(super) fn dl_w(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> bool { dl_r(ui, w, v, lo, hi, suffix).changed() }
+pub(super) fn dl_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> egui::Response {
+    crate::widgets::len(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix)
+}
+
 pub(super) fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(&str, &str)], prefix: &str, tip: &str) -> (bool, egui::Rect) {
     let mut ch = false;
     let r = egui::ComboBox::from_id_source(id).width(w - 10.0).selected_text(format!("{prefix}{}", label_of(opts, cur))).show_ui(ui, |ui| {

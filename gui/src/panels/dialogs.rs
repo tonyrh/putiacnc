@@ -97,7 +97,7 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
                 ui.separator();
                 ui.label(format!("cutting {}", fmt_time(ct)));
                 ui.separator();
-                ui.label(format!("cut length {:.1} mm", cl));
+                ui.label(format!("cut length {}", crate::widgets::fmt_len(ui, cl)));
                 ui.separator();
                 ui.label(format!("{} lines, generated in {:.0} ms", ln, app.gen_ms));
             }

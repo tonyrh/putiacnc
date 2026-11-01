@@ -6,6 +6,29 @@ fn fmt_val(v: f64, dec: usize) -> String {
     if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
 }
 
+/// Whether lengths are shown in inches (the app's Display units setting). Kept in the egui context so every field can ask for it
+/// without being handed the app; stored values are always mm.
+pub fn set_inches(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_inches"), on)); }
+pub fn inches(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_inches"))).unwrap_or(false) }
+/// "mm" or "in", for the unit after a length field.
+pub fn len_unit(ui: &Ui) -> &'static str { if inches(ui) { "in" } else { "mm" } }
+/// mm per shown unit.
+pub fn len_k(ui: &Ui) -> f64 { if inches(ui) { 25.4 } else { 1.0 } }
+
+/// A length field: `v` is in mm, the field shows and takes mm or inches as the Display units say. `lo`, `hi`, `speed` and `dec` are
+/// given for mm; in inches the field gets two more decimals (a thousandth of an inch is 0.0254 mm).
+pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
+    let k = len_k(ui);
+    if k == 1.0 { return num(ui, size, v, lo, hi, speed, dec, suffix); }
+    let mut x = *v / k;
+    let r = num(ui, size, &mut x, lo / k, hi / k, speed / k, dec + 2, suffix);
+    if r.changed() { *v = (x * k).clamp(lo, hi); }
+    r
+}
+
+/// A length for a message or a readout, in the shown unit with its name ("12.5 mm", "0.492 in").
+pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_val(mm / 25.4, 3)) } else { format!("{} mm", fmt_val(mm, 2)) } }
+
 /// Width of a number field in the dialogs.
 pub const FIELD_W: f32 = 70.0;
 
@@ -234,4 +257,36 @@ pub mod tiplog {
     pub fn field(ctx: &egui::Context, r: Rect, label: Option<Rect>, t: &str) { with(ctx, |l| l.fields.push((r, label, t.to_string()))) }
     pub fn painted(ctx: &egui::Context, r: Rect, t: &str) { with(ctx, |l| l.painted.push((r, t.to_string()))) }
     pub fn take(ctx: &egui::Context) -> Log { ctx.data_mut(|d| d.remove_temp::<Log>(id())).unwrap_or_default() }
+}
+
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    fn with_units<R>(inches: bool, f: impl FnOnce(&mut Ui) -> R) -> R {
+        let ctx = egui::Context::default();
+        let mut out = None;
+        let mut f = Some(f);
+        let _ = ctx.run(Default::default(), |ctx| {
+            set_inches(ctx, inches);
+            egui::CentralPanel::default().show(ctx, |ui| { if let Some(f) = f.take() { out = Some(f(ui)); } });
+        });
+        out.unwrap()
+    }
+
+    #[test]
+    fn lengths_follow_the_display_units() {
+        assert_eq!(with_units(false, |ui| (len_unit(ui), fmt_len(ui, 12.5))), ("mm", "12.5 mm".to_string()));
+        assert_eq!(with_units(true, |ui| (len_unit(ui), fmt_len(ui, 25.4))), ("in", "1 in".to_string()));
+        assert_eq!(with_units(true, |ui| fmt_len(ui, 3.0)), "0.118 in");
+    }
+
+    #[test]
+    fn inch_rulers_step_in_round_inches() {
+        let k = 25.4;
+        // 1 mm = 4 px: labels need 70 px, so 0.5 in (50.8 mm = 203 px) is not needed, 0.2 in (20 px/mm... 5.08 mm = 20 px) is too close; 0.5 in is the first that fits
+        let (s, _) = crate::canvas::rulers_tick_step(4.0, k);
+        assert!((s * k * 4.0) >= 70.0 && s <= 1.0, "{s}");
+        assert_eq!(crate::canvas::rulers_tick_step(4.0, 1.0).0, 20.0);
+    }
 }

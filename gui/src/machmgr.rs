@@ -231,8 +231,8 @@ fn footer(ui: &mut Ui, app: &mut App) {
             });
             ui.label("Speeds in");
             ui.add_space(8.0);
-            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.mach_len_in as usize);
-            if let Some(i) = c { app.mach_len_in = i == 1; }
+            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.disp_in as usize);
+            if let Some(i) = c { app.disp_in = i == 1; }
             ui.label("Lengths in");
         });
     });
@@ -264,8 +264,8 @@ fn list(ui: &mut Ui, app: &mut App, h: f32) {
 }
 
 fn form(ui: &mut Ui, app: &mut App) {
-    let uname = if app.mach_len_in { "in" } else { "mm" };
-    let k = if app.mach_len_in { 25.4 } else { 1.0 };
+    let uname = if app.disp_in { "in" } else { "mm" };
+    let k = if app.disp_in { 25.4 } else { 1.0 };
     let (sname, sfac) = SPEED_UNITS[app.mach_speed_idx.min(SPEED_UNITS.len() - 1)];
     let Some(mut m) = app.machines.get(&app.mach_sel).cloned() else { return };
     let mut changed = false;
