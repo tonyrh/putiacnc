@@ -93,4 +93,5 @@ Reach and polish
 - [ ] Project templates and an example gallery; a short manual with videos.
 - [ ] Shared tool and machine preset libraries on GitHub.
 - [x] First-run setup assistant (units, machine, starter tools).
-- [ ] Machine presets from the makers' published specs: a bundled JSON catalogue (maker, model, travel, rapid, limits, dialect, rigidity, source of each figure; empty when not published), and a searchable list grouped by maker in the setup assistant and the Machines window, with "Other" kept for custom machines.
+- [x] Machine catalogue from the makers' published specs (20 machines; setup assistant and Machines → From catalogue).
+- [ ] More machines: Lunyee and TwoTrees (maker pages not found yet), Sienci LongMill (travel per size), OpenBuilds LEAD, Stepcraft. Needs app work first: Makera Carvera (Smoothieware-based firmware, M6 tool changes) and Onefinity (Redline controller, not GRBL).

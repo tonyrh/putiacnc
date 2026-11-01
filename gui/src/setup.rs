@@ -15,19 +15,38 @@ pub struct Wizard {
     pub first: bool,
     pub inches: bool,
     pub preset: usize,
+    /// The maker picked in the list (empty = a machine that is not listed).
+    pub maker: String,
+    /// The catalogue entry picked (index into `setup::catalog()`).
+    pub pick: Option<usize>,
     pub machine: MachineSetup,
     pub tools: ToolChoice,
 }
 
 impl Default for Wizard {
     fn default() -> Self {
-        Wizard { open: false, step: 0, first: false, inches: false, preset: 0, machine: MachineSetup::from_preset(&PRESETS[0]), tools: ToolChoice::default() }
+        Wizard { open: false, step: 0, first: false, inches: false, preset: 0, maker: String::new(), pick: None, machine: MachineSetup::from_preset(&PRESETS[0]), tools: ToolChoice::default() }
     }
 }
 
 impl Wizard {
     pub fn start(&mut self, first: bool) {
         *self = Wizard { open: true, first, ..Default::default() };
+    }
+    /// Fills the machine from a catalogue entry.
+    pub fn pick_machine(&mut self, i: usize) {
+        let Some(c) = setup::catalog().get(i) else { return };
+        self.pick = Some(i);
+        self.maker = c.maker.clone();
+        self.machine = c.setup();
+        self.machine.inches = self.inches;
+    }
+    fn pick_other(&mut self) {
+        self.pick = None;
+        self.maker.clear();
+        let i = self.preset;
+        self.pick_preset(i);
+        self.machine.notes.clear();
     }
     fn pick_preset(&mut self, i: usize) {
         self.preset = i;
@@ -147,26 +166,55 @@ fn units_step(ui: &mut egui::Ui, w: &mut Wizard) {
 
 fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
     ui.label(egui::RichText::new("Your machine").size(20.0).strong());
-    section(ui, "Name and size class");
+    section(ui, "Machine");
     egui::Grid::new("setup_name").num_columns(2).spacing([14.0, 8.0]).min_col_width(LABEL_W).show(ui, |ui| {
+        key(ui, "Maker");
+        let mut chosen = None;
+        egui::ComboBox::from_id_source("setup_maker").width(280.0).selected_text(if w.maker.is_empty() { "Other / not listed" } else { w.maker.as_str() }).show_ui(ui, |ui| {
+            if ui.selectable_label(w.maker.is_empty(), "Other / not listed").clicked() { chosen = Some(None); }
+            for m in setup::makers() { if ui.selectable_label(w.maker == m, m).clicked() && w.maker != m { chosen = Some(setup::catalog().iter().position(|c| c.maker == m)); } }
+        });
+        ui.end_row();
+        match chosen { Some(Some(i)) => w.pick_machine(i), Some(None) => w.pick_other(), None => {} }
+        if !w.maker.is_empty() {
+            key(ui, "Model");
+            let cur = w.pick.and_then(|i| setup::catalog().get(i)).map_or("", |c| c.model.as_str());
+            let mut chosen = None;
+            egui::ComboBox::from_id_source("setup_model").width(280.0).selected_text(cur).show_ui(ui, |ui| {
+                for (i, c) in setup::catalog().iter().enumerate().filter(|(_, c)| c.maker == w.maker) { if ui.selectable_label(w.pick == Some(i), &c.model).clicked() { chosen = Some(i); } }
+            });
+            ui.end_row();
+            if let Some(i) = chosen { w.pick_machine(i); }
+        }
         key(ui, "Name");
         ui.add(egui::TextEdit::singleline(&mut w.machine.name).desired_width(280.0));
         ui.end_row();
     });
-    ui.add_space(6.0);
-    let cw = (ui.available_width() - 8.0) / 2.0;
-    let mut pick = None;
-    for row in 0..2 {
-        ui.horizontal(|ui| {
-            for col in 0..2 {
-                let i = row * 2 + col;
-                let (title, sub) = PRESETS[i].label.split_once(" (").map_or((PRESETS[i].label, ""), |(a, b)| (a, b.trim_end_matches(')')));
-                if card(ui, cw, w.preset == i, title, sub) { pick = Some(i); }
-            }
+    if let Some(c) = w.pick.and_then(|i| setup::catalog().get(i)) {
+        ui.add_space(4.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.weak("Figures published by the maker:");
+            ui.hyperlink_to("product page", &c.source);
         });
+        if !c.note.is_empty() { ui.add(egui::Label::new(egui::RichText::new(&c.note).weak().small()).wrap(true)); }
+        ui.weak("Check them against your machine's manual; every value below can be changed.");
+    } else {
+        ui.add_space(6.0);
+        ui.label("Closest size class:");
+        let cw = (ui.available_width() - 8.0) / 2.0;
+        let mut pick = None;
+        for row in 0..2 {
+            ui.horizontal(|ui| {
+                for col in 0..2 {
+                    let i = row * 2 + col;
+                    let (title, sub) = PRESETS[i].label.split_once(" (").map_or((PRESETS[i].label, ""), |(a, b)| (a, b.trim_end_matches(')')));
+                    if card(ui, cw, w.preset == i, title, sub) { pick = Some(i); }
+                }
+            });
+        }
+        if let Some(i) = pick { w.pick_preset(i); }
+        ui.weak("Only a starting point: set the real values below.");
     }
-    if let Some(i) = pick { w.pick_preset(i); }
-    ui.weak("Only a starting point: set the real values below.");
     section(ui, "Travel and speed");
     egui::Grid::new("setup_travel").num_columns(4).spacing([14.0, 8.0]).min_col_width(LABEL_W).show(ui, |ui| {
         for (label, v, lo, hi, suffix) in [("Travel X", &mut w.machine.x, 10.0, 100000.0, " mm"), ("Travel Y", &mut w.machine.y, 10.0, 100000.0, " mm"), ("Travel Z", &mut w.machine.z, 5.0, 10000.0, " mm")] {
@@ -291,6 +339,29 @@ mod tests {
         assert!(!a.tool_libs.current().tools.is_empty());
         assert_eq!(a.project.data.tools.len(), a.tool_libs.current().tools.len());
         assert!(!a.modified && !a.imperial);
+    }
+
+    #[test]
+    fn a_catalogue_machine_ends_up_on_the_project() {
+        let mut a = App::new(None);
+        let mut w = wiz(true, false);
+        let i = putiacnc_core::setup::catalog().iter().position(|c| c.maker == "NymoLabs" && c.model == "NBS-6050 PRO").unwrap();
+        w.pick_machine(i);
+        a.apply_setup(w);
+        let m = a.project.data.machine.as_ref().unwrap();
+        assert_eq!(m.name, "NymoLabs NBS-6050 PRO");
+        assert_eq!((m.x, m.y, m.z, m.rapid, m.rpm_max), (615.0, 504.0, 117.0, 6221.0, Some(30000.0)));
+        assert!(m.notes.contains("nymolabs.com"));
+    }
+
+    #[test]
+    fn going_back_to_other_restores_a_size_class() {
+        let mut w = wiz(true, false);
+        w.pick_machine(0);
+        assert!(w.pick.is_some() && !w.maker.is_empty());
+        w.pick_other();
+        assert!(w.pick.is_none() && w.maker.is_empty() && w.machine.notes.is_empty());
+        assert_eq!(w.machine.x, PRESETS[w.preset].x);
     }
 
     #[test]

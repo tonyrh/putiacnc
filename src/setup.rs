@@ -41,11 +41,13 @@ pub struct MachineSetup {
     pub rigid: String,
     /// Write the G-code in inches.
     pub inches: bool,
+    /// Free text kept on the machine (where the figures come from, caveats).
+    pub notes: String,
 }
 
 impl MachineSetup {
     pub fn from_preset(p: &Preset) -> MachineSetup {
-        MachineSetup { name: "My CNC machine".into(), x: p.x, y: p.y, z: p.z, rapid: p.rapid, post: String::new(), rpm_max: p.rpm_max, feed_max: p.feed_max, plunge_max: p.plunge_max, rigid: p.rigid.into(), inches: false }
+        MachineSetup { name: "My CNC machine".into(), x: p.x, y: p.y, z: p.z, rapid: p.rapid, post: String::new(), rpm_max: p.rpm_max, feed_max: p.feed_max, plunge_max: p.plunge_max, rigid: p.rigid.into(), inches: false, notes: String::new() }
     }
 
     /// The machine, with a new id and every value in range.
@@ -62,6 +64,7 @@ impl MachineSetup {
         m.plunge_max = self.plunge_max;
         m.rigid = self.rigid.clone();
         m.inches = Some(self.inches);
+        m.notes = self.notes.clone();
         crate::machines::normalize(&mut m);
         m
     }
@@ -112,9 +115,88 @@ pub fn starter_tools(c: ToolChoice) -> Vec<Tool> {
     v
 }
 
+/// A ready-made machine of the catalogue (`libraries/machines.json`): the figures the maker publishes, a field left out where it does not.
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct CatalogMachine {
+    pub maker: String,
+    pub model: String,
+    /// Travel in mm.
+    pub x: f64, pub y: f64, pub z: f64,
+    /// The maker's top speed, used as the rapid rate (`None` = not published: 2000 mm/min).
+    #[serde(default)] pub rapid: Option<f64>,
+    /// Top speed of the spindle that comes with the machine.
+    #[serde(default)] pub rpm_max: Option<f64>,
+    #[serde(default)] pub post: String,
+    /// Our own estimate of the stiffness (`feeds::RIGIDITY`), not the maker's.
+    #[serde(default)] pub rigid: String,
+    /// The maker's page the figures come from.
+    pub source: String,
+    #[serde(default)] pub note: String,
+}
+
+#[derive(serde::Deserialize)]
+struct CatalogFile { machines: Vec<CatalogMachine> }
+
+/// The machines of the catalogue, makers in alphabetical order.
+pub fn catalog() -> &'static [CatalogMachine] {
+    static C: std::sync::OnceLock<Vec<CatalogMachine>> = std::sync::OnceLock::new();
+    C.get_or_init(|| {
+        let mut v = serde_json::from_str::<CatalogFile>(include_str!("../libraries/machines.json")).map(|f| f.machines).unwrap_or_default();
+        v.sort_by_key(|m| m.maker.to_lowercase()); // stable: a maker's models keep the file's order
+        v
+    })
+}
+
+/// The makers of the catalogue, once each.
+pub fn makers() -> Vec<&'static str> {
+    let mut v: Vec<&str> = Vec::new();
+    for m in catalog() { if !v.contains(&m.maker.as_str()) { v.push(&m.maker); } }
+    v
+}
+
+impl CatalogMachine {
+    pub fn name(&self) -> String { format!("{} {}", self.maker, self.model) }
+
+    /// The answers the assistant would collect for this machine.
+    pub fn setup(&self) -> MachineSetup {
+        let mut notes = format!("Figures from the maker: {}", self.source);
+        if self.rpm_max.is_some() { notes.push_str("\nThe spindle limit is for the spindle supplied; change it if you fit another."); }
+        if !self.note.is_empty() { notes.push('\n'); notes.push_str(&self.note); }
+        MachineSetup {
+            name: self.name(), x: self.x, y: self.y, z: self.z, rapid: self.rapid.unwrap_or(2000.0), post: self.post.clone(),
+            rpm_max: self.rpm_max, feed_max: None, plunge_max: None,
+            rigid: if self.rigid.is_empty() { "light".into() } else { self.rigid.clone() }, inches: false, notes,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_catalogue_loads_and_every_entry_makes_a_sound_machine() {
+        let c = catalog();
+        assert!(c.len() >= 15, "{}", c.len());
+        let mut names = std::collections::HashSet::new();
+        for e in c {
+            assert!(names.insert(e.name()), "{} twice", e.name());
+            assert!(e.source.starts_with("https://"), "{}", e.name());
+            assert!(e.post.is_empty() || crate::model::DIALECTS.iter().any(|d| d.0 == e.post), "{}", e.name());
+            assert!(e.rigid.is_empty() || crate::feeds::RIGIDITY.iter().any(|r| r.0 == e.rigid), "{}", e.name());
+            assert!(e.x >= 100.0 && e.y >= 100.0 && e.z >= 20.0 && e.x <= 5000.0, "{} has odd travel", e.name());
+            assert!(e.rapid.is_none_or(|r| (500.0..=20000.0).contains(&r)), "{}", e.name());
+            let m = e.setup().into_machine();
+            assert_eq!((m.x, m.y, m.z), (e.x, e.y, e.z));
+            assert_eq!(m.name, e.name());
+            assert!(m.notes.contains(&e.source));
+            assert!(m.feed_max.is_none(), "a top speed is not a cutting limit");
+        }
+        let mk = makers();
+        assert!(mk.contains(&"Genmitsu") && mk.contains(&"NymoLabs"));
+        let mut sorted = mk.clone(); sorted.sort_by_key(|m| m.to_lowercase());
+        assert_eq!(mk, sorted);
+    }
 
     #[test]
     fn every_preset_makes_a_machine_in_range() {

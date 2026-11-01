@@ -106,3 +106,7 @@ The complete list of what the desktop app does. The README has the short version
 ## Setup assistant
 
 The first time the app runs (no settings file yet) a four-step assistant asks for the units, the machine (a size class to start from, then travel, rapid speed, feed/plunge/spindle limits, controller and rigidity) and which starter tools to add (straight end mills in metric or inch sizes are always included; V-bits, ball nose, surfacing and pens are optional). On the first run it replaces the default machine and the tools of the current library; **Help → Setup assistant…** runs it again later and only adds a new machine and a new library "My tools". The size classes are round figures, not product specifications: check the machine's manual.
+
+### Machine catalogue
+
+The setup assistant's machine step starts with a **Maker** and **Model** list (20 machines: Carbide 3D Shapeoko 5 Pro, FoxAlien, Genmitsu and NymoLabs), which fills in the travel, the maker's top speed as the rapid rate and the supplied spindle's top speed, and keeps the product page on the machine's notes. **Libraries → Machines → From catalogue** adds one to the machine list at any time. The data is `libraries/machines.json`: figures come from the makers' own pages, a field is left out where the maker publishes none, and a top speed is never turned into a cutting-feed limit. The stiffness (light / medium) is our own estimate. Two FoxAlien models (Masuter 3S, XE-Ultra) do not name their firmware on the maker's page; GRBL is assumed and noted on the machine.

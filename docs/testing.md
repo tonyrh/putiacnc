@@ -134,4 +134,4 @@ On the machine: put no paper under the pen for the first run, start, and watch t
 
 ## Setup assistant
 
-`PUTIACNC_SHOW_SETUP=1` opens the assistant as on a first run (`=again` as when run from the Help menu), `PUTIACNC_SETUP_STEP=n` starts at step n (0–3). `PUTIACNC_SKIP_SETUP=1` keeps it from opening on a fresh config folder; `scripts/shot.sh` sets it by default.
+`PUTIACNC_SHOW_SETUP=1` opens the assistant as on a first run (`=again` as when run from the Help menu), `PUTIACNC_SETUP_STEP=n` starts at step n (0–3), `PUTIACNC_SETUP_PICK=n` with the n-th machine of the catalogue picked. `PUTIACNC_SKIP_SETUP=1` keeps it from opening on a fresh config folder; `scripts/shot.sh` sets it by default.

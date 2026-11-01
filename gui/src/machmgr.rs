@@ -194,6 +194,26 @@ fn footer(ui: &mut Ui, app: &mut App) {
                 app.mach_sel = id;
                 app.machine_edited();
             }
+            ui.menu_button("From catalogue", |ui| {
+                ui.style_mut().wrap = Some(false);
+                ui.set_min_width(180.0);
+                for maker in putiacnc_core::setup::makers() {
+                    ui.menu_button(maker, |ui| {
+                        ui.style_mut().wrap = Some(false);
+                        for c in putiacnc_core::setup::catalog().iter().filter(|c| c.maker == maker) {
+                            if ui.button(&c.model).on_hover_text(format!("{} × {} × {} mm", c.x, c.y, c.z)).clicked() {
+                                let mut ms = c.setup();
+                                ms.inches = app.imperial;
+                                let m = ms.into_machine();
+                                app.mach_sel = m.id.clone();
+                                app.machines.list.push(m);
+                                app.machine_edited();
+                                ui.close_menu();
+                            }
+                        }
+                    });
+                }
+            }).response.on_hover_text("Add a ready-made machine with the maker's published figures");
             if icon_button(ui, Icon::Import, false, true, "Import a machine from a file").clicked() {
                 app.spawn_dialog(crate::app::DlgKind::MachImport, || rfd::FileDialog::new().add_filter("Machine", &["json"]).pick_file());
             }
