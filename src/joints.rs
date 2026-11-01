@@ -430,7 +430,7 @@ mod tests {
     fn slots_all_round_cut_the_union_of_the_notches() {
         let f = Fingers { width: 10.0, depth: 3.0, clearance: 0.0 };
         let p = finger_outline([0.0, 0.0, 100.0, 80.0], [Edge::Slots; 4], f).unwrap();
-        let notch = |len: f64| { let n = finger_count(len, 10.0); (n + 1) / 2 }; // slots on an edge of that length
+        let notch = |len: f64| { let n = finger_count(len, 10.0); n.div_ceil(2) }; // slots on an edge of that length
         let fw = |len: f64| len / finger_count(len, 10.0) as f64;
         let slots = 2.0 * (notch(100.0) as f64 * fw(100.0) * 3.0) + 2.0 * (notch(80.0) as f64 * fw(80.0) * 3.0);
         // each corner has a slot on both of its edges, and the two overlap in a 3 x 3 square
