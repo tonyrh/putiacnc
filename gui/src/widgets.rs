@@ -27,17 +27,33 @@ fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("di
 /// A message written in mm, with its lengths in the shown unit (see `units::localize`).
 pub fn localize(ui: &Ui, text: &str) -> String { crate::units::localize(text, inches(ui), fractions(ui)) }
 
-/// An inch value as a fraction of an inch when it is one to 1/64 (`3/16`, `1 3/16`), otherwise as a decimal.
+/// An inch value as an exact fraction of an inch (to 1/64: `3/16`, `1 3/16`), when it is one.
+fn exact_fraction(v: f64) -> Option<String> {
+    let n = (v.abs() * 64.0).round();
+    if n > 0.0 && (v.abs() * 64.0 - n).abs() < 0.03 { Some(fraction_text(v, n as u64)) } else { None }
+}
+
+fn fraction_text(v: f64, n: u64) -> String {
+    let (whole, mut rest, mut den) = (n / 64, n % 64, 64u64);
+    while rest != 0 && rest % 2 == 0 { rest /= 2; den /= 2; }
+    let sign = if v < 0.0 { "-" } else { "" };
+    if rest == 0 { format!("{sign}{whole}") } else if whole == 0 { format!("{sign}{rest}/{den}") } else { format!("{sign}{whole} {rest}/{den}") }
+}
+
+/// An inch value for display: with `frac`, as a fraction of an inch to the nearest 1/64 (`3/16`, `2 1/4`) from 1/16 up, and when it is
+/// an exact fraction below that; otherwise (and for the tiny values of tolerances) as a decimal.
 pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String {
     if frac {
-        let n = (v.abs() * 64.0).round();
-        if n > 0.0 && (v.abs() * 64.0 - n).abs() < 0.03 {
-            let (whole, mut rest, mut den) = (n as u64 / 64, n as u64 % 64, 64u64);
-            while rest != 0 && rest % 2 == 0 { rest /= 2; den /= 2; }
-            let sign = if v < 0.0 { "-" } else { "" };
-            return if rest == 0 { format!("{sign}{whole}") } else if whole == 0 { format!("{sign}{rest}/{den}") } else { format!("{sign}{whole} {rest}/{den}") };
-        }
+        if let Some(t) = exact_fraction(v) { return t; }
+        if v.abs() >= 1.0 / 16.0 { return fraction_text(v, (v.abs() * 64.0).round() as u64); }
     }
+    fmt_val(v, dec)
+}
+
+/// What a field starts with when it is clicked to be typed in: an exact fraction, or else the number to its decimals, so that
+/// leaving it as it is changes nothing.
+fn fmt_inch_edit(v: f64, dec: usize, frac: bool) -> String {
+    if frac { if let Some(t) = exact_fraction(v) { return t; } }
     fmt_val(v, dec)
 }
 
@@ -56,7 +72,7 @@ pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
 }
 
 /// A length for a message or a readout, in the shown unit with its name ("12.5 mm", "0.492 in").
-pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_val(mm / 25.4, 3)) } else { format!("{} mm", fmt_val(mm, 2)) } }
+pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_inch(mm / 25.4, 3, fractions(ui))) } else { format!("{} mm", fmt_val(mm, 2)) } }
 
 /// What a number field takes: a decimal (comma or point), a fraction (`1/8`, `3/16`) or a mixed number (`1 3/16`, `1-3/16`), with an
 /// optional minus sign. Spaces round it and a trailing inch mark (`"` or `in`) are ignored.
@@ -152,7 +168,7 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     }
     if resp.hovered() || resp.dragged() { ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal); }
     if resp.clicked() {
-        ui.data_mut(|d| { d.insert_temp(edit_id, shown(*v)); d.insert_temp(id.with("first"), true); });
+        ui.data_mut(|d| { d.insert_temp(edit_id, if frac { fmt_inch_edit(*v, dec, true) } else { fmt_val(*v, dec) }); d.insert_temp(id.with("first"), true); });
         ui.ctx().request_repaint();
     }
     let vis = *ui.style().interact(&resp);
@@ -367,7 +383,12 @@ mod unit_tests {
         assert_eq!(fmt_inch(0.125, 4, true), "1/8");
         assert_eq!(fmt_inch(2.0, 4, true), "2");
         assert_eq!(fmt_inch(-0.25, 4, true), "-1/4");
-        assert_eq!(fmt_inch(0.1181, 4, true), "0.1181"); // 3 mm is no fraction of an inch
+        assert_eq!(fmt_inch(0.1181, 4, true), "1/8"); // 3 mm: the nearest 1/64 of an inch
+        assert_eq!(fmt_inch(2.25, 4, true), "2 1/4");
+        assert_eq!(fmt_inch(2.2, 4, true), "2 13/64");
+        assert_eq!(fmt_inch(0.03, 4, true), "0.03"); // too small to be rounded to a 64th
+        assert_eq!(fmt_inch(0.1181, 4, false), "0.1181");
+        assert_eq!(fmt_inch_edit(0.1181, 4, true), "0.1181"); // clicking a field must not round its value
         assert_eq!(fmt_inch(0.1875, 4, false), "0.1875");
         for t in ["3/16", "1 3/16", "-1/4"] { assert_eq!(fmt_inch(parse_number(t).unwrap(), 4, true), t); }
     }
