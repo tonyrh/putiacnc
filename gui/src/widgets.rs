@@ -101,13 +101,6 @@ fn parse_plain(text: &str) -> Option<f64> {
 /// Width of a number field in the dialogs.
 pub const FIELD_W: f32 = 70.0;
 
-/// A number field followed by its unit, as two cells of a grid row (the unit sits in a cell of its own so the columns line up).
-pub fn num_unit(ui: &mut Ui, v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, unit: &str) -> Response {
-    let r = num(ui, [FIELD_W, 22.0], v, lo, hi, speed, dec, "");
-    ui.weak(unit);
-    r
-}
-
 /// A numeric field like egui's `DragValue` (drag to change, click to type) but with the text
 /// right-aligned. `speed` is the change per dragged pixel, `dec` the maximum decimals shown.
 pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {

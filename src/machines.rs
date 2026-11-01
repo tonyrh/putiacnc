@@ -48,13 +48,37 @@ impl Machines {
     }
     pub fn to_json(&self) -> String { serde_json::to_string_pretty(self).unwrap_or_default() }
 
-    /// Fix ids, ranges and the default so the list is always usable.
+    /// `base` made different from the name of every other machine ("Mill", "Mill (2)", ...); `except` is the id of the machine being named.
+    pub fn unique_name(&self, base: &str, except: Option<&str>) -> String {
+        let base = if base.trim().is_empty() { "Machine" } else { base.trim() };
+        let taken: Vec<&str> = self.list.iter().filter(|m| Some(m.id.as_str()) != except).map(|m| m.name.as_str()).collect();
+        let mut nm = base.to_string();
+        let mut n = 2;
+        while taken.contains(&nm.as_str()) { nm = format!("{base} ({n})"); n += 1; }
+        nm
+    }
+
+    /// Adds a machine under a name no other machine has. Returns its id.
+    pub fn push_unique(&mut self, mut m: Machine) -> String {
+        m.name = self.unique_name(&m.name, None);
+        let id = m.id.clone();
+        self.list.push(m);
+        id
+    }
+
+    /// Fix ids, names, ranges and the default so the list is always usable.
     pub fn repair(&mut self) {
         let mut seen: Vec<String> = vec![];
         for m in self.list.iter_mut() {
             normalize(m);
             if seen.contains(&m.id) { m.id = new_id("m"); }
             seen.push(m.id.clone());
+        }
+        // two machines with one name: the later ones get a number
+        for i in 0..self.list.len() {
+            let id = self.list[i].id.clone();
+            let name = self.list[i].name.clone();
+            if self.list[..i].iter().any(|m| m.name == name) { self.list[i].name = self.unique_name(&name, Some(&id)); }
         }
         if self.list.is_empty() { *self = Machines::default(); }
         if !self.list.iter().any(|m| m.id == self.def) { self.def = self.list[0].id.clone(); }
@@ -71,9 +95,7 @@ impl Machines {
         let b = base.and_then(|id| self.get(id)).cloned().unwrap_or_default();
         let mut m = if copy { Machine { name: format!("{} copy", b.name), ..b } } else { Machine { name: "New machine".into(), ..Machine::default() } };
         m.id = new_id("m");
-        let id = m.id.clone();
-        self.list.push(m);
-        id
+        self.push_unique(m)
     }
 
     /// Delete a machine; at least one always stays. Returns the id to select next.
@@ -102,8 +124,7 @@ impl Machines {
         for mut m in f.machines.into_iter().take(20) {
             m.id = new_id("m");
             normalize(&mut m);
-            last = m.id.clone();
-            self.list.push(m);
+            last = self.push_unique(m);
             n += 1;
         }
         Ok((last, n))
@@ -114,7 +135,7 @@ impl Machines {
         if m.id.is_empty() || self.get(&m.id).is_some() { return false; }
         let mut m = m.clone();
         normalize(&mut m);
-        self.list.push(m);
+        self.push_unique(m);
         true
     }
 }
@@ -122,6 +143,35 @@ impl Machines {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn no_two_machines_share_a_name() {
+        let mut ms = Machines::default();
+        let first = ms.list[0].name.clone();
+        let b = ms.add(None, true);
+        assert_ne!(ms.get(&b).unwrap().name, first);
+        // a copy of a copy, a new machine twice, and the same machine imported twice
+        let c = ms.add(Some(&b), true);
+        let (d, e) = (ms.add(None, false), ms.add(None, false));
+        assert_ne!(ms.get(&d).unwrap().name, ms.get(&e).unwrap().name);
+        let file = ms.export_machine(&c);
+        ms.import(&file).unwrap();
+        ms.import(&file).unwrap();
+        let names: Vec<_> = ms.list.iter().map(|m| m.name.clone()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(names.len(), sorted.len(), "{names:?}");
+        // a list saved with two of one name is repaired; renaming keeps a machine's own name
+        let mut dup = Machines::default();
+        let mut m = dup.list[0].clone();
+        m.id = "other".into();
+        dup.list.push(m);
+        dup.repair();
+        assert_ne!(dup.list[0].name, dup.list[1].name);
+        let id = dup.list[0].id.clone();
+        assert_eq!(dup.unique_name(&dup.list[0].name.clone(), Some(&id)), dup.list[0].name);
+    }
 
     #[test]
     fn old_machine_lists_load_and_new_settings_survive() {

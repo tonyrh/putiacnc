@@ -74,7 +74,11 @@ impl App {
 
     /// The machine's G-code units become the current choice (the G-code tab can still change it for the session).
     fn apply_machine_units(&mut self) {
-        if let Some(i) = self.project.data.machine.as_ref().and_then(|m| m.inches) { self.imperial = i; }
+        // the machine's units are the units of everything: the G-code, and the lengths and speeds the app shows (View > Units can still
+        // change the display afterwards)
+        if let Some(i) = self.project.data.machine.as_ref().and_then(|m| m.inches) { self.imperial = i; self.disp_in = i; }
+        // test hook: the display units win (see `PUTIACNC_UNITS`)
+        if let Ok(u) = std::env::var("PUTIACNC_UNITS") { self.disp_in = u == "in"; }
     }
 
     pub fn finish_mach_export(&mut self, p: std::path::PathBuf) {
@@ -135,17 +139,15 @@ pub fn machine_manager(ctx: &egui::Context, app: &mut App) {
 
 fn body(ui: &mut Ui, app: &mut App) {
     if app.machines.get(&app.mach_sel).is_none() { app.mach_sel = app.project.data.machine.as_ref().map(|m| m.id.clone()).unwrap_or_else(|| app.machines.def.clone()); }
-    // the list and the divider are as tall as the form next to it (measured last frame)
-    let fid = egui::Id::new("mach_form_h");
-    let h = ui.ctx().data(|d| d.get_temp::<f32>(fid)).unwrap_or(300.0).max(300.0);
-    crate::csd::scroll_fill(ui, 100.0, |ui| {
-        ui.horizontal_top(|ui| {
-            ui.allocate_ui_with_layout(egui::vec2(260.0, h), Layout::top_down(Align::LEFT), |ui| list(ui, app, h));
-            let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
-            ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
-            let r = ui.allocate_ui_with_layout(egui::vec2(ui.available_width().max(380.0), 300.0), Layout::top_down(Align::LEFT), |ui| form(ui, app));
-            let fh = r.response.rect.height().max(300.0);
-            if (fh - h).abs() > 0.5 { ui.ctx().data_mut(|d| d.insert_temp(fid, fh)); ui.ctx().request_repaint(); }
+    // the list and the form each scroll on their own, as tall as the window leaves room for (the footer takes the rest)
+    let h = (ui.available_height() - 100.0).clamp(120.0, (ui.ctx().screen_rect().height() - 240.0).max(160.0));
+    ui.horizontal_top(|ui| {
+        ui.allocate_ui_with_layout(egui::vec2(260.0, h), Layout::top_down(Align::LEFT), |ui| list(ui, app, h));
+        let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
+        ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
+        let w = ui.available_width().max(380.0);
+        ui.allocate_ui_with_layout(egui::vec2(w, h), Layout::top_down(Align::LEFT), |ui| {
+            egui::ScrollArea::vertical().id_source("machform").max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show(ui, |ui| form(ui, app));
         });
     });
     ui.add_space(6.0);
@@ -206,7 +208,7 @@ fn footer(ui: &mut Ui, app: &mut App) {
                                 ms.inches = app.imperial;
                                 let m = ms.into_machine();
                                 app.mach_sel = m.id.clone();
-                                app.machines.list.push(m);
+                                app.machines.push_unique(m);
                                 app.machine_edited();
                                 ui.close_menu();
                             }
@@ -291,7 +293,13 @@ fn form(ui: &mut Ui, app: &mut App) {
 
     egui::Grid::new("mach_name").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
         rlabel(ui, lw, "Name");
-        changed |= ui.add(egui::TextEdit::singleline(&mut m.name).desired_width(aw - lw - sp + 8.0).char_limit(60)).changed(); ui.end_row();
+        let r = ui.add(egui::TextEdit::singleline(&mut m.name).desired_width(aw - lw - sp + 8.0).char_limit(60));
+        changed |= r.changed();
+        // two machines never share a name: a taken one gets a number when the field is left
+        let taken = app.machines.list.iter().any(|o| o.id != m.id && o.name == m.name.trim());
+        if r.lost_focus() && (taken || m.name.trim().is_empty() || m.name != m.name.trim()) { m.name = app.machines.unique_name(&m.name, Some(&m.id)); changed = true; }
+        ui.end_row();
+        if taken && r.has_focus() { ui.label(""); ui.colored_label(ui.visuals().warn_fg_color, "Another machine has this name: a number is added when you leave the field."); ui.end_row(); }
     });
     ui.add_space(2.0);
     egui::Grid::new("mach_perf").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
@@ -451,5 +459,23 @@ fn form(ui: &mut Ui, app: &mut App) {
         if let Some(slot) = app.machines.get_mut(&app.mach_sel) { *slot = m; }
         app.mach_msg.clear();
         app.machine_edited();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn switching_machine_switches_the_units_shown() {
+        let mut a = App::new(None);
+        let mm = a.machines.list[0].id.clone();
+        a.machines.list[0].inches = Some(false);
+        let id = a.machines.add(Some(&mm), true);
+        a.machines.get_mut(&id).unwrap().inches = Some(true);
+        a.set_machine(&id);
+        assert!(a.disp_in && a.imperial, "an inch machine shows and writes inches");
+        a.set_machine(&mm);
+        assert!(!a.disp_in && !a.imperial);
     }
 }

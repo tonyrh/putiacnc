@@ -191,7 +191,12 @@ pub fn dialog_header_help(ui: &mut Ui, title: &str, closable: bool, help: impl F
 
 fn dialog_header_inner(ui: &mut Ui, title: &str, closable: bool, help: Option<impl FnOnce(&mut Ui)>) -> bool {
     let h = 34.0;
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), h), Sense::hover());
+    let (alloc, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), h), Sense::hover());
+    // The header reaches the window's real right edge: a window grows to its widest content, which can be wider than the room the
+    // header was offered, so last frame's window rectangle (less the frame's side margin and stroke) decides where the title is
+    // centred, the close button sits and the divider ends. Nothing is allocated for it, so a window can still shrink again.
+    let edge = ui.ctx().memory(|m| m.area_rect(ui.layer_id().id)).map_or(alloc.max.x, |r| r.max.x - 13.0);
+    let rect = Rect::from_min_max(alloc.min, Pos2::new(alloc.max.x.max(edge), alloc.max.y));
     // the header is the handle that moves the dialog
     let key = ui.layer_id();
     let grab = ui.interact(rect, ui.id().with(("dialog_drag", title)), Sense::drag()).on_hover_cursor(egui::CursorIcon::Grab);
@@ -247,13 +252,6 @@ pub fn scroll<R>(ui: &mut Ui, reserve: f32, add: impl FnOnce(&mut Ui) -> R) -> R
     ui.allocate_ui(egui::vec2(ui.available_width(), h), |ui| {
         egui::ScrollArea::vertical().max_height(h).auto_shrink([false, true]).show(ui, add).inner
     }).inner
-}
-
-/// Like `scroll`, but fills the dialog: the dialog's own height (which the user can drag) decides
-/// how much is shown. `footer` is the height of what is pinned below it.
-pub fn scroll_fill<R>(ui: &mut Ui, footer: f32, add: impl FnOnce(&mut Ui) -> R) -> R {
-    let h = (ui.available_height() - footer).clamp(120.0, (ui.ctx().screen_rect().height() - 140.0).max(160.0));
-    egui::ScrollArea::vertical().max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show(ui, add).inner
 }
 
 fn dialog_key(layer: egui::LayerId) -> egui::Id { egui::Id::new(("dialog_offset", layer)) }

@@ -79,7 +79,7 @@ impl App {
             self.machines.list = vec![m];
             self.tool_libs.current_mut().tools = tools;
         } else {
-            self.machines.list.push(m);
+            self.machines.push_unique(m);
             let name = self.tool_libs.unique_name("My tools", None);
             self.tool_libs.new_library();
             self.tool_libs.current_mut().tools = tools;
@@ -106,6 +106,7 @@ impl App {
 const NAMES: [&str; STEPS] = ["Units", "Machine", "Tools", "Finish"];
 // the same field sizes and spacing as the machine library
 const LABEL_W: f32 = 130.0;
+const UNIT_W: f32 = 60.0;
 const SP: f32 = 8.0;
 const GAP: f32 = 20.0;
 
@@ -137,13 +138,21 @@ fn progress(ui: &mut egui::Ui, step: usize) {
 /// A number field followed by its unit; it shows a length or a speed in the chosen unit (`k` mm or mm/min per unit) while the value is kept in mm.
 fn field(ui: &mut egui::Ui, v: &mut f64, k: f64, lo: f64, hi: f64, step: f64, unit: &str, tip: &str) {
     let mut x = *v / k;
-    if crate::widgets::num_unit(ui, &mut x, lo / k, hi / k, step / k, 3, unit).tip(tip).changed() { *v = (x * k).clamp(lo, hi); }
+    if num_unit_w(ui, &mut x, lo / k, hi / k, step / k, unit).tip(tip).changed() { *v = (x * k).clamp(lo, hi); }
+}
+
+/// A field and its unit in a cell of a fixed width, so the columns of the separate grids of a step line up whatever their units are.
+fn num_unit_w(ui: &mut egui::Ui, x: &mut f64, lo: f64, hi: f64, step: f64, unit: &str) -> egui::Response {
+    let r = crate::widgets::num(ui, [crate::widgets::FIELD_W, 22.0], x, lo, hi, step, 3, "");
+    // wide enough for "mm/min" and "in/min"
+    ui.allocate_ui_with_layout(egui::vec2(UNIT_W, 22.0), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.set_min_width(UNIT_W); ui.weak(unit); });
+    r
 }
 
 /// The same for a limit, where 0 means no limit.
 fn limit(ui: &mut egui::Ui, v: &mut Option<f64>, k: f64, hi: f64, step: f64, unit: &str) {
     let mut x = v.unwrap_or(0.0) / k;
-    if crate::widgets::num_unit(ui, &mut x, 0.0, hi / k, step / k, 3, unit).tip("0 = no limit").changed() { *v = (x > 0.0).then_some(x * k); }
+    if num_unit_w(ui, &mut x, 0.0, hi / k, step / k, unit).tip("0 = no limit").changed() { *v = (x > 0.0).then_some(x * k); }
 }
 
 fn spacer(ui: &mut egui::Ui) { ui.allocate_exact_size(egui::vec2(GAP, 1.0), egui::Sense::hover()); }
