@@ -92,3 +92,5 @@ Reach and polish
 - [ ] Distribution: Windows installer, AppImage / Flatpak, signed Mac build.
 - [ ] Project templates and an example gallery; a short manual with videos.
 - [ ] Shared tool and machine preset libraries on GitHub.
+- [x] First-run setup assistant (units, machine, starter tools).
+- [ ] Machine presets from the makers' published specs: a bundled JSON catalogue (maker, model, travel, rapid, limits, dialect, rigidity, source of each figure; empty when not published), and a searchable list grouped by maker in the setup assistant and the Machines window, with "Other" kept for custom machines.
