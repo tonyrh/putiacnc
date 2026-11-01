@@ -337,7 +337,6 @@ mod unit_tests {
     }
 
     #[test]
-    #[test]
     fn typed_units_are_converted() {
         assert_eq!(parse_length("3 mm", 25.4).map(|x| (x * 1000.0).round()), Some(118.0));
         assert_eq!(parse_length("1/8\"", 1.0), Some(3.175));
