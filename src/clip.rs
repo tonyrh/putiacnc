@@ -102,10 +102,64 @@ pub fn clean(paths: &[Path], distance: f64) -> Vec<Path> {
     flatten_and_free(out)
 }
 
+/// Thins closed paths with the Douglas-Peucker rule: every vertex that is dropped lies within `tol` of the line that replaces it,
+/// measured against the original path. (Clipper's `clean` judges each vertex against its current neighbours, so its errors add
+/// up along a smooth curve: with a distance of 0.02 mm it left chords 0.23 mm off a big ellipse.)
+pub fn thin(paths: &[Path], tol: f64) -> Vec<Path> {
+    paths.iter().map(|p| thin_ring(p, tol)).filter(|p| p.len() > 2).collect()
+}
+
+fn thin_ring(p: &Path, tol: f64) -> Path {
+    let mut v: Path = Vec::with_capacity(p.len());
+    for q in p { if v.last() != Some(q) { v.push(*q); } }
+    if v.len() > 1 && v[0] == v[v.len() - 1] { v.pop(); }
+    let n = v.len();
+    if n <= 3 { return v; }
+    let dist = |a: [i64; 2], b: [i64; 2], q: [i64; 2]| -> f64 {
+        let (dx, dy) = ((b[0] - a[0]) as f64, (b[1] - a[1]) as f64);
+        let l2 = dx * dx + dy * dy;
+        if l2 == 0.0 { return (((q[0] - a[0]) as f64).powi(2) + ((q[1] - a[1]) as f64).powi(2)).sqrt(); }
+        ((q[0] - a[0]) as f64 * dy - (q[1] - a[1]) as f64 * dx).abs() / l2.sqrt()
+    };
+    // split the ring at vertex 0 and the vertex farthest from it, then thin both halves
+    let far = (1..n).max_by_key(|&i| { let (dx, dy) = (v[i][0] - v[0][0], v[i][1] - v[0][1]); dx * dx + dy * dy }).unwrap();
+    let mut keep = vec![false; n];
+    keep[0] = true; keep[far] = true;
+    let mut stack = vec![(0usize, far), (far, n)];
+    while let Some((a, b)) = stack.pop() {
+        let (pa, pb) = (v[a], v[b % n]);
+        let mut worst = (0.0_f64, 0usize);
+        for i in a + 1..b { let d = dist(pa, pb, v[i]); if d > worst.0 { worst = (d, i); } }
+        if worst.0 > tol && worst.1 > 0 { keep[worst.1] = true; stack.push((a, worst.1)); stack.push((worst.1, b)); }
+    }
+    v.into_iter().zip(keep).filter(|(_, k)| *k).map(|(q, _)| q).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     fn sq(x0: i64, y0: i64, x1: i64, y1: i64) -> Path { vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1]] }
+    #[test]
+    fn thinning_a_curve_never_strays_more_than_the_tolerance() {
+        // a circle of radius 40 mm with 4000 points, thinned to 0.02 mm: every chord stays within 0.02 of the circle
+        let r = 40_000.0_f64;
+        let ring: Path = (0..4000).map(|i| { let a = i as f64 / 4000.0 * std::f64::consts::TAU; [(r * a.cos()).round() as i64, (r * a.sin()).round() as i64] }).collect();
+        let out = thin(&[ring], 20.0);
+        assert_eq!(out.len(), 1);
+        assert!(out[0].len() > 40 && out[0].len() < 400, "{}", out[0].len());
+        let p = &out[0];
+        let mut worst = 0.0_f64;
+        for i in 0..p.len() {
+            let (a, b) = (p[i], p[(i + 1) % p.len()]);
+            let m = [(a[0] + b[0]) as f64 / 2.0, (a[1] + b[1]) as f64 / 2.0];
+            worst = worst.max(r - m[0].hypot(m[1]));
+        }
+        assert!(worst <= 20.0 + 2.0, "a chord is {worst} units inside the circle");
+        // corners and straight edges: a square stays four points
+        let sq = vec![[0, 0], [5_000, 0], [10_000, 0], [10_000, 10_000], [0, 10_000]];
+        assert_eq!(thin(&[sq], 20.0)[0].len(), 4);
+    }
+
     #[test]
     fn square_area_and_orientation() {
         let a = area(&sq(0, 0, 10_000, 10_000));

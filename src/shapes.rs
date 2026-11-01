@@ -517,7 +517,7 @@ pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
     if !l.closed() || l.pts.len() / 2 < 3 { return vec![]; }
     let region = crate::clip::simplify_even_odd(&[l.path()]);
     let out = crate::clip::offset(&region, delta_mm * S, S * 0.01);
-    crate::clip::clean(&out, S * 0.02).into_iter().filter(|p| p.len() > 2).map(|p| {
+    crate::clip::thin(&out, S * 0.02).into_iter().map(|p| {
         LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
     }).collect()
 }

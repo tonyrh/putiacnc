@@ -245,7 +245,8 @@ impl Em {
 /// Offset without cleaning. Repeated offsets feed this uncleaned result into the next step, which keeps
 /// cleaning error from adding up and avoids Clipper's very slow case of one huge inward offset that collapses a shape.
 fn off_raw(region: &[Path], d: f64) -> Vec<Path> { clip::offset(region, d, S * 0.01) }
-fn clean_paths(o: &[Path]) -> Vec<Path> { clip::clean(o, S * 0.02).into_iter().filter(|p| p.len() > 2).collect() }
+// Thinned to 0.02 mm of the true offset (Clipper's own `clean` let the error add up: chords 0.23 mm inside a large ellipse, so the tool cut into the part).
+fn clean_paths(o: &[Path]) -> Vec<Path> { clip::thin(o, S * 0.02) }
 fn off(region: &[Path], d: f64) -> Vec<Path> { clean_paths(&off_raw(region, d)) }
 
 /// `gen` is the generation of a pocket ring: 0 for the rings next to the walls, 1 for the rings inside those, and so on.
