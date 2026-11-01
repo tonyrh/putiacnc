@@ -106,8 +106,7 @@ impl App {
 
 const NAMES: [&str; STEPS] = ["Units", "Machine", "Tools", "Finish"];
 // the same field sizes and spacing as the machine library
-const LABEL_W: f32 = 165.0;
-const FIELD_W: f32 = 100.0;
+const LABEL_W: f32 = 130.0;
 const SP: f32 = 8.0;
 const GAP: f32 = 20.0;
 
@@ -136,16 +135,16 @@ fn progress(ui: &mut egui::Ui, step: usize) {
     ui.add_space(4.0);
 }
 
-/// A number field that shows a length or a speed in the chosen unit (`k` mm or mm/min per unit) while the value is kept in mm.
-fn field(ui: &mut egui::Ui, v: &mut f64, k: f64, lo: f64, hi: f64, step: f64, tip: &str) {
+/// A number field followed by its unit; it shows a length or a speed in the chosen unit (`k` mm or mm/min per unit) while the value is kept in mm.
+fn field(ui: &mut egui::Ui, v: &mut f64, k: f64, lo: f64, hi: f64, step: f64, unit: &str, tip: &str) {
     let mut x = *v / k;
-    if crate::widgets::num(ui, [FIELD_W, 22.0], &mut x, lo / k, hi / k, step / k, 3, "").tip(tip).changed() { *v = (x * k).clamp(lo, hi); }
+    if crate::widgets::num_unit(ui, &mut x, lo / k, hi / k, step / k, 3, unit).tip(tip).changed() { *v = (x * k).clamp(lo, hi); }
 }
 
 /// The same for a limit, where 0 means no limit.
-fn limit(ui: &mut egui::Ui, v: &mut Option<f64>, k: f64, hi: f64, step: f64) {
+fn limit(ui: &mut egui::Ui, v: &mut Option<f64>, k: f64, hi: f64, step: f64, unit: &str) {
     let mut x = v.unwrap_or(0.0) / k;
-    if crate::widgets::num(ui, [FIELD_W, 22.0], &mut x, 0.0, hi / k, step / k, 3, "").tip("0 = no limit").changed() { *v = (x > 0.0).then_some(x * k); }
+    if crate::widgets::num_unit(ui, &mut x, 0.0, hi / k, step / k, 3, unit).tip("0 = no limit").changed() { *v = (x > 0.0).then_some(x * k); }
 }
 
 fn spacer(ui: &mut egui::Ui) { ui.allocate_exact_size(egui::vec2(GAP, 1.0), egui::Sense::hover()); }
@@ -229,29 +228,29 @@ fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
     let (lu, su) = if w.inches { ("in", "in/min") } else { ("mm", "mm/min") };
     let (k, sk) = if w.inches { (25.4, 25.4) } else { (1.0, 1.0) };
     section(ui, "Travel and speed");
-    egui::Grid::new("setup_travel").num_columns(5).spacing([SP, 8.0]).show(ui, |ui| {
-        key(ui, &format!("Travel X ({lu})")); field(ui, &mut w.machine.x, k, 10.0, 100000.0, 1.0, "How far the tool can move in X");
+    egui::Grid::new("setup_travel").num_columns(7).spacing([SP, 8.0]).show(ui, |ui| {
+        key(ui, "Travel X"); field(ui, &mut w.machine.x, k, 10.0, 100000.0, 1.0, lu, "How far the tool can move in X");
         spacer(ui);
-        key(ui, &format!("Travel Y ({lu})")); field(ui, &mut w.machine.y, k, 10.0, 100000.0, 1.0, "How far the tool can move in Y");
+        key(ui, "Travel Y"); field(ui, &mut w.machine.y, k, 10.0, 100000.0, 1.0, lu, "How far the tool can move in Y");
         ui.end_row();
-        key(ui, &format!("Travel Z ({lu})")); field(ui, &mut w.machine.z, k, 5.0, 10000.0, 1.0, "How far the tool can move in Z");
+        key(ui, "Travel Z"); field(ui, &mut w.machine.z, k, 5.0, 10000.0, 1.0, lu, "How far the tool can move in Z");
         spacer(ui);
-        key(ui, &format!("Rapid rate ({su})")); field(ui, &mut w.machine.rapid, sk, 1.0, 1.0e6, 10.0, "How fast the machine travels in its rapid moves. Used for the time estimate only.");
+        key(ui, "Rapid rate"); field(ui, &mut w.machine.rapid, sk, 1.0, 1.0e6, 10.0, su, "How fast the machine travels in its rapid moves. Used for the time estimate only.");
         ui.end_row();
     });
     section(ui, "Limits (0 = no limit)");
-    egui::Grid::new("setup_limits").num_columns(5).spacing([SP, 8.0]).show(ui, |ui| {
-        key(ui, "Spindle max (rpm)"); limit(ui, &mut w.machine.rpm_max, 1.0, 200000.0, 100.0);
+    egui::Grid::new("setup_limits").num_columns(7).spacing([SP, 8.0]).show(ui, |ui| {
+        key(ui, "Spindle max"); limit(ui, &mut w.machine.rpm_max, 1.0, 200000.0, 100.0, "rpm");
         spacer(ui);
-        key(ui, &format!("Max feed ({su})")); limit(ui, &mut w.machine.feed_max, sk, 1.0e6, 10.0);
+        key(ui, "Max feed"); limit(ui, &mut w.machine.feed_max, sk, 1.0e6, 10.0, su);
         ui.end_row();
-        key(ui, &format!("Max plunge ({su})")); limit(ui, &mut w.machine.plunge_max, sk, 1.0e6, 10.0);
+        key(ui, "Max plunge"); limit(ui, &mut w.machine.plunge_max, sk, 1.0e6, 10.0, su);
         ui.end_row();
     });
     ui.add_space(4.0);
     ui.weak("A tool that asks for more is held to the limit in the G-code, with a warning.");
     section(ui, "Controller");
-    let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", "Mach3 / LinuxCNC"]).max(FIELD_W);
+    let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", "Mach3 / LinuxCNC"]).max(100.0);
     egui::Grid::new("setup_ctl").num_columns(2).spacing([SP, 8.0]).show(ui, |ui| {
         key(ui, "G-code output for");
         egui::ComboBox::from_id_source("setup_post").width(gw).selected_text(putiacnc_core::model::dialect_name(&w.machine.post)).show_ui(ui, |ui| {
@@ -309,7 +308,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let title = "Setup assistant";
     egui::Window::new(title).frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, title, ctx.screen_rect().center())).show(ctx, |ui| {
-        ui.set_width(620.0);
+        ui.set_width(600.0);
         if crate::csd::dialog_header(ui, title, true) { skip = true; }
         progress(ui, app.setup.step);
         crate::csd::scroll(ui, 190.0, |ui| {

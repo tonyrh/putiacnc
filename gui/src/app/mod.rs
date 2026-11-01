@@ -371,6 +371,7 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_ARRAY").is_some() { a.array.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_CORNERS").is_some() { a.corners.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if let Ok(v) = std::env::var("PUTIACNC_SHOW_BOX") { a.boxgen.open = true; a.boxgen.dogbone = v == "dogbone"; }
+        if std::env::var_os("PUTIACNC_SHOW_FINGERS").is_some() { a.fingers.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_COMBINE").is_some() { a.combine_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if std::env::var_os("PUTIACNC_SHOW_CLEAN").is_some() { a.clean.open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ALIGN").is_some() { a.align_open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
