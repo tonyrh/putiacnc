@@ -131,3 +131,7 @@ Write down what a pause looks like in your sender (does it show the message, doe
 2. Operation 2 draws the same shapes for real: pen down at Z0, up 2 mm between strokes.
 
 On the machine: put no paper under the pen for the first run, start, and watch that the pen lifts and lowers by Z alone and never touches anything. At the pause put the paper (about 100 x 80 mm) under the pen and set Z0 on its surface (a spring-loaded holder: set it so the spring is just compressed), then resume. If the line is faint or the pen skips, set "Pen down" to 0.5 to 1 mm; if it drags between strokes, raise "Pen up".
+
+## Setup assistant
+
+`PUTIACNC_SHOW_SETUP=1` opens the assistant as on a first run (`=again` as when run from the Help menu), `PUTIACNC_SETUP_STEP=n` starts at step n (0–3). `PUTIACNC_SKIP_SETUP=1` keeps it from opening on a fresh config folder; `scripts/shot.sh` sets it by default.

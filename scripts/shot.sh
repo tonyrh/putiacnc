@@ -46,7 +46,7 @@ cfg=${PUTIACNC_CONFIG_DIR:-$(mktemp -d)}
 [ -n "$PUTIACNC_CONFIG_DIR" ] || trap 'rm -rf "$cfg"' EXIT
 
 # shellcheck disable=SC2086
-env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$vd" WINIT_UNIX_BACKEND=x11 PUTIACNC_CONFIG_DIR="$cfg" PUTIACNC_THEME="$theme" PUTIACNC_WIN="$win" $envs "$bin" $proj >/dev/null 2>&1 &
+env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY="$vd" WINIT_UNIX_BACKEND=x11 PUTIACNC_CONFIG_DIR="$cfg" PUTIACNC_SKIP_SETUP=${PUTIACNC_SKIP_SETUP-1} PUTIACNC_THEME="$theme" PUTIACNC_WIN="$win" $envs "$bin" $proj >/dev/null 2>&1 &
 pid=$!
 sleep "$wait"
 if [ -n "$crop" ]; then

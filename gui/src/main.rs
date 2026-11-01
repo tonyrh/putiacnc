@@ -6,6 +6,7 @@
 #![allow(unknown_lints, clippy::chunks_exact_to_as_chunks)]
 #![allow(clippy::needless_range_loop, clippy::too_many_arguments, clippy::type_complexity, clippy::field_reassign_with_default, clippy::explicit_counter_loop, clippy::manual_clamp, clippy::while_let_loop, clippy::neg_cmp_op_on_partial_ord)]
 mod about;
+mod setup;
 mod align;
 mod app;
 mod array;
@@ -103,6 +104,10 @@ fn main() -> eframe::Result<()> {
             }
         }
         if let Ok(v) = std::env::var("PUTIACNC_COLLAPSE") { for n in v.split(',').filter_map(|s| s.parse::<usize>().ok()) { if let Some(o) = app.project.data.ops.get(n.saturating_sub(1)) { app.collapsed.insert(o.id); } } }
+        // first run: no settings file yet (or an assistant that was never finished); PUTIACNC_SKIP_SETUP keeps tests and screenshots clean
+        let first_run = !prefs::exists() || prefs::load().setup_done == Some(false);
+        if std::env::var_os("PUTIACNC_SHOW_SETUP").is_some() { app.setup.start(std::env::var("PUTIACNC_SHOW_SETUP").is_ok_and(|v| v != "again")); app.setup.step = std::env::var("PUTIACNC_SETUP_STEP").ok().and_then(|v| v.parse().ok()).unwrap_or(0); }
+        else if first_run && std::env::var_os("PUTIACNC_SKIP_SETUP").is_none() { app.setup.start(true); }
         theme::apply_fonts(&cc.egui_ctx);
         theme::apply_style(&cc.egui_ctx, &app.theme);
         Box::new(app)
@@ -202,6 +207,7 @@ impl App {
         cleanup::dialog(ctx, self);
         shortcuts::window(ctx, self);
         about::window(ctx, self);
+        setup::window(ctx, self);
         checkui::window(ctx, self);
         timeui::window(ctx, self);
         exportui::window(ctx, self);

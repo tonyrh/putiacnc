@@ -23,6 +23,7 @@ pub mod dxf;
 pub mod svg;
 pub mod feeds;
 pub mod joints;
+pub mod setup;
 pub mod linetext;
 pub mod text;
 pub mod toollib;

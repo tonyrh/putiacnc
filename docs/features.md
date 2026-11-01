@@ -102,3 +102,7 @@ The complete list of what the desktop app does. The README has the short version
 - Help → Check for updates asks GitHub for the latest release and offers to download it (an AppImage can replace itself). It only contacts GitHub when you ask, or at startup if you tick that option.
 - G-code tab with a time estimate and warnings, optional output in inches, optional line numbers (N10, N20, ...), and a choice of GRBL or Mach3 / LinuxCNC G-code (tool changes as `T1 M6`, safe-start line, `G54`, `M30`).
 - Unsaved-changes prompts, native file dialogs, light and dark themes.
+
+## Setup assistant
+
+The first time the app runs (no settings file yet) a four-step assistant asks for the units, the machine (a size class to start from, then travel, rapid speed, feed/plunge/spindle limits, controller and rigidity) and which starter tools to add (straight end mills in metric or inch sizes are always included; V-bits, ball nose, surfacing and pens are optional). On the first run it replaces the default machine and the tools of the current library; **Help → Setup assistant…** runs it again later and only adds a new machine and a new library "My tools". The size classes are round figures, not product specifications: check the machine's manual.

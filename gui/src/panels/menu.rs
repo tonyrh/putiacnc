@@ -109,6 +109,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that_detached(d); }
                 ui.close_menu();
             }
+            if ui.button("Setup assistant…").on_hover_text("Set up a machine and a starter set of tools; nothing you have is deleted").clicked() { app.setup.start(false); ui.close_menu(); }
             ui.separator();
             if ui.button("About PutiaCNC…").clicked() { app.about_open = true; ui.close_menu(); }
         });

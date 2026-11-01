@@ -18,6 +18,8 @@ pub struct Win {
 #[serde(default)]
 pub struct Settings {
     pub update_check: bool,
+    /// The setup assistant was finished or skipped (absent in settings saved by older versions).
+    pub setup_done: Option<bool>,
     pub window: Option<Win>,
     pub show_left: Option<bool>,
     pub show_right: Option<bool>,
@@ -59,6 +61,9 @@ pub struct Settings {
 pub const MAX_RECENT: usize = 10;
 
 fn path() -> Option<PathBuf> { crate::toolmgr::config_dir().map(|d| d.join("settings.json")) }
+
+/// True when a settings file exists, i.e. the app has run before.
+pub fn exists() -> bool { path().is_some_and(|p| p.is_file()) }
 
 pub fn load() -> Settings {
     path().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
