@@ -196,7 +196,7 @@ pub fn finger_outline(bx: [f64; 4], edges: [Edge; 4], f: Fingers) -> Option<Vec<
 }
 
 impl Edge {
-    fn code(self) -> u8 { match self { Edge::Flat => 0, Edge::Tabs => 1, Edge::Slots => 2 } }
+    pub fn code(self) -> u8 { match self { Edge::Flat => 0, Edge::Tabs => 1, Edge::Slots => 2 } }
     fn from_code(c: u8) -> Edge { match c { 1 => Edge::Tabs, 2 => Edge::Slots, _ => Edge::Flat } }
 }
 

@@ -35,14 +35,13 @@ impl App {
         if idx.is_empty() { return Some("Select a rectangle first.".into()); }
         if edges.iter().all(|e| *e == Edge::Flat) { return Some("Choose Tabs or Slots for at least one edge.".into()); }
         let mut next_id = self.project.data.loops.iter().filter_map(|l| l.fj.as_ref().map(|s| s.id)).max().unwrap_or(0);
-        let code = |e: Edge| match e { Edge::Flat => 0u8, Edge::Tabs => 1, Edge::Slots => 2 };
         let mut made: Vec<(usize, Vec<putiacnc_core::model::LoopData>)> = Vec::new();
         let mut dogs = 0;
         for &i in &idx {
             let l = &self.project.data.loops[i];
             let Some(bx) = shapes::bbox(l) else { continue };
             next_id += 1;
-            let spec = putiacnc_core::model::FingerSpec { id: next_id, edges: edges.map(code), width, clearance, depth, dog: dogbone };
+            let spec = putiacnc_core::model::FingerSpec { id: next_id, edges: edges.map(Edge::code), width, clearance, depth, dog: dogbone };
             let Some((ls, n)) = joints::make_fingers(bx, &spec, l.op) else {
                 return Some(format!("The fingers do not fit: the rectangle must be more than twice the material thickness ({depth} mm) in both directions."));
             };
