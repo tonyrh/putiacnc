@@ -34,6 +34,20 @@ fn project() -> App {
 
 struct T { rect: Rect, text: String, clip: Rect }
 
+/// Boxes that look like fields or buttons (a filled rounded rectangle of control size), with the clip they are drawn in.
+fn boxes(shapes: &[egui::epaint::ClippedShape]) -> Vec<(Rect, Rect)> {
+    fn walk(s: &egui::Shape, clip: Rect, out: &mut Vec<(Rect, Rect)>) {
+        match s {
+            egui::Shape::Rect(r) if r.fill != egui::Color32::TRANSPARENT && r.rect.height().between(16.0, 34.0) && r.rect.width().between(24.0, 400.0) => out.push((r.rect, clip)),
+            egui::Shape::Vec(v) => for x in v { walk(x, clip, out); },
+            _ => {}
+        }
+    }
+    let mut out = vec![];
+    for c in shapes { walk(&c.shape, c.clip_rect, &mut out); }
+    out
+}
+
 fn texts(shapes: &[egui::epaint::ClippedShape]) -> Vec<T> {
     fn walk(s: &egui::Shape, clip: Rect, out: &mut Vec<T>) {
         match s {
@@ -81,6 +95,26 @@ fn audit(label: &str, a: &mut App, screen: egui::Vec2) -> Vec<String> {
             if t.text.trim().is_empty() { continue; }
             if t.rect.max.x > t.clip.max.x + 0.75 || t.rect.min.x < t.clip.min.x - 0.75 { bad.push(at(format!("\"{}\" is cut off ({:.0}..{:.0} in {:.0}..{:.0})", t.text, t.rect.min.x, t.rect.max.x, t.clip.min.x, t.clip.max.x))); }
             else if t.rect.max.x > area.max.x - 6.0 { bad.push(at(format!("\"{}\" runs to the window's edge ({:.0} of {:.0})", t.text, t.rect.max.x, area.max.x))); }
+        }
+        // fields in neighbouring rows whose edges miss each other by a few points (the same column drawn a little off)
+        let mut fields: Vec<Rect> = vec![];
+        for (r, clip) in boxes(&out.shapes) {
+            if area.expand(2.0).contains_rect(clip) && area.contains_rect(r) && r.min.y > area.min.y + 40.0 && !fields.iter().any(|f| f.min.distance(r.min) < 0.5 && f.max.distance(r.max) < 0.5) { fields.push(r); }
+        }
+        // (the shortcut list is a flow of key caps, not columns of fields)
+        if n.title.contains("shortcuts") { fields.clear(); }
+        for (i, p) in fields.iter().enumerate() {
+            for q in &fields[i + 1..] {
+                let (hi, lo) = if p.min.y <= q.min.y { (p, q) } else { (q, p) };
+                let gap = lo.min.y - hi.max.y;
+                if !(-0.5..=70.0).contains(&gap) { continue; }
+                // only boxes of the same width make a column of equal fields; buttons, key caps and wide fields differ in width
+                if (hi.width() - lo.width()).abs() > 0.75 { continue; }
+                for (a, b, side) in [(hi.min.x, lo.min.x, "left"), (hi.max.x, lo.max.x, "right")] {
+                    let d = (a - b).abs();
+                    if d > 0.75 && d <= 40.0 { bad.push(at(format!("fields at y {:.0} and {:.0} have their {side} edges {d:.1} apart ({a:.1} / {b:.1})", hi.min.y, lo.min.y))); }
+                }
+            }
         }
         for (i, p) in mine.iter().enumerate() {
             for q in &mine[i + 1..] {
