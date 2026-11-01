@@ -195,6 +195,9 @@ impl App {
         if !self.clamp_hits.is_empty() && self.output.is_some() {
             egui::TopBottomPanel::top("clampbar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(10.0, 6.0))).show(ctx, |ui| panels::clamp_bar(ui, self));
         }
+        if !checkui::bar_findings(self).is_empty() {
+            egui::TopBottomPanel::top("checksbar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(10.0, 6.0))).show(ctx, |ui| checkui::bar(ui, self));
+        }
         let split = self.view_tab == view3d::ViewTab::Split;
         self.split_rect = None;
         if split {

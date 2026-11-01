@@ -322,7 +322,7 @@ pub fn message_bar(ui: &mut Ui, app: &mut App) {
 }
 
 /// The bar for clamp collisions: which operations run into which clamps, and a way to see where. It cannot be dismissed; it is there
-/// while the toolpath hits a clamp. (The status bar's warning count and list still include these.)
+/// while the toolpath hits a clamp. (The warnings bar's count and list still include these.)
 pub fn clamp_bar(ui: &mut Ui, app: &mut App) {
     let col = if app.theme.dark { Color32::from_rgb(0xff, 0x95, 0x2e) } else { Color32::from_rgb(0xd3, 0x54, 0x00) };
     let mut ops: Vec<usize> = app.clamp_hits.iter().flat_map(|h| h.1.iter().copied()).collect();

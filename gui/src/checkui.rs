@@ -5,20 +5,39 @@ use putiacnc_core::checks::Finding;
 
 pub const RED: Color32 = Color32::from_rgb(0xe0, 0x1b, 0x24);
 
-/// The chip at the right of the status bar: how many warnings, or that they are still being worked out.
+/// "checking…" at the right of the status bar while the warnings are being worked out (the warnings themselves are in `bar`).
 pub fn chip(ui: &mut egui::Ui, app: &mut App) {
-    if app.output.is_none() { return; }
-    if app.checks_rx.is_some() { ui.weak("checking…"); return; }
-    if app.checks.is_empty() { return; }
+    if app.output.is_some() && app.checks_rx.is_some() { ui.weak("checking…"); ui.separator(); }
+}
+
+/// The findings the bar under the view tabs speaks for: all but those about clamps, which have a bar of their own.
+pub fn bar_findings(app: &App) -> Vec<usize> {
+    if app.output.is_none() { return vec![]; }
+    (0..app.checks.len()).filter(|&i| !app.checks[i].kind.about_clamps()).collect()
+}
+
+/// The bar under the view tabs for the toolpath warnings: the first one in words, how many more there are, and the way to the list
+/// and to the place in the 3D preview. It cannot be dismissed; it is there while the warnings are.
+pub fn bar(ui: &mut egui::Ui, app: &mut App) {
+    let col = if app.theme.dark { Color32::from_rgb(0xff, 0x95, 0x2e) } else { Color32::from_rgb(0xd3, 0x54, 0x00) };
+    let ids = bar_findings(app);
+    let Some(&first) = ids.first() else { return };
     let n = app.checks.len();
-    warn_sign(ui);
-    let text = egui::RichText::new(format!("{n} warning{}", if n == 1 { "" } else { "s" })).color(RED).strong();
-    if ui.add(egui::Label::new(text).sense(Sense::click())).on_hover_text("Things in the toolpath that could hurt the tool, the machine or the work. Click for the list").on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-        app.checks_open = !app.checks_open;
-        // a list that opens fresh: the highlight is only for the warning just sent to the 3D view
-        if app.checks_open { app.check_sel = None; }
-    }
-    ui.separator();
+    let f = &app.checks[first];
+    let text = if ids.len() == 1 { f.msg.clone() } else { format!("{} (and {} more)", f.msg, ids.len() - 1) };
+    let go = f.mv.is_some();
+    let (mut show, mut list) = (false, false);
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        if ui.button(format!("List ({n})")).on_hover_text("All the warnings about the toolpath").clicked() { list = true; }
+        if ui.add_enabled(go, egui::Button::new("Show in 3D")).on_hover_text("Jump the 3D preview to the move").clicked() { show = true; }
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.add_space(2.0);
+            warn_sign_col(ui, col);
+            ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, &text)).color(col)).wrap(true));
+        });
+    });
+    if show { show_in_3d(app, first); }
+    if list { app.checks_open = !app.checks_open; if app.checks_open { app.check_sel = None; } }
 }
 
 /// A small red warning triangle, painted (a glyph may be missing from the system's fonts).
