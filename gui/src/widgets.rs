@@ -42,7 +42,7 @@ pub fn parse_number(text: &str) -> Option<f64> {
     };
     let v = if let Some(x) = frac(t) { x } else {
         // a whole number, then a fraction, after a space or a hyphen
-        let (w, r) = t.split_once(|c: char| c == ' ' || c == '-')?;
+        let (w, r) = t.split_once([' ', '-'])?;
         w.trim().parse::<f64>().ok().filter(|w| *w >= 0.0)? + frac(r)?
     };
     Some(if neg { -v } else { v })
