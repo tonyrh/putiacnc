@@ -29,6 +29,25 @@ pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
 /// A length for a message or a readout, in the shown unit with its name ("12.5 mm", "0.492 in").
 pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_val(mm / 25.4, 3)) } else { format!("{} mm", fmt_val(mm, 2)) } }
 
+/// What a number field takes: a decimal (comma or point), a fraction (`1/8`, `3/16`) or a mixed number (`1 3/16`, `1-3/16`), with an
+/// optional minus sign. Spaces round it and a trailing inch mark (`"` or `in`) are ignored.
+pub fn parse_number(text: &str) -> Option<f64> {
+    let t = text.trim().trim_end_matches('"').trim_end_matches("in").trim().replace(',', ".");
+    if let Ok(x) = t.parse::<f64>() { return Some(x); }
+    let (neg, t) = match t.strip_prefix('-') { Some(r) => (true, r.trim()), None => (false, t.as_str()) };
+    let frac = |s: &str| -> Option<f64> {
+        let (n, d) = s.split_once('/')?;
+        let (n, d) = (n.trim().parse::<f64>().ok()?, d.trim().parse::<f64>().ok()?);
+        (d != 0.0 && n >= 0.0 && d > 0.0).then_some(n / d)
+    };
+    let v = if let Some(x) = frac(t) { x } else {
+        // a whole number, then a fraction, after a space or a hyphen
+        let (w, r) = t.split_once(|c: char| c == ' ' || c == '-')?;
+        w.trim().parse::<f64>().ok().filter(|w| *w >= 0.0)? + frac(r)?
+    };
+    Some(if neg { -v } else { v })
+}
+
 /// Width of a number field in the dialogs.
 pub const FIELD_W: f32 = 70.0;
 
@@ -63,7 +82,7 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
         let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
         if out.lost_focus() || esc {
             if !esc {
-                if let Ok(x) = text.trim().replace(',', ".").parse::<f64>() {
+                if let Some(x) = parse_number(&text) {
                     let nv = x.clamp(lo, hi);
                     if (nv - *v).abs() > f64::EPSILON { *v = nv; resp.mark_changed(); }
                 }
@@ -272,6 +291,21 @@ mod unit_tests {
             egui::CentralPanel::default().show(ctx, |ui| { if let Some(f) = f.take() { out = Some(f(ui)); } });
         });
         out.unwrap()
+    }
+
+    #[test]
+    fn fields_take_fractions() {
+        let p = parse_number;
+        assert_eq!(p("1/8"), Some(0.125));
+        assert_eq!(p("3/16"), Some(0.1875));
+        assert_eq!(p("1 3/16"), Some(1.1875));
+        assert_eq!(p("1-1/2\""), Some(1.5));
+        assert_eq!(p("-1/4"), Some(-0.25));
+        assert_eq!(p(" 2,5 "), Some(2.5));
+        assert_eq!(p("0.75 in"), Some(0.75));
+        assert_eq!(p("1/0"), None);
+        assert_eq!(p("a/b"), None);
+        assert_eq!(p(""), None);
     }
 
     #[test]
