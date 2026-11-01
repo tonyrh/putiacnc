@@ -786,7 +786,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         // the row fills the panel: both fields share what the fixed parts leave over
                         let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, crate::widgets::len_unit(ui)), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 28.0);
                         // short fields; whatever width is left is shared out as gaps between the three groups
-                        let fw = 42.0;
+                        let fw = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
                         let fixed = l1 + w_pass + 2.0 * w_mm + 2.0 * fw + w_cnt + w_rst + 7.0 * sp;
                         let gap = ((ui.available_width() - fixed) / 2.0).max(6.0);
                         rlabel(ui, l1, "Depth");
@@ -842,7 +842,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             // short fields; the spare width is shared out as gaps between the groups
                             let sp = 5.0;
                             ui.spacing_mut().item_spacing.x = sp;
-                            let fw = 42.0;
+                            let fw = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
                             let groups = if manual { 2.0 } else { 3.0 };
                             let labels = tw_of(ui, "Width") + tw_of(ui, "Height") + if manual { 0.0 } else { tw_of(ui, "Count") };
                             let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, crate::widgets::len_unit(ui)) + (3.0 * groups + 0.0) * sp;

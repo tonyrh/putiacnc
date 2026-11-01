@@ -12,6 +12,24 @@ pub fn set_inches(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_tem
 pub fn inches(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_inches"))).unwrap_or(false) }
 /// "mm" or "in", for the unit after a length field.
 pub fn len_unit(ui: &Ui) -> &'static str { if inches(ui) { "in" } else { "mm" } }
+/// Whether inch fields show fractions (see `fmt_inch`).
+pub fn set_fractions(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_fractions"), on)); }
+fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_fractions"))).unwrap_or(false) }
+
+/// An inch value as a fraction of an inch when it is one to 1/64 (`3/16`, `1 3/16`), otherwise as a decimal.
+pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String {
+    if frac {
+        let n = (v.abs() * 64.0).round();
+        if n > 0.0 && (v.abs() * 64.0 - n).abs() < 0.03 {
+            let (whole, mut rest, mut den) = (n as u64 / 64, n as u64 % 64, 64u64);
+            while rest != 0 && rest % 2 == 0 { rest /= 2; den /= 2; }
+            let sign = if v < 0.0 { "-" } else { "" };
+            return if rest == 0 { format!("{sign}{whole}") } else if whole == 0 { format!("{sign}{rest}/{den}") } else { format!("{sign}{whole} {rest}/{den}") };
+        }
+    }
+    fmt_val(v, dec)
+}
+
 /// mm per shown unit.
 pub fn len_k(ui: &Ui) -> f64 { if inches(ui) { 25.4 } else { 1.0 } }
 
@@ -91,6 +109,8 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
 pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str, unit_mm: Option<f64>) -> Response {
     let (rect, mut resp) = ui.allocate_exact_size(egui::vec2(size[0], size[1]), Sense::click_and_drag());
     let id = resp.id;
+    let frac = unit_mm.is_some_and(|k| k > 25.0) && fractions(ui);
+    let shown = |x: f64| if frac { fmt_inch(x, dec, true) } else { fmt_val(x, dec) };
     let edit_id = id.with("edit");
     let mut editing: Option<String> = ui.data(|d| d.get_temp(edit_id));
 
@@ -128,13 +148,13 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     }
     if resp.hovered() || resp.dragged() { ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal); }
     if resp.clicked() {
-        ui.data_mut(|d| { d.insert_temp(edit_id, fmt_val(*v, dec)); d.insert_temp(id.with("first"), true); });
+        ui.data_mut(|d| { d.insert_temp(edit_id, shown(*v)); d.insert_temp(id.with("first"), true); });
         ui.ctx().request_repaint();
     }
     let vis = *ui.style().interact(&resp);
     ui.painter().rect(rect, vis.rounding, vis.weak_bg_fill, vis.bg_stroke);
     let font = egui::TextStyle::Button.resolve(ui.style());
-    let text = format!("{}{}", fmt_val(*v, dec), suffix);
+    let text = format!("{}{}", shown(*v), suffix);
     let col = ui.visuals().override_text_color.unwrap_or(vis.fg_stroke.color);
     let g = ui.painter().layout_no_wrap(text, font, col);
     ui.painter().galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, col);
@@ -334,6 +354,18 @@ mod unit_tests {
         assert_eq!(p("1/0"), None);
         assert_eq!(p("a/b"), None);
         assert_eq!(p(""), None);
+    }
+
+    #[test]
+    fn inches_as_fractions() {
+        assert_eq!(fmt_inch(0.1875, 4, true), "3/16");
+        assert_eq!(fmt_inch(1.1875, 4, true), "1 3/16");
+        assert_eq!(fmt_inch(0.125, 4, true), "1/8");
+        assert_eq!(fmt_inch(2.0, 4, true), "2");
+        assert_eq!(fmt_inch(-0.25, 4, true), "-1/4");
+        assert_eq!(fmt_inch(0.1181, 4, true), "0.1181"); // 3 mm is no fraction of an inch
+        assert_eq!(fmt_inch(0.1875, 4, false), "0.1875");
+        for t in ["3/16", "1 3/16", "-1/4"] { assert_eq!(fmt_inch(parse_number(t).unwrap(), 4, true), t); }
     }
 
     #[test]

@@ -47,6 +47,8 @@ impl App {
         if let Some(v) = &p.text_sections { self.text.sections = v.iter().cloned().collect(); }
         if let Some(v) = p.tool_len_in.or(p.mach_len_in) { self.disp_in = v; }
         if let Some(v) = p.display_in { self.disp_in = v; }
+        if let Some(v) = p.fractions_in { self.frac_in = v; }
+        if let Ok(u) = std::env::var("PUTIACNC_FRACTIONS") { self.frac_in = u == "1"; }
         // test hook: the display units ("in" or "mm")
         if let Ok(u) = std::env::var("PUTIACNC_UNITS") { self.disp_in = u == "in"; }
         // older versions kept one unit for both views: an inch unit there is the one for the inch view
@@ -83,6 +85,7 @@ impl App {
         s.show_clamps = Some(self.show_clamps);
         s.text_sections = Some(self.text.sections.iter().cloned().collect());
         s.display_in = Some(self.disp_in);
+        s.fractions_in = Some(self.frac_in);
         s.tool_speed_idx = Some(self.tool_speed_mm);
         s.tool_speed_idx_in = Some(self.tool_speed_in);
         s.mach_speed_idx = Some(self.mach_speed_idx);
