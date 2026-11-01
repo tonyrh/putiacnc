@@ -47,6 +47,8 @@ mod fuzz;
 mod perf;
 #[cfg(test)]
 mod tips;
+#[cfg(test)]
+mod audit;
 
 use app::App;
 use eframe::egui;

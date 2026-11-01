@@ -197,6 +197,8 @@ fn dialog_header_inner(ui: &mut Ui, title: &str, closable: bool, help: Option<im
     // centred, the close button sits and the divider ends. Nothing is allocated for it, so a window can still shrink again.
     let edge = ui.ctx().memory(|m| m.area_rect(ui.layer_id().id)).map_or(alloc.max.x, |r| r.max.x - 13.0);
     let rect = Rect::from_min_max(alloc.min, Pos2::new(alloc.max.x.max(edge), alloc.max.y));
+    #[cfg(test)]
+    crate::audit::note(ui.ctx(), crate::audit::HeaderNote { title: title.to_string(), layer: ui.layer_id().id, header: rect, close: Rect::from_center_size(Pos2::new(rect.max.x - 15.0, rect.center().y), egui::vec2(28.0, 28.0)) });
     // the header is the handle that moves the dialog
     let key = ui.layer_id();
     let grab = ui.interact(rect, ui.id().with(("dialog_drag", title)), Sense::drag()).on_hover_cursor(egui::CursorIcon::Grab);

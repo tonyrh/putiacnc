@@ -1,0 +1,147 @@
+//! Dialog audit: every dialog is drawn for real (in millimetres and in inches, on a roomy and on the smallest window) and checked for
+//! the faults that keep coming back: a close button that is not at the right edge of its window, a window that leaves the screen,
+//! text that runs out of its window or is cut by it, and texts drawn over each other.
+use crate::app::App;
+use eframe::egui::{self, Pos2, Rect};
+use putiacnc_core::shapes;
+
+/// What a dialog's header says about itself (written by `csd::dialog_header` in test builds).
+#[derive(Clone, Debug)]
+pub struct HeaderNote { pub title: String, pub layer: egui::Id, pub header: Rect, pub close: Rect }
+
+pub fn note(ctx: &egui::Context, n: HeaderNote) {
+    let id = egui::Id::new("audit_headers");
+    ctx.data_mut(|d| { let mut v: Vec<HeaderNote> = d.get_temp(id).unwrap_or_default(); v.push(n); d.insert_temp(id, v); });
+}
+
+fn take_notes(ctx: &egui::Context) -> Vec<HeaderNote> {
+    let id = egui::Id::new("audit_headers");
+    ctx.data_mut(|d| { let v: Vec<HeaderNote> = d.get_temp(id).unwrap_or_default(); d.insert_temp(id, Vec::<HeaderNote>::new()); v })
+}
+
+fn project() -> App {
+    let mut a = App::new(None);
+    a.tab = crate::app::RightTab::Ops;
+    a.project.data.loops.clear();
+    a.project.data.loops.push(shapes::new_rect([10.0, 10.0], [90.0, 60.0], 0.0, 1));
+    a.project.data.loops.push(shapes::new_circle([40.0, 40.0], 10.0, 1));
+    let sel: std::collections::BTreeSet<usize> = (0..2).collect();
+    let _ = shapes::add_operation(&mut a.project.data, &sel, "outside");
+    a.touch();
+    let _ = crate::fuzz::settle(&mut a);
+    a
+}
+
+struct T { rect: Rect, text: String, clip: Rect }
+
+fn texts(shapes: &[egui::epaint::ClippedShape]) -> Vec<T> {
+    fn walk(s: &egui::Shape, clip: Rect, out: &mut Vec<T>) {
+        match s {
+            egui::Shape::Text(t) => out.push(T { rect: t.galley.rect.translate(t.pos.to_vec2()), text: t.galley.text().to_string(), clip }),
+            egui::Shape::Vec(v) => for x in v { walk(x, clip, out); },
+            _ => {}
+        }
+    }
+    let mut out = vec![];
+    for c in shapes { walk(&c.shape, c.clip_rect, &mut out); }
+    out
+}
+
+/// Draws `a` for a while at `screen` size and returns the problems of every dialog found.
+fn audit(label: &str, a: &mut App, screen: egui::Vec2) -> Vec<String> {
+    let ctx = egui::Context::default();
+    let mut t = 0.0;
+    let mut last = None;
+    for _ in 0..10 {
+        t += 0.1;
+        take_notes(&ctx);
+        let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, screen)), time: Some(t), ..Default::default() };
+        let out = ctx.run(input, |ctx| a.ui_frame(ctx));
+        last = Some(out);
+    }
+    let out = last.unwrap();
+    let notes = take_notes(&ctx);
+    let mut bad = vec![];
+    if notes.is_empty() { bad.push(format!("{label}: no dialog was drawn")); }
+    let scr = Rect::from_min_size(Pos2::ZERO, screen);
+    let all = texts(&out.shapes);
+    for n in &notes {
+        let at = |s: String| format!("{label} / {}: {s}", n.title);
+        let Some(area) = ctx.memory(|m| m.area_rect(n.layer)) else { bad.push(at("no window".into())); continue };
+        // the close button sits at the right end of the window's header, the header spans the window
+        if (n.header.max.x - (area.max.x - 13.0)).abs() > 1.5 { bad.push(at(format!("the header ends at {:.0} but the window's inside ends at {:.0}", n.header.max.x, area.max.x - 13.0))); }
+        if (n.header.min.x - (area.min.x + 13.0)).abs() > 1.5 { bad.push(at(format!("the header starts at {:.0} but the window's inside starts at {:.0}", n.header.min.x, area.min.x + 13.0))); }
+        if !(area.max.x - n.close.center().x).between(20.0, 36.0) { bad.push(at(format!("the close button is {:.0} from the window's right edge", area.max.x - n.close.center().x))); }
+        if area.min.x < scr.min.x - 1.0 || area.min.y < scr.min.y - 1.0 || area.max.x > scr.max.x + 1.0 || area.max.y > scr.max.y + 1.0 { bad.push(at(format!("the window {area:?} leaves the screen"))); }
+        // the texts of this window: those clipped to something inside it
+        // (the shapes come in paint order: those of the dialog follow its title)
+        let from = all.iter().position(|t| t.text == n.title && area.expand(2.0).contains_rect(t.clip)).unwrap_or(all.len());
+        let mine: Vec<&T> = all[from..].iter().filter(|t| area.expand(2.0).contains_rect(t.clip) && t.clip.width() > 1.0 && t.rect.intersects(area)).collect();
+        for t in &mine {
+            if t.text.trim().is_empty() { continue; }
+            if t.rect.max.x > t.clip.max.x + 0.75 || t.rect.min.x < t.clip.min.x - 0.75 { bad.push(at(format!("\"{}\" is cut off ({:.0}..{:.0} in {:.0}..{:.0})", t.text, t.rect.min.x, t.rect.max.x, t.clip.min.x, t.clip.max.x))); }
+            else if t.rect.max.x > area.max.x - 6.0 { bad.push(at(format!("\"{}\" runs to the window's edge ({:.0} of {:.0})", t.text, t.rect.max.x, area.max.x))); }
+        }
+        for (i, p) in mine.iter().enumerate() {
+            for q in &mine[i + 1..] {
+                if p.text.trim().is_empty() || q.text.trim().is_empty() { continue; }
+                let o = p.rect.intersect(q.rect);
+                if o.is_positive() && o.width() > 2.0 && o.height() > 4.0 && p.rect.center() != q.rect.center() {
+                    bad.push(at(format!("\"{}\" and \"{}\" overlap", p.text, q.text)));
+                }
+            }
+        }
+    }
+    bad
+}
+
+trait Between { fn between(self, lo: f32, hi: f32) -> bool; }
+impl Between for f32 { fn between(self, lo: f32, hi: f32) -> bool { self >= lo && self <= hi } }
+
+type Setup = fn(&mut App);
+
+fn dialogs() -> Vec<(&'static str, Setup)> {
+    fn all_sel(a: &mut App) { a.sel = (0..a.project.data.loops.len()).collect(); }
+    vec![
+        ("about", |a| a.about_open = true),
+        ("array", |a| { all_sel(a); a.array.open = true; }),
+        ("array circle", |a| { all_sel(a); a.array.open = true; a.array.circular = true; }),
+        ("box", |a| a.boxgen.open = true),
+        ("box dogbones", |a| { a.boxgen.open = true; a.boxgen.dogbone = true; }),
+        ("combine", |a| { all_sel(a); a.combine_open = true; }),
+        ("clean up", |a| a.clean.open = true),
+        ("fillet", |a| { all_sel(a); a.corners.open = true; }),
+        ("export", |a| a.export_open = true),
+        ("fingers", |a| { all_sel(a); a.fingers.open = true; }),
+        ("machines", |a| a.machines_open = true),
+        ("offset", |a| { all_sel(a); a.offset_open = true; }),
+        ("shortcuts", |a| a.shortcuts_open = true),
+        ("time", |a| a.time_open = true),
+        ("tool library", |a| a.tools_open = true),
+        ("text", |a| { a.mode = crate::app::Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = "Hello".into(); }),
+        ("warnings", |a| a.checks_open = true),
+        ("setup 1", |a| { a.setup.open = true; a.setup.step = 0; }),
+        ("setup 2", |a| { a.setup.open = true; a.setup.step = 1; }),
+        ("setup 3", |a| { a.setup.open = true; a.setup.step = 2; }),
+        ("setup 4", |a| { a.setup.open = true; a.setup.step = 3; }),
+    ]
+}
+
+#[test]
+fn every_dialog_is_laid_out_properly() {
+    let mut problems = vec![];
+    for (name, setup) in dialogs() {
+        for inches in [false, true] {
+            for (sw, sh) in [(1500.0, 1000.0), (1354.0, 640.0)] {
+                let mut a = project();
+                a.disp_in = inches;
+                a.frac_in = inches;
+                setup(&mut a);
+                problems.extend(audit(&format!("{name} ({}, {sw}x{sh})", if inches { "in" } else { "mm" }), &mut a, egui::vec2(sw, sh)));
+            }
+        }
+    }
+    problems.sort();
+    problems.dedup();
+    assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
+}

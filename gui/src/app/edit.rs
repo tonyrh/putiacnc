@@ -342,6 +342,9 @@ mod grid_unit_tests {
     #[test]
     fn the_default_grid_follows_the_display_units() {
         let mut a = App::new(None);
+        a.disp_in = false;
+        a.grid_units_in = None;
+        a.snap_mm = 1.0;
         a.sync_grid_units();
         assert_eq!(a.snap_mm, 1.0);
         a.disp_in = true;
