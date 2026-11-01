@@ -286,6 +286,8 @@ pub struct App {
     pub disp_in: bool,
     /// Inch fields show fractions of an inch (3/16) where the value is one to 1/64.
     pub frac_in: bool,
+    /// The display units the grid size was last set for (see `sync_grid_units`).
+    pub grid_units_in: Option<bool>,
     /// Speed unit (index into `SPEED_UNITS`) of the tool library window and the custom feeds block: one for each view of the lengths (mm, in).
     pub tool_speed_mm: usize,
     pub tool_speed_in: usize,
@@ -321,7 +323,7 @@ impl App {
             show_left: true, show_right: true, squeezed: (false, false), last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
-            disp_in: false, frac_in: false, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
+            disp_in: false, frac_in: false, grid_units_in: None, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
             mach_speed_idx: 0, export_open: std::env::var_os("PUTIACNC_SHOW_EXPORT").is_some(), export_split: std::env::var("PUTIACNC_EXPORT_SPLIT").map(|v| putiacnc_core::split::Split::from_id(&v)).unwrap_or_default(), split_job: None, confirm_mach_del: false, machines_dirty: false,
         };

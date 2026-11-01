@@ -537,7 +537,10 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let d = &app.project.data;
     let to_s = |p: [f64; 2]| view.w2s(p);
     if app.grid_on {
-        let step_mm = [1.0, 5.0, 10.0, 50.0, 100.0, 500.0].into_iter().find(|s| s * app.scale as f64 >= 14.0).unwrap_or(1000.0);
+        let step_mm = if app.disp_in {
+            // inch mode: sixteenths-and-thirty-seconds first, then round inches
+            [1.0 / 32.0, 1.0 / 8.0, 0.5, 1.0, 5.0, 20.0].into_iter().map(|s| s * 25.4).find(|s| s * app.scale as f64 >= 14.0).unwrap_or(25.4 * 100.0)
+        } else { [1.0, 5.0, 10.0, 50.0, 100.0, 500.0].into_iter().find(|s| s * app.scale as f64 >= 14.0).unwrap_or(1000.0) };
         let tl = view.s2w(rect.left_top());
         let br = view.s2w(rect.right_bottom());
         let (x0, x1, y0, y1) = (tl[0], br[0], br[1], tl[1]);

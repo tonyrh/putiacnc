@@ -318,3 +318,42 @@ impl App {
         } else { p }
     }
 }
+
+/// The grid size every project starts with: 1 mm, or 1/32 in in inch mode.
+const GRID_MM: f64 = 1.0;
+const GRID_IN_MM: f64 = 25.4 / 32.0;
+
+impl App {
+    /// A grid size nobody has changed follows the display units: 1 mm in millimetres, 1/32 in in inches. A size the user chose is kept.
+    pub fn sync_grid_units(&mut self) {
+        if self.grid_units_in == Some(self.disp_in) { return; }
+        let was_in = self.grid_units_in.unwrap_or(false);
+        self.grid_units_in = Some(self.disp_in);
+        let near = |a: f64, b: f64| (a - b).abs() < 1e-6;
+        if self.disp_in && near(self.snap_mm, GRID_MM) { self.snap_mm = GRID_IN_MM; }
+        else if !self.disp_in && was_in && near(self.snap_mm, GRID_IN_MM) { self.snap_mm = GRID_MM; }
+    }
+}
+
+#[cfg(test)]
+mod grid_unit_tests {
+    use super::*;
+
+    #[test]
+    fn the_default_grid_follows_the_display_units() {
+        let mut a = App::new(None);
+        a.sync_grid_units();
+        assert_eq!(a.snap_mm, 1.0);
+        a.disp_in = true;
+        a.sync_grid_units();
+        assert!((a.snap_mm - 25.4 / 32.0).abs() < 1e-9);
+        a.disp_in = false;
+        a.sync_grid_units();
+        assert_eq!(a.snap_mm, 1.0);
+        // a size the user chose stays
+        a.snap_mm = 5.0;
+        a.disp_in = true;
+        a.sync_grid_units();
+        assert_eq!(a.snap_mm, 5.0);
+    }
+}
