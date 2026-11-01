@@ -560,8 +560,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             crate::toolmgr::rlabel(ui, lw, "Height");
             ui.horizontal(|ui| {
                 let fitted = t.fit_on && t.flow == Flow::Straight;
-                ui.add_enabled_ui(!fitted, |ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.size, 0.5, 500.0, 0.1, 2, ""); });
-                ui.weak(if fitted { "mm, from the width" } else { "mm, capital letters" });
+                ui.add_enabled_ui(!fitted, |ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.size, 0.5, 500.0, 0.1, 2, ""); });
+                ui.weak(format!("{}{}", crate::widgets::len_unit(ui), if fitted { ", from the width" } else { ", capital letters" }));
             });
             ui.end_row();
             crate::toolmgr::rlabel(ui, lw, "Align");
@@ -592,7 +592,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
         });
         let sum_layout = match t.flow {
-            Flow::Straight if t.fit_on => format!("straight · {} mm wide", crate::panels::fmt_num(t.fit_w)),
+            Flow::Straight if t.fit_on => format!("straight · {} wide", crate::widgets::fmt_len(ui, t.fit_w)),
             Flow::Straight => "straight".to_string(),
             Flow::Vertical => "stacked".to_string(),
             _ => format!("arc, r {} · {}°", crate::panels::fmt_num(t.radius), crate::panels::fmt_num(t.arc_deg)),
@@ -613,14 +613,14 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     crate::toolmgr::rlabel(ui, lw, "Width");
                     ui.horizontal(|ui| {
                         crate::widgets::check(ui, &mut t.fit_on, "Fit to");
-                        ui.add_enabled_ui(t.fit_on, |ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.fit_w, 1.0, 5000.0, 1.0, 1, ""); });
-                        ui.weak("mm");
+                        ui.add_enabled_ui(t.fit_on, |ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.fit_w, 1.0, 5000.0, 1.0, 1, ""); });
+                        ui.weak(crate::widgets::len_unit(ui));
                     }).response.tip("Sets the height so the longest line is exactly this wide");
                     ui.end_row();
                 }
                 if t.flow == Flow::Arc {
                     crate::toolmgr::rlabel(ui, lw, "Radius");
-                    ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak("mm, of the baseline"); });
+                    ui.horizontal(|ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak(format!("{}, of the baseline", crate::widgets::len_unit(ui))); });
                     ui.end_row();
                     crate::toolmgr::rlabel(ui, lw, "Position");
                     ui.horizontal(|ui| {
@@ -647,11 +647,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     let p = t.pos.unwrap_or([zx, zy]);
                     let (mut x, mut y) = (p[0] - zx, p[1] - zy);
                     ui.label("X");
-                    let cx = crate::widgets::num(ui, [64.0, 24.0], &mut x, -100000.0, 100000.0, 0.5, 2, "").changed();
+                    let cx = crate::widgets::len(ui, [64.0, 24.0], &mut x, -100000.0, 100000.0, 0.5, 2, "").changed();
                     ui.add_space(4.0);
                     ui.label("Y");
-                    let cy = crate::widgets::num(ui, [64.0, 24.0], &mut y, -100000.0, 100000.0, 0.5, 2, "").changed();
-                    ui.weak("mm");
+                    let cy = crate::widgets::len(ui, [64.0, 24.0], &mut y, -100000.0, 100000.0, 0.5, 2, "").changed();
+                    ui.weak(crate::widgets::len_unit(ui));
                     if cx || cy { t.pos = Some([x + zx, y + zy]); }
                 });
                 ui.end_row();
@@ -660,17 +660,17 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             });
         });
-        let sum_shadow = if t.shadow == [0.0, 0.0] { "none".to_string() } else { format!("X {} · Y {} mm", crate::panels::fmt_num(t.shadow[0]), crate::panels::fmt_num(t.shadow[1])) };
+        let sum_shadow = if t.shadow == [0.0, 0.0] { "none".to_string() } else { format!("X {} · Y {}", crate::widgets::fmt_len(ui, t.shadow[0]), crate::widgets::fmt_len(ui, t.shadow[1])) };
         section(ui, &mut t.sections, "shadow", "Shadow", &sum_shadow, |ui| {
             grid("text_shadow").show(ui, |ui| {
                 crate::toolmgr::rlabel(ui, lw, "Shadow");
                 ui.horizontal(|ui| {
                     ui.label("X");
-                    crate::widgets::num(ui, [50.0, 24.0], &mut t.shadow[0], -100.0, 100.0, 0.1, 2, "");
+                    crate::widgets::len(ui, [50.0, 24.0], &mut t.shadow[0], -100.0, 100.0, 0.1, 2, "");
                     ui.add_space(4.0);
                     ui.label("Y");
-                    crate::widgets::num(ui, [50.0, 24.0], &mut t.shadow[1], -100.0, 100.0, 0.1, 2, "");
-                    ui.weak("mm; 0 and 0 = none");
+                    crate::widgets::len(ui, [50.0, 24.0], &mut t.shadow[1], -100.0, 100.0, 0.1, 2, "");
+                    ui.weak(format!("{}; 0 and 0 = none", crate::widgets::len_unit(ui)));
                 }).response.tip("A second copy of the letters, moved by this much. Give it an operation of its own (for example a shallower V-carve) to cut a drop shadow");
                 ui.end_row();
             });

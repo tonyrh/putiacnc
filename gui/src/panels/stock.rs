@@ -21,12 +21,12 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
             let mut col4_x = 0.0_f32;
             egui::Grid::new("stock_grid").num_columns(6).spacing([8.0, 10.0]).show(ui, |ui| {
                 rlabel(ui, l1, "Width");
-                *changed |= dv_w(ui, fw, &mut d.stock.w, 1.0, 10000.0, ""); ui.weak("mm");
+                *changed |= dl_w(ui, fw, &mut d.stock.w, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui));
                 col4_x = ui.next_widget_position().x;
                 rlabel(ui, l3, "Height");
-                *changed |= dv_w(ui, fw, &mut d.stock.h, 1.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
+                *changed |= dl_w(ui, fw, &mut d.stock.h, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
                 rlabel(ui, l1, "Thickness");
-                *changed |= dv_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); ui.weak("mm");
+                *changed |= dl_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); ui.weak(crate::widgets::len_unit(ui));
                 ui.end_row();
             });
             ui.add_space(12.0);

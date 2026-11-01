@@ -7,6 +7,7 @@
 #![allow(clippy::needless_range_loop, clippy::too_many_arguments, clippy::type_complexity, clippy::field_reassign_with_default, clippy::explicit_counter_loop, clippy::manual_clamp, clippy::while_let_loop, clippy::neg_cmp_op_on_partial_ord)]
 mod about;
 mod setup;
+mod units;
 mod align;
 mod app;
 mod array;
@@ -132,6 +133,10 @@ impl eframe::App for App {
 impl App {
     /// One frame of the whole window: everything `update` does except the OpenGL information (so tests can run frames without a window).
     pub(crate) fn ui_frame(&mut self, ctx: &egui::Context) {
+        widgets::set_inches(ctx, self.disp_in);
+        widgets::set_fractions(ctx, self.frac_in);
+        widgets::set_speed_unit(ctx, self.tool_speed());
+        self.sync_grid_units();
         self.refit_fingers();
         let dropped: Option<String> = ctx.input(|i| i.raw.dropped_files.first().and_then(|f| f.path.as_ref().map(|p| p.display().to_string())));
         if let Some(p) = dropped {

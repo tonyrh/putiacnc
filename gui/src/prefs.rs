@@ -36,6 +36,9 @@ pub struct Settings {
     pub show_badges: Option<bool>,
     pub show_clamps: Option<bool>,
     pub text_sections: Option<Vec<String>>,
+    /// Lengths shown in inches (older versions kept this per window: `tool_len_in`, `mach_len_in`).
+    pub display_in: Option<bool>,
+    pub fractions_in: Option<bool>,
     pub tool_len_in: Option<bool>,
     /// Speed unit of the tool library window when the lengths are shown in mm (older versions: the only one).
     pub tool_speed_idx: Option<usize>,

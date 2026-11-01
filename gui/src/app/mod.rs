@@ -282,7 +282,12 @@ pub struct App {
     pub tool_query: String,
     pub tool_sel: String,
     pub tool_msg: String,
-    pub tool_len_in: bool,
+    /// Lengths are shown (and typed) in inches; stored values stay in mm.
+    pub disp_in: bool,
+    /// Inch fields show fractions of an inch (3/16) where the value is one to 1/64.
+    pub frac_in: bool,
+    /// The display units the grid size was last set for (see `sync_grid_units`).
+    pub grid_units_in: Option<bool>,
     /// Speed unit (index into `SPEED_UNITS`) of the tool library window and the custom feeds block: one for each view of the lengths (mm, in).
     pub tool_speed_mm: usize,
     pub tool_speed_in: usize,
@@ -298,8 +303,6 @@ pub struct App {
     pub updater: crate::update::Updater,
     pub mach_sel: String,
     pub mach_msg: String,
-    pub mach_len_in: bool,
-    pub mach_speed_idx: usize,
     /// The export window (how to split the program) and the split files being made after the file name was chosen.
     pub export_open: bool,
     pub export_split: putiacnc_core::split::Split,
@@ -319,9 +322,9 @@ impl App {
             show_left: true, show_right: true, squeezed: (false, false), last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
-            tool_len_in: false, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
+            disp_in: false, frac_in: false, grid_units_in: None, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
-            mach_len_in: false, mach_speed_idx: 0, export_open: std::env::var_os("PUTIACNC_SHOW_EXPORT").is_some(), export_split: std::env::var("PUTIACNC_EXPORT_SPLIT").map(|v| putiacnc_core::split::Split::from_id(&v)).unwrap_or_default(), split_job: None, confirm_mach_del: false, machines_dirty: false,
+            export_open: std::env::var_os("PUTIACNC_SHOW_EXPORT").is_some(), export_split: std::env::var("PUTIACNC_EXPORT_SPLIT").map(|v| putiacnc_core::split::Split::from_id(&v)).unwrap_or_default(), split_job: None, confirm_mach_del: false, machines_dirty: false,
         };
         a.apply_prefs();
         a.project.data.tools.clear();
@@ -895,11 +898,11 @@ mod gen_tests {
 impl App {
     /// The speed unit shown for tools: the one chosen for the current view of the lengths (name, mm/min per unit).
     pub fn tool_speed(&self) -> (&'static str, f64) {
-        let i = if self.tool_len_in { self.tool_speed_in } else { self.tool_speed_mm };
+        let i = if self.disp_in { self.tool_speed_in } else { self.tool_speed_mm };
         putiacnc_core::toollib::SPEED_UNITS[i.min(putiacnc_core::toollib::SPEED_UNITS.len() - 1)]
     }
     /// The setting `tool_speed` reads, for the "Speeds in" box to change.
-    pub fn tool_speed_slot(&mut self) -> &mut usize { if self.tool_len_in { &mut self.tool_speed_in } else { &mut self.tool_speed_mm } }
+    pub fn tool_speed_slot(&mut self) -> &mut usize { if self.disp_in { &mut self.tool_speed_in } else { &mut self.tool_speed_mm } }
 }
 
 

@@ -9,6 +9,8 @@ mod handles;
 mod nodes;
 mod palette;
 mod rulers;
+#[cfg(test)]
+pub(crate) fn rulers_tick_step(scale: f32, k: f64) -> (f64, usize) { rulers::tick_step(scale, k) }
 mod tabs;
 mod trim;
 use self::draw::*;
@@ -535,7 +537,10 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let d = &app.project.data;
     let to_s = |p: [f64; 2]| view.w2s(p);
     if app.grid_on {
-        let step_mm = [1.0, 5.0, 10.0, 50.0, 100.0, 500.0].into_iter().find(|s| s * app.scale as f64 >= 14.0).unwrap_or(1000.0);
+        let step_mm = if app.disp_in {
+            // inch mode: sixteenths-and-thirty-seconds first, then round inches
+            [1.0 / 32.0, 1.0 / 8.0, 0.5, 1.0, 5.0, 20.0].into_iter().map(|s| s * 25.4).find(|s| s * app.scale as f64 >= 14.0).unwrap_or(25.4 * 100.0)
+        } else { [1.0, 5.0, 10.0, 50.0, 100.0, 500.0].into_iter().find(|s| s * app.scale as f64 >= 14.0).unwrap_or(1000.0) };
         let tl = view.s2w(rect.left_top());
         let br = view.s2w(rect.right_bottom());
         let (x0, x1, y0, y1) = (tl[0], br[0], br[1], tl[1]);
@@ -553,7 +558,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             let pts = [a, Pos2::new(b.x, a.y), b, Pos2::new(a.x, b.y), a];
             painter.extend(egui::Shape::dashed_line(&pts, Stroke::new(1.5_f32, col), 8.0, 5.0));
             painter.text(Pos2::new(b.x - 6.0, b.y + 4.0), egui::Align2::RIGHT_TOP,
-                format!("{}: {} × {} mm", m.name, m.x, m.y), egui::TextStyle::Small.resolve(ui.style()), col);
+                format!("{}: {} × {}", m.name, crate::widgets::fmt_len(ui, m.x), crate::widgets::fmt_len(ui, m.y)), egui::TextStyle::Small.resolve(ui.style()), col);
         }
     }
     let sr = Rect::from_two_pos(to_s([0.0, 0.0]), to_s([sw, sh]));
@@ -567,7 +572,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         let r = Rect::from_two_pos(to_s([pc.x, pc.y]), to_s([pc.x + pc.w, pc.y + pc.h]));
         painter.rect_filled(r, 0.0, pm.fill);
         painter.rect_stroke(r, 0.0, Stroke::new(1.5_f32, pm.stroke));
-        painter.text(r.left_top() + egui::vec2(0.0, -3.0), egui::Align2::LEFT_BOTTOM, format!("Plug piece, operation {}: {} × {} × {} mm{}", k + 1, pc.w, pc.h, pc.t, if pc.same { ", takes the place of the main stock" } else { "" }), egui::TextStyle::Small.resolve(ui.style()), th.shape_idle());
+        painter.text(r.left_top() + egui::vec2(0.0, -3.0), egui::Align2::LEFT_BOTTOM, format!("Plug piece, operation {}: {} × {} × {}{}", k + 1, crate::widgets::fmt_len(ui, pc.w), crate::widgets::fmt_len(ui, pc.h), crate::widgets::fmt_len(ui, pc.t), if pc.same { ", takes the place of the main stock" } else { "" }), egui::TextStyle::Small.resolve(ui.style()), th.shape_idle());
     }
     // clamps: keep-out rectangles on the table
     for (i, c) in d.clamps.iter().enumerate().filter(|_| app.show_clamps) {
@@ -869,17 +874,17 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             if app.point_grid {
                 painter.rect_stroke(Rect::from_two_pos(to_s(a), to_s(app.snap(cur))), 0.0, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
                 let to = app.snap(cur);
-                hud = Some(format!("{} holes, {:.2} × {:.2} mm", v.len(), (to[0] - a[0]).abs(), (to[1] - a[1]).abs()));
+                hud = Some(format!("{} holes, {} × {}", v.len(), crate::widgets::fmt_len(ui, (to[0] - a[0]).abs()), crate::widgets::fmt_len(ui, (to[1] - a[1]).abs())));
             } else {
                 painter.circle_stroke(to_s(a), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt() as f32 * app.scale, Stroke::new(1.0_f32, prev_col.gamma_multiply(0.4)));
-                hud = Some(format!("{} holes, radius {:.2} mm", v.len(), ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
+                hud = Some(format!("{} holes, radius {}", v.len(), crate::widgets::fmt_len(ui, ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt())));
             }
         } else if app.mode == Mode::Polygon {
             if let Some(l) = poly_from_drag(app, a, app.snap(cur), shift, 0) {
                 let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
                 if let Some(f) = pts.first().copied() { pts.push(f); }
                 painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
-                hud = Some(format!("radius {:.2} mm", ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt()));
+                hud = Some(format!("radius {}", crate::widgets::fmt_len(ui, ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2)).sqrt())));
             }
         } else {
         let circle = app.mode == Mode::Ellipse && app.circle_mode;
@@ -889,8 +894,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         if let Some(f) = pts.first().copied() { pts.push(f); }
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
         hud = Some(if circle {
-            if app.circle_diam { format!("diameter {:.2} mm", cr * 2.0) } else { format!("radius {:.2} mm", cr) }
-        } else { format!("{:.2} × {:.2} mm", (b[0] - a[0]).abs(), (b[1] - a[1]).abs()) });
+            if app.circle_diam { format!("diameter {}", crate::widgets::fmt_len(ui, cr * 2.0)) } else { format!("radius {}", crate::widgets::fmt_len(ui, cr)) }
+        } else { format!("{} × {}", crate::widgets::fmt_len(ui, (b[0] - a[0]).abs()), crate::widgets::fmt_len(ui, (b[1] - a[1]).abs())) });
         if circle { let s = to_s(a); let st = Stroke::new(1.0_f32, prev_col); painter.line_segment([s - Vec2::new(6.0, 0.0), s + Vec2::new(6.0, 0.0)], st); painter.line_segment([s - Vec2::new(0.0, 6.0), s + Vec2::new(0.0, 6.0)], st); }
         }
     }
@@ -923,7 +928,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         if let (Some(h), true) = (hover_w, app.dyn_in.is_none()) {
             let c = app.snap(h);
             let last = *app.poly.last().unwrap();
-            hud = Some(format!("{:.2} mm", (c[0] - last[0]).hypot(c[1] - last[1])));
+            hud = Some(crate::widgets::fmt_len(ui, (c[0] - last[0]).hypot(c[1] - last[1])));
             pts.push(to_s(c));
         }
         painter.add(egui::Shape::line(pts, Stroke::new(2.0_f32, prev_col)));
@@ -983,7 +988,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             painter.text(to_s(c) + Vec2::new(12.0, -12.0), egui::Align2::LEFT_BOTTOM, t, egui::FontId::monospace(12.0), th.hud());
         }
         painter.text(rect.right_bottom() + Vec2::new(-10.0, -6.0), egui::Align2::RIGHT_BOTTOM,
-            format!("X {:.2}  Y {:.2} mm", c[0] - zero.0, c[1] - zero.1), egui::FontId::monospace(12.0), th.hud().gamma_multiply(0.6));
+            { let (k, d) = (crate::widgets::len_k(ui), if crate::widgets::inches(ui) { 4 } else { 2 }); format!("X {:.*}  Y {:.*} {}", d, (c[0] - zero.0) / k, d, (c[1] - zero.1) / k, crate::widgets::len_unit(ui)) }, egui::FontId::monospace(12.0), th.hud().gamma_multiply(0.6));
     }
     if app.show_axes { draw_axes(&painter, &view, app.scale, (sw, sh), zero, th.dark, ui); }
     let mut orect = rect;

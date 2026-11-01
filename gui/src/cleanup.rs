@@ -77,7 +77,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.button("Clean up").clicked() { apply = true; }
             if ui.button("Close").clicked() { close = true; }
         });
-        if !app.clean.msg.is_empty() { ui.add_space(2.0); ui.weak(app.clean.msg.as_str()); }
+        if !app.clean.msg.is_empty() { ui.add_space(2.0); ui.weak(crate::widgets::localize(ui, app.clean.msg.as_str())); }
         });
     });
     if apply { app.clean.msg = app.clean_drawing(); }

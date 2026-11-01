@@ -82,13 +82,14 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.label("The material thickness is the stock's. Fingers alternate from plate to plate; each corner belongs to one plate.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.weak(format!("Material {thick} mm thick (the stock). Sizes are outside sizes."));
+        ui.weak(format!("Material {} thick (the stock). Sizes are outside sizes.", crate::widgets::fmt_len(ui, thick)));
         let (lw, gap, sp) = (LW, 20.0_f32, 8.0_f32);
         let spacer = |ui: &mut egui::Ui| { ui.allocate_exact_size(egui::vec2(gap, 1.0), egui::Sense::hover()); };
         // label, field, unit; two such triples side by side
         let num = |ui: &mut egui::Ui, label: &str, v: &mut f64, lo: f64, hi: f64, step: f64, dec: usize, tip: &str| {
             crate::toolmgr::rlabel(ui, lw, label);
-            crate::widgets::num_unit(ui, v, lo, hi, step, dec, "mm").tip(tip);
+            crate::widgets::len(ui, [crate::widgets::FIELD_W, 22.0], v, lo, hi, step, dec, "").tip(tip);
+            ui.weak(crate::widgets::len_unit(ui));
         };
         crate::setup::section(ui, "Size");
         egui::Grid::new("box_size").num_columns(7).spacing([sp, 8.0]).show(ui, |ui| {
@@ -139,7 +140,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(2.0);
         crate::widgets::check(ui, &mut app.boxgen.cut, "Create the outside cut").tip("Adds an operation that cuts round the outside of every plate, right through the material. Choose its tool and tabs in the project panel.");
-        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref().filter(|(k, _)| *k == "box").map(|(_, m)| m)) { ui.weak(n); }
+        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref().filter(|(k, _)| *k == "box").map(|(_, m)| m)) { ui.weak(crate::widgets::localize(ui, n)); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.button("Add box").clicked() { apply = true; }

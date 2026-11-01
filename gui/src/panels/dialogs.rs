@@ -97,14 +97,14 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
                 ui.separator();
                 ui.label(format!("cutting {}", fmt_time(ct)));
                 ui.separator();
-                ui.label(format!("cut length {:.1} mm", cl));
+                ui.label(format!("cut length {}", crate::widgets::fmt_len(ui, cl)));
                 ui.separator();
                 ui.label(format!("{} lines, generated in {:.0} ms", ln, app.gen_ms));
             }
             // the first toolpath of a project is still being worked out: the spinner says so
             None if app.gen_stale() && app.gen_error.is_none() => {}
             None if app.project.data.ops.is_empty() => { ui.label("Add an operation to generate G-code"); }
-            None => { ui.label(app.gen_error.clone().unwrap_or_else(|| "No G-code".into())); }
+            None => { ui.label(crate::widgets::localize(ui, &app.gen_error.clone().unwrap_or_else(|| "No G-code".into()))); }
         }
         ui.separator();
         ui.label(format!("{} shapes, {} selected", app.project.data.loops.len(), app.sel.len()));

@@ -91,6 +91,13 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             crate::widgets::check(ui, &mut app.show_axes, "Axes");
             crate::widgets::check(ui, &mut app.show_open_ends, "Loose ends of open contours");
             ui.separator();
+            ui.menu_button("Units", |ui| {
+                ui.style_mut().wrap = Some(false);
+                if ui.radio(!app.disp_in, "Millimetres").clicked() { app.disp_in = false; ui.close_menu(); }
+                if ui.radio(app.disp_in, "Inches").clicked() { app.disp_in = true; ui.close_menu(); }
+                ui.add_enabled_ui(app.disp_in, |ui| { crate::widgets::check(ui, &mut app.frac_in, "Fractions (3/16)").on_hover_text("Show inch values as fractions of an inch, to 1/64, where they are one"); });
+            }).response.on_hover_text("How lengths are shown and typed. The G-code units are set by the machine.");
+            ui.separator();
             crate::widgets::check(ui, &mut app.show_left, "Project panel");
             crate::widgets::check(ui, &mut app.show_right, "Operations / G-code panel");
         });

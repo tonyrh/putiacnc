@@ -99,7 +99,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(4.0);
         match (&t.err, &t.mesh) {
             (Some(e), _) => { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
-            (None, Some(m)) => { let s = m.size(t.orient); ui.weak(format!("{:.1} × {:.1} mm, {:.1} mm high.", s[0], s[1], s[2])); }
+            (None, Some(m)) => { let s = m.size(t.orient); ui.weak(crate::widgets::localize(ui, &format!("{:.1} × {:.1} mm, {:.1} mm high.", s[0], s[1], s[2]))); }
             _ => {}
         }
         ui.add_space(8.0);

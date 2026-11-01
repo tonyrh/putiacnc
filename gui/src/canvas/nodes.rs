@@ -161,7 +161,7 @@ pub(super) fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 ui.label(format!("Editing points · {n} point{}", if n == 1 { "" } else { "s" }));
                 ui.add_space(6.0);
                 ui.label("Simplify within");
-                ui.add(egui::DragValue::new(&mut tol).clamp_range(0.01..=5.0).speed(0.01).suffix(" mm"));
+                crate::widgets::len(ui, [64.0, 24.0], &mut tol, 0.01, 5.0, 0.01, 2, ""); ui.weak(crate::widgets::len_unit(ui));
                 if ui.button("Simplify").on_hover_text("Remove points that hardly change the shape").clicked() { simplify = true; }
                 ui.add_space(6.0);
                 if crate::icons::icon_text_button(ui, Icon::Check, "Done", "Stop editing points (Esc)", None).clicked() { done = true; }
@@ -172,8 +172,8 @@ pub(super) fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
                 let (c, _) = crate::zoomcard::seg2(ui, ["Fillet", "Chamfer"], ["Round the selected corners", "Bevel the selected corners"], cham as usize);
                 if let Some(i) = c { cham = i == 1; }
                 ui.add_space(4.0);
-                crate::widgets::num(ui, [64.0, 24.0], &mut csize, 0.01, 1000.0, 0.25, 2, "");
-                ui.weak("mm");
+                crate::widgets::len(ui, [64.0, 24.0], &mut csize, 0.01, 1000.0, 0.25, 2, "");
+                ui.weak(crate::widgets::len_unit(ui));
                 ui.add_space(4.0);
                 if ui.add_enabled(nsel > 0, egui::Button::new(if nsel > 0 { format!("Apply to {nsel} selected") } else { "Apply to selected".to_string() })).on_hover_text("Click a point (Shift-click or drag a box for several), then round or bevel just those corners").clicked() { corner = true; }
             });

@@ -189,7 +189,7 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     }
 }
 
-fn unit_k(app: &App) -> f64 { if app.tool_len_in { 25.4 } else { 1.0 } }
+fn unit_k(app: &App) -> f64 { if app.disp_in { 25.4 } else { 1.0 } }
 
 fn body(ui: &mut Ui, app: &mut App) {
 
@@ -230,7 +230,7 @@ fn body(ui: &mut Ui, app: &mut App) {
 }
 
 fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
-    let groups: [(&str, &str); 2] = if app.tool_len_in { [("in", "Imperial"), ("mm", "Metric")] } else { [("mm", "Metric"), ("in", "Imperial")] };
+    let groups: [(&str, &str); 2] = if app.disp_in { [("in", "Imperial"), ("mm", "Metric")] } else { [("mm", "Metric"), ("in", "Imperial")] };
     let dark = app.theme.dark;
     let lib = app.tool_libs.current().clone();
     let mut pick: Option<String> = None;
@@ -316,8 +316,6 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
     ui.add_space(4.0);
     tool_buttons(ui, app);
     if let Some(id) = pick {
-        // show lengths in the unit the tool belongs to
-        if let Some(t) = lib.tools.iter().find(|t| t.id == id) { app.tool_len_in = t.sys == "in"; }
         app.tool_sel = id; app.confirm_tool_del = false; app.tool_msg.clear(); }
 }
 
@@ -346,7 +344,7 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
         } else {
             if icon_button(ui, Icon::Add, false, true, "New tool").clicked() {
                 let sel = app.tool_libs.current().tools.iter().find(|t| t.id == app.tool_sel).cloned();
-                let sys = if app.tool_len_in { "in" } else { "mm" };
+                let sys = if app.disp_in { "in" } else { "mm" };
                 let mut t = toollib::new_tool_from(sel.as_ref(), false, sys);
                 t.sys = sys.into();
                 app.tool_sel = t.id.clone();
@@ -356,7 +354,7 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
             }
             if icon_button(ui, Icon::Copy, false, true, "Duplicate tool").clicked() {
                 let sel = app.tool_libs.current().tools.iter().find(|t| t.id == app.tool_sel).cloned();
-                let sys = if app.tool_len_in { "in" } else { "mm" };
+                let sys = if app.disp_in { "in" } else { "mm" };
                 let t = toollib::new_tool_from(sel.as_ref(), true, sys);
                 app.tool_sel = t.id.clone();
                 app.tool_libs.current_mut().tools.push(t);
@@ -381,8 +379,8 @@ fn units_row(ui: &mut Ui, app: &mut App) {
             });
             ui.label("Speeds in");
             ui.add_space(8.0);
-            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.tool_len_in as usize);
-            if let Some(i) = c { app.tool_len_in = i == 1; }
+            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.disp_in as usize);
+            if let Some(i) = c { app.disp_in = i == 1; }
             ui.label("Show lengths in");
         });
     });
@@ -441,7 +439,7 @@ fn lib_row_inner(ui: &mut Ui, app: &mut App) {
 }
 
 fn tool_form(ui: &mut Ui, app: &mut App) {
-    let uname = if app.tool_len_in { "in" } else { "mm" };
+    let uname = if app.disp_in { "in" } else { "mm" };
     let k = unit_k(app);
     let (sname, fspd) = app.tool_speed();
     let Some(idx) = app.tool_libs.current().tools.iter().position(|t| t.id == app.tool_sel) else { return };
@@ -539,7 +537,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 }}; }
                 cell!(if pen { "Line width" } else { "Diameter" }, uname, ui, {
                     let mut d = t.dia / k;
-                    if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.01 / k, 1000.0 / k, 0.05 / k, 4, "").changed() { t.dia = d * k; t.sys = if app.tool_len_in { "in" } else { "mm" }.into(); changed = true; }
+                    if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.01 / k, 1000.0 / k, 0.05 / k, 4, "").changed() { t.dia = d * k; t.sys = if app.disp_in { "in" } else { "mm" }.into(); changed = true; }
                 });
                 if !pen { cell!("Spindle", "rpm", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.rpm, 0.0, 100000.0, 50.0, 0, "").changed(); }); }
                 cell!(if pen { "Draw speed" } else { "Feed" }, sname, ui, {
@@ -590,7 +588,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
             // what these numbers mean for the cut
             egui::Grid::new("tool_form_est").num_columns(2).spacing([sp, 4.0]).show(ui, |ui| {
                 use putiacnc_core::toollib::{chip_load, chip_load_range, load_level, removal_rate, Load};
-                let (unit_len, per) = if app.tool_len_in { ("in", 25.4) } else { ("mm", 1.0) };
+                let (unit_len, per) = if app.disp_in { ("in", 25.4) } else { ("mm", 1.0) };
                 rlabel(ui, lw, "Chip load");
                 match chip_load(&t) {
                     Some(c) => {
@@ -613,7 +611,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 ui.end_row();
                 rlabel(ui, lw, "Removal");
                 let r = removal_rate(&t);
-                let txt = if app.tool_len_in { format!("{:.2} in³/min", r / 16387.064) } else { format!("{:.1} cm³/min", r / 1000.0) };
+                let txt = if app.disp_in { format!("{:.2} in³/min", r / 16387.064) } else { format!("{:.1} cm³/min", r / 1000.0) };
                 ui.weak(txt).tip("Material removed per minute by a cut as wide as the stepover and as deep as the maximum pass");
                 ui.end_row();
             });

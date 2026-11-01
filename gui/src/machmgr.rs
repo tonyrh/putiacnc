@@ -159,7 +159,7 @@ fn body(ui: &mut Ui, app: &mut App) {
 }
 
 fn footer(ui: &mut Ui, app: &mut App) {
-    let sname = SPEED_UNITS[app.mach_speed_idx.min(SPEED_UNITS.len() - 1)].0;
+    let sname = app.tool_speed().0;
     ui.horizontal(|ui| {
         if app.confirm_mach_del {
             ui.colored_label(Color32::LIGHT_RED, "Delete this machine?");
@@ -227,12 +227,13 @@ fn footer(ui: &mut Ui, app: &mut App) {
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             egui::ComboBox::from_id_source("mspd").width(crate::widgets::combo_fit(ui, &putiacnc_core::toollib::SPEED_UNITS.iter().map(|(n, _)| *n).collect::<Vec<_>>()).max(90.0)).selected_text(sname).show_ui(ui, |ui| {
-                for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(&mut app.mach_speed_idx, i, *n); }
+                let slot = app.tool_speed_slot();
+                for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(slot, i, *n); }
             });
             ui.label("Speeds in");
             ui.add_space(8.0);
-            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.mach_len_in as usize);
-            if let Some(i) = c { app.mach_len_in = i == 1; }
+            let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.disp_in as usize);
+            if let Some(i) = c { app.disp_in = i == 1; }
             ui.label("Lengths in");
         });
     });
@@ -264,9 +265,9 @@ fn list(ui: &mut Ui, app: &mut App, h: f32) {
 }
 
 fn form(ui: &mut Ui, app: &mut App) {
-    let uname = if app.mach_len_in { "in" } else { "mm" };
-    let k = if app.mach_len_in { 25.4 } else { 1.0 };
-    let (sname, sfac) = SPEED_UNITS[app.mach_speed_idx.min(SPEED_UNITS.len() - 1)];
+    let uname = if app.disp_in { "in" } else { "mm" };
+    let k = if app.disp_in { 25.4 } else { 1.0 };
+    let (sname, sfac) = app.tool_speed();
     let Some(mut m) = app.machines.get(&app.mach_sel).cloned() else { return };
     let mut changed = false;
 

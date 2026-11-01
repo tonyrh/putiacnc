@@ -61,6 +61,12 @@ pub(super) fn dv_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &
     crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix)
 }
 
+/// Length versions of `dv_w` / `dv_r`: the value is in mm, the field shows the Display units.
+pub(super) fn dl_w(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> bool { dl_r(ui, w, v, lo, hi, suffix).changed() }
+pub(super) fn dl_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> egui::Response {
+    crate::widgets::len(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix)
+}
+
 pub(super) fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(&str, &str)], prefix: &str, tip: &str) -> (bool, egui::Rect) {
     let mut ch = false;
     let r = egui::ComboBox::from_id_source(id).width(w - 10.0).selected_text(format!("{prefix}{}", label_of(opts, cur))).show_ui(ui, |ui| {
@@ -175,7 +181,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         }
         (_, RightTab::Ops | RightTab::Info) => {}
         (None, _) if app.project.data.ops.is_empty() => { ui.weak("Add an operation to generate G-code."); }
-        (None, _) => { ui.label(app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into())); }
+        (None, _) => { ui.label(crate::widgets::localize(ui, &app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into()))); }
     }
     if let Some(t) = copy { ui.ctx().copy_text(t); }
     if export { app.export_gcode_dialog(); }
@@ -309,7 +315,7 @@ pub fn message_bar(ui: &mut Ui, app: &mut App) {
             }
         }
         let w = (ui.available_width() - 34.0).max(60.0);
-        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(&msg).color(col)).wrap(true)); });
+        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, &msg)).color(col)).wrap(true)); });
         if icon_close(ui).clicked() { close = true; }
     });
     if close { app.error = None; }

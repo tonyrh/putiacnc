@@ -15,14 +15,14 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
     let (mut moved, mut sized) = (false, false);
     let lw = tw(ui, "Width").max(tw(ui, "Height")) + 8.0;
     ui.add_enabled_ui(!locked, |ui| egui::Grid::new(key.with("grid")).num_columns(5).spacing([6.0, 6.0]).show(ui, |ui| {
-        rlabel(ui, lw, "X"); moved |= dv_w(ui, 62.0, &mut x, -100000.0, 100000.0, ""); ui.weak("mm");
-        rlabel(ui, lw, "Y"); moved |= dv_w(ui, 62.0, &mut y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
+        rlabel(ui, lw, "X"); moved |= dl_w(ui, 62.0, &mut x, -100000.0, 100000.0, ""); ui.weak(crate::widgets::len_unit(ui));
+        rlabel(ui, lw, "Y"); moved |= dl_w(ui, 62.0, &mut y, -100000.0, 100000.0, ""); ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
         rlabel(ui, lw, "Width");
-        if dv_w(ui, 62.0, &mut w, 0.1, 100000.0, "") { sized = true; if keep && b[2] - b[0] > 1e-9 { h = w * (b[3] - b[1]) / (b[2] - b[0]); } }
-        ui.weak("mm");
+        if dl_w(ui, 62.0, &mut w, 0.1, 100000.0, "") { sized = true; if keep && b[2] - b[0] > 1e-9 { h = w * (b[3] - b[1]) / (b[2] - b[0]); } }
+        ui.weak(crate::widgets::len_unit(ui));
         rlabel(ui, lw, "Height");
-        if dv_w(ui, 62.0, &mut h, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = h * (b[2] - b[0]) / (b[3] - b[1]); } }
-        ui.weak("mm"); ui.end_row();
+        if dl_w(ui, 62.0, &mut h, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = h * (b[2] - b[0]) / (b[3] - b[1]); } }
+        ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
     }));
     ui.add_space(8.0);
     ui.horizontal(|ui| {
@@ -195,7 +195,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
             }
-            ui.weak(format!("The model is {:.1} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", rel.zmax * rel.scale));
+            ui.weak(crate::widgets::localize(ui, &format!("The model is {:.1} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", rel.zmax * rel.scale)));
             if fit {
                 let k = (sw / (rel.nx as f64 * rel.res)).min(sh / (rel.ny as f64 * rel.res));
                 if rel.scale > k { rel.scale = k; }
@@ -224,7 +224,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     // machine picker data (read before the panel borrows the project)
     let mach_names: Vec<(String, String)> = app.machines.list.iter().map(|m| (m.id.clone(), m.name.clone())).collect();
     let (mach_cur, mach_name, mach_area) = match &app.project.data.machine {
-        Some(m) => (m.id.clone(), m.name.clone(), format!("Work area {} × {} × {} mm", fmt_num(m.x), fmt_num(m.y), fmt_num(m.z))),
+        Some(m) => (m.id.clone(), m.name.clone(), format!("Work area {} × {} × {}", crate::widgets::fmt_len(ui, m.x), crate::widgets::fmt_len(ui, m.y), crate::widgets::fmt_len(ui, m.z))),
         None => (String::new(), String::new(), String::new()),
     };
     let mut mach_pick: Option<String> = None;
@@ -469,14 +469,14 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         rlabel(ui, l1, "Depth");
-                        if dv_w(ui, 48.0, &mut p.depth, 0.01, 1000.0, "") { p.d_man = true; changed = true; }
-                        ui.weak("mm");
+                        if dl_w(ui, 48.0, &mut p.depth, 0.01, 1000.0, "") { p.d_man = true; changed = true; }
+                        ui.weak(crate::widgets::len_unit(ui));
                         if p.d_man {
                             if reset_button(ui, "Follow the model's height again") { p.d_man = false; changed = true; }
                             ui.weak("typed in");
                         } else {
                             match model_h {
-                                Some(h) if h > stock_t + 1e-6 => { ui.weak(format!("model is {:.1} mm: capped by stock", h)); }
+                                Some(h) if h > stock_t + 1e-6 => { ui.weak(crate::widgets::localize(ui, &format!("model is {:.1} mm: capped by stock", h))); }
                                 _ => { ui.weak("the model's height"); }
                             }
                         }
@@ -524,8 +524,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, lw2, "Pass");
                                 let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
-                                if dv_r(ui, 48.0, &mut v, 0.01, 1000.0, "").tip("Maximum depth of a single pass of the clearing and cut-out tool: it goes down in passes of this depth until the full depth is reached").changed() { p.pass_depth = Some(v); changed = true; }
-                                ui.weak("mm");
+                                if dl_r(ui, 48.0, &mut v, 0.01, 1000.0, "").tip("Maximum depth of a single pass of the clearing and cut-out tool: it goes down in passes of this depth until the full depth is reached").changed() { p.pass_depth = Some(v); changed = true; }
+                                ui.weak(crate::widgets::len_unit(ui));
                                 let n = ((p.depth / p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001)) - 1e-9).ceil().max(1.0) as usize;
                                 ui.weak(format!("{n} layer{}", if n == 1 { "" } else { "s" }));
                                 if p.pass_depth.is_some() && reset_button(ui, "Use the tool's pass depth") { p.pass_depth = None; changed = true; }
@@ -542,8 +542,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, lw2, "Leave");
                                 let mut v = p.r_leave.unwrap_or(0.3);
-                                if dv_w(ui, 48.0, &mut v, 0.0, 5.0, "") { p.r_leave = Some(v); changed = true; }
-                                ui.weak("mm");
+                                if dl_w(ui, 48.0, &mut v, 0.0, 5.0, "") { p.r_leave = Some(v); changed = true; }
+                                ui.weak(crate::widgets::len_unit(ui));
                                 ui.weak("left for the finishing step");
                             });
                             let t0 = p.tool2.as_deref().and_then(|tid| tools_ref.iter().find(|t| t.id == tid));
@@ -607,7 +607,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, "Pen down");
                             changed |= dv_r(ui, 48.0, &mut p.depth, 0.0, 20.0, "").tip("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press").changed();
-                            ui.weak("mm below Z0");
+                            ui.weak(format!("{} below Z0", crate::widgets::len_unit(ui)));
                         });
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
@@ -615,7 +615,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             rlabel(ui, lw3, "Pen up");
                             let mut v = p.lift.unwrap_or(2.0);
                             if dv_r(ui, 48.0, &mut v, 0.1, 50.0, "").tip("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it").changed() { p.lift = Some(v); changed = true; }
-                            ui.weak("mm above Z0");
+                            ui.weak(format!("{} above Z0", crate::widgets::len_unit(ui)));
                             if p.lift.is_some() && reset_button(ui, "Back to 2 mm") { p.lift = None; changed = true; }
                         });
                         ui.add_space(4.0);
@@ -641,8 +641,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let mut on = p.join.is_some();
                             if crate::widgets::check(ui, &mut on, "under").tip("When the next stroke starts this close to where the last one ended, the pen stays down and draws a short line across instead of lifting. Saves time with single-line text and dashed lines; the marks it leaves are as long as the gap").changed() { p.join = if on { Some(0.5) } else { None }; changed = true; }
                             if let Some(v) = p.join.as_mut() {
-                                changed |= dv_r(ui, 48.0, v, 0.05, 20.0, "").changed();
-                                ui.weak("mm");
+                                changed |= dl_r(ui, 48.0, v, 0.05, 20.0, "").changed();
+                                ui.weak(crate::widgets::len_unit(ui));
                             }
                         });
                         ui.add_space(4.0);
@@ -665,8 +665,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, lw3, "Spacing");
                                 let mut v = h.gap.unwrap_or(pen_w);
-                                if dv_r(ui, 48.0, &mut v, 0.05, 20.0, "").tip("Distance between the lines. The pen's own line width makes them just touch; more leaves paper showing (a lighter shade)").changed() { h.gap = Some(v); changed = true; }
-                                ui.weak("mm");
+                                if dl_r(ui, 48.0, &mut v, 0.05, 20.0, "").tip("Distance between the lines. The pen's own line width makes them just touch; more leaves paper showing (a lighter shade)").changed() { h.gap = Some(v); changed = true; }
+                                ui.weak(crate::widgets::len_unit(ui));
                                 if h.gap.is_some() && reset_button(ui, "Back to the pen's line width") { h.gap = None; changed = true; }
                             });
                             ui.add_space(4.0);
@@ -706,8 +706,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, l1, "Gap");
                                 let mut g = p.fit.unwrap_or(0.05);
-                                if dv_w(ui, 54.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
-                                ui.weak("mm").tip("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
+                                if dl_w(ui, 54.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
+                                ui.weak(crate::widgets::len_unit(ui)).tip("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue.");
                                 ui.weak("smaller than the pocket, for glue");
                             });
                             // the plug can be cut from a piece of its own (a second G-code file, its own work zero)
@@ -724,7 +724,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     ui.set_width(ui.available_width() - 12.0);
                                     ui.spacing_mut().item_spacing.x = sp;
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
-                                    let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, "mm"));
+                                    let (la, lb, mm) = (tw_of(ui, "Thickness").max(tw_of(ui, "Position X")).max(tw_of(ui, "Material")).max(tw_of(ui, "XY zero")), tw_of(ui, "Position Y").max(tw_of(ui, "Height")), tw_of(ui, crate::widgets::len_unit(ui)));
                                     let fw = ((ui.available_width() - la - lb - 2.0 * mm - 6.0 * sp) / 2.0).clamp(46.0, 110.0);
                                     changed |= crate::widgets::check(ui, &mut pc.same, "Replaces the main stock").tip("The main stock is taken off the machine and this piece put in its place: same size and same work zero, so only Z may need setting again. Switch it off to give the piece its own size and zero.").changed();
                                     ui.add_space(2.0);
@@ -732,13 +732,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     let mut col5_x = 0.0_f32;
                                     egui::Grid::new(("plug_piece", id)).num_columns(6).spacing([sp, 6.0]).show(ui, |ui| {
                                         if !same {
-                                            rlabel(ui, la, "Width"); changed |= dv_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak("mm");
-                                            rlabel(ui, lb, "Height"); let r = ui.scope(|ui| dv_w(ui, fw, &mut pc.h, 1.0, 10000.0, "")); col5_x = r.response.rect.min.x; changed |= r.inner; ui.weak("mm"); ui.end_row();
+                                            rlabel(ui, la, "Width"); changed |= dl_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui));
+                                            rlabel(ui, lb, "Height"); let r = ui.scope(|ui| dl_w(ui, fw, &mut pc.h, 1.0, 10000.0, "")); col5_x = r.response.rect.min.x; changed |= r.inner; ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
                                         }
-                                        rlabel(ui, la, "Thickness"); changed |= dv_w(ui, fw, &mut pc.t, 0.1, 1000.0, ""); ui.weak("mm"); ui.end_row();
+                                        rlabel(ui, la, "Thickness"); changed |= dl_w(ui, fw, &mut pc.t, 0.1, 1000.0, ""); ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
                                         rlabel(ui, la, "Position X");
-                                        moved |= dv_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak("mm");
-                                        rlabel(ui, lb, "Position Y"); moved |= dv_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak("mm"); ui.end_row();
+                                        moved |= dl_w(ui, fw, &mut pc.x, -100000.0, 100000.0, ""); ui.weak(crate::widgets::len_unit(ui));
+                                        rlabel(ui, lb, "Position Y"); moved |= dl_w(ui, fw, &mut pc.y, -100000.0, 100000.0, ""); ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
                                     });
                                     if !same {
                                     ui.add_space(4.0);
@@ -758,7 +758,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                             ui.spacing_mut().item_spacing.y = 6.0;
                                             let (c, _) = combo_w2(ui, fw + 10.0, &format!("plug_zm{id}"), &mut pc.zm, PIECE_ZMODES, "", "Where Z0 is measured from on this piece: its top surface, or a height above its bottom");
                                             changed |= c;
-                                            if pc.zm != "top" { ui.horizontal(|ui| { changed |= dv_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak("mm"); }); }
+                                            if pc.zm != "top" { ui.horizontal(|ui| { changed |= dl_w(ui, fw, &mut pc.zh, 0.0, 1000.0, ""); ui.weak(crate::widgets::len_unit(ui)); }); }
                                         });
                                     });
                                     }
@@ -784,23 +784,23 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         // the row fills the panel: both fields share what the fixed parts leave over
-                        let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, "mm"), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 28.0);
+                        let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, crate::widgets::len_unit(ui)), tw_of(ui, "Pass"), tw_of(ui, "00 passes"), 28.0);
                         // short fields; whatever width is left is shared out as gaps between the three groups
-                        let fw = 42.0;
+                        let fw = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
                         let fixed = l1 + w_pass + 2.0 * w_mm + 2.0 * fw + w_cnt + w_rst + 7.0 * sp;
                         let gap = ((ui.available_width() - fixed) / 2.0).max(6.0);
                         rlabel(ui, l1, "Depth");
-                        changed |= dv_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
-                        ui.weak("mm");
+                        changed |= dl_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
+                        ui.weak(crate::widgets::len_unit(ui));
                         ui.add_space(gap);
                         let pass_tip = if p.kind == "drill" { "Depth of one peck: the drill goes this deep, lifts to clear the chips and goes in again until the full depth is reached" } else { "Maximum depth of a single pass: the cut goes down in passes of this depth until the full depth is reached" };
                         ui.label(if p.kind == "drill" { "Peck" } else { "Pass" }).tip(pass_tip);
                         let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
-                        if dv_r(ui, fw, &mut v, 0.01, 1000.0, "").tip(pass_tip).changed() {
+                        if dl_r(ui, fw, &mut v, 0.01, 1000.0, "").tip(pass_tip).changed() {
                             p.pass_depth = if tool_pd.is_some_and(|t| (t - v).abs() < 1e-9) { None } else { Some(v) };
                             changed = true;
                         }
-                        ui.weak("mm");
+                        ui.weak(crate::widgets::len_unit(ui));
                         ui.add_space(gap - sp.min(gap));
                         ui.allocate_ui_with_layout(egui::vec2(w_rst, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                             if p.pass_depth.is_some() && reset_button(ui, "Use the tool's pass depth") { p.pass_depth = None; changed = true; }
@@ -842,10 +842,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             // short fields; the spare width is shared out as gaps between the groups
                             let sp = 5.0;
                             ui.spacing_mut().item_spacing.x = sp;
-                            let fw = 42.0;
+                            let fw = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
                             let groups = if manual { 2.0 } else { 3.0 };
                             let labels = tw_of(ui, "Width") + tw_of(ui, "Height") + if manual { 0.0 } else { tw_of(ui, "Count") };
-                            let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, "mm") + (3.0 * groups + 0.0) * sp;
+                            let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, crate::widgets::len_unit(ui)) + (3.0 * groups + 0.0) * sp;
                             // with all three fields the spare width is spread between them; with two they sit together
                             let gap = if manual { 24.0 } else { ((ui.available_width() - fixed) / (groups - 1.0)).max(4.0) };
                             if !manual {
@@ -857,12 +857,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.add_space(gap);
                             }
                             ui.label("Width").tip("Length of each tab along the outline");
-                            if dv_w(ui, fw, &mut w, 0.5, 100.0, "") { p.tab_w = Some(w); changed = true; }
-                            ui.weak("mm");
+                            if dl_w(ui, fw, &mut w, 0.5, 100.0, "") { p.tab_w = Some(w); changed = true; }
+                            ui.weak(crate::widgets::len_unit(ui));
                             ui.add_space(gap);
                             ui.label("Height").tip("How tall each tab is, measured up from the bottom of the cut");
-                            if dv_w(ui, fw, &mut h, 0.2, 100.0, "") { p.tab_h = Some(h); changed = true; }
-                            ui.weak("mm");
+                            if dl_w(ui, fw, &mut h, 0.2, 100.0, "") { p.tab_h = Some(h); changed = true; }
+                            ui.weak(crate::widgets::len_unit(ui));
                         });
                         if let Some(tp) = p.tab_pts.as_mut() {
                             ui.horizontal(|ui| {
@@ -894,8 +894,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if let Some(r) = p.lead.as_mut() {
                             ui.add_space(10.0);
                             ui.label("Radius");
-                            if dv_w(ui, 42.0, r, 0.2, 100.0, "") { changed = true; }
-                            ui.weak("mm");
+                            if dl_w(ui, 42.0, r, 0.2, 100.0, "") { changed = true; }
+                            ui.weak(crate::widgets::len_unit(ui));
                         }
                     });
                 }
@@ -979,15 +979,15 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 ui.add_space(4.0);
                 if p.kind == "draw" {
                     if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
-                        ui.weak(format!("Pen · line {} · draws at {} mm/min · pen down at {} mm/min", putiacnc_core::toollib::fmt_dia(t0.dia, &t0.sys, true), t0.feed, t0.plunge));
+                        ui.weak(format!("Pen · line {} · draws at {} · pen down at {}", putiacnc_core::toollib::fmt_dia(t0.dia, &t0.sys, true), crate::widgets::fmt_speed(ui, t0.feed), crate::widgets::fmt_speed(ui, t0.plunge)));
                     }
                 } else if let Some(t0) = tools.iter().find(|t| t.id == p.tool) {
                     // what the machine will really run (its limits applied, after this operation's own values), with a warning when that differs
                     let asked = match &p.custom { Some(cf) if !(p.kind == "relief" && p.f_off) => cf.apply(t0), _ => t0.clone() };
                     let (t, warn) = match &machine_now { Some(m) => (m.hold(&asked), m.hold_text(&asked)), None => (asked.clone(), String::new()) };
                     let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
-                    ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} mm/min · step {}% · {:.2} mm/pass",
-                        putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, t.feed, t.plunge, t.so, t.pd));
+                    ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} · step {}% · {}/pass",
+                        putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, crate::widgets::fmt_speed(ui, t.feed), crate::widgets::fmt_speed(ui, t.plunge), t.so, crate::widgets::fmt_len(ui, t.pd)));
                     if !warn.is_empty() {
                         let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
                         crate::checkui::warn_line(ui, col, &format!("Held to the machine's limits: {warn}."))

@@ -6,6 +6,98 @@ fn fmt_val(v: f64, dec: usize) -> String {
     if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
 }
 
+/// Whether lengths are shown in inches (the app's Display units setting). Kept in the egui context so every field can ask for it
+/// without being handed the app; stored values are always mm.
+pub fn set_inches(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_inches"), on)); }
+pub fn inches(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_inches"))).unwrap_or(false) }
+/// "mm" or "in", for the unit after a length field.
+pub fn len_unit(ui: &Ui) -> &'static str { if inches(ui) { "in" } else { "mm" } }
+/// The speed unit the app shows (name, mm/min per unit), kept in the context like the length unit.
+pub fn set_speed_unit(ctx: &egui::Context, u: (&'static str, f64)) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_speed"), u)); }
+/// A feed rate given in mm/min, in the shown speed unit with its name ("800 mm/min", "31.5 in/min").
+pub fn fmt_speed(ui: &Ui, mm_min: f64) -> String {
+    let (n, f) = ui.data(|d| d.get_temp::<(&'static str, f64)>(egui::Id::new("display_speed"))).unwrap_or(("mm/min", 1.0));
+    format!("{} {}", fmt_val(mm_min / f.max(1e-9), 2), n)
+}
+
+/// Whether inch fields show fractions (see `fmt_inch`).
+pub fn set_fractions(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_fractions"), on)); }
+fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_fractions"))).unwrap_or(false) }
+
+/// A message written in mm, with its lengths in the shown unit (see `units::localize`).
+pub fn localize(ui: &Ui, text: &str) -> String { crate::units::localize(text, inches(ui), fractions(ui)) }
+
+/// An inch value as a fraction of an inch when it is one to 1/64 (`3/16`, `1 3/16`), otherwise as a decimal.
+pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String {
+    if frac {
+        let n = (v.abs() * 64.0).round();
+        if n > 0.0 && (v.abs() * 64.0 - n).abs() < 0.03 {
+            let (whole, mut rest, mut den) = (n as u64 / 64, n as u64 % 64, 64u64);
+            while rest != 0 && rest % 2 == 0 { rest /= 2; den /= 2; }
+            let sign = if v < 0.0 { "-" } else { "" };
+            return if rest == 0 { format!("{sign}{whole}") } else if whole == 0 { format!("{sign}{rest}/{den}") } else { format!("{sign}{whole} {rest}/{den}") };
+        }
+    }
+    fmt_val(v, dec)
+}
+
+/// mm per shown unit.
+pub fn len_k(ui: &Ui) -> f64 { if inches(ui) { 25.4 } else { 1.0 } }
+
+/// A length field: `v` is in mm, the field shows and takes mm or inches as the Display units say. `lo`, `hi`, `speed` and `dec` are
+/// given for mm; in inches the field gets two more decimals (a thousandth of an inch is 0.0254 mm).
+pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
+    let k = len_k(ui);
+    if k == 1.0 { return num_with(ui, size, v, lo, hi, speed, dec, suffix, Some(1.0)); }
+    let mut x = *v / k;
+    let r = num_with(ui, size, &mut x, lo / k, hi / k, speed / k, dec + 2, suffix, Some(k));
+    if r.changed() { *v = (x * k).clamp(lo, hi); }
+    r
+}
+
+/// A length for a message or a readout, in the shown unit with its name ("12.5 mm", "0.492 in").
+pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_val(mm / 25.4, 3)) } else { format!("{} mm", fmt_val(mm, 2)) } }
+
+/// What a number field takes: a decimal (comma or point), a fraction (`1/8`, `3/16`) or a mixed number (`1 3/16`, `1-3/16`), with an
+/// optional minus sign. Spaces round it and a trailing inch mark (`"` or `in`) are ignored.
+pub fn parse_number(text: &str) -> Option<f64> { parse_number_unit(text).map(|(x, _)| x) }
+
+/// [`parse_number`] for a length in a unit of `unit_mm` mm: a unit typed after the number (`mm`, `cm`, `m`, `in` or `"`) is converted.
+pub fn parse_length(text: &str, unit_mm: f64) -> Option<f64> {
+    let (x, u) = parse_number_unit(text)?;
+    Some(match u { Some(u) if (u - unit_mm).abs() > 1e-12 => x * u / unit_mm, _ => x })
+}
+
+/// The number and, when one is typed after it, the unit as mm per unit.
+fn parse_number_unit(text: &str) -> Option<(f64, Option<f64>)> {
+    let t = text.trim();
+    let low = t.to_lowercase();
+    let (body, unit) = if let Some(b) = low.strip_suffix("mm") { (b, Some(1.0)) }
+        else if let Some(b) = low.strip_suffix("cm") { (b, Some(10.0)) }
+        else if let Some(b) = low.strip_suffix("in") { (b, Some(25.4)) }
+        else if let Some(b) = low.strip_suffix('"') { (b, Some(25.4)) }
+        else if let Some(b) = low.strip_suffix('m') { (b, Some(1000.0)) }
+        else { (low.as_str(), None) };
+    parse_plain(body).map(|x| (x, unit))
+}
+
+fn parse_plain(text: &str) -> Option<f64> {
+    let t = text.trim().replace(',', ".");
+    if let Ok(x) = t.parse::<f64>() { return Some(x); }
+    let (neg, t) = match t.strip_prefix('-') { Some(r) => (true, r.trim()), None => (false, t.as_str()) };
+    let frac = |s: &str| -> Option<f64> {
+        let (n, d) = s.split_once('/')?;
+        let (n, d) = (n.trim().parse::<f64>().ok()?, d.trim().parse::<f64>().ok()?);
+        (d != 0.0 && n >= 0.0 && d > 0.0).then_some(n / d)
+    };
+    let v = if let Some(x) = frac(t) { x } else {
+        // a whole number, then a fraction, after a space or a hyphen
+        let (w, r) = t.split_once([' ', '-'])?;
+        w.trim().parse::<f64>().ok().filter(|w| *w >= 0.0)? + frac(r)?
+    };
+    Some(if neg { -v } else { v })
+}
+
 /// Width of a number field in the dialogs.
 pub const FIELD_W: f32 = 70.0;
 
@@ -19,8 +111,17 @@ pub fn num_unit(ui: &mut Ui, v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usi
 /// A numeric field like egui's `DragValue` (drag to change, click to type) but with the text
 /// right-aligned. `speed` is the change per dragged pixel, `dec` the maximum decimals shown.
 pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
+    num_with(ui, size, v, lo, hi, speed, dec, suffix, None)
+}
+
+/// [`num`] for a length: `unit_mm` is the size of the shown unit in mm (1 or 25.4), so that typed text with a unit (`3 mm`, `1/8"`,
+/// `2.5cm`) is converted to it.
+#[allow(clippy::too_many_arguments)]
+pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str, unit_mm: Option<f64>) -> Response {
     let (rect, mut resp) = ui.allocate_exact_size(egui::vec2(size[0], size[1]), Sense::click_and_drag());
     let id = resp.id;
+    let frac = unit_mm.is_some_and(|k| k > 25.0) && fractions(ui);
+    let shown = |x: f64| if frac { fmt_inch(x, dec, true) } else { fmt_val(x, dec) };
     let edit_id = id.with("edit");
     let mut editing: Option<String> = ui.data(|d| d.get_temp(edit_id));
 
@@ -40,7 +141,7 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
         let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
         if out.lost_focus() || esc {
             if !esc {
-                if let Ok(x) = text.trim().replace(',', ".").parse::<f64>() {
+                if let Some(x) = match unit_mm { Some(k) => parse_length(&text, k), None => parse_number(&text) } {
                     let nv = x.clamp(lo, hi);
                     if (nv - *v).abs() > f64::EPSILON { *v = nv; resp.mark_changed(); }
                 }
@@ -58,13 +159,13 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
     }
     if resp.hovered() || resp.dragged() { ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal); }
     if resp.clicked() {
-        ui.data_mut(|d| { d.insert_temp(edit_id, fmt_val(*v, dec)); d.insert_temp(id.with("first"), true); });
+        ui.data_mut(|d| { d.insert_temp(edit_id, shown(*v)); d.insert_temp(id.with("first"), true); });
         ui.ctx().request_repaint();
     }
     let vis = *ui.style().interact(&resp);
     ui.painter().rect(rect, vis.rounding, vis.weak_bg_fill, vis.bg_stroke);
     let font = egui::TextStyle::Button.resolve(ui.style());
-    let text = format!("{}{}", fmt_val(*v, dec), suffix);
+    let text = format!("{}{}", shown(*v), suffix);
     let col = ui.visuals().override_text_color.unwrap_or(vis.fg_stroke.color);
     let g = ui.painter().layout_no_wrap(text, font, col);
     ui.painter().galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, col);
@@ -234,4 +335,75 @@ pub mod tiplog {
     pub fn field(ctx: &egui::Context, r: Rect, label: Option<Rect>, t: &str) { with(ctx, |l| l.fields.push((r, label, t.to_string()))) }
     pub fn painted(ctx: &egui::Context, r: Rect, t: &str) { with(ctx, |l| l.painted.push((r, t.to_string()))) }
     pub fn take(ctx: &egui::Context) -> Log { ctx.data_mut(|d| d.remove_temp::<Log>(id())).unwrap_or_default() }
+}
+
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    fn with_units<R>(inches: bool, f: impl FnOnce(&mut Ui) -> R) -> R {
+        let ctx = egui::Context::default();
+        let mut out = None;
+        let mut f = Some(f);
+        let _ = ctx.run(Default::default(), |ctx| {
+            set_inches(ctx, inches);
+            egui::CentralPanel::default().show(ctx, |ui| { if let Some(f) = f.take() { out = Some(f(ui)); } });
+        });
+        out.unwrap()
+    }
+
+    #[test]
+    fn fields_take_fractions() {
+        let p = parse_number;
+        assert_eq!(p("1/8"), Some(0.125));
+        assert_eq!(p("3/16"), Some(0.1875));
+        assert_eq!(p("1 3/16"), Some(1.1875));
+        assert_eq!(p("1-1/2\""), Some(1.5));
+        assert_eq!(p("-1/4"), Some(-0.25));
+        assert_eq!(p(" 2,5 "), Some(2.5));
+        assert_eq!(p("0.75 in"), Some(0.75));
+        assert_eq!(p("1/0"), None);
+        assert_eq!(p("a/b"), None);
+        assert_eq!(p(""), None);
+    }
+
+    #[test]
+    fn inches_as_fractions() {
+        assert_eq!(fmt_inch(0.1875, 4, true), "3/16");
+        assert_eq!(fmt_inch(1.1875, 4, true), "1 3/16");
+        assert_eq!(fmt_inch(0.125, 4, true), "1/8");
+        assert_eq!(fmt_inch(2.0, 4, true), "2");
+        assert_eq!(fmt_inch(-0.25, 4, true), "-1/4");
+        assert_eq!(fmt_inch(0.1181, 4, true), "0.1181"); // 3 mm is no fraction of an inch
+        assert_eq!(fmt_inch(0.1875, 4, false), "0.1875");
+        for t in ["3/16", "1 3/16", "-1/4"] { assert_eq!(fmt_inch(parse_number(t).unwrap(), 4, true), t); }
+    }
+
+    #[test]
+    fn typed_units_are_converted() {
+        assert_eq!(parse_length("3 mm", 25.4).map(|x| (x * 1000.0).round()), Some(118.0));
+        assert_eq!(parse_length("1/8\"", 1.0), Some(3.175));
+        assert_eq!(parse_length("2.5cm", 1.0), Some(25.0));
+        assert_eq!(parse_length("0.5 in", 25.4), Some(0.5));
+        assert_eq!(parse_length("1 3/16 in", 25.4), Some(1.1875));
+        assert_eq!(parse_length("0.1 m", 1.0), Some(100.0));
+        assert_eq!(parse_length("12", 25.4), Some(12.0));
+        assert_eq!(parse_length("mm", 1.0), None);
+    }
+
+    #[test]
+    fn lengths_follow_the_display_units() {
+        assert_eq!(with_units(false, |ui| (len_unit(ui), fmt_len(ui, 12.5))), ("mm", "12.5 mm".to_string()));
+        assert_eq!(with_units(true, |ui| (len_unit(ui), fmt_len(ui, 25.4))), ("in", "1 in".to_string()));
+        assert_eq!(with_units(true, |ui| fmt_len(ui, 3.0)), "0.118 in");
+    }
+
+    #[test]
+    fn inch_rulers_step_in_round_inches() {
+        let k = 25.4;
+        // 1 mm = 4 px: labels need 70 px, so 0.5 in (50.8 mm = 203 px) is not needed, 0.2 in (20 px/mm... 5.08 mm = 20 px) is too close; 0.5 in is the first that fits
+        let (s, _) = crate::canvas::rulers_tick_step(4.0, k);
+        assert!((s * k * 4.0) >= 70.0 && s <= 1.0, "{s}");
+        assert_eq!(crate::canvas::rulers_tick_step(4.0, 1.0).0, 20.0);
+    }
 }

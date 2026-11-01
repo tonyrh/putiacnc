@@ -115,8 +115,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(6.0);
         let a = &mut app.array;
         let field = |ui: &mut egui::Ui, v: &mut f64, lo: f64, hi: f64, dec: usize, unit: &str| {
-            crate::widgets::num(ui, [70.0, 24.0], v, lo, hi, if dec == 0 { 0.1 } else { 0.25 }, dec, "");
-            ui.weak(unit);
+            if unit == "mm" { crate::widgets::len(ui, [70.0, 24.0], v, lo, hi, 0.25, dec, ""); ui.weak(crate::widgets::len_unit(ui)); }
+            else { crate::widgets::num(ui, [70.0, 24.0], v, lo, hi, if dec == 0 { 0.1 } else { 0.25 }, dec, ""); ui.weak(unit); }
         };
         // the same label columns in both modes, so the dialog does not change width when you switch
         let l1 = ["Columns", "Gap X", "Copies", "Centre X"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
