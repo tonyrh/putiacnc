@@ -23,7 +23,7 @@ fn an_outside_profile_of_a_big_ellipse_stays_one_radius_from_it_along_every_chor
         d.ops[0].p.pass_depth = Some(2.0);
         d.ops[0].p.tool = d.tools.iter().find(|t| (t.dia - 6.0).abs() < 0.01).expect("a 6 mm tool").id.clone();
         let o = generate(&d, Units::Metric).unwrap();
-        let poly: Vec<[f64; 2]> = d.loops[0].pts.chunks_exact(2).map(|c| [c[0] as f64 / 1000.0, c[1] as f64 / 1000.0]).collect();
+        let poly: Vec<[f64; 2]> = d.loops[0].pts.chunks(2).map(|c| [c[0] as f64 / 1000.0, c[1] as f64 / 1000.0]).collect();
         let mut worst = 0.0_f64;
         for m in o.moves.iter().filter(|m| m.cut && m.to[2] < -0.01 && m.from[2] < -0.01) {
             for k in 0..=10 {
