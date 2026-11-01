@@ -150,11 +150,17 @@ fn spacer(ui: &mut egui::Ui) { ui.allocate_exact_size(egui::vec2(GAP, 1.0), egui
 
 /// A large choice button with a title and a second line.
 fn card(ui: &mut egui::Ui, w: f32, on: bool, title: &str, sub: &str) -> bool {
-    let mut t = egui::text::LayoutJob::default();
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 48.0), egui::Sense::click());
+    let v = ui.visuals();
+    let (fill, stroke) = if on { (v.selection.bg_fill, v.selection.bg_fill) } else if resp.hovered() { (v.widgets.hovered.weak_bg_fill, v.widgets.hovered.bg_stroke.color) } else { (egui::Color32::TRANSPARENT, egui::Color32::TRANSPARENT) };
+    ui.painter().rect(rect, 4.0, fill, egui::Stroke::new(1.0_f32, stroke));
+    let (c1, c2) = if on { (v.selection.stroke.color, v.selection.stroke.color) } else { (v.text_color(), v.weak_text_color()) };
     let f = egui::TextStyle::Button.resolve(ui.style());
-    t.append(title, 0.0, egui::TextFormat { font_id: f.clone(), color: if on { ui.visuals().selection.stroke.color } else { ui.visuals().text_color() }, ..Default::default() });
-    t.append(&format!("\n{sub}"), 0.0, egui::TextFormat { font_id: egui::FontId::proportional(f.size - 2.0), color: if on { ui.visuals().selection.stroke.color } else { ui.visuals().weak_text_color() }, ..Default::default() });
-    ui.add_sized([w, 48.0], egui::SelectableLabel::new(on, t)).clicked()
+    // both lines centred on the card, whatever their lengths
+    let (y1, y2) = if sub.is_empty() { (rect.center().y, rect.center().y) } else { (rect.center().y - 9.0, rect.center().y + 9.0) };
+    ui.painter().text(egui::pos2(rect.center().x, y1), egui::Align2::CENTER_CENTER, title, f.clone(), c1);
+    ui.painter().text(egui::pos2(rect.center().x, y2), egui::Align2::CENTER_CENTER, sub, egui::FontId::proportional(f.size - 2.0), c2);
+    resp.clicked()
 }
 
 fn units_step(ui: &mut egui::Ui, w: &mut Wizard) {
