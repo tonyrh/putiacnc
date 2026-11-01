@@ -157,6 +157,10 @@ pub fn finger_outline(bx: [f64; 4], edges: [Edge; 4], f: Fingers) -> Option<Vec<
     let (w, h) = (bx[2] - bx[0], bx[3] - bx[1]);
     if !(w > 0.0 && h > 0.0 && f.width > 0.0 && f.depth > 0.0 && f.clearance >= 0.0) { return None; }
     let corners = [[bx[0], bx[1]], [bx[2], bx[1]], [bx[2], bx[3]], [bx[0], bx[3]]];
+    let elen = |e: usize| { let (p, q) = (corners[e], corners[(e + 1) % 4]); (q[0] - p[0]).hypot(q[1] - p[1]) };
+    // Two slots meet at a corner where both edges are Slots: the notches overlap in the corner square, so the outline goes round
+    // their union (an L) instead of crossing itself. Only when the fingers are wider than the depth, which keeps the L simple.
+    let merged = |e: usize| edges[e] == Edge::Slots && edges[(e + 1) % 4] == Edge::Slots && elen(e) / finger_count(elen(e), f.width) as f64 > f.depth && elen((e + 1) % 4) / finger_count(elen((e + 1) % 4), f.width) as f64 > f.depth;
     let mut out: Vec<[f64; 2]> = Vec::new();
     for e in 0..4 {
         let (p, q) = (corners[e], corners[(e + 1) % 4]);
@@ -165,18 +169,22 @@ pub fn finger_outline(bx: [f64; 4], edges: [Edge; 4], f: Fingers) -> Option<Vec<
         // outward is to the right of the direction of travel for a counter-clockwise outline
         let (nx, ny) = (uy, -ux);
         let at = |s: f64, o: f64| [p[0] + ux * s + nx * o, p[1] + uy * s + ny * o];
-        out.push(p);
+        if !merged((e + 3) % 4) { out.push(p); }
         if edges[e] == Edge::Flat { continue; }
         if f.depth * 2.0 >= (if e % 2 == 0 { h } else { w }) { return None; }
         let n = finger_count(len, f.width);
         let fw = len / n as f64;
+        let (merge_start, merge_end) = (merged((e + 3) % 4), merged(e));
         for k in (0..n).step_by(2) {
             let (a, b) = (fw * k as f64, fw * (k + 1) as f64);
             match edges[e] {
                 Edge::Tabs => { out.push(at(a, 0.0)); out.push(at(a, f.depth)); out.push(at(b, f.depth)); out.push(at(b, 0.0)); }
                 _ => {
                     let (a, b) = ((a - f.clearance / 2.0).max(0.0), (b + f.clearance / 2.0).min(len));
-                    out.push(at(a, 0.0)); out.push(at(a, -f.depth)); out.push(at(b, -f.depth)); out.push(at(b, 0.0));
+                    if k == 0 && merge_start { out.push(at(b, -f.depth)); out.push(at(b, 0.0)); continue; }
+                    out.push(at(a, 0.0)); out.push(at(a, -f.depth));
+                    if k + 1 == n && merge_end { out.push(at(len - f.depth, -f.depth)); continue; }
+                    out.push(at(b, -f.depth)); out.push(at(b, 0.0));
                 }
             }
         }
@@ -391,6 +399,45 @@ pub fn layout(panels: &[Panel], gap: f64, max_w: f64) -> Vec<[f64; 2]> {
 
 #[cfg(test)]
 mod tests {
+    fn poly_area(p: &[[f64; 2]]) -> f64 { (0..p.len()).map(|i| { let (a, b) = (p[i], p[(i + 1) % p.len()]); a[0] * b[1] - b[0] * a[1] }).sum::<f64>() / 2.0 }
+
+    fn crossings(p: &[[f64; 2]]) -> usize {
+        let o = |a: [f64; 2], b: [f64; 2], c: [f64; 2]| (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+        let n = p.len();
+        let mut bad = 0;
+        for i in 0..n { for j in i + 2..n {
+            if i == 0 && j == n - 1 { continue; }
+            let (a, b, c, d) = (p[i], p[(i + 1) % n], p[j], p[(j + 1) % n]);
+            if o(c, d, a) * o(c, d, b) < -1e-9 && o(a, b, c) * o(a, b, d) < -1e-9 { bad += 1; }
+        } }
+        bad
+    }
+
+    #[test]
+    fn slots_on_neighbouring_edges_do_not_cross_at_their_corner() {
+        let es = [Edge::Flat, Edge::Tabs, Edge::Slots];
+        for clearance in [0.0, 0.1] {
+            for a in 0..81usize {
+                let e = [es[a % 3], es[a / 3 % 3], es[a / 9 % 3], es[a / 27]];
+                let Some(p) = finger_outline([0.0, 0.0, 95.96, 79.87], e, Fingers { width: 10.0, depth: 3.0, clearance }) else { continue };
+                assert_eq!(crossings(&p), 0, "{e:?} clearance {clearance}");
+                assert!(poly_area(&p) > 0.0, "{e:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn slots_all_round_cut_the_union_of_the_notches() {
+        let f = Fingers { width: 10.0, depth: 3.0, clearance: 0.0 };
+        let p = finger_outline([0.0, 0.0, 100.0, 80.0], [Edge::Slots; 4], f).unwrap();
+        let notch = |len: f64| { let n = finger_count(len, 10.0); (n + 1) / 2 }; // slots on an edge of that length
+        let fw = |len: f64| len / finger_count(len, 10.0) as f64;
+        let slots = 2.0 * (notch(100.0) as f64 * fw(100.0) * 3.0) + 2.0 * (notch(80.0) as f64 * fw(80.0) * 3.0);
+        // each corner has a slot on both of its edges, and the two overlap in a 3 x 3 square
+        let expect = 100.0 * 80.0 - slots + 4.0 * 9.0;
+        assert!((poly_area(&p) - expect).abs() < 1e-6, "{} vs {}", poly_area(&p), expect);
+    }
+
     use super::*;
     use crate::shapes::{new_rect, bbox};
 
