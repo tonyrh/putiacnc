@@ -19,9 +19,9 @@ pub fn len_k(ui: &Ui) -> f64 { if inches(ui) { 25.4 } else { 1.0 } }
 /// given for mm; in inches the field gets two more decimals (a thousandth of an inch is 0.0254 mm).
 pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
     let k = len_k(ui);
-    if k == 1.0 { return num(ui, size, v, lo, hi, speed, dec, suffix); }
+    if k == 1.0 { return num_with(ui, size, v, lo, hi, speed, dec, suffix, Some(1.0)); }
     let mut x = *v / k;
-    let r = num(ui, size, &mut x, lo / k, hi / k, speed / k, dec + 2, suffix);
+    let r = num_with(ui, size, &mut x, lo / k, hi / k, speed / k, dec + 2, suffix, Some(k));
     if r.changed() { *v = (x * k).clamp(lo, hi); }
     r
 }
@@ -31,8 +31,29 @@ pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fm
 
 /// What a number field takes: a decimal (comma or point), a fraction (`1/8`, `3/16`) or a mixed number (`1 3/16`, `1-3/16`), with an
 /// optional minus sign. Spaces round it and a trailing inch mark (`"` or `in`) are ignored.
-pub fn parse_number(text: &str) -> Option<f64> {
-    let t = text.trim().trim_end_matches('"').trim_end_matches("in").trim().replace(',', ".");
+pub fn parse_number(text: &str) -> Option<f64> { parse_number_unit(text).map(|(x, _)| x) }
+
+/// [`parse_number`] for a length in a unit of `unit_mm` mm: a unit typed after the number (`mm`, `cm`, `m`, `in` or `"`) is converted.
+pub fn parse_length(text: &str, unit_mm: f64) -> Option<f64> {
+    let (x, u) = parse_number_unit(text)?;
+    Some(match u { Some(u) if (u - unit_mm).abs() > 1e-12 => x * u / unit_mm, _ => x })
+}
+
+/// The number and, when one is typed after it, the unit as mm per unit.
+fn parse_number_unit(text: &str) -> Option<(f64, Option<f64>)> {
+    let t = text.trim();
+    let low = t.to_lowercase();
+    let (body, unit) = if let Some(b) = low.strip_suffix("mm") { (b, Some(1.0)) }
+        else if let Some(b) = low.strip_suffix("cm") { (b, Some(10.0)) }
+        else if let Some(b) = low.strip_suffix("in") { (b, Some(25.4)) }
+        else if let Some(b) = low.strip_suffix('"') { (b, Some(25.4)) }
+        else if let Some(b) = low.strip_suffix('m') { (b, Some(1000.0)) }
+        else { (low.as_str(), None) };
+    parse_plain(body).map(|x| (x, unit))
+}
+
+fn parse_plain(text: &str) -> Option<f64> {
+    let t = text.trim().replace(',', ".");
     if let Ok(x) = t.parse::<f64>() { return Some(x); }
     let (neg, t) = match t.strip_prefix('-') { Some(r) => (true, r.trim()), None => (false, t.as_str()) };
     let frac = |s: &str| -> Option<f64> {
@@ -61,6 +82,13 @@ pub fn num_unit(ui: &mut Ui, v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usi
 /// A numeric field like egui's `DragValue` (drag to change, click to type) but with the text
 /// right-aligned. `speed` is the change per dragged pixel, `dec` the maximum decimals shown.
 pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
+    num_with(ui, size, v, lo, hi, speed, dec, suffix, None)
+}
+
+/// [`num`] for a length: `unit_mm` is the size of the shown unit in mm (1 or 25.4), so that typed text with a unit (`3 mm`, `1/8"`,
+/// `2.5cm`) is converted to it.
+#[allow(clippy::too_many_arguments)]
+pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str, unit_mm: Option<f64>) -> Response {
     let (rect, mut resp) = ui.allocate_exact_size(egui::vec2(size[0], size[1]), Sense::click_and_drag());
     let id = resp.id;
     let edit_id = id.with("edit");
@@ -82,7 +110,7 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
         let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
         if out.lost_focus() || esc {
             if !esc {
-                if let Some(x) = parse_number(&text) {
+                if let Some(x) = match unit_mm { Some(k) => parse_length(&text, k), None => parse_number(&text) } {
                     let nv = x.clamp(lo, hi);
                     if (nv - *v).abs() > f64::EPSILON { *v = nv; resp.mark_changed(); }
                 }
@@ -306,6 +334,19 @@ mod unit_tests {
         assert_eq!(p("1/0"), None);
         assert_eq!(p("a/b"), None);
         assert_eq!(p(""), None);
+    }
+
+    #[test]
+    #[test]
+    fn typed_units_are_converted() {
+        assert_eq!(parse_length("3 mm", 25.4).map(|x| (x * 1000.0).round()), Some(118.0));
+        assert_eq!(parse_length("1/8\"", 1.0), Some(3.175));
+        assert_eq!(parse_length("2.5cm", 1.0), Some(25.0));
+        assert_eq!(parse_length("0.5 in", 25.4), Some(0.5));
+        assert_eq!(parse_length("1 3/16 in", 25.4), Some(1.1875));
+        assert_eq!(parse_length("0.1 m", 1.0), Some(100.0));
+        assert_eq!(parse_length("12", 25.4), Some(12.0));
+        assert_eq!(parse_length("mm", 1.0), None);
     }
 
     #[test]
