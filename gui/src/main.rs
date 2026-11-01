@@ -7,6 +7,7 @@
 #![allow(clippy::needless_range_loop, clippy::too_many_arguments, clippy::type_complexity, clippy::field_reassign_with_default, clippy::explicit_counter_loop, clippy::manual_clamp, clippy::while_let_loop, clippy::neg_cmp_op_on_partial_ord)]
 mod about;
 mod setup;
+mod units;
 mod align;
 mod app;
 mod array;

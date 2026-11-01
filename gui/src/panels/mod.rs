@@ -181,7 +181,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         }
         (_, RightTab::Ops | RightTab::Info) => {}
         (None, _) if app.project.data.ops.is_empty() => { ui.weak("Add an operation to generate G-code."); }
-        (None, _) => { ui.label(app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into())); }
+        (None, _) => { ui.label(crate::widgets::localize(ui, &app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into()))); }
     }
     if let Some(t) = copy { ui.ctx().copy_text(t); }
     if export { app.export_gcode_dialog(); }
@@ -315,7 +315,7 @@ pub fn message_bar(ui: &mut Ui, app: &mut App) {
             }
         }
         let w = (ui.available_width() - 34.0).max(60.0);
-        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(&msg).color(col)).wrap(true)); });
+        ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, &msg)).color(col)).wrap(true)); });
         if icon_close(ui).clicked() { close = true; }
     });
     if close { app.error = None; }

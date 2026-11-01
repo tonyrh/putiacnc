@@ -102,7 +102,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                             if f.count > 1 { ui.weak(format!("({} moves)", f.count)); }
                         });
                         ui.add_space(2.0);
-                        ui.add(egui::Label::new(&f.msg).wrap(true));
+                        ui.add(egui::Label::new(crate::widgets::localize(ui, &f.msg)).wrap(true));
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 8.0;
@@ -129,6 +129,6 @@ pub fn warn_line(ui: &mut egui::Ui, col: Color32, text: &str) -> egui::Response 
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         warn_sign_col(ui, col);
-        ui.add(egui::Label::new(egui::RichText::new(text).color(col)).wrap(true))
+        ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, text)).color(col)).wrap(true))
     }).inner
 }

@@ -303,7 +303,6 @@ pub struct App {
     pub updater: crate::update::Updater,
     pub mach_sel: String,
     pub mach_msg: String,
-    pub mach_speed_idx: usize,
     /// The export window (how to split the program) and the split files being made after the file name was chosen.
     pub export_open: bool,
     pub export_split: putiacnc_core::split::Split,
@@ -325,7 +324,7 @@ impl App {
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
             disp_in: false, frac_in: false, grid_units_in: None, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
-            mach_speed_idx: 0, export_open: std::env::var_os("PUTIACNC_SHOW_EXPORT").is_some(), export_split: std::env::var("PUTIACNC_EXPORT_SPLIT").map(|v| putiacnc_core::split::Split::from_id(&v)).unwrap_or_default(), split_job: None, confirm_mach_del: false, machines_dirty: false,
+            export_open: std::env::var_os("PUTIACNC_SHOW_EXPORT").is_some(), export_split: std::env::var("PUTIACNC_EXPORT_SPLIT").map(|v| putiacnc_core::split::Split::from_id(&v)).unwrap_or_default(), split_job: None, confirm_mach_del: false, machines_dirty: false,
         };
         a.apply_prefs();
         a.project.data.tools.clear();

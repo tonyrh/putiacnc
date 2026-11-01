@@ -24,6 +24,9 @@ pub fn fmt_speed(ui: &Ui, mm_min: f64) -> String {
 pub fn set_fractions(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_fractions"), on)); }
 fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_fractions"))).unwrap_or(false) }
 
+/// A message written in mm, with its lengths in the shown unit (see `units::localize`).
+pub fn localize(ui: &Ui, text: &str) -> String { crate::units::localize(text, inches(ui), fractions(ui)) }
+
 /// An inch value as a fraction of an inch when it is one to 1/64 (`3/16`, `1 3/16`), otherwise as a decimal.
 pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String {
     if frac {

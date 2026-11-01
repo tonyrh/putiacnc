@@ -59,7 +59,6 @@ impl App {
             self.disp_in = i >= 3;
             *self.tool_speed_slot() = i;
         }
-        if let Some(v) = p.mach_speed_idx { self.mach_speed_idx = v; }
         if let Some(v) = &p.export_split { self.export_split = putiacnc_core::split::Split::from_id(v); }
         self.prefs_saved = p.clone();
         self.prefs = p;
@@ -88,7 +87,6 @@ impl App {
         s.fractions_in = Some(self.frac_in);
         s.tool_speed_idx = Some(self.tool_speed_mm);
         s.tool_speed_idx_in = Some(self.tool_speed_in);
-        s.mach_speed_idx = Some(self.mach_speed_idx);
         s.export_split = Some(self.export_split.id().to_string());
         if let Some(o) = self.trace.remember.clone() { s.trace = Some(o); }
         if let Some(o) = self.model3d.remember_obj { s.model_orient_obj = Some(o); }

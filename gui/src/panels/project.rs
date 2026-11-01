@@ -195,7 +195,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
             }
-            ui.weak(format!("The model is {:.1} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", rel.zmax * rel.scale));
+            ui.weak(crate::widgets::localize(ui, &format!("The model is {:.1} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", rel.zmax * rel.scale)));
             if fit {
                 let k = (sw / (rel.nx as f64 * rel.res)).min(sh / (rel.ny as f64 * rel.res));
                 if rel.scale > k { rel.scale = k; }
@@ -476,7 +476,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.weak("typed in");
                         } else {
                             match model_h {
-                                Some(h) if h > stock_t + 1e-6 => { ui.weak(format!("model is {:.1} mm: capped by stock", h)); }
+                                Some(h) if h > stock_t + 1e-6 => { ui.weak(crate::widgets::localize(ui, &format!("model is {:.1} mm: capped by stock", h))); }
                                 _ => { ui.weak("the model's height"); }
                             }
                         }
@@ -607,7 +607,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, "Pen down");
                             changed |= dv_r(ui, 48.0, &mut p.depth, 0.0, 20.0, "").tip("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press").changed();
-                            ui.weak("mm below Z0");
+                            ui.weak(format!("{} below Z0", crate::widgets::len_unit(ui)));
                         });
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
@@ -615,7 +615,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             rlabel(ui, lw3, "Pen up");
                             let mut v = p.lift.unwrap_or(2.0);
                             if dv_r(ui, 48.0, &mut v, 0.1, 50.0, "").tip("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it").changed() { p.lift = Some(v); changed = true; }
-                            ui.weak("mm above Z0");
+                            ui.weak(format!("{} above Z0", crate::widgets::len_unit(ui)));
                             if p.lift.is_some() && reset_button(ui, "Back to 2 mm") { p.lift = None; changed = true; }
                         });
                         ui.add_space(4.0);
