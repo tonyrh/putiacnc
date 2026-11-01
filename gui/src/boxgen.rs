@@ -59,6 +59,9 @@ impl App {
     }
 }
 
+/// Width of the label column of the grids, like the machine library.
+const LW: f32 = 135.0;
+
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.boxgen.open { app.ghost.clear_if("box"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "box") { app.tool_note = None; } return; }
     let spec = |a: &App| BoxSpec { w: a.boxgen.w, d: a.boxgen.d, h: a.boxgen.h, t: a.project.data.stock.t, finger: a.boxgen.finger, clearance: a.boxgen.clearance, lid: a.boxgen.lid, div_w: a.boxgen.div_w, div_d: a.boxgen.div_d };
@@ -72,49 +75,64 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Box").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Box", crate::csd::anchor(app))).show(ctx, |ui| {
-        ui.set_width(376.0);
+        ui.set_width(2.0 * (LW + 100.0) + 20.0 + 4.0 * 8.0);
         if crate::csd::dialog_header_help(ui, "Box", true, |ui| {
             ui.label("Adds the plates of a box with finger joints to the drawing, side by side, ready to cut. The sizes are the outside sizes.");
             ui.add_space(4.0);
             ui.label("The material thickness is the stock's. Fingers alternate from plate to plate; each corner belongs to one plate.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(format!("Material {thick} mm thick (the stock)."));
-        ui.add_space(6.0);
-        let lw = ["Width", "Depth", "Height", "Finger width", "Clearance", "Cutter"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
-        egui::Grid::new("box_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            for (name, v, lo, hi, dec) in [("Width", 0usize, 1.0, 2000.0, 1usize), ("Depth", 1, 1.0, 2000.0, 1), ("Height", 2, 1.0, 2000.0, 1), ("Finger width", 3, 0.5, 500.0, 2), ("Clearance", 4, 0.0, 2.0, 2)] {
-                crate::toolmgr::rlabel(ui, lw, name);
-                ui.horizontal(|ui| {
-                    let b = &mut app.boxgen;
-                    let r = match v { 0 => &mut b.w, 1 => &mut b.d, 2 => &mut b.h, 3 => &mut b.finger, _ => &mut b.clearance };
-                    crate::widgets::num(ui, [70.0, 24.0], r, lo, hi, if v < 3 { 1.0 } else { 0.05 }, dec, "");
-                    ui.weak("mm");
-                });
-                ui.end_row();
-            }
-            if app.boxgen.dogbone {
-                let (od, tools) = (app.inherited_cutter_dia(), app.cutter_choices());
-                let c = &mut app.boxgen;
-                crate::corners::cutter_row(ui, lw, &mut c.dia, &mut c.auto, od, &tools);
-            }
+        ui.weak(format!("Material {thick} mm thick (the stock). Sizes are outside sizes."));
+        let (lw, fw, gap, sp) = (LW, 100.0_f32, 20.0_f32, 8.0_f32);
+        let spacer = |ui: &mut egui::Ui| { ui.allocate_exact_size(egui::vec2(gap, 1.0), egui::Sense::hover()); };
+        let num = |ui: &mut egui::Ui, v: &mut f64, lo: f64, hi: f64, step: f64, dec: usize, tip: &str| { crate::widgets::num(ui, [fw, 22.0], v, lo, hi, step, dec, "").tip(tip); };
+        crate::setup::section(ui, "Size");
+        egui::Grid::new("box_size").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+            let b = &mut app.boxgen;
+            crate::toolmgr::rlabel(ui, lw, "Width (mm)"); num(ui, &mut b.w, 1.0, 2000.0, 1.0, 1, "Outside size, left to right");
+            spacer(ui);
+            crate::toolmgr::rlabel(ui, lw, "Depth (mm)"); num(ui, &mut b.d, 1.0, 2000.0, 1.0, 1, "Outside size, front to back");
+            ui.end_row();
+            crate::toolmgr::rlabel(ui, lw, "Height (mm)"); num(ui, &mut b.h, 1.0, 2000.0, 1.0, 1, "Outside size, bottom to top");
+            ui.end_row();
         });
-        ui.add_space(4.0);
-        crate::widgets::check(ui, &mut app.boxgen.lid, "Lid (a top plate)").tip("Without it the box is open at the top");
-        ui.horizontal(|ui| {
-            for (label, tip, v) in [("Dividers across the width", "Plates parallel to the left and right plates, splitting the width", 0), ("across the depth", "Plates parallel to the front and back plates, splitting the depth; where they cross the others each is slotted halfway", 1)] {
-                ui.label(label);
-                let cur = if v == 0 { &mut app.boxgen.div_w } else { &mut app.boxgen.div_d };
+        crate::setup::section(ui, "Joints");
+        egui::Grid::new("box_joints").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+            let b = &mut app.boxgen;
+            crate::toolmgr::rlabel(ui, lw, "Finger width (mm)"); num(ui, &mut b.finger, 0.5, 500.0, 0.05, 2, "Width of each finger; the count is rounded to fit the edge");
+            spacer(ui);
+            crate::toolmgr::rlabel(ui, lw, "Clearance (mm)"); num(ui, &mut b.clearance, 0.0, 2.0, 0.05, 2, "Room added to each slot so the plates go together; 0 is a press fit");
+            ui.end_row();
+        });
+        crate::setup::section(ui, "Parts");
+        egui::Grid::new("box_parts").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
+            for (i, (label, tip)) in [("Width dividers", "How many plates parallel to the left and right plates, splitting the width"), ("Depth dividers", "How many plates parallel to the front and back plates, splitting the depth; where they cross the others each is slotted halfway")].into_iter().enumerate() {
+                crate::toolmgr::rlabel(ui, lw, label);
+                let cur = if i == 0 { &mut app.boxgen.div_w } else { &mut app.boxgen.div_d };
                 let mut n = *cur as f64;
-                if crate::widgets::num(ui, [44.0, 24.0], &mut n, 0.0, 10.0, 0.2, 0, "").tip(tip).changed() { *cur = n.round().max(0.0) as usize; }
+                crate::widgets::num(ui, [fw, 22.0], &mut n, 0.0, 10.0, 0.2, 0, "").tip(tip);
+                *cur = n.round().max(0.0) as usize;
+                if i == 0 { spacer(ui); }
             }
+            ui.end_row();
         });
+        ui.add_space(8.0);
+        crate::widgets::check(ui, &mut app.boxgen.lid, "Lid (a top plate)").tip("Without it the box is open at the top");
         ui.add_space(2.0);
         crate::widgets::check(ui, &mut app.boxgen.dogbone, "Dogbones in the slots").tip("A small round relief in each inside corner so a round cutter leaves room for the square corners");
         if app.boxgen.dogbone {
-            let (c, _) = crate::zoomcard::seg2(ui, ["Dogbone", "T-bone"], ["A relief along the diagonal into both walls", "A relief straight into the longer wall only: a cleaner look on the short wall"], app.boxgen.tbone as usize);
-            if let Some(i) = c { app.boxgen.tbone = i == 1; }
+            ui.add_space(4.0);
+            egui::Grid::new("box_dog").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
+                crate::toolmgr::rlabel(ui, lw, "Relief");
+                let (c, _) = crate::zoomcard::seg2(ui, ["Dogbone", "T-bone"], ["A relief along the diagonal into both walls", "A relief straight into the longer wall only: a cleaner look on the short wall"], app.boxgen.tbone as usize);
+                if let Some(i) = c { app.boxgen.tbone = i == 1; }
+                ui.end_row();
+                let (od, tools) = (app.inherited_cutter_dia(), app.cutter_choices());
+                let c = &mut app.boxgen;
+                crate::corners::cutter_row(ui, lw, &mut c.dia, &mut c.auto, od, &tools);
+            });
         }
+        ui.add_space(2.0);
         crate::widgets::check(ui, &mut app.boxgen.cut, "Create the outside cut").tip("Adds an operation that cuts round the outside of every plate, right through the material. Choose its tool and tabs in the project panel.");
         if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref().filter(|(k, _)| *k == "box").map(|(_, m)| m)) { ui.weak(n); }
         ui.add_space(8.0);

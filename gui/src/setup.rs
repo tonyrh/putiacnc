@@ -115,7 +115,7 @@ const GAP: f32 = 20.0;
 fn key(ui: &mut egui::Ui, t: &str) { crate::toolmgr::rlabel(ui, LABEL_W, t); }
 
 /// A section title with a hairline under it.
-fn section(ui: &mut egui::Ui, t: &str) {
+pub(crate) fn section(ui: &mut egui::Ui, t: &str) {
     ui.add_space(10.0);
     ui.label(egui::RichText::new(t).strong());
     ui.add_space(2.0);
