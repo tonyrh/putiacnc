@@ -117,7 +117,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 ui.close_menu();
             }
             if ui.button("Quick tour").on_hover_text("A two-minute look at where things are").clicked() { app.tour.start(); ui.close_menu(); }
-            if ui.button("Try a sample").on_hover_text("Opens a small name plate made to fit your machine and tools. It is set to air cut, so nothing is cut").clicked() { app.request(Action::Sample); ui.close_menu(); }
+            if ui.button("Try a sample").on_hover_text("Opens a small name plate made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample); ui.close_menu(); }
             if ui.button("Setup assistant…").on_hover_text("Set up a machine and a starter set of tools; nothing you have is deleted").clicked() { app.setup.start(false); ui.close_menu(); }
             ui.separator();
             if ui.button("About PutiaCNC…").clicked() { app.about_open = true; ui.close_menu(); }

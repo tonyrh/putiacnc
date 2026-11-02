@@ -1,5 +1,5 @@
 //! The sample project ("Try a sample"): a small name plate made to fit the user's own machine, tools and units.
-//! Everything in it runs as an air cut, so the first run on the machine cannot touch the material.
+//! The Notes tab explains it and how to try it as an air cut first.
 use crate::linetext::line_text_loops;
 use crate::model::{Operation, ProjectData, Tool};
 use crate::shapes;
@@ -35,11 +35,30 @@ pub fn fill(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     let (x0, y0) = ((d.stock.w - w) / 2.0, (d.stock.h - h) / 2.0);
     let r = (h * 0.2).min(10.0);
     let inset = (h * 0.15).max(flat.dia * 1.5);
+    let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
+    d.notes = format!("SAMPLE NAME PLATE
+This project was made for your machine and tools: a plate of {pw} x {ph} on a piece of stock {sw} x {sh} x {st}.
+
+Operations
+1. Profile (outside): cuts the plate out, all the way through, leaving 4 small holding tabs so it stays in place.
+2. Pocket: a shallow recess in the plate.
+3. Online: engraves \"PutiaCNC\" along the lines of the letters.
+
+Look around
+- The 2D + 3D view shows the stock being cut as the preview plays; use the Play button at the bottom.
+- Click an operation to see its shapes; change the depth, the pass depth or the tool and watch the toolpath follow.
+- Edit the text with the Text tool (the T in the toolbar).
+
+Before cutting for real
+- Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
+- Tick \"Air cut (run without cutting)\" in each operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
+        pw = u(w), ph = u(h), sw = u(d.stock.w), sh = u(d.stock.h), st = u(d.stock.t));
     // the operations: cut-out with tabs, a shallow recess, the lettering
     d.ops.clear(); d.loops.clear(); d.groups.clear();
     let op = |d: &mut ProjectData, id: i64, kind: &str, depth: f64, tool: &Tool, tabs: bool| {
         let mut p = shapes::default_op_params(&tool.id);
-        p.kind = kind.into(); p.depth = depth; p.tabs = tabs; p.air = true;
+        p.kind = kind.into(); p.depth = depth; p.tabs = tabs;
         if kind != "online" { p.pass_depth = Some(d.stock.t / 6.0); } // a short first run
         d.ops.push(Operation { id, p });
         d.oid = id; d.act = id;
@@ -77,7 +96,7 @@ mod tests {
         f.data
     }
 
-    /// The sample fits whatever the machine, stays inside the Z travel, runs as an air cut and makes G-code.
+    /// The sample fits whatever the machine, stays inside the Z travel, has notes and makes G-code.
     #[test]
     fn fits_every_machine() {
         for (x, y, z, inch) in [(180.0, 100.0, 45.0, false), (300.0, 200.0, 60.0, false), (800.0, 1200.0, 150.0, false), (300.0, 200.0, 60.0, true), (400.0, 400.0, 80.0, true)] {
@@ -86,14 +105,11 @@ mod tests {
             assert!(d.stock.w <= x && d.stock.h <= y && d.stock.t <= z * 0.4 + 1e-9, "{x}x{y}x{z}: stock {}x{}x{}", d.stock.w, d.stock.h, d.stock.t);
             let b = shapes::bbox_many(d.loops.iter()).unwrap();
             assert!(b[0] >= 0.0 && b[1] >= 0.0 && b[2] <= d.stock.w && b[3] <= d.stock.h, "{x}x{y}: the shapes leave the stock {b:?}");
-            assert!(d.ops.len() == 3 && d.ops.iter().all(|o| o.p.air), "all operations are air cuts");
+            assert!(d.ops.len() == 3 && d.ops.iter().all(|o| !o.p.air), "a normal cutting project");
+            assert!(d.notes.contains("Air cut") && d.notes.contains(if inch { "in" } else { "mm" }));
             assert!(d.ops.iter().all(|o| o.p.depth <= d.stock.t + 1e-9));
             let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}x{z}: {e}"));
             assert!(o.lines.len() > 50);
-            // an air cut never touches the stock, however deep the operation: no Z move goes below 2 mm above the top
-            let f = if inch { 25.4 } else { 1.0 };
-            let lowest = o.lines.iter().filter(|l| l.starts_with("G")).flat_map(|l| l.split_whitespace().filter_map(|w| w.strip_prefix('Z').and_then(|v| v.parse::<f64>().ok()))).fold(f64::MAX, f64::min) * f;
-            assert!(lowest >= 1.99, "{x}x{y}x{z}: the air cut goes down to Z {lowest}");
             if inch { // round inch sizes
                 let q = d.stock.w / 6.35; assert!((q - q.round()).abs() < 1e-6, "stock width {} is not a whole quarter inch", d.stock.w);
             }

@@ -10,7 +10,7 @@ impl App {
         self.modified = false;
     }
 
-    /// "Try a sample": a new project holding a small name plate made to fit the machine and tools in use, as an air cut.
+    /// "Try a sample": a new project holding a small name plate made to fit the machine and tools in use.
     pub fn load_sample(&mut self) {
         self.new_project();
         let inches = self.disp_in;
@@ -18,9 +18,8 @@ impl App {
             Ok(()) => {
                 self.project.name = "Sample name plate".into();
                 self.view_tab = crate::view3d::ViewTab::Split;
-                self.tab = RightTab::Ops;
+                self.tab = RightTab::Info; // the Notes explain the sample
                 self.sel.clear();
-                self.show_toolpath = true; // the air moves are the point of the picture
                 self.gen_pending = true;
                 self.fit_pending = true;
                 self.modified = true;
