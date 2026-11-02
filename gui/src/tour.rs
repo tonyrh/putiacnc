@@ -83,7 +83,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     });
     let (mut next, mut back, mut close) = (false, false, false);
     let size_hint = ctx.memory(|m| m.area_rect(card_id())).map_or(Vec2::new(CARD_W, 200.0), |r| r.size());
-    egui::Area::new(card_id()).order(egui::Order::Tooltip).fixed_pos(place(screen, target, size_hint)).show(ctx, |ui| {
+    egui::Area::new(card_id()).order(egui::Order::Foreground).fixed_pos(place(screen, target, size_hint)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(16.0).rounding(12.0).show(ui, |ui| {
             ui.set_width(CARD_W);
             ui.label(egui::RichText::new(format!("{} of {}", step + 1, STEPS.len())).small().weak());
@@ -103,6 +103,8 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             });
         });
     });
+    // the card must stay above the dimming layer, which comes to the front whenever it is clicked
+    ctx.move_to_top(egui::LayerId::new(egui::Order::Foreground, card_id()));
     let keys = ctx.input(|i| (i.key_pressed(egui::Key::Escape), i.key_pressed(egui::Key::ArrowRight) || i.key_pressed(egui::Key::Enter), i.key_pressed(egui::Key::ArrowLeft)));
     if keys.0 { close = true; }
     if keys.1 { next = true; }
@@ -144,5 +146,31 @@ mod tests {
             }
         }
         assert!(problems.is_empty(), "{}", problems.join("\n"));
+    }
+
+    /// The card's buttons can really be clicked (the dimming layer must not swallow the clicks).
+    #[test]
+    fn card_buttons_can_be_clicked() {
+        let scr = Rect::from_min_size(Pos2::ZERO, egui::vec2(1400.0, 860.0));
+        let mut a = crate::audit::project_for_tests();
+        a.tour.start();
+        let ctx = egui::Context::default();
+        let mut t = 0.0;
+        let mut frame = |a: &mut App, events: Vec<egui::Event>| {
+            t += 0.1;
+            let input = egui::RawInput { screen_rect: Some(scr), time: Some(t), events, ..Default::default() };
+            let _ = ctx.run(input, |ctx| a.ui_frame(ctx));
+        };
+        for _ in 0..6 { frame(&mut a, vec![]); }
+        for want in 1..3 {
+            let card = ctx.memory(|m| m.area_rect(card_id())).expect("card");
+            let pos = Pos2::new(card.max.x - 50.0, card.max.y - 30.0); // the Next button
+            let click = |pressed| egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+            frame(&mut a, vec![egui::Event::PointerMoved(pos)]);
+            frame(&mut a, vec![click(true)]);
+            frame(&mut a, vec![click(false)]);
+            for _ in 0..4 { frame(&mut a, vec![]); }
+            assert_eq!(a.tour.step, want, "clicking Next did not advance the tour");
+        }
     }
 }
