@@ -92,7 +92,7 @@ fn audit(label: &str, a: &mut App, screen: egui::Vec2) -> Vec<String> {
         // the texts of this window: those clipped to something inside it
         // (the shapes come in paint order: those of the dialog follow its title)
         let from = all.iter().position(|t| t.text == n.title && area.expand(2.0).contains_rect(t.clip)).unwrap_or(all.len());
-        let mine: Vec<&T> = all[from..].iter().filter(|t| !over(t) && area.expand(2.0).contains_rect(t.clip) && t.clip.width() > 1.0 && t.rect.intersects(area)).collect();
+        let mine: Vec<&T> = all[from..].iter().filter(|t| !over(t) && area.expand(2.0).contains_rect(t.clip) && t.clip.width() > 1.0 && t.clip.height() > 0.5 && t.rect.intersects(t.clip) && t.rect.intersects(area)).collect();
         for t in &mine {
             if t.text.trim().is_empty() { continue; }
             if t.rect.max.x > t.clip.max.x + 0.75 || t.rect.min.x < t.clip.min.x - 0.75 { bad.push(at(format!("\"{}\" is cut off ({:.0}..{:.0} in {:.0}..{:.0})", t.text, t.rect.min.x, t.rect.max.x, t.clip.min.x, t.clip.max.x))); }
@@ -121,7 +121,7 @@ fn audit(label: &str, a: &mut App, screen: egui::Vec2) -> Vec<String> {
         for (i, p) in mine.iter().enumerate() {
             for q in &mine[i + 1..] {
                 if p.text.trim().is_empty() || q.text.trim().is_empty() { continue; }
-                let o = p.rect.intersect(q.rect);
+                let o = p.rect.intersect(p.clip).intersect(q.rect.intersect(q.clip)); // only what is visible
                 if o.is_positive() && o.width() > 2.0 && o.height() > 4.0 && p.rect.center() != q.rect.center() {
                     bad.push(at(format!("\"{}\" and \"{}\" overlap", p.text, q.text)));
                 }
@@ -170,6 +170,7 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
         ("updates", |a| a.updater.open = true),
         ("setup 1", |a| { a.setup.open = true; a.setup.step = 0; }),
         ("setup 2", |a| { a.setup.open = true; a.setup.step = 1; }),
+        ("setup 2 machine picked", |a| { a.setup.open = true; a.setup.step = 1; a.setup.pick_machine(0); }),
         ("setup 3", |a| { a.setup.open = true; a.setup.step = 2; }),
         ("setup 4", |a| { a.setup.open = true; a.setup.step = 3; }),
     ]
