@@ -1,7 +1,7 @@
 //! The sample project ("Try a sample"): a small name plate made to fit the user's own machine, tools and units.
 //! The Notes tab explains it and how to try it as an air cut first.
 use crate::linetext::line_text_loops;
-use crate::model::{Operation, ProjectData, Tool};
+use crate::model::{Operation, ProjectData, ShapeGroup, TextSpec, Tool};
 use crate::shapes;
 use crate::text::{Align, TextStyle};
 
@@ -47,7 +47,7 @@ Operations
 Look around
 - The 2D + 3D view shows the stock being cut as the preview plays; use the Play button at the bottom.
 - Click an operation to see its shapes; change the depth, the pass depth or the tool and watch the toolpath follow.
-- Edit the text with the Text tool (the T in the toolbar).
+- Change the lettering: press "Edit text" in the Text card of the left panel.
 
 Before cutting for real
 - Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
@@ -75,8 +75,16 @@ Before cutting for real
     if let Some(b) = shapes::bbox_many(probe.iter()) {
         let k = ((px1 - px0) * 0.8 / (b[2] - b[0]).max(1e-6)).min((py1 - py0) * 0.5 / (b[3] - b[1]).max(1e-6));
         let size = 10.0 * k;
+        // a text group, like the Text tool makes: the letters set at the origin, then moved into place, so "Edit text" works on them
+        let style = TextStyle::plain(size, size * 0.08, Align::Center);
+        let mut letters = line_text_loops("futural", text, style, [0.0, 0.0], 3)?;
         let (cx, cy) = (x0 + w / 2.0, y0 + h / 2.0 - size / 2.0);
-        d.loops.extend(line_text_loops("futural", text, TextStyle::plain(size, size * 0.08, Align::Center), [cx, cy], 3)?);
+        let gid = d.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
+        for l in &mut letters { shapes::translate(l, cx, cy); l.grp = Some(gid); }
+        let font = crate::linetext::fonts().into_iter().find(|f| f.0 == "futural").map(|f| f.1.to_string()).unwrap_or_default();
+        let spec = TextSpec { content: text.into(), font, size, spacing: style.spacing_mm, word_spacing: 0.0, kerning: false, align: Align::Center, flow: style.flow, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0] };
+        d.groups.push(ShapeGroup { id: gid, name: format!("Text: {text}"), locked: false, text: Some(spec) });
+        d.loops.extend(letters);
     }
     Ok(())
 }
@@ -106,6 +114,13 @@ mod tests {
             let b = shapes::bbox_many(d.loops.iter()).unwrap();
             assert!(b[0] >= 0.0 && b[1] >= 0.0 && b[2] <= d.stock.w && b[3] <= d.stock.h, "{x}x{y}: the shapes leave the stock {b:?}");
             assert!(d.ops.len() == 3 && d.ops.iter().all(|o| !o.p.air), "a normal cutting project");
+            // the lettering is one text group that the Text tool can edit again
+            let g = d.groups.iter().find(|g| g.text.is_some()).expect("a text group");
+            let letters: Vec<&crate::model::LoopData> = d.loops.iter().filter(|l| l.grp == Some(g.id)).collect();
+            assert!(letters.len() >= 8 && letters.iter().all(|l| l.op == 3));
+            let src = line_text_loops("futural", &g.text.as_ref().unwrap().content, TextStyle::plain(g.text.as_ref().unwrap().size, g.text.as_ref().unwrap().spacing, Align::Center), [0.0, 0.0], 3).unwrap();
+            let fit = crate::text::fit_affine(&src, &letters);
+            assert!(fit.is_some_and(|(_, e)| e < 1e-6), "the letters no longer match the text settings");
             assert!(d.notes.contains("Air cut") && d.notes.contains(if inch { "in" } else { "mm" }));
             assert!(d.ops.iter().all(|o| o.p.depth <= d.stock.t + 1e-9));
             let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}x{z}: {e}"));
