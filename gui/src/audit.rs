@@ -80,6 +80,8 @@ fn audit(label: &str, a: &mut App, screen: egui::Vec2) -> Vec<String> {
     let scr = Rect::from_min_size(Pos2::ZERO, screen);
     let all = texts(&out.shapes);
     for n in &notes {
+        // a text another window is over (the ready-made library over the tool library) is not this window's
+        let over = |t: &T| ctx.layer_id_at(t.rect.center()).is_some_and(|l| l.id != n.layer);
         let at = |s: String| format!("{label} / {}: {s}", n.title);
         let Some(area) = ctx.memory(|m| m.area_rect(n.layer)) else { bad.push(at("no window".into())); continue };
         // the close button sits at the right end of the window's header, the header spans the window
@@ -90,7 +92,7 @@ fn audit(label: &str, a: &mut App, screen: egui::Vec2) -> Vec<String> {
         // the texts of this window: those clipped to something inside it
         // (the shapes come in paint order: those of the dialog follow its title)
         let from = all.iter().position(|t| t.text == n.title && area.expand(2.0).contains_rect(t.clip)).unwrap_or(all.len());
-        let mine: Vec<&T> = all[from..].iter().filter(|t| area.expand(2.0).contains_rect(t.clip) && t.clip.width() > 1.0 && t.rect.intersects(area)).collect();
+        let mine: Vec<&T> = all[from..].iter().filter(|t| !over(t) && area.expand(2.0).contains_rect(t.clip) && t.clip.width() > 1.0 && t.rect.intersects(area)).collect();
         for t in &mine {
             if t.text.trim().is_empty() { continue; }
             if t.rect.max.x > t.clip.max.x + 0.75 || t.rect.min.x < t.clip.min.x - 0.75 { bad.push(at(format!("\"{}\" is cut off ({:.0}..{:.0} in {:.0}..{:.0})", t.text, t.rect.min.x, t.rect.max.x, t.clip.min.x, t.clip.max.x))); }
@@ -154,6 +156,18 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
         ("tool library", |a| a.tools_open = true),
         ("text", |a| { a.mode = crate::app::Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = "Hello".into(); }),
         ("warnings", |a| a.checks_open = true),
+        ("import bitmap", |a| a.import_bitmap(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data/sketch.png"))),
+        ("import 3d model", |a| {
+            // a pyramid, as an ASCII STL
+            let p = std::env::temp_dir().join("putiacnc_audit_pyramid.stl");
+            let tri = |a: [f32; 3], b: [f32; 3], c: [f32; 3]| format!("facet normal 0 0 1\nouter loop\nvertex {} {} {}\nvertex {} {} {}\nvertex {} {} {}\nendloop\nendfacet\n", a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+            let (p0, p1, p2, p3, top) = ([0.0, 0.0, 0.0], [40.0, 0.0, 0.0], [40.0, 40.0, 0.0], [0.0, 40.0, 0.0], [20.0, 20.0, 20.0]);
+            let s = format!("solid p\n{}{}{}{}{}{}endsolid p\n", tri(p0, p1, top), tri(p1, p2, top), tri(p2, p3, top), tri(p3, p0, top), tri(p0, p2, p1), tri(p0, p3, p2));
+            std::fs::write(&p, s).unwrap();
+            a.import_model(p.to_str().unwrap());
+        }),
+        ("ready-made library", |a| { a.tools_open = true; a.ready_open = true; }),
+        ("updates", |a| a.updater.open = true),
         ("setup 1", |a| { a.setup.open = true; a.setup.step = 0; }),
         ("setup 2", |a| { a.setup.open = true; a.setup.step = 1; }),
         ("setup 3", |a| { a.setup.open = true; a.setup.step = 2; }),
