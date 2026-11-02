@@ -47,7 +47,7 @@ Operations
 Look around
 - The 2D + 3D view shows the stock being cut as the preview plays; use the Play button at the bottom.
 - Click an operation to see its shapes; change the depth, the pass depth or the tool and watch the toolpath follow.
-- Change the lettering: press "Edit text" in the Text card of the left panel.
+- Change the lettering: press \"Edit text\" in the Text card of the left panel.
 
 Before cutting for real
 - Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
