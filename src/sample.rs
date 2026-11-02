@@ -42,7 +42,7 @@ This project was made for your machine and tools: a plate of {pw} x {ph} on a pi
 Operations
 1. Profile (outside): cuts the plate out, all the way through, leaving 4 small holding tabs so it stays in place.
 2. Pocket: a shallow recess in the plate.
-3. Online: engraves \"PutiaCNC\" along the lines of the letters.
+3. Online: engraves \"PutiaCNC\" into the floor of the recess, along the lines of the letters.
 
 Look around
 - The 2D + 3D view shows the stock being cut as the preview plays; use the Play button at the bottom.
@@ -64,8 +64,10 @@ Before cutting for real
         d.oid = id; d.act = id;
     };
     op(d, 1, "outside", d.stock.t, &flat, true);
-    op(d, 2, "pocket", (d.stock.t * 0.2).min(2.0).max(0.5), &flat, false);
-    op(d, 3, "online", 0.6_f64.min(d.stock.t * 0.2), &engr, false);
+    let recess = (d.stock.t * 0.2).clamp(0.5, 2.0);
+    op(d, 2, "pocket", recess, &flat, false);
+    // the lettering sits on the floor of the recess, so its depth is measured from the top of the stock: the recess plus 1 mm
+    op(d, 3, "online", (recess + 1.0).min(d.stock.t), &engr, false);
     d.loops.push(shapes::new_rect([x0, y0], [x0 + w, y0 + h], r, 1));
     let (px0, py0, px1, py1) = (x0 + inset, y0 + inset, x0 + w - inset, y0 + h - inset);
     if px1 - px0 > flat.dia * 2.0 && py1 - py0 > flat.dia * 2.0 { d.loops.push(shapes::new_rect([px0, py0], [px1, py1], 0.0, 2)); }
@@ -123,10 +125,36 @@ mod tests {
             assert!(fit.is_some_and(|(_, e)| e < 1e-6), "the letters no longer match the text settings");
             assert!(d.notes.contains("Air cut") && d.notes.contains(if inch { "in" } else { "mm" }));
             assert!(d.ops.iter().all(|o| o.p.depth <= d.stock.t + 1e-9));
+            assert!(d.ops[2].p.depth > d.ops[1].p.depth, "the lettering must go below the floor of the recess");
             let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}x{z}: {e}"));
             assert!(o.lines.len() > 50);
             if inch { // round inch sizes
                 let q = d.stock.w / 6.35; assert!((q - q.round()).abs() < 1e-6, "stock width {} is not a whole quarter inch", d.stock.w);
+            }
+        }
+    }
+
+    /// Ticking "Air cut" (on all operations, or on any one of them) never lets the tool touch the stock: no cutting move goes below 2 mm
+    /// above the top, whatever the depths (the lettering is deeper than the recess it sits in), and the program still has all its moves.
+    #[test]
+    fn air_cut_never_touches_the_stock() {
+        for inch in [false, true] {
+            let mut base = project(300.0, 200.0, 60.0, inch);
+            fill(&mut base, inch).unwrap();
+            let units = if inch { Units::Imperial } else { Units::Metric };
+            let f = if inch { 25.4 } else { 1.0 };
+            let normal = generate(&base, units).unwrap();
+            for mask in 1u8..8 {
+                let mut d = base.clone();
+                for (k, o) in d.ops.iter_mut().enumerate() { o.p.air = mask & (1 << k) != 0; }
+                let o = generate(&d, units).unwrap_or_else(|e| panic!("air mask {mask}: {e}"));
+                assert!(o.lines.iter().any(|l| l.starts_with("G1")));
+                // the cutting moves of the air operations stay above the stock; the others still cut
+                let zs = |lines: &[String]| lines.iter().filter(|l| l.starts_with("G1") || l.starts_with("G2") || l.starts_with("G3")).flat_map(|l| l.split_whitespace().filter_map(|w| w.strip_prefix('Z').and_then(|v| v.parse::<f64>().ok()))).map(|z| z * f).collect::<Vec<_>>();
+                let low = zs(&o.lines).into_iter().fold(f64::MAX, f64::min);
+                if mask == 7 { assert!(low >= 1.99, "all air: the tool goes down to Z {low}"); }
+                assert!(low >= -d.stock.t - 1e-6, "mask {mask}: below the bottom of the stock ({low})");
+                assert!(o.lines.len() >= normal.lines.len() - 5, "mask {mask}: the program lost moves");
             }
         }
     }

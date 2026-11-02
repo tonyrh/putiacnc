@@ -121,7 +121,12 @@ fn main() -> eframe::Result<()> {
         // PUTIACNC_SHOW_TOUR=n: the quick tour at step n
         if let Ok(v) = std::env::var("PUTIACNC_SHOW_TOUR") { app.tour.start(); app.tour.step = v.parse().unwrap_or(0); }
         // PUTIACNC_SHOW_SAMPLE: the sample project
-        if std::env::var_os("PUTIACNC_SHOW_SAMPLE").is_some() { app.load_sample(); }
+        if std::env::var_os("PUTIACNC_SHOW_SAMPLE").is_some() {
+            app.load_sample();
+            if std::env::var("PUTIACNC_VIEW").as_deref() == Ok("3d") { app.view_tab = view3d::ViewTab::Preview; }
+            if std::env::var_os("PUTIACNC_AIR").is_some() { for o in &mut app.project.data.ops { o.p.air = true; } }
+            if std::env::var_os("PUTIACNC_NO_PATHS").is_some() { app.show_toolpath = false; }
+        }
         theme::apply_fonts(&cc.egui_ctx);
         theme::apply_style(&cc.egui_ctx, &app.theme);
         Box::new(app)
