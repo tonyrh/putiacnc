@@ -35,6 +35,8 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Unsaved changes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
             ui.set_width(420.0);
+            #[cfg(test)]
+            crate::audit::note(ui.ctx(), crate::audit::HeaderNote { title: "Save changes?".into(), layer: ui.layer_id().id, header: egui::Rect::NOTHING, close: egui::Rect::NOTHING, has_header: false });
             ui.add_space(10.0);
             ui.horizontal_top(|ui| {
                 ui.add_space(6.0);

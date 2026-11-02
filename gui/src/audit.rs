@@ -3,11 +3,14 @@
 //! text that runs out of its window or is cut by it, and texts drawn over each other.
 use crate::app::App;
 use eframe::egui::{self, Pos2, Rect};
+use crate::update::{Release, Status};
 use putiacnc_core::shapes;
 
 /// What a dialog's header says about itself (written by `csd::dialog_header` in test builds).
 #[derive(Clone, Debug)]
-pub struct HeaderNote { pub title: String, pub layer: egui::Id, pub header: Rect, pub close: Rect }
+pub struct HeaderNote { pub title: String, pub layer: egui::Id, pub header: Rect, pub close: Rect,
+    /// False for a prompt that has no header or close button (the unsaved-changes question): only the other checks apply.
+    pub has_header: bool }
 
 pub fn note(ctx: &egui::Context, n: HeaderNote) {
     let id = egui::Id::new("audit_headers");
@@ -88,9 +91,9 @@ fn audit(label: &str, a: &mut App, screen: egui::Vec2) -> Vec<String> {
         let at = |s: String| format!("{label} / {}: {s}", n.title);
         let Some(area) = ctx.memory(|m| m.area_rect(n.layer)) else { bad.push(at("no window".into())); continue };
         // the close button sits at the right end of the window's header, the header spans the window
-        if (n.header.max.x - (area.max.x - 13.0)).abs() > 1.5 { bad.push(at(format!("the header ends at {:.0} but the window's inside ends at {:.0}", n.header.max.x, area.max.x - 13.0))); }
-        if (n.header.min.x - (area.min.x + 13.0)).abs() > 1.5 { bad.push(at(format!("the header starts at {:.0} but the window's inside starts at {:.0}", n.header.min.x, area.min.x + 13.0))); }
-        if !(area.max.x - n.close.center().x).between(20.0, 36.0) { bad.push(at(format!("the close button is {:.0} from the window's right edge", area.max.x - n.close.center().x))); }
+        if n.has_header && (n.header.max.x - (area.max.x - 13.0)).abs() > 1.5 { bad.push(at(format!("the header ends at {:.0} but the window's inside ends at {:.0}", n.header.max.x, area.max.x - 13.0))); }
+        if n.has_header && (n.header.min.x - (area.min.x + 13.0)).abs() > 1.5 { bad.push(at(format!("the header starts at {:.0} but the window's inside starts at {:.0}", n.header.min.x, area.min.x + 13.0))); }
+        if n.has_header && !(area.max.x - n.close.center().x).between(20.0, 36.0) { bad.push(at(format!("the close button is {:.0} from the window's right edge", area.max.x - n.close.center().x))); }
         if area.min.x < scr.min.x - 1.0 || area.min.y < scr.min.y - 1.0 || area.max.x > scr.max.x + 1.0 || area.max.y > scr.max.y + 1.0 { bad.push(at(format!("the window {area:?} leaves the screen"))); }
         // the texts of this window: those clipped to something inside it
         // (the shapes come in paint order: those of the dialog follow its title)
@@ -139,6 +142,13 @@ impl Between for f32 { fn between(self, lo: f32, hi: f32) -> bool { self >= lo &
 
 type Setup = fn(&mut App);
 
+/// A release as the update window shows it: notes with long lines and a list, and a download for this platform (or not).
+fn release(asset: bool) -> Release {
+    Release { version: "0.4.0".into(), page: "https://github.com/tonyrh/putiacnc/releases/tag/v0.4.0".into(),
+        notes: "## What's new in 0.4.0\n\n### New\n- **Setup assistant.** The first time you start PutiaCNC, a short assistant sets up your units, your machine and a starter set of tools.\n- **Quick tour.** Help, then Quick tour: eight short steps that outline the tools, the panels, the view tabs and the status bar.\n\n### Fixed\n- A long imported file name no longer widens the left panel.".into(),
+        asset: if asset { Some(("PutiaCNC-0.4.0-x86_64.AppImage".into(), "https://example.invalid/PutiaCNC-0.4.0-x86_64.AppImage".into())) } else { None } }
+}
+
 fn dialogs() -> Vec<(&'static str, Setup)> {
     fn all_sel(a: &mut App) { a.sel = (0..a.project.data.loops.len()).collect(); }
     vec![
@@ -171,6 +181,14 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
         }),
         ("ready-made library", |a| { a.tools_open = true; a.ready_open = true; }),
         ("updates", |a| a.updater.open = true),
+        ("updates up to date", |a| { a.updater.open = true; a.updater.status = Status::UpToDate; }),
+        ("updates available", |a| { a.updater.open = true; a.updater.status = Status::Available(release(true)); }),
+        ("updates available, no download", |a| { a.updater.open = true; a.updater.status = Status::Available(release(false)); }),
+        ("updates downloading", |a| { a.updater.open = true; a.updater.status = Status::Downloading(release(true)); }),
+        ("updates installed", |a| { a.updater.open = true; a.updater.status = Status::Installed(release(true)); }),
+        ("updates failed", |a| { a.updater.open = true; a.updater.status = Status::Failed("Could not reach github.com: error sending request for url (https://api.github.com/repos/tonyrh/putiacnc/releases/latest): connection timed out".into()); }),
+        ("unsaved changes", |a| { a.modified = true; a.pending = Some(crate::app::Action::Quit); }),
+        ("unsaved changes, long name", |a| { a.modified = true; a.path = format!("/home/antonio/{}.project.json", "a_very_long_project_name_".repeat(5)); a.pending = Some(crate::app::Action::Quit); }),
         ("setup 1", |a| { a.setup.open = true; a.setup.step = 0; }),
         ("setup 2", |a| { a.setup.open = true; a.setup.step = 1; }),
         ("setup 2 machine picked", |a| { a.setup.open = true; a.setup.step = 1; a.setup.pick_machine(0); }),

@@ -13,6 +13,26 @@ use std::time::Duration;
 const REPO: &str = "tonyrh/putiacnc";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 
+/// Release notes (GitHub markdown) as plain text: headings without their #, bullets as •, no ** or `, links as their text.
+fn plain_notes(md: &str) -> String {
+    let mut out = Vec::new();
+    for line in md.lines() {
+        let t = line.trim_end();
+        let t = if t.starts_with('#') { t.trim_start_matches('#').trim_start() } else { t };
+        let t = match t.strip_prefix("- ").or_else(|| t.strip_prefix("* ")) { Some(r) => format!("\u{2022} {r}"), None => t.to_string() };
+        let mut t = t.replace("**", "").replace('`', "");
+        // [text](url) -> text
+        while let (Some(a), Some(b)) = (t.find('['), t.find("](")) {
+            if b < a { break; }
+            let Some(c) = t[b..].find(')') else { break };
+            let text = t[a + 1..b].to_string();
+            t.replace_range(a..b + c + 1, &text);
+        }
+        out.push(t);
+    }
+    out.join("\n")
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Release {
     pub version: String,
@@ -218,7 +238,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 ui.strong(format!("Version {} is available.", r.version));
                 if !r.notes.is_empty() {
                     ui.add_space(4.0);
-                    egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| { ui.add(egui::Label::new(r.notes.as_str()).wrap(true)); });
+                    egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| { ui.add(egui::Label::new(plain_notes(&r.notes)).wrap(true)); });
                 }
                 ui.add_space(8.0);
                 ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -315,5 +335,11 @@ mod tests {
         assert!(install(&serve(vec![1u8; 100]), &target).is_err());
         assert_eq!(std::fs::read(&target).unwrap(), b"old");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn release_notes_lose_their_markdown() {
+        let t = plain_notes("## What's new\n\n### New\n- **Tour.** See [the page](https://x.y/z) and `code`.\n\n**Full changelog:** https://x");
+        assert_eq!(t, "What's new\n\nNew\n\u{2022} Tour. See the page and code.\n\nFull changelog: https://x");
     }
 }
