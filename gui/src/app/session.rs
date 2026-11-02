@@ -10,13 +10,13 @@ impl App {
         self.modified = false;
     }
 
-    /// "Try a sample": a new project holding a small name plate made to fit the machine and tools in use.
-    pub fn load_sample(&mut self) {
+    /// "Try a sample": a new project made to fit the machine and tools in use (a name plate, or a finger-joint box).
+    pub fn load_sample(&mut self, kind: putiacnc_core::sample::Kind) {
         self.new_project();
         let inches = self.disp_in;
-        match putiacnc_core::sample::fill(&mut self.project.data, inches) {
+        match putiacnc_core::sample::fill_kind(&mut self.project.data, inches, kind) {
             Ok(()) => {
-                self.project.name = "Sample name plate".into();
+                self.project.name = kind.title().into();
                 self.view_tab = crate::view3d::ViewTab::Split;
                 self.tab = RightTab::Info; // the Notes explain the sample
                 self.sel.clear();

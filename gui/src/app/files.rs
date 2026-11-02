@@ -25,7 +25,7 @@ impl App {
         match a {
             Action::New => self.new_project(),
             Action::Open(p) => { self.path = p.clone(); self.open(&p); }
-            Action::Sample => self.load_sample(),
+            Action::Sample(k) => self.load_sample(k),
             Action::Quit => { self.quit_ok = true; self.want_quit = true; }
         }
     }

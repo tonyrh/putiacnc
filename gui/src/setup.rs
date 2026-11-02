@@ -571,7 +571,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     if done {
         app.finish_setup();
         if tour { app.tour.start(); }
-        if sample { app.request(crate::app::Action::Sample); }
+        if sample { app.request(crate::app::Action::Sample(putiacnc_core::sample::Kind::NamePlate)); }
     }
     else if skip || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.skip_setup(); }
 }

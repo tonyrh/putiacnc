@@ -111,7 +111,11 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if ui.button("Quick tour").on_hover_text("A two-minute look at where things are").clicked() { app.tour.start(); ui.close_menu(); }
-            if ui.button("Try a sample").on_hover_text("Opens a small name plate made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample); ui.close_menu(); }
+            ui.menu_button("Try a sample", |ui| {
+                ui.style_mut().wrap = Some(false);
+                if ui.button("Name plate").on_hover_text("A plate with a recess and engraved lettering, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::NamePlate)); ui.close_menu(); }
+                if ui.button("Finger-joint box").on_hover_text("The five plates of a small box with finger joints, laid out on your stock; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Box)); ui.close_menu(); }
+            });
             if ui.button("Setup assistant…").on_hover_text("Set up a machine and a starter set of tools; nothing you have is deleted").clicked() { app.setup.start(false); ui.close_menu(); }
             ui.separator();
             if ui.add(egui::Button::new("Keyboard shortcuts").shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }

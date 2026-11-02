@@ -141,4 +141,4 @@ On the machine: put no paper under the pen for the first run, start, and watch t
 
 - Quick tour: Help → Quick tour; each of the 8 steps highlights the named area and the card stays on screen. Also try "Start with a quick tour" on the last setup page.
 
-- Try a sample: Help → Try a sample in mm and in inches, with a small and a large machine: it fits the stock, the Notes tab explains it, the toolpath generates. `PUTIACNC_SHOW_SAMPLE=1` loads it at start.
+- Try a sample: Help → Try a sample → Name plate and → Finger-joint box, in mm and in inches, with a small and a large machine: it fits the stock, the Notes tab explains it, the toolpath generates. `PUTIACNC_SHOW_SAMPLE=1` loads it at start.

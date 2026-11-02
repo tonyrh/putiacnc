@@ -91,6 +91,85 @@ Before cutting for real
     Ok(())
 }
 
+/// Which sample to make.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind { NamePlate, Box }
+
+impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box" } } }
+
+pub fn fill_kind(d: &mut ProjectData, inches: bool, kind: Kind) -> Result<(), String> {
+    match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches) }
+}
+
+/// A small open box with finger joints: its five plates laid out on the stock, one outside cut through all of them with holding tabs,
+/// and dogbone reliefs in the finger notches for the round cutter. The box is made as large as the stock takes it (up to 80 x 60 x 40 mm),
+/// the plates are cut from the stock's own thickness and the fingers are twice as wide.
+pub fn fill_box(d: &mut ProjectData, inches: bool) -> Result<(), String> {
+    use crate::joints::{box_panels, layout, reliefs, BoxSpec, Cut, Relief};
+    let (mx, my, mz) = d.machine.as_ref().map(|m| (m.x, m.y, m.z)).unwrap_or((300.0, 200.0, 60.0));
+    let flat = pick_flat(&d.tools).ok_or("There is no flat end mill in the tool list.")?.clone();
+    let (big, small) = if inches { (6.35, 1.5875) } else { (5.0, 1.0) };
+    d.stock.w = floor_to(mx.min(200.0).min(mx * 0.9), big).max(big * 4.0);
+    d.stock.h = floor_to(my.min(150.0).min(my * 0.9), big).max(big * 3.0);
+    // the plates are cut right through: 6 mm (1/4 in) material, or thinner on a machine with little travel
+    d.stock.t = floor_to((mz * 0.4).min(if inches { 6.35 } else { 6.0 }), small).max(small * 2.0);
+    let t = d.stock.t;
+    let margin = 3.0_f64.max(flat.dia);
+    let gap = 6.0_f64.max(flat.dia * 2.0);
+    // the largest box whose plates, laid out in rows, fit on the stock
+    let (mut w, mut dd, mut h) = (80.0, 60.0, 40.0);
+    let fit = loop {
+        let spec = BoxSpec { w, d: dd, h, t, finger: t * 2.0, clearance: 0.05, lid: false, div_w: 0, div_d: 0 };
+        let made = box_panels(spec).map(|panels| { let pos = layout(&panels, gap, d.stock.w - 2.0 * margin); (panels, pos) });
+        if let Ok((panels, pos)) = made {
+            let top = panels.iter().zip(&pos).map(|(p, o)| o[1] + p.h).fold(0.0, f64::max);
+            let right = panels.iter().zip(&pos).map(|(p, o)| o[0] + p.w).fold(0.0, f64::max);
+            if top <= d.stock.h - 2.0 * margin && right <= d.stock.w - 2.0 * margin { break (spec, panels, pos); }
+        }
+        // too big for the stock (or too small for the fingers): a little smaller, down to the smallest box that still has fingers
+        if w <= t * 5.0 || dd <= t * 5.0 || h <= t * 3.0 { return Err("The stock is too small for the sample box.".into()); }
+        w = (w * 0.9).floor(); dd = (dd * 0.9).floor(); h = (h * 0.9).floor();
+    };
+    let (spec, panels, pos) = fit;
+    d.ops.clear(); d.loops.clear(); d.groups.clear();
+    let mut p = shapes::default_op_params(&flat.id);
+    p.kind = "outside".into(); p.depth = t; p.tabs = true;
+    d.ops.push(Operation { id: 1, p });
+    d.oid = 1; d.act = 1;
+    for (pn, o) in panels.iter().zip(&pos) {
+        let at = |q: &[f64; 2]| [q[0] + o[0] + margin, q[1] + o[1] + margin];
+        let mut loops = Vec::new();
+        if let Some(l) = shapes::new_poly(&pn.outline.iter().map(at).collect::<Vec<_>>(), true, 1) { loops.push(l); }
+        for hole in &pn.holes { if let Some(l) = shapes::new_poly(&hole.iter().map(at).collect::<Vec<_>>(), true, 1) { loops.push(l); } }
+        let refs: Vec<&crate::model::LoopData> = loops.iter().collect();
+        match reliefs(&refs, flat.dia, Cut::Outside, 1, Relief::Dogbone) {
+            Some((ls, _)) => d.loops.extend(ls),
+            None => d.loops.extend(loops),
+        }
+    }
+    let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
+    d.notes = format!("SAMPLE FINGER-JOINT BOX
+This project was made for your machine and tools: an open box {w} x {dd} x {h} outside, made of {t} material, cut from one piece of stock {sw} x {sh}.
+
+What is on the stock
+- The five plates of the box (bottom, front, back, left, right), laid out in rows.
+- One operation, Profile (outside), cuts all the plates out, all the way through, leaving 4 small holding tabs on each so they stay in place.
+- The notches of the fingers have small round reliefs (dogbones) in the corners, so a round cutter leaves room for the square corners of the fingers.
+
+Look around
+- The 3D preview shows the plates being cut as the preview plays.
+- Open Edit, then \"Box with finger joints…\" to see the settings of this box. In the box window you can change the size, the finger width, the clearance, add a lid or dividers, and the plates follow.
+- Draw a rectangle, select it and open Edit, then \"Finger joint…\" to put fingers on any other edge.
+
+Before cutting for real
+- The plates are cut from the thickness of the stock: measure your material, set the Thickness field in the Stock panel to it, and make the box again so the fingers fit. A fit that is too tight can be eased with Clearance.
+- Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
+- Tick \"Air cut (run without cutting)\" in the operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
+- After cutting, break the plates off their tabs, sand the tab marks and glue the box together.",
+        w = u(spec.w), dd = u(spec.d), h = u(spec.h), t = u(t), sw = u(d.stock.w), sh = u(d.stock.h));
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,6 +207,7 @@ mod tests {
             assert!(d.ops[2].p.depth > d.ops[1].p.depth, "the lettering must go below the floor of the recess");
             let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}x{z}: {e}"));
             assert!(o.lines.len() > 50);
+            assert!(!o.notes.iter().any(|n| n.starts_with('⚠')), "{x}x{y}x{z}: {:?}", o.notes);
             if inch { // round inch sizes
                 let q = d.stock.w / 6.35; assert!((q - q.round()).abs() < 1e-6, "stock width {} is not a whole quarter inch", d.stock.w);
             }
@@ -156,6 +236,23 @@ mod tests {
                 assert!(low >= -d.stock.t - 1e-6, "mask {mask}: below the bottom of the stock ({low})");
                 assert!(o.lines.len() >= normal.lines.len() - 5, "mask {mask}: the program lost moves");
             }
+        }
+    }
+
+    /// The box sample fits the stock of every machine, is one profile operation over all the plates, and makes G-code.
+    #[test]
+    fn box_sample_fits_every_machine() {
+        for (x, y, z, inch) in [(180.0, 100.0, 45.0, false), (300.0, 200.0, 60.0, false), (800.0, 1200.0, 150.0, false), (300.0, 200.0, 60.0, true), (400.0, 400.0, 80.0, true)] {
+            let mut d = project(x, y, z, inch);
+            fill_box(&mut d, inch).unwrap_or_else(|e| panic!("{x}x{y}: {e}"));
+            let b = shapes::bbox_many(d.loops.iter()).unwrap();
+            assert!(b[0] >= 0.0 && b[1] >= 0.0 && b[2] <= d.stock.w && b[3] <= d.stock.h, "{x}x{y}: the plates leave the stock {b:?} on {}x{}", d.stock.w, d.stock.h);
+            assert!(d.loops.len() >= 5 && d.loops.iter().all(|l| l.op == 1) && d.ops.len() == 1 && d.ops[0].p.tabs && d.ops[0].p.depth == d.stock.t);
+            assert!(d.stock.t <= z * 0.4 + 1e-9);
+            assert!(d.notes.contains("Box with finger joints"));
+            let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}: {e}"));
+            assert!(o.lines.len() > 100);
+            assert!(!o.notes.iter().any(|n| n.starts_with('⚠')), "{x}x{y}: {:?}", o.notes);
         }
     }
 

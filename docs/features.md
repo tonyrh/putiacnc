@@ -128,6 +128,9 @@ is outlined. Next/Back, Enter/arrow keys, Esc or "Skip tour" to leave.
 
 ## Try a sample
 
-Help → "Try a sample" (also on the last page of the setup assistant) opens a small name plate (cut-out with tabs, a shallow recess and engraved lettering) made to fit the machine and tools in use: the stock and the plate are sized to the work area, the depths stay inside the Z travel, the cutters come from your tool library (a V-bit or engraving bit for the lettering when there is one), and the sizes are round numbers in your units. The Notes tab explains the sample and how to try it as an air cut first.
+Help → Try a sample offers two samples (the last page of the setup assistant offers the name plate). The **name plate** is a small plate (cut-out with tabs, a shallow recess and engraved lettering) made to fit the machine and tools in use: the stock and the plate are sized to the work area, the depths stay inside the Z travel, the cutters come from your tool library (a V-bit or engraving bit for the lettering when there is one), and the sizes are round numbers in your units. The Notes tab explains the sample and how to try it as an air cut first.
 
 An air cut runs 10 mm above the stock, or deeper-operation depth + 2 mm when that is higher (a 12 mm cut-out runs 14 mm up), so even its lowest move stays 2 mm above the stock. Nothing is removed in the 3D preview: turn on "Toolpaths" to see the moves.
+
+The **finger-joint box** is the five plates of an open box with finger joints (fingers twice the material thickness, dogbone reliefs for a round cutter) laid out in rows on the stock, with one outside cut through all of them with holding tabs. The box is as large as the stock takes it (up to 80 x 60 x 40 mm), the plates are cut from the stock's own thickness (6 mm, or 1/4 in, or less on a machine with little Z travel), and the Notes tab explains how to change it with Edit → Box with finger joints.
+
