@@ -209,8 +209,14 @@ fn brand(ui: &mut egui::Ui, h: f32, step: usize, first: bool) {
     p.rect_filled(rect, 12.0, BRAND);
     let white = Color32::WHITE;
     let logo = egui::Rect::from_min_size(rect.min + egui::vec2(28.0, 32.0), egui::vec2(54.0, 54.0));
-    p.rect_filled(logo, 14.0, white);
-    p.text(logo.center(), egui::Align2::CENTER_CENTER, "P", egui::FontId::proportional(32.0), BRAND);
+    // the program's own icon; a letter on a white tile only if it cannot be loaded
+    match crate::about::app_icon(ui.ctx()) {
+        Some(tex) => { p.image(tex.id(), logo, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), white); }
+        None => {
+            p.rect_filled(logo, 14.0, white);
+            p.text(logo.center(), egui::Align2::CENTER_CENTER, "P", egui::FontId::proportional(32.0), BRAND);
+        }
+    }
     p.text(rect.min + egui::vec2(28.0, 104.0), egui::Align2::LEFT_TOP, "PutiaCNC", egui::FontId::proportional(26.0), white);
     p.text(rect.min + egui::vec2(28.0, 142.0), egui::Align2::LEFT_TOP, "From drawing to G-code,\nchecked before it cuts.", egui::FontId::proportional(14.0), white.gamma_multiply(0.85));
     for (i, t) in ["Draw or import shapes", "See the toolpath in 3D", "Catch mistakes early"].iter().enumerate() {

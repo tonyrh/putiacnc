@@ -8,6 +8,15 @@ const ICON_PNG: &[u8] = include_bytes!("../../assets/icons/putiacnc-256.png");
 
 fn icon_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> { png_texture(ctx, "about-icon", ICON_PNG) }
 
+/// The app's icon (loaded once, kept in the context) for the places that show it besides the About window.
+pub fn app_icon(ctx: &egui::Context) -> Option<egui::TextureHandle> {
+    let id = egui::Id::new("app_icon_texture");
+    if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) { return Some(t); }
+    let t = icon_texture(ctx)?;
+    ctx.data_mut(|d| d.insert_temp(id, t.clone()));
+    Some(t)
+}
+
 const MARK_WHITE: &[u8] = include_bytes!("../../assets/icons/github-mark-white.png");
 const MARK_DARK: &[u8] = include_bytes!("../../assets/icons/github-mark-dark.png");
 
