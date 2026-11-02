@@ -125,3 +125,7 @@ Help → "Quick tour" (also offered at the end of the setup assistant) walks thr
 window in 8 short steps: tools, left panel, operations panel, view tabs, time and checks,
 G-code, and what to do next. The rest of the window is dimmed and the part being explained
 is outlined. Next/Back, Enter/arrow keys, Esc or "Skip tour" to leave.
+
+## Try a sample
+
+Help → "Try a sample" (also on the last page of the setup assistant) opens a small name plate (cut-out with tabs, a shallow recess and engraved lettering) made to fit the machine and tools in use: the stock and the plate are sized to the work area, the depths stay inside the Z travel, the cutters come from your tool library (a V-bit or engraving bit for the lettering when there is one), and the sizes are round numbers in your units. Every operation is set to **air cut**, so the first run on the machine cannot touch material. Untick "Air cut" on each operation to cut it for real.

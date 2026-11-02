@@ -34,7 +34,7 @@ impl View {
 
 /// Things that can discard the current project and therefore need an unsaved-changes check.
 #[derive(Clone, Debug)]
-pub enum Action { New, Open(String), Quit }
+pub enum Action { New, Open(String), Sample, Quit }
 
 /// A drag while editing points.
 pub enum NodeDrag {

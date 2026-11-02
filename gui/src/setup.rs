@@ -517,7 +517,7 @@ fn dim(ctx: &egui::Context) {
 
 pub fn window(ctx: &egui::Context, app: &mut App) {
     if !app.setup.open { return; }
-    let (mut next, mut back, mut done, mut skip, mut tour) = (false, false, false, false, false);
+    let (mut next, mut back, mut done, mut skip, mut tour, mut sample) = (false, false, false, false, false, false);
     dim(ctx);
     let name = "Setup assistant";
     let scr = ctx.screen_rect();
@@ -558,6 +558,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                         let go = egui::Button::new(egui::RichText::new(label).color(Color32::WHITE).strong()).fill(accent(ui)).min_size(egui::vec2(96.0, 28.0));
                         if ui.add(go).clicked() { if last { done = true; } else { next = true; } }
                         if last && ui.add(egui::Button::new("Start with a quick tour").min_size(egui::vec2(72.0, 28.0))).on_hover_text("Finish the setup, then a two-minute look at where things are").clicked() { done = true; tour = true; }
+                        if last && ui.add(egui::Button::new("Try a sample").min_size(egui::vec2(72.0, 28.0))).on_hover_text("Finish the setup and open a small name plate made to fit your machine; it is set to air cut").clicked() { done = true; sample = true; }
                         if app.setup.step > 0 && ui.add(egui::Button::new("\u{2190} Back").min_size(egui::vec2(72.0, 28.0))).clicked() { back = true; }
                     });
                 });
@@ -567,7 +568,11 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     });
     if next { app.setup.step += 1; }
     if back { app.setup.step = app.setup.step.saturating_sub(1); }
-    if done { app.finish_setup(); if tour { app.tour.start(); } }
+    if done {
+        app.finish_setup();
+        if tour { app.tour.start(); }
+        if sample { app.request(crate::app::Action::Sample); }
+    }
     else if skip || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.skip_setup(); }
 }
 

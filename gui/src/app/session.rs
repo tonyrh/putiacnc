@@ -10,6 +10,24 @@ impl App {
         self.modified = false;
     }
 
+    /// "Try a sample": a new project holding a small name plate made to fit the machine and tools in use, as an air cut.
+    pub fn load_sample(&mut self) {
+        self.new_project();
+        let inches = self.disp_in;
+        match putiacnc_core::sample::fill(&mut self.project.data, inches) {
+            Ok(()) => {
+                self.project.name = "Sample name plate".into();
+                self.view_tab = crate::view3d::ViewTab::Split;
+                self.tab = RightTab::Ops;
+                self.sel.clear();
+                self.gen_pending = true;
+                self.fit_pending = true;
+                self.modified = true;
+            }
+            Err(e) => { self.new_project(); self.mach_msg = e; }
+        }
+    }
+
     pub(super) fn reset_after_load(&mut self) {
         self.sel.clear();
         self.hist = History::default();
