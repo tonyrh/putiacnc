@@ -7,7 +7,7 @@ use eframe::egui::{self, Color32};
 use putiacnc_core::model::DIALECTS;
 use putiacnc_core::setup::{self, MachineSetup, ToolChoice, PRESETS};
 
-const STEPS: usize = 4;
+const STEPS: usize = 5;
 
 pub struct Wizard {
     pub open: bool,
@@ -105,7 +105,7 @@ impl App {
     }
 }
 
-const NAMES: [&str; STEPS] = ["Units", "Machine", "Tools", "Finish"];
+const NAMES: [&str; STEPS] = ["Units", "Machine", "Details", "Tools", "Finish"];
 // the same field sizes and spacing as the machine library
 const LABEL_W: f32 = 130.0;
 const UNIT_W: f32 = 60.0;
@@ -306,7 +306,7 @@ fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
     let tw = (ui.available_width() - 8.0 - (cols as f32 - 1.0) * 10.0) / cols as f32;
     let other = w.pick.is_none();
     let mut pick: Option<Option<usize>> = None;
-    egui::ScrollArea::vertical().id_source("setup_machines").max_height(172.0).auto_shrink([false, true]).show(ui, |ui| {
+    {
         ui.spacing_mut().item_spacing = egui::vec2(10.0, 10.0);
         let mut cells: Vec<Option<usize>> = vec![None];
         cells.extend(list.iter().map(|&i| Some(i)));
@@ -329,20 +329,25 @@ fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
                     // a machine chosen before (coming back to this step) is brought into view once
                     if on {
                         let key = egui::Id::new(("setup_seen", cell.unwrap_or(usize::MAX)));
-                        if !ui.data(|d| d.get_temp::<bool>(key)).unwrap_or(false) { ui.data_mut(|d| d.insert_temp(key, true)); ui.scroll_to_rect(trect, Some(egui::Align::Center)); }
+                        if !ui.data(|d| d.get_temp::<bool>(key)).unwrap_or(false) { ui.data_mut(|d| d.insert_temp(key, true)); ui.scroll_to_rect(trect, None); }
                     }
                 }
             });
         }
         if list.is_empty() { ui.add_space(6.0); ui.weak("Nothing matches. Choose \u{201c}Other\u{201d} to type the sizes."); }
-    });
+    }
     match pick { Some(Some(i)) => w.pick_machine(i), Some(None) if w.pick.is_some() || !w.machine.notes.is_empty() => w.pick_other(),
         _ => {} }
+}
+
+/// The second part of the machine: its name, the figures, and every value to adjust.
+fn details_step(ui: &mut egui::Ui, w: &mut Wizard) {
+    title(ui, "Name it and check the sizes");
+    ui.add_space(4.0);
+    sub(ui, if w.pick.is_some() { "These are the maker's figures. Change any that differ on your machine." } else { "Pick the closest size class, then type the real values." });
     ui.add_space(12.0);
     spec_card(ui, w);
-    ui.add_space(8.0);
-    // what the list cannot say: every value, for a machine that is not listed or one that differs from the maker's figures
-    egui::CollapsingHeader::new("Adjust sizes and limits").id_source("setup_adjust").default_open(w.pick.is_none()).show(ui, |ui| adjust_form(ui, w));
+    adjust_form(ui, w);
 }
 
 /// The chosen machine: its work area drawn to scale, a name to change, and the figures that matter.
@@ -538,7 +543,8 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                     match app.setup.step {
                         0 => units_step(ui, &mut app.setup),
                         1 => machine_step(ui, &mut app.setup),
-                        2 => tools_step(ui, &mut app.setup),
+                        2 => details_step(ui, &mut app.setup),
+                        3 => tools_step(ui, &mut app.setup),
                         _ => finish_step(ui, &app.setup),
                     }
                     ui.add_space(6.0);

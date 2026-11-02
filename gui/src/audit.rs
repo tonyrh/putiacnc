@@ -171,8 +171,10 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
         ("setup 1", |a| { a.setup.open = true; a.setup.step = 0; }),
         ("setup 2", |a| { a.setup.open = true; a.setup.step = 1; }),
         ("setup 2 machine picked", |a| { a.setup.open = true; a.setup.step = 1; a.setup.pick_machine(0); }),
-        ("setup 3", |a| { a.setup.open = true; a.setup.step = 2; }),
+        ("setup 3 other", |a| { a.setup.open = true; a.setup.step = 2; }),
+        ("setup 3 machine picked", |a| { a.setup.open = true; a.setup.step = 2; a.setup.pick_machine(0); }),
         ("setup 4", |a| { a.setup.open = true; a.setup.step = 3; }),
+        ("setup 5", |a| { a.setup.open = true; a.setup.step = 4; }),
     ]
 }
 
