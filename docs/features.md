@@ -114,3 +114,5 @@ The setup assistant's machine step starts with a **Maker** and **Model** list (2
 - Fractions (View > Units > Fractions, inches only): lengths from 1/16 in up are shown as the nearest 1/64 of an inch (`2 1/4`, `3/16`), in fields, readouts and messages; smaller values (tolerances, passes under 1/16 in) stay decimals. A field that is clicked starts with the exact decimal unless the value is an exact fraction, so leaving it as it is changes nothing. Fields accept fractions (`1/8`, `1 3/16`) and typed units whatever the setting.
 
 - Long names: an imported file's name, a 3D model's name and the tool and file lines of an operation card end in an ellipsis (the whole name is the tooltip) instead of widening the panel. A number field that is clicked and left with its text as it was does not change the value (it used to round it to the decimals shown, which made the reset arrow appear).
+
+- Tool windows: Box generator, Finger joint and Combine have OK (does it and closes the window) and Cancel; Offset, Array and Fillet and chamfer have Apply (does it and stays open, to go again) and Close.

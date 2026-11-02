@@ -215,3 +215,38 @@ fn long_names_do_not_run_out_of_the_panels() {
     problems.sort(); problems.dedup();
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+/// The buttons of the tool windows follow one rule: a window that does its job once has OK and Cancel; one that is used again and again
+/// has Apply (does it, stays open) and Close. They sit in one row, the first label first.
+#[test]
+fn tool_windows_have_the_agreed_buttons() {
+    let rule: &[(&str, &[&str])] = &[
+        ("box", &["OK", "Cancel"]), ("fingers", &["OK", "Cancel"]), ("combine", &["OK", "Cancel"]),
+        ("offset", &["Apply", "Close"]), ("array", &["Apply", "Close"]), ("fillet", &["Apply", "Close"]),
+    ];
+    let mut problems = vec![];
+    for (name, setup) in dialogs() {
+        let Some((_, want)) = rule.iter().find(|(n, _)| *n == name) else { continue };
+        let mut a = project();
+        setup(&mut a);
+        let ctx = egui::Context::default();
+        let mut last = None;
+        for i in 0..8 {
+            let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(1500.0, 1000.0))), time: Some(0.1 * (i + 1) as f64), ..Default::default() };
+            last = Some(ctx.run(input, |ctx| a.ui_frame(ctx)));
+        }
+        let all = texts(&last.unwrap().shapes);
+        let find = |l: &str| all.iter().find(|t| t.text == l && t.rect.min.x > 400.0 && t.rect.min.x < 1060.0 && t.rect.min.y > 100.0);
+        let found: Vec<_> = want.iter().map(|l| find(l)).collect();
+        for (l, f) in want.iter().zip(&found) { if f.is_none() { problems.push(format!("{name}: no \"{l}\" button")); } }
+        if found.iter().all(|f| f.is_some()) {
+            let r: Vec<Rect> = found.iter().map(|f| f.unwrap().rect).collect();
+            if (r[0].center().y - r[1].center().y).abs() > 3.0 { problems.push(format!("{name}: the buttons are not in one row")); }
+            if r[0].min.x >= r[1].min.x { problems.push(format!("{name}: \"{}\" should come before \"{}\"", want[0], want[1])); }
+        }
+        for other in ["Apply", "OK", "Cancel", "Close", "Add box"] {
+            if !want.contains(&other) && find(other).is_some_and(|t| t.rect.min.y > 150.0 && name != "box" || other == "Add box") && other != "Close" { problems.push(format!("{name}: has a \"{other}\" button it should not")); }
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

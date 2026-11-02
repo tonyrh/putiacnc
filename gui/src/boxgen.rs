@@ -143,7 +143,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref().filter(|(k, _)| *k == "box").map(|(_, m)| m)) { ui.weak(crate::widgets::localize(ui, n)); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.button("Add box").clicked() { apply = true; }
+            if ui.button("OK").on_hover_text("Add the box to the drawing and close the window").clicked() { apply = true; }
             if ui.button("Cancel").clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 crate::widgets::check(ui, &mut app.preview_on, "Preview").tip("Show the plates in the drawing while you change the values");

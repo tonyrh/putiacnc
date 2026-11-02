@@ -198,8 +198,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(has, egui::Button::new("Apply")).clicked() { apply = true; }
-            if ui.button("Cancel").clicked() { close = true; }
+            if ui.add_enabled(has, egui::Button::new("Apply")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }
+            if ui.button("Close").clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 crate::widgets::check(ui, &mut app.preview_on, "Preview").tip("Show the result in the drawing while you change the values");
             });
@@ -212,7 +212,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let (dog, outside, tbone) = (app.corners.dog, app.corners.outside, app.corners.tbone);
         let dia = cutter_dia(app.corners.auto, app.sel_cutter_dia(), app.corners.dia);
         app.ghost.clear();
-        if app.run_tool("corners", |a| if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) }) { app.corners.open = false; }
+        app.run_tool("corners", |a| if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) });
     }
     if close { app.corners.open = false; }
 }
