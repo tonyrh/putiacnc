@@ -328,7 +328,7 @@ fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
                     if clicked { pick = Some(*cell); }
                     // a machine chosen before (coming back to this step) is brought into view once
                     if on {
-                        let key = egui::Id::new(("setup_seen", cell.map_or(usize::MAX, |i| i)));
+                        let key = egui::Id::new(("setup_seen", cell.unwrap_or(usize::MAX)));
                         if !ui.data(|d| d.get_temp::<bool>(key)).unwrap_or(false) { ui.data_mut(|d| d.insert_temp(key, true)); ui.scroll_to_rect(trect, Some(egui::Align::Center)); }
                     }
                 }
