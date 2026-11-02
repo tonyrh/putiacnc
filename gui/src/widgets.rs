@@ -149,13 +149,15 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
         }
         let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
         if out.lost_focus() || esc {
-            if !esc {
+            // text left as it was when the field was clicked changes nothing (the value may have more decimals than the text shows)
+            let untouched = ui.data(|d| d.get_temp::<String>(id.with("orig"))).is_some_and(|o| o == text);
+            if !esc && !untouched {
                 if let Some(x) = match unit_mm { Some(k) => parse_length(&text, k), None => parse_number(&text) } {
                     let nv = x.clamp(lo, hi);
                     if (nv - *v).abs() > f64::EPSILON { *v = nv; resp.mark_changed(); }
                 }
             }
-            ui.data_mut(|d| { d.remove::<String>(edit_id); d.remove::<bool>(id.with("first")); });
+            ui.data_mut(|d| { d.remove::<String>(edit_id); d.remove::<String>(id.with("orig")); d.remove::<bool>(id.with("first")); });
         } else {
             ui.data_mut(|d| d.insert_temp(edit_id, text));
         }
@@ -168,7 +170,7 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     }
     if resp.hovered() || resp.dragged() { ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal); }
     if resp.clicked() {
-        ui.data_mut(|d| { d.insert_temp(edit_id, if frac { fmt_inch_edit(*v, dec, true) } else { fmt_val(*v, dec) }); d.insert_temp(id.with("first"), true); });
+        ui.data_mut(|d| { let t0 = if frac { fmt_inch_edit(*v, dec, true) } else { fmt_val(*v, dec) }; d.insert_temp(id.with("orig"), t0.clone()); d.insert_temp(edit_id, t0); d.insert_temp(id.with("first"), true); });
         ui.ctx().request_repaint();
     }
     let vis = *ui.style().interact(&resp);
@@ -374,6 +376,35 @@ mod unit_tests {
         assert_eq!(p("1/0"), None);
         assert_eq!(p("a/b"), None);
         assert_eq!(p(""), None);
+    }
+
+    /// Clicks the field at (30, 15), then clicks away from it; returns the value after that.
+    fn click_and_leave(v0: f64, dec: usize) -> f64 {
+        use egui::{Event, PointerButton, Pos2, RawInput, Modifiers};
+        let ctx = egui::Context::default();
+        let mut v = v0;
+        let frame = |t: f64, events: Vec<Event>, v: &mut f64| {
+            let input = RawInput { time: Some(t), events, screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 200.0))), ..Default::default() };
+            let _ = ctx.run(input, |ctx| { egui::CentralPanel::default().show(ctx, |ui| { num(ui, [70.0, 22.0], v, 0.0, 100.0, 0.1, dec, ""); }); });
+        };
+        let click = |p: Pos2| vec![
+            Event::PointerMoved(p),
+            Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE },
+            Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE },
+        ];
+        frame(0.0, vec![Event::PointerMoved(Pos2::new(30.0, 15.0))], &mut v);
+        frame(0.1, click(Pos2::new(30.0, 15.0)), &mut v);
+        for i in 0..3 { frame(0.2 + 0.1 * i as f64, vec![], &mut v); }
+        frame(0.6, click(Pos2::new(300.0, 150.0)), &mut v);
+        for i in 0..3 { frame(0.7 + 0.1 * i as f64, vec![], &mut v); }
+        v
+    }
+
+    #[test]
+    fn clicking_a_field_and_leaving_it_changes_nothing() {
+        for v0 in [0.123456, 1.0, 2.0 / 3.0, 12.7, 0.0394] {
+            assert_eq!(click_and_leave(v0, 2), v0, "value {v0}");
+        }
     }
 
     #[test]

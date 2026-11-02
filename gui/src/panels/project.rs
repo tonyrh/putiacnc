@@ -112,7 +112,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.set_width(ui.available_width() - 4.0);
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(&g.name).strong());
+                long_name(ui, &g.name);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if small_icon_button(ui, Icon::Trash, true, if g.text.is_some() { "Delete this text" } else { "Delete this drawing (all its shapes)" }).clicked() { *act = Some((Some(g.id), GroupAct::Delete)); }
                 });
@@ -182,7 +182,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.set_width(ui.available_width() - 4.0);
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(format!("3D model: {}", rel.name)).strong());
+                long_name(ui, &format!("3D model: {}", rel.name));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if small_icon_button(ui, Icon::Trash, true, "Remove the 3D model (its relief operations stop working)").clicked() { *act = Some((None, GroupAct::Delete)); }
                 });
@@ -382,10 +382,22 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if chev.hovered() { ui.painter().rect_filled(chev_rect.shrink2(egui::vec2(3.0, 8.0)), 5.0, ink.gamma_multiply(0.18)); }
                 paint_icon(ui.painter(), if folded { Icon::ChevR } else { Icon::ChevD }, egui::pos2(rect.min.x + 15.0, rect.center().y), ink, 0.62);
                 paint_icon(ui.painter(), kind_icon, egui::pos2(rect.min.x + 42.0, rect.center().y), ink, 0.6);
-                let g1 = ui.painter().layout_no_wrap(text, body, col);
-                let g2 = ui.painter().layout_no_wrap(sub, small, sub_col);
-                let top = rect.center().y - (g1.size().y + g2.size().y) / 2.0;
                 let btn_w = if in3d { 4.0 * 26.0 + 3.0 * 2.0 } else { 3.0 * 26.0 + 2.0 * 2.0 };
+                // what room the two lines have between the icon and the buttons; a longer one ends in an ellipsis
+                let room = (rect.width() - 60.0 - btn_w - 12.0).max(20.0);
+                let fit = |s: String, font: &egui::FontId, c: Color32| {
+                    let mut chars: Vec<char> = s.chars().collect();
+                    let mut g = ui.painter().layout_no_wrap(s, font.clone(), c);
+                    while g.size().x > room && !chars.is_empty() {
+                        chars.pop();
+                        let t: String = chars.iter().collect::<String>().trim_end().to_string() + "…";
+                        g = ui.painter().layout_no_wrap(t, font.clone(), c);
+                    }
+                    g
+                };
+                let g1 = fit(text, &body, col);
+                let g2 = fit(sub, &small, sub_col);
+                let top = rect.center().y - (g1.size().y + g2.size().y) / 2.0;
                 let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - btn_w - 8.0, rect.max.y)));
                 let h1 = g1.size().y;
                 clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
@@ -1070,4 +1082,14 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         }
         app.touch();
     }
+}
+
+/// A bold name (of an imported file) on one line that stops short of the delete button at the right, cut with an ellipsis when it is
+/// too long (the whole name is the tooltip), so a long file name never makes the panel wider than it is.
+fn long_name(ui: &mut Ui, text: &str) {
+    let w = (ui.available_width() - 30.0).max(40.0);
+    ui.allocate_ui_with_layout(egui::vec2(w, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+        ui.set_width(w);
+        ui.add(egui::Label::new(egui::RichText::new(text).strong()).truncate(true)).on_hover_text(text);
+    });
 }

@@ -179,3 +179,39 @@ fn every_dialog_is_laid_out_properly() {
     problems.dedup();
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 }
+
+/// A very long name (an imported file, a tool, a machine, the project) must be cut short where it is shown, not run out of its panel.
+#[test]
+fn long_names_do_not_run_out_of_the_panels() {
+    let long = "75739279-nature-4-elements-circle-line-logo-sign-water-fire-earth-air-on-dark-background-and-then-some-more-words".to_string();
+    let mut problems = vec![];
+    for (tab, tname) in [(crate::app::RightTab::Ops, "ops"), (crate::app::RightTab::Gcode, "gcode"), (crate::app::RightTab::Info, "notes")] {
+        for (sw, sh) in [(1500.0, 1000.0), (1354.0, 640.0)] {
+            let mut a = project();
+            a.tab = tab;
+            a.project.name = long.clone();
+            a.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: 77, name: long.clone(), locked: false, text: None });
+            for l in a.project.data.loops.iter_mut() { l.grp = Some(77); }
+            for t in a.project.data.tools.iter_mut() { t.name = long.clone(); }
+            for m in a.machines.list.iter_mut() { m.name = long.clone(); }
+            a.touch();
+            let _ = crate::fuzz::settle(&mut a);
+            let ctx = egui::Context::default();
+            let mut last = None;
+            for i in 0..8 {
+                let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(sw, sh))), time: Some(0.1 * (i + 1) as f64), ..Default::default() };
+                last = Some(ctx.run(input, |ctx| a.ui_frame(ctx)));
+            }
+            let out = last.unwrap();
+            // a long name used to push text out of the left panel (the panel itself has a fixed width, so the text ran over the drawing)
+            for t in texts(&out.shapes) {
+                if t.rect.min.y >= 70.0 && t.rect.min.x < 390.0 && t.rect.max.x > 396.0 && t.rect.min.y < sh - 60.0 { problems.push(format!("{tname} {sw}x{sh}: \"{}\" at {:.0},{:.0} reaches {:.0}, past the left panel's edge (394)", t.text.chars().take(30).collect::<String>(), t.rect.min.x, t.rect.min.y, t.rect.max.x)); }
+                // (the project name field and a ruler's number are clipped by design, and the G-code view scrolls)
+                if t.text.trim().is_empty() || t.clip.width() < 1.0 || t.rect.min.y < 70.0 || t.text.starts_with('(') || t.text.parse::<f64>().is_ok() { continue; }
+                if t.rect.max.x > t.clip.max.x + 0.75 { problems.push(format!("{tname} {sw}x{sh}: \"{}\" at {:.0},{:.0} runs out of its panel ({:.0} > {:.0})", t.text.chars().take(40).collect::<String>(), t.rect.min.x, t.rect.min.y, t.rect.max.x, t.clip.max.x)); }
+            }
+        }
+    }
+    problems.sort(); problems.dedup();
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
