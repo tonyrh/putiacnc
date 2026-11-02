@@ -505,6 +505,7 @@ fn finish_step(ui: &mut egui::Ui, w: &Wizard) {
     });
     ui.add_space(14.0);
     ui.weak("Open this again any time from Help \u{2192} Setup assistant.");
+    ui.weak("There is more than one sample project: see Help \u{2192} Try a sample.");
 }
 
 /// Dims the program behind the window so that the window is the one thing to look at. It is an area of its own, shown before the
@@ -558,7 +559,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                         let go = egui::Button::new(egui::RichText::new(label).color(Color32::WHITE).strong()).fill(accent(ui)).min_size(egui::vec2(96.0, 28.0));
                         if ui.add(go).clicked() { if last { done = true; } else { next = true; } }
                         if last && ui.add(egui::Button::new("Start with a quick tour").min_size(egui::vec2(72.0, 28.0))).on_hover_text("Finish the setup, then a two-minute look at where things are").clicked() { done = true; tour = true; }
-                        if last && ui.add(egui::Button::new("Try a sample").min_size(egui::vec2(72.0, 28.0))).on_hover_text("Finish the setup and open a small name plate made to fit your machine").clicked() { done = true; sample = true; }
+                        if last && ui.add(egui::Button::new("Try a sample").min_size(egui::vec2(72.0, 28.0))).on_hover_text("Finish the setup and open a small name plate made to fit your machine. Help \u{2192} Try a sample has more samples").clicked() { done = true; sample = true; }
                         if app.setup.step > 0 && ui.add(egui::Button::new("\u{2190} Back").min_size(egui::vec2(72.0, 28.0))).clicked() { back = true; }
                     });
                 });
