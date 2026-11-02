@@ -110,15 +110,17 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
         ui.menu_button("Help", |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
+            if ui.button("Quick tour").on_hover_text("A two-minute look at where things are").clicked() { app.tour.start(); ui.close_menu(); }
+            if ui.button("Try a sample").on_hover_text("Opens a small name plate made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample); ui.close_menu(); }
+            if ui.button("Setup assistant…").on_hover_text("Set up a machine and a starter set of tools; nothing you have is deleted").clicked() { app.setup.start(false); ui.close_menu(); }
+            ui.separator();
             if ui.add(egui::Button::new("Keyboard shortcuts").shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }
+            ui.separator();
             if ui.button("Check for updates…").on_hover_text("Asks GitHub for the latest release; nothing is contacted unless you ask").clicked() { app.updater.open = true; app.updater.check(false); ui.close_menu(); }
             if ui.button("Open config folder").on_hover_text("Where your tool libraries, machines and settings are saved").clicked() {
                 if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that_detached(d); }
                 ui.close_menu();
             }
-            if ui.button("Quick tour").on_hover_text("A two-minute look at where things are").clicked() { app.tour.start(); ui.close_menu(); }
-            if ui.button("Try a sample").on_hover_text("Opens a small name plate made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample); ui.close_menu(); }
-            if ui.button("Setup assistant…").on_hover_text("Set up a machine and a starter set of tools; nothing you have is deleted").clicked() { app.setup.start(false); ui.close_menu(); }
             ui.separator();
             if ui.button("About PutiaCNC…").clicked() { app.about_open = true; ui.close_menu(); }
         });
