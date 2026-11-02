@@ -199,9 +199,10 @@ fn problems(f: &ProjectFile) -> Vec<String> {
         if !end_ok { bad.push(format!("{tag}: odd ending {:?}", &l[n.saturating_sub(4)..])); }
         else {
             let z: f64 = l[at][4..].parse().unwrap_or(f64::NAN);
-            // safe Z, or 10 mm above it when the last operation is an air cut
+            // safe Z, or above it when the last operation is an air cut: 10 mm, or the operation's depth + 2 mm when that is more
             let safe = (d.job.safe + zt) / units.factor();
-            let top = safe + 10.0 / units.factor();
+            let lift = d.ops.iter().map(|o| o.p.depth).fold(8.0_f64, f64::max) + 2.0;
+            let top = safe + lift / units.factor();
             if z < safe - 0.01 || z > top + 0.01 { bad.push(format!("{tag}: ends at Z {z}, safe Z is {safe}")); }
         }
         // nothing cut below the stock bottom without a warning

@@ -90,6 +90,10 @@ mod tests {
             assert!(d.ops.iter().all(|o| o.p.depth <= d.stock.t + 1e-9));
             let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}x{z}: {e}"));
             assert!(o.lines.len() > 50);
+            // an air cut never touches the stock, however deep the operation: no Z move goes below 2 mm above the top
+            let f = if inch { 25.4 } else { 1.0 };
+            let lowest = o.lines.iter().filter(|l| l.starts_with("G")).flat_map(|l| l.split_whitespace().filter_map(|w| w.strip_prefix('Z').and_then(|v| v.parse::<f64>().ok()))).fold(f64::MAX, f64::min) * f;
+            assert!(lowest >= 1.99, "{x}x{y}x{z}: the air cut goes down to Z {lowest}");
             if inch { // round inch sizes
                 let q = d.stock.w / 6.35; assert!((q - q.round()).abs() < 1e-6, "stock width {} is not a whole quarter inch", d.stock.w);
             }

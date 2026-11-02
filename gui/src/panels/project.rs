@@ -911,7 +911,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                 }
-                changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, if p.kind == "draw" { "Air run (pen 10 mm above the paper)" } else { "Air cut (run without cutting)" }).tip("Runs this operation 10 mm above the stock so you can check the movements").changed() }).inner;
+                changed |= ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut p.air, if p.kind == "draw" { "Air run (pen 10 mm above the paper)" } else { "Air cut (run without cutting)" }).tip("Runs this operation 10 mm above the stock (more for an operation deeper than 8 mm, so it never touches the stock) to check the movements").changed() }).inner;
                 {
                     let mut on = p.pause.is_some();
                     if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Pause afterwards").tip("When this operation is done the tool lifts, the spindle stops and the program waits until you resume it: flip the stock, move a clamp, clear the chips.").changed() }).inner {

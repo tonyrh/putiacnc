@@ -697,6 +697,9 @@ fn select_pen(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64) {
     st.d = Some(tool.dia); st.r = None; st.t = Some(tool.id.clone()); e.lf = None;
 }
 
+/// How far above the stock an air cut runs: 10 mm, or more when the operation is deeper than that, so that even its lowest move stays 2 mm above the stock.
+fn air_lift(depth: f64) -> f64 { 10.0_f64.max(depth + 2.0) }
+
 /// A Draw operation: the pen follows the outline of every shape once, down at Z0 (a little below it for a spring-loaded holder),
 /// lifted a few millimetres between strokes. The strokes are ordered nearest first so the pen travels as little as it can.
 fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, o: &Operation, k: usize, mach: bool, mine: &[&LoopData]) -> Result<(), String> {
@@ -704,7 +707,7 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
     let tool = data.tools.iter().find(|t| t.id == o.p.tool).ok_or_else(|| format!("Operation {}: choose a pen (Manage… to create one)", k + 1))?;
     if tool.shape != "pen" { return Err(format!("Operation {}: Draw needs a pen or marker; choose one in Manage… (type: Pen / marker)", k + 1)); }
     if !(tool.feed > 0.0 && tool.plunge > 0.0) { return Err(format!("Operation {}: check the pen's draw speed and pen-down speed", k + 1)); }
-    let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };
+    let z0 = if o.p.air || data.job.air { air_lift(o.p.depth) } else { 0.0 };
     let sz = data.job.safe + z0;
     let down = z0 - o.p.depth.max(0.0);
     let lift = o.p.lift.filter(|v| *v > 0.0).unwrap_or(2.0).min(data.job.safe.max(0.1));
@@ -953,7 +956,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let tool = match &o.p.custom { Some(cf) if !o.p.f_off => { tool_own = custom_tool(cf, tool, machine, notes, &pre, "finishing"); &tool_own } _ => tool };
     let rough = match (&o.p.custom2, rough) { (Some(cf), Some(rt)) => { rough_own = custom_tool(cf, rt, machine, notes, &pre, "roughing"); Some(&rough_own) } (_, r) => r };
     let leave = o.p.r_leave.unwrap_or(RELIEF_LEAVE).clamp(0.0, 5.0);
-    let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };
+    let z0 = if o.p.air || data.job.air { air_lift(o.p.depth) } else { 0.0 };
     let sz = data.job.safe + z0;
     let hop = data.job.safe.min(1.0);
     let st = &data.stock;
@@ -1176,7 +1179,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         if mine.is_empty() { notes.push(format!("Op {} has no shapes.", k + 1)); continue; }
         if o.p.kind == "draw" {
             draw_op(&mut e, &mut ts, &mut notes, data, o, k, mach, &mine)?;
-            op_pause(&mut e, &mut ts, o, k, mach, data.job.safe + if o.p.air || data.job.air { 10.0 } else { 0.0 });
+            op_pause(&mut e, &mut ts, o, k, mach, data.job.safe + if o.p.air || data.job.air { air_lift(o.p.depth) } else { 0.0 });
             any = true;
             continue;
         }
@@ -1191,7 +1194,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         };
         let (dia, so, pd, feed, plunge) = (tool.dia, tool.so, tool.pd, tool.feed, tool.plunge);
         let depth = o.p.depth;
-        let z0 = if o.p.air || data.job.air { 10.0 } else { 0.0 };
+        let z0 = if o.p.air || data.job.air { air_lift(depth) } else { 0.0 };
         let sz = data.job.safe + z0;
         if !(dia > 0.0 && depth > 0.0 && pd > 0.0 && so > 0.0 && feed > 0.0 && plunge > 0.0) {
             return Err(format!("Operation {}: check tool, depth and feed values", k + 1));

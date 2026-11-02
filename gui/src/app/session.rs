@@ -20,6 +20,7 @@ impl App {
                 self.view_tab = crate::view3d::ViewTab::Split;
                 self.tab = RightTab::Ops;
                 self.sel.clear();
+                self.show_toolpath = true; // the air moves are the point of the picture
                 self.gen_pending = true;
                 self.fit_pending = true;
                 self.modified = true;
