@@ -19,6 +19,9 @@ fn take_notes(ctx: &egui::Context) -> Vec<HeaderNote> {
     ctx.data_mut(|d| { let v: Vec<HeaderNote> = d.get_temp(id).unwrap_or_default(); d.insert_temp(id, Vec::<HeaderNote>::new()); v })
 }
 
+/// The project the audits draw (for the tour's test as well).
+pub fn project_for_tests() -> App { project() }
+
 fn project() -> App {
     let mut a = App::new(None);
     a.tab = crate::app::RightTab::Ops;

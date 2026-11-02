@@ -138,3 +138,5 @@ On the machine: put no paper under the pen for the first run, start, and watch t
 `PUTIACNC_SHOW_FINGERS=1` opens the Finger joint window with every shape selected. `PUTIACNC_SHOW_BOX=1` opens the Box window (`=dogbone` with the dogbone options on).
 
 `PUTIACNC_SHOW_SETUP=1` opens the assistant as on a first run (`=again` as when run from the Help menu), `PUTIACNC_SETUP_STEP=n` starts at step n (0–3), `PUTIACNC_SETUP_INCHES=1` with inches chosen, `PUTIACNC_SETUP_PICK=n` with the n-th machine of the catalogue picked. `PUTIACNC_SKIP_SETUP=1` keeps it from opening on a fresh config folder; `scripts/shot.sh` sets it by default.
+
+- Quick tour: Help → Quick tour; each of the 8 steps highlights the named area and the card stays on screen. Also try "Start with a quick tour" on the last setup page.

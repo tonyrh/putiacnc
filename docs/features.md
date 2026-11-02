@@ -118,3 +118,10 @@ The setup assistant's machine step starts with a search and a grid of the catalo
 - Long names: an imported file's name, a 3D model's name and the tool and file lines of an operation card end in an ellipsis (the whole name is the tooltip) instead of widening the panel. A number field that is clicked and left with its text as it was does not change the value (it used to round it to the decimals shown, which made the reset arrow appear).
 
 - Tool windows: Box generator, Finger joint and Combine have OK (does it and closes the window) and Cancel; Offset, Array and Fillet and chamfer have Apply (does it and stays open, to go again) and Close.
+
+## Quick tour
+
+Help → "Quick tour" (also offered at the end of the setup assistant) walks through the
+window in 8 short steps: tools, left panel, operations panel, view tabs, time and checks,
+G-code, and what to do next. The rest of the window is dimmed and the part being explained
+is outlined. Next/Back, Enter/arrow keys, Esc or "Skip tour" to leave.

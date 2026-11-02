@@ -144,6 +144,7 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
         });
     });
     // the bars under the palette move down when it wraps (46 px is one row)
+    crate::tour::note(ctx, "tools", pal.response.rect);
     app.palette_extra = (pal.response.rect.height() - 46.0).max(0.0);
     // where the tool dialogs open: under the palette and whatever option bar is showing, at the same left edge
     app.bars_bottom = pal.response.rect.bottom();

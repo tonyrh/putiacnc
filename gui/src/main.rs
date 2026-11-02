@@ -47,6 +47,7 @@ mod fuzz;
 mod perf;
 #[cfg(test)]
 mod tips;
+mod tour;
 #[cfg(test)]
 mod audit;
 
@@ -117,6 +118,8 @@ fn main() -> eframe::Result<()> {
             app.setup.step = std::env::var("PUTIACNC_SETUP_STEP").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
         }
         else if first_run && std::env::var_os("PUTIACNC_SKIP_SETUP").is_none() { app.setup.start(true); }
+        // PUTIACNC_SHOW_TOUR=n: the quick tour at step n
+        if let Ok(v) = std::env::var("PUTIACNC_SHOW_TOUR") { app.tour.start(); app.tour.step = v.parse().unwrap_or(0); }
         theme::apply_fonts(&cc.egui_ctx);
         theme::apply_style(&cc.egui_ctx, &app.theme);
         Box::new(app)
@@ -172,7 +175,8 @@ impl App {
         let (fit_left, fit_right) = csd::fit_panels(ctx.screen_rect().width(), MIN_CANVAS_W, LEFT_W, RIGHT_W, self.show_left, self.show_right);
         self.squeezed = (self.show_left && !fit_left, self.show_right && !fit_right);
         egui::TopBottomPanel::top("menu").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, true))).show(ctx, |ui| { ui.set_min_height(csd::HEADER_H); csd::header(ui, self) });
-        egui::TopBottomPanel::bottom("status").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, false))).show(ctx, |ui| panels::status_bar(ui, self));
+        let r = egui::TopBottomPanel::bottom("status").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, false))).show(ctx, |ui| panels::status_bar(ui, self));
+        tour::note(ctx, "status", r.response.rect);
         // the smallest window depends on which panels are showing
         let min_w = MIN_CANVAS_W + if self.show_left { LEFT_W } else { 0.0 } + if self.show_right { RIGHT_W } else { 0.0 };
         if (self.last_min_w - min_w).abs() > 0.5 {
@@ -180,14 +184,17 @@ impl App {
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(min_w.max(640.0), MIN_H)));
         }
         if fit_left {
-            egui::SidePanel::left("left").resizable(false).exact_width(LEFT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)); });
+            let r = egui::SidePanel::left("left").resizable(false).exact_width(LEFT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)); });
+            tour::note(ctx, "left", r.response.rect);
         }
         if fit_right {
-            egui::SidePanel::right("right").resizable(false).exact_width(RIGHT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)); });
+            let r = egui::SidePanel::right("right").resizable(false).exact_width(RIGHT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)); });
+            tour::note(ctx, "right", r.response.rect);
         }
         egui::TopBottomPanel::bottom("toolbar").frame(bar_frame(ctx, self.theme.header())).show(ctx, |ui| panels::tool_bar(ui, self));
         let preview = self.view_tab == view3d::ViewTab::Preview;
-        egui::TopBottomPanel::top("viewtabs").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin { left: 8.0, right: 8.0, top: 8.0, bottom: 4.0 })).show(ctx, |ui| view3d::tab_strip(ui, self));
+        let r = egui::TopBottomPanel::top("viewtabs").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin { left: 8.0, right: 8.0, top: 8.0, bottom: 4.0 })).show(ctx, |ui| view3d::tab_strip(ui, self));
+        tour::note(ctx, "tabs", r.response.rect);
         if self.error.is_some() {
             egui::TopBottomPanel::top("msgbar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(10.0, 6.0))).show(ctx, |ui| panels::message_bar(ui, self));
         }
@@ -225,6 +232,7 @@ impl App {
         shortcuts::window(ctx, self);
         about::window(ctx, self);
         setup::window(ctx, self);
+        tour::window(ctx, self);
         checkui::window(ctx, self);
         timeui::window(ctx, self);
         exportui::window(ctx, self);
