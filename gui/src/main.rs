@@ -128,6 +128,13 @@ fn main() -> eframe::Result<()> {
             if std::env::var_os("PUTIACNC_AIR").is_some() { for o in &mut app.project.data.ops { o.p.air = true; } }
             if std::env::var_os("PUTIACNC_NO_PATHS").is_some() { app.show_toolpath = false; }
         }
+        // PUTIACNC_SHOW_SURFACE[=add]: the Surface window (and with =add, the operation already added)
+        if let Ok(v) = std::env::var("PUTIACNC_SHOW_SURFACE") {
+            if v == "add" {
+                if let Some(t) = putiacnc_core::surface::suggest_tool(&app.project.data.tools).cloned() { let _ = putiacnc_core::surface::add_surfacing(&mut app.project.data, &putiacnc_core::surface::defaults(&t, false)); }
+                if std::env::var("PUTIACNC_VIEW").as_deref() == Ok("3d") { app.view_tab = view3d::ViewTab::Preview; }
+            } else { app.open_tool_window(app::ToolWin::Surface); }
+        }
         theme::apply_fonts(&cc.egui_ctx);
         theme::apply_style(&cc.egui_ctx, &app.theme);
         Box::new(app)
