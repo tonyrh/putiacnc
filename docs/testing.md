@@ -142,3 +142,5 @@ On the machine: put no paper under the pen for the first run, start, and watch t
 - Quick tour: Help → Quick tour; each of the 8 steps highlights the named area and the card stays on screen. Also try "Start with a quick tour" on the last setup page.
 
 - Try a sample: Help → Try a sample → Name plate and → Finger-joint box, in mm and in inches, with a small and a large machine: it fits the stock, the Notes tab explains it, the toolpath generates. `PUTIACNC_SHOW_SAMPLE=1` loads it at start.
+
+- Setup sheet: File → Setup sheet… on a project with two tools, a pause, an air cut and an inlay with a separate plug piece; open the page and print preview it (A4 and Letter): it should fit on one or two pages, with no table cut off. Try it in mm and in inches. Unit tests (`src/setupsheet.rs`) check the sections, the escaping of names and notes, inch units, and the air-cut and pause rows.

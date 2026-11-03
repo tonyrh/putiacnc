@@ -96,6 +96,7 @@ impl App {
                     }
                 }
             }
+            DlgKind::SetupSheet => self.write_setup_sheet(p),
             DlgKind::LibExport => self.finish_lib_export(p),
             DlgKind::LibImport => self.finish_lib_import(p),
             DlgKind::MachExport => self.finish_mach_export(p),
@@ -302,6 +303,38 @@ impl App {
         self.finish_generation();
         if self.output.is_none() { self.error = Some("Nothing to export: there is no G-code yet.".into()); return; }
         if self.can_split() { self.export_open = true; } else { self.export_split = putiacnc_core::split::Split::One; self.choose_export_file(); }
+    }
+
+    /// File → Setup sheet…: asks where to save the page, then writes it and opens it in the browser to print or save as PDF.
+    pub fn setup_sheet_dialog(&mut self) {
+        self.finish_generation();
+        if self.output.is_none() { self.error = Some("There is no toolpath yet: add an operation first.".into()); return; }
+        let name = if self.project.name.trim().is_empty() { "job".to_string() } else { self.project.name.trim().to_string() };
+        let dir = crate::prefs::existing_dir(&self.prefs.dir_gcode)
+            .or_else(|| if self.path.is_empty() { None } else { std::path::Path::new(&self.path).parent().map(|d| d.to_path_buf()) })
+            .or_else(|| crate::prefs::existing_dir(&self.prefs.dir_project));
+        self.spawn_dialog(DlgKind::SetupSheet, move || {
+            let mut dlg = rfd::FileDialog::new().add_filter("Web page", &["html"]).set_file_name(format!("{name} setup sheet.html"));
+            if let Some(d) = dir { dlg = dlg.set_directory(d); }
+            dlg.save_file()
+        });
+    }
+
+    fn write_setup_sheet(&mut self, mut p: std::path::PathBuf) {
+        if p.extension().is_none() { p.set_extension("html"); }
+        self.finish_generation();
+        let Some(out) = self.output.clone() else { self.error = Some("There is no toolpath yet.".into()); return };
+        let mut parts = vec![putiacnc_core::pieces::PartOutput { piece: None, out }];
+        parts.extend(self.pieces.iter().map(|pp| putiacnc_core::pieces::PartOutput { piece: Some(pp.job.clone()), out: pp.output.clone() }));
+        let units = if self.imperial { putiacnc_core::Units::Imperial } else { putiacnc_core::Units::Metric };
+        let page = putiacnc_core::setupsheet::html(&self.project.data, &parts, units, &putiacnc_core::setupsheet::SheetInfo { version: env!("CARGO_PKG_VERSION").into() }, &self.project.name);
+        match std::fs::write(&p, page) {
+            Ok(()) => {
+                let _ = open::that_detached(&p);
+                self.say(Level::Info, format!("Saved {} and opened it in your browser: print it, or save it as PDF from there.", p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
+            }
+            Err(e) => self.error = Some(format!("Could not save the setup sheet: {e}")),
+        }
     }
 
     pub fn can_split(&self) -> bool {

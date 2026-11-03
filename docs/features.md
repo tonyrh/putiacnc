@@ -134,3 +134,7 @@ An air cut runs 10 mm above the stock, or deeper-operation depth + 2 mm when tha
 
 The **finger-joint box** is the five plates of an open box with finger joints (fingers twice the material thickness, dogbone reliefs for a round cutter) laid out in rows on the stock, with one outside cut through all of them with holding tabs. The box is as large as the stock takes it (up to 80 x 60 x 40 mm), the plates are cut from the stock's own thickness (6 mm, or 1/4 in, or less on a machine with little Z travel), and the Notes tab explains how to change it with Edit → Box with finger joints.
 
+## Setup sheet
+
+File → Setup sheet… saves one printable page for the person at the machine and opens it in the browser, where it can be printed or saved as PDF. It has the job in numbers (machine, stock, material, where X0 Y0 and Z0 go, estimated time, cutting length, safe height) beside a picture of the stock with the shapes in the colour of their operation and the work zero marked, the tools in the order they are used (type, diameter, speed, feed, plunge, which operations use them), the operations (depth, pass, tabs, air cut, pauses, time each), a tick-box list of what to do before starting (including the tool-change, pause and air-cut reminders), the toolpath warnings, any separate pieces of stock with their own zero, and the project notes. Lengths and feeds are in the display units. The page is a single file with no outside links.
+

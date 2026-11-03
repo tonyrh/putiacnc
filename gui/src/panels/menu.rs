@@ -47,6 +47,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Save as…", "Ctrl+Shift+S", true) { app.save_as_dialog(); }
             ui.separator();
             if item(ui, "Export G-code…", "Ctrl+E", app.output.is_some()) { app.export_gcode_dialog(); }
+            if item(ui, "Setup sheet…", "", app.output.is_some()) { app.setup_sheet_dialog(); }
             ui.separator();
             if item(ui, "Quit", "Ctrl+Q", true) { app.request(Action::Quit); }
         });
