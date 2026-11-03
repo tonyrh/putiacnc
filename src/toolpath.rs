@@ -347,6 +347,18 @@ fn group_by_component(comp: &[usize]) -> Vec<Vec<usize>> {
 /// starts at the region nearest to where the tool is), and profiles go nearest first, but never before something inside them (holes and
 /// parts inside another part are cut before the part around them).
 /// A pocket cuts each depth pass over all its rings; the other kinds cut all depths of one job, then the next.
+/// The finishing pass of walls the depth passes left stock on: one pass at full depth when the tool's flutes are long enough for it,
+/// otherwise at every depth again (each only takes the thin stock off).
+#[allow(clippy::too_many_arguments)]
+fn finish_pass(e: &mut Em, c: &OpCtx, fin: &mut [Job], region: &[Path], zs: &[f64], tool: &Tool, depth: f64, k: usize) {
+    if fin.is_empty() { return; }
+    let one = tool.flute > 0.0 && depth <= tool.flute + 1e-9;
+    let fz: Vec<f64> = if one { zs.last().map(|z| vec![*z]).unwrap_or_default() } else { zs.to_vec() };
+    e.g.push(format!("(Operation {}: finishing pass to size{})", k + 1, if one { ", full depth" } else { "" }));
+    let guard: Vec<Path> = fin.iter().map(|j| j.p.clone()).collect();
+    run_jobs(e, c, fin, region, &fz, &guard);
+}
+
 fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64], guard: &[Path]) {
     if c.kind == "pocket" {
         let groups = if jobs.len() > 1 {
@@ -1464,6 +1476,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let mut vr: Vec<(Path, f64)> = Vec::new();
         let mut by_pass = false;
         let mut holes: Vec<[f64; 2]> = Vec::new();
+        // the walls cut to size in a last pass (when the depth passes left some stock on them)
+        let mut fin: Vec<Job> = Vec::new();
         if kind == "drill" {
             let (mut wide, mut odd) = (0, 0);
             for l in mine.iter().filter(|l| l.closed() && l.pts.len() / 2 > 2) {
@@ -1525,6 +1539,17 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let rm = if matches!(geo.shape, ShapeKind::Ball | ShapeKind::Arc) && depth < geo.z_full { geo.r_at(depth) } else { rr };
             if rm < rr - 1e-6 && kind != "online" { notes.push(format!("{}depth is below the ball radius, so the cut is narrower than the tool ({} {}).", pre, num(fl(rm * 2.0)), un)); }
             jobs = mk_jobs(&ctx, &region, &closed, &open, rm);
+            // stock to leave: the depth passes keep `wl` away from the walls, and a finishing pass cuts them to size
+            if let Some(wl) = o.p.w_leave.filter(|v| *v > 0.0 && matches!(kind, "outside" | "inside" | "pocket")).map(|v| v.min(2.0)) {
+                let rough = mk_jobs(&ctx, &region, &closed, &open, rm + wl);
+                if rough.is_empty() {
+                    notes.push(format!("{}too narrow to leave {} {} on the walls: it is cut to size in one go.", pre, num(fl(wl)), un));
+                } else {
+                    fin = if kind == "pocket" { off(&region, -rm * S).into_iter().map(|p| Job { p, closed: true, pocket: false, gen: 0, iv: None }).collect() } else { std::mem::take(&mut jobs) };
+                    jobs = rough;
+                    notes.push(format!("{}the walls are cut {} {} oversize in the depth passes, then to size in a finishing pass.", pre, num(fl(wl)), un));
+                }
+            }
         }
         ctx.rev = (kind == "inside" || kind == "pocket" || kind == "vcarve") != (o.p.dir == "conv");
         if if kind == "drill" { holes.is_empty() } else if kind == "vcarve" { vr.is_empty() } else { !by_pass && jobs.is_empty() } {
@@ -1551,6 +1576,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             if let Some(tp) = &o.p.tab_pts {
                 let pts: Vec<[f64; 2]> = tp.iter().filter_map(|t| crate::shapes::tab_resolve(&data.loops, o.id, t).map(|r| r.0)).collect();
                 assign_manual_tabs(&ctx, &mut jobs, &pts, &mut notes, &pre);
+                assign_manual_tabs(&ctx, &mut fin, &pts, &mut Vec::new(), &pre);
             }
         }
 
@@ -1597,12 +1623,14 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             }
         } else if kind == "pocket" {
             run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &[]);
+            finish_pass(&mut e, &ctx, &mut fin, &region, &zs, tool, depth, k);
             if let Some(id) = o.p.rest.as_deref() {
                 rest_pass(&mut e, &mut ts, &mut notes, data, o, k, mach, &ctx, &region, tool, id);
             }
         } else {
             let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
             run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &guard);
+            finish_pass(&mut e, &ctx, &mut fin, &region, &zs, tool, depth, k);
         }
         if e.lead_skipped > 0 {
             notes.push(format!("{}lead-in/out skipped on {} path(s): not enough room for the arc.", pre, e.lead_skipped));

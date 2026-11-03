@@ -653,6 +653,21 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             if p.rest.is_some() && ui.small_button("Remove").on_hover_text("Leave the corners as the main tool cuts them").clicked() { p.rest = None; changed = true; }
                         });
                     }
+                    if matches!(p.kind.as_str(), "outside" | "inside" | "pocket") && tools.iter().find(|t| t.id == p.tool).is_some_and(|t| matches!(t.shape.as_str(), "flat" | "ball")) {
+                        // stock to leave on the walls in the depth passes, cut to size in a last pass
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
+                            rlabel(ui, l1, "Finish");
+                            let mut on = p.w_leave.is_some();
+                            if crate::widgets::check(ui, &mut on, "Finishing pass").tip("Cut the walls 0.2 mm oversize in the depth passes, then to size in one last pass: cleaner walls and a more accurate size, especially in hard materials").changed() { p.w_leave = if on { Some(0.2) } else { None }; changed = true; }
+                            if let Some(v) = p.w_leave.as_mut() {
+                                ui.weak("leave");
+                                if dl_w(ui, 48.0, v, 0.0, 2.0, "") { changed = true; }
+                                ui.weak(crate::widgets::len_unit(ui));
+                            }
+                        });
+                    }
                     if p.kind == "draw" {
                         // a pen: down at the paper (or a little into it, for a spring-loaded holder), up a few millimetres between strokes
                         let lw3 = l1;
