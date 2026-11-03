@@ -373,4 +373,30 @@ mod tests {
         d.tools.clear();
         assert!(fill(&mut d, false).is_err());
     }
+
+    /// A wide roughing cutter must leave a straight wall at the ends of its rows, not the scallops of its round end between two rows.
+    #[test]
+    fn roughing_with_a_wide_cutter_leaves_straight_side_walls() {
+        let mut d = project(300.0, 200.0, 60.0, false);
+        fill_relief(&mut d, false).unwrap();
+        let wide = d.tools.iter().find(|t| t.name == "8 mm flat end mill").unwrap().id.clone();
+        d.ops[0].p.tool2 = Some(wide);
+        d.ops[0].p.f_off = true;
+        d.ops[0].p.rest = None;
+        let out = generate(&d, Units::Metric).unwrap();
+        let mut sim = crate::sim::Sim::new(&d, 400_000);
+        sim.advance(&out.moves, out.moves.len());
+        // the left wall of the cleared area, along the middle of the model
+        let (mut lo, mut hi) = (f64::MAX, f64::MIN);
+        for iy in 0..sim.ny {
+            let y = iy as f64 * sim.cell;
+            if (y - d.stock.h / 2.0).abs() > 12.0 { continue; }
+            let Some(ix) = (0..sim.nx).find(|&ix| sim.at(ix, iy) < -1.0) else { continue };
+            let x = ix as f64 * sim.cell;
+            lo = lo.min(x); hi = hi.max(x);
+            // and the cutter has reached the full depth right beside it, wherever the model's rim rises
+            assert!(sim.at(ix + 7, iy) < -5.5, "at y {y:.1} the strip beside the wall is only {:.2} deep", sim.at(ix + 7, iy));
+        }
+        assert!(hi - lo < 0.1 + sim.cell, "the wall wanders by {:.2} mm", hi - lo);
+    }
 }

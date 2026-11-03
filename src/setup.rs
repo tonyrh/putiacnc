@@ -108,7 +108,7 @@ pub fn starter_tools(c: ToolChoice) -> Vec<Tool> {
     if c.vbits {
         v.extend(pick(if c.inch_sizes { &["60° V-bit (1/4″)", "90° V-bit (1/4″)", "30° engraving bit (1/8″)"] } else { &["90° V-bit (6 mm)", "30° engraving bit (1/8″)"] }));
     }
-    if c.ball { v.extend(pick(&["1/8″ ball nose", "1/4″ ball nose"])); }
+    if c.ball { v.extend(pick(if c.inch_sizes { &["1/8″ ball nose", "1/4″ ball nose"] } else { &["1.5 mm ball nose", "3 mm ball nose", "6 mm ball nose"] })); }
     if c.surfacing { v.extend(pick(&["1″ surfacing bit"])); }
     if c.pens { v.extend(pens()); }
     for t in &mut v { t.id = toollib::new_id("t"); }

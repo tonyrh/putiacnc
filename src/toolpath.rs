@@ -1052,7 +1052,8 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let fgeo = ToolGeo::new(tool);
     let rmax = tool.dia / 2.0 + 0.2;
     let rmax = rough.map_or(rmax, |r| rmax.max(r.dia / 2.0 + 0.2));
-    let f = Field::new(rel, depth, rmax + 1.0);
+    // (the roughing plan's footprint is a little wider than its cutter, to cover the rounding of its coarse grid)
+    let f = Field::new(rel, depth, rmax + 1.0 + rough.map_or(0.0, |r| 0.8 * r.dia / 6.0));
     let g = f.g;
     let dec = if e.imp { 4 } else { 3 };
     let fnum = move |v: f64| num(to_fixed(v / ku, dec));
@@ -1063,7 +1064,8 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         if !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) { return Err(format!("Operation {}: check the roughing tool's values", k + 1)); }
         let rg = ToolGeo::new(rt);
         let kc = ((rt.dia / 6.0 / g).round() as usize).max(1);
-        let margin = (((rt.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
+        // the plan reaches as far out as the cutter, plus the extra width of its footprint, so a cell at its edge is not blocked by the model's rim
+        let margin = (((rt.dia / 2.0 + 0.2 + 0.7 * kc as f64 * g) / g).ceil() as usize).min(f.pad);
         let rp = Rough::new(&f, kc, rt.dia / 2.0, leave as f32, |rho| rg.rise(rho), margin);
         let range = -(rp.min_t as f64);
         if range > 1e-6 {
@@ -1090,6 +1092,22 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
                     if !row.is_empty() { ltr = !ltr; }
                     segs.extend(row);
                     cj += rstep;
+                }
+                // The rows leave scallops where the cleared area ends along them (the round cutter's end between two rows), so the
+                // ends of the runs of every row are followed once more, row after row, which cuts those walls straight.
+                for left in [true, false] {
+                    let mut before: Vec<[f64; 2]> = Vec::new();
+                    for cj in 0..rp.ny {
+                        let y = rp.y(cj);
+                        let runs = rp.runs(cj, z as f32);
+                        // only the outer wall: the first start and the last end of the row
+                        let now: Vec<[f64; 2]> = if left { runs.first().map(|&(a, _)| [rp.x(a), y]) } else { runs.last().map(|&(_, b)| [rp.x(b), y]) }.into_iter().collect();
+                        for pt in &now {
+                            let near = before.iter().filter(|q| (q[0] - pt[0]).abs() <= 2.0 * rp.gc + 1e-6).min_by(|p, q| (p[0] - pt[0]).abs().total_cmp(&(q[0] - pt[0]).abs()));
+                            if let Some(q) = near { if rp.open_line(*q, *pt, z as f32) { segs.push((*q, *pt)); } }
+                        }
+                        before = now;
+                    }
                 }
                 let mut prev: Option<[f64; 2]> = None;
                 for (a, b) in segs {
