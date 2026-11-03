@@ -116,7 +116,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let fit = fit_dist(app.v3.yaw, app.v3.pitch, &stk, asp, app.v3.ortho);
     let mut zact = None;
     let mut fit_click = false;
-    let shown = egui::Area::new(egui::Id::new("viewcube")).order(egui::Order::Foreground).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-10.0, 10.0)).show(ctx, |ui| {
+    let shown = egui::Area::new(egui::Id::new("viewcube")).order(egui::Order::Middle).pivot(egui::Align2::RIGHT_TOP).fixed_pos(rect.right_top() + Vec2::new(-10.0, 10.0)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(6.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(4.0, 4.0);
             ui.set_min_width(crate::zoomcard::ROW3_W);

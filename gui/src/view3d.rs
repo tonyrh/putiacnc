@@ -327,7 +327,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let painter = painter.with_clip_rect(rect);
     let dark = app.theme.dark;
     // hint line, as wide as the view
-    egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
+    egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.label(egui::RichText::new("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll or pinch: zoom  ·  F: fit  ·  Double-click: reset").weak());
     });
@@ -618,7 +618,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     if !app.pieces.is_empty() {
         let names: Vec<String> = app.pieces.iter().map(|pp| format!("Plug piece (operation {})", pp.job.op_index + 1)).collect();
         let mut part = app.v3.part;
-        egui::Area::new(egui::Id::new("v3_part")).order(egui::Order::Foreground).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -44.0)).show(&ctx, |ui| {
+        egui::Area::new(egui::Id::new("v3_part")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -44.0)).show(&ctx, |ui| {
             if names.len() == 1 {
                 let (c, _) = crate::zoomcard::seg2(ui, ["Main stock", "Plug piece"], ["Shows the main stock, where the pocket is cut", "Shows the separate piece of stock the plug is cut from (its own G-code file)"], part.min(1));
                 if let Some(i) = c { part = i; }

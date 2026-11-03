@@ -236,7 +236,6 @@ impl App {
             egui::TopBottomPanel::top("checksbar").frame(bar_frame(ctx, self.theme.header()).inner_margin(egui::Margin::symmetric(10.0, 6.0))).show(ctx, |ui| checkui::bar(ui, self));
         }
         // dialogs may go anywhere in what the panels and bars leave, over the 3D half of the split view as well
-        csd::set_work_area(ctx, ctx.available_rect());
         let split = self.view_tab == view3d::ViewTab::Split;
         self.split_rect = None;
         if split {
