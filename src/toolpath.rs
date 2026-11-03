@@ -703,6 +703,16 @@ fn rest_pass(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     e.alt = false;
 }
 
+/// How wide the shape is at its narrowest, up to `max_dia`: the biggest tool diameter that still fits, found by halving.
+fn narrowest_width(region: &[Path], max_dia: f64) -> f64 {
+    let (mut lo, mut hi) = (0.0_f64, max_dia / 2.0);
+    for _ in 0..14 {
+        let mid = (lo + hi) / 2.0;
+        if off_raw(region, -mid * S).is_empty() { hi = mid; } else { lo = mid; }
+    }
+    2.0 * lo
+}
+
 /// Why an operation that should cut something produced no toolpath, in words that tell the user what to change. `None` when it is not a case
 /// we can name (the caller then says what it always said).
 #[allow(clippy::too_many_arguments)]
@@ -715,13 +725,7 @@ fn no_toolpath_reason(data: &ProjectData, k: usize, kind: &str, tool: &Tool, reg
     if closed.is_empty() || region.is_empty() {
         return Some(format!("{pre}{kname} needs closed shapes, and this operation has none (open lines cannot be pocketed: close them, or use Profile on the line)."));
     }
-    // how wide the shape is at its narrowest: the biggest tool radius that still fits, found by halving
-    let (mut lo, mut hi) = (0.0_f64, tool.dia / 2.0);
-    for _ in 0..14 {
-        let mid = (lo + hi) / 2.0;
-        if off_raw(region, -mid * S).is_empty() { hi = mid; } else { lo = mid; }
-    }
-    let width = 2.0 * lo;
+    let width = narrowest_width(region, tool.dia);
     // the biggest cutter of the same kind (flat, ball...) in the project that does fit
     let fits = data.tools.iter().filter(|t| t.shape == tool.shape && t.dia > 0.0 && t.dia <= width - 0.05).max_by(|a, b| a.dia.total_cmp(&b.dia));
     let advice = match fits {
@@ -1457,12 +1461,27 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             if rm < rr - 1e-6 && kind != "online" { notes.push(format!("{}depth is below the ball radius, so the cut is narrower than the tool ({} {}).", pre, num(fl(rm * 2.0)), un)); }
             jobs = mk_jobs(&ctx, &region, &closed, &open, rm);
         }
+        ctx.rev = (kind == "inside" || kind == "pocket" || kind == "vcarve") != (o.p.dir == "conv");
         if if kind == "drill" { holes.is_empty() } else if kind == "vcarve" { vr.is_empty() } else { !by_pass && jobs.is_empty() } {
+            // a pocket the main tool is too wide for is cut whole by its Corners tool, when it has one
+            if kind == "pocket" && !by_pass {
+                if let Some(id) = o.p.rest.as_deref() {
+                    let before = e.moves.len();
+                    rest_pass(&mut e, &mut ts, &mut notes, data, o, k, mach, &ctx, &region, tool, id);
+                    if e.moves.len() > before {
+                        let rn = data.tools.iter().find(|t| t.id == id).map(|t| tool_label(&t.name)).unwrap_or_default();
+                        notes.push(format!("{}the {} is wider than the shape (about {} {}), so the whole pocket is cut with the Corners tool, the {}.", pre,
+                            tool_label(&tool.name), num(to_fixed(narrowest_width(&region, dia) / ku, 2)), un, rn));
+                        op_pause(&mut e, &mut ts, o, k, mach, sz);
+                        any = true;
+                        continue;
+                    }
+                }
+            }
             notes.push(no_toolpath_reason(data, k, kind, tool, &region, &closed, ku, un).unwrap_or_else(|| format!("{}no toolpath (tool too large?).", pre)));
             continue;
         }
         if tabs_req && !tabs_on { notes.push(format!("{}tabs skipped: the tab height must be smaller than the cut depth.", pre)); }
-        ctx.rev = (kind == "inside" || kind == "pocket" || kind == "vcarve") != (o.p.dir == "conv");
         if tabs_on {
             if let Some(tp) = &o.p.tab_pts {
                 let pts: Vec<[f64; 2]> = tp.iter().filter_map(|t| crate::shapes::tab_resolve(&data.loops, o.id, t).map(|r| r.0)).collect();

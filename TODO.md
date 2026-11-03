@@ -20,7 +20,8 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Setup sheet (File > Setup sheet…): a printable HTML page with the stock and zero, the tools in order, the operations with times, a checklist, the warnings and the notes (0.4.2).
 - [x] Surface the stock or the spoilboard (Edit > Surface the stock…): a Pocket over a rectangle a cutter radius larger than the stock, with a wide cutter (0.4.2).
 - [x] The message when a pocket or inside profile makes no toolpath names the reason (tool wider than the shape, with the widths and a tool that fits; open lines).
-- [ ] Rest machining, next: when the main cutter is too big to cut anything, let the Corners cutter cut the whole pocket instead of failing; then V-carve and relief.
+- [x] Rest machining: when the main cutter is too big to cut anything, the Corners cutter cuts the whole pocket, with an information note.
+- [ ] Rest machining, next: V-carve and relief.
 - [ ] Probing and homing snippets for the machine's start code (touch plate for Z zero).
 - [ ] G-code serial sender for GRBL (stream, pause, stop, position display). Needs testing on the real machine.
 - [ ] Check the setup assistant and the quick tour on macOS and Windows (only tested on Linux so far).

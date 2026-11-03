@@ -171,4 +171,28 @@ mod tests {
         let e = generate(&d, Units::Metric).unwrap_err();
         assert!(e.contains("Pocket needs closed shapes"), "{e}");
     }
+
+    #[test]
+    fn a_pocket_too_narrow_for_the_main_tool_is_cut_by_the_corners_tool() {
+        use crate::{generate, Units};
+        let mut d = pocket_project(true);
+        d.loops = vec![crate::shapes::new_rect([20.0, 20.0], [80.0, 24.0], 0.0, 1)]; // 4 mm wide: the 6 mm cannot enter, the 2 mm can
+        let o = generate(&d, Units::Metric).unwrap();
+        let tools: Vec<&String> = o.lines.iter().filter(|l| l.starts_with("(Tool:")).collect();
+        assert_eq!(tools.len(), 1, "{tools:?}");
+        assert!(tools[0].contains("2 mm"), "{tools:?}");
+        assert!(o.moves.iter().any(|m| m.cut && m.alt));
+        let n: Vec<&String> = o.notes.iter().filter(|n| n.contains("whole pocket is cut with the Corners tool")).collect();
+        assert_eq!(n.len(), 1, "{:?}", o.notes);
+        assert!(n[0].contains("about 4 mm") && n[0].contains("2 mm flat end mill"), "{}", n[0]);
+        // the information is not a warning
+        assert!(!n[0].starts_with('\u{26a0}'));
+        // the whole 4 mm slot is cleared: the tool centre runs along it, 1 mm from the walls
+        let ys: Vec<f64> = o.lines.iter().filter(|l| l.starts_with("G1")).flat_map(|l| l.split_whitespace().filter_map(|w| w.strip_prefix('Y').and_then(|v| v.parse::<f64>().ok())).collect::<Vec<_>>()).collect();
+        assert!(ys.iter().all(|y| *y >= 21.0 - 1e-6 && *y <= 23.0 + 1e-6), "{ys:?}");
+        // too wide for the Corners tool as well: the specific message, no toolpath
+        d.loops = vec![crate::shapes::new_rect([20.0, 20.0], [80.0, 21.0], 0.0, 1)];
+        let e = generate(&d, Units::Metric).unwrap_err();
+        assert!(e.contains("No toolpath") && e.contains("too narrow"), "{e}");
+    }
 }
