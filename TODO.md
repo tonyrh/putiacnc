@@ -16,6 +16,14 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Dialog buttons: a window that does its job once (Box generator, Fingers, Combine) has OK (does it and closes) and Cancel; one that is used again and again (Offset, Array, Fillet and chamfer) has Apply (does it, stays open) and Close; Clean up keeps Clean up and Close. The dialog audit checks the labels, the row and the order.
 
 ## Bigger
+- [x] Setup assistant, quick tour, two sample projects (name plate, finger-joint box) that fit the user's machine and tools (0.4.0 to 0.4.2).
+- [x] Setup sheet (File > Setup sheet…): a printable HTML page with the stock and zero, the tools in order, the operations with times, a checklist, the warnings and the notes (0.4.2).
+- [x] Surface the stock or the spoilboard (Edit > Surface the stock…): a Pocket over a rectangle a cutter radius larger than the stock, with a wide cutter (0.4.2).
+- [x] The message when a pocket or inside profile makes no toolpath names the reason (tool wider than the shape, with the widths and a tool that fits; open lines).
+- [ ] Rest machining, next: when the main cutter is too big to cut anything, let the Corners cutter cut the whole pocket instead of failing; then V-carve and relief.
+- [ ] Probing and homing snippets for the machine's start code (touch plate for Z zero).
+- [ ] G-code serial sender for GRBL (stream, pause, stop, position display). Needs testing on the real machine.
+- [ ] Check the setup assistant and the quick tour on macOS and Windows (only tested on Linux so far).
 - [x] Grouping (Edit > Group, Ctrl+G; Ungroup, Ctrl+Shift+G): done. Groups are flat (grouping a group with something else merges them); a copy of a group is a group of its own.
 - [ ] Maybe later: layers (name, colour, eye, lock; hidden layers still get cut, as in Aspire) and dimension lines (linear, radius, diameter, angle; display only, attached to their points). Left out for now: operations already group shapes by what is cut.
 - [x] Text: automatic kerning (font `kern` / `GPOS` pairs), letter / word spacing in % (done); fit to width done.

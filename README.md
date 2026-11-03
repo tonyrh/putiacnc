@@ -6,7 +6,7 @@
 **Project page: <https://tonyrh.github.io/putiacnc/>**
 
 A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC output too), written in Rust. Draw or import shapes, assign operations
-(profile, pocket, V-carve, drill, inlay), preview the result in 2D and in a simulated 3D view of the machined
+(profile, pocket, V-carve, drill, inlay, 3D relief), preview the result in 2D and in a simulated 3D view of the machined
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
 ![2D design: a rounded plate with a pocketed name and four drilled holes](docs/screenshot-2d.png)
@@ -41,6 +41,8 @@ The workspace has two crates:
 
 **Operations**
 - Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
+- Rest machining: a smaller flat cutter clears only the corners and narrow parts the pocket's main cutter could not reach.
+- Surface the stock or the spoilboard with a wide cutter (Edit > Surface the stock).
 - Flat, bull, ball, V-bit, engraving, tapered ball and arc profile bits, shown with their real shape in the 3D preview.
 
 **Preview and checks**
@@ -52,6 +54,7 @@ The workspace has two crates:
 - Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files.
 
 **Everything else**
+- A setup assistant on first run, a quick tour and two sample projects (Help > Try a sample); a printable setup sheet (File > Setup sheet) with the stock, tools in order, operations and a checklist.
 - G-code tab with a time estimate, optional inches and line numbers; project notes; keyboard shortcuts (F1); light and dark themes; check for updates (only when you ask); window and panel layout remembered between sessions.
 
 The full list, with every option, is in [docs/features.md](docs/features.md).

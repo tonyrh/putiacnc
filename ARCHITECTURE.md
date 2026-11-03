@@ -33,8 +33,15 @@ changes the project inside a drawing function, it probably belongs in core.
 | `svg`, `dxf`, `bitmap`, `text` | Importers and the font-to-outline code. |
 | `toolpath` | `generate(&ProjectData, Units) -> Output`: profile, pocket, V-carve, drill, inlay, tabs, lead-in, G-code lines and a time estimate. |
 | `relief` | The 3D model roughing and finishing passes. |
+| `rest` | Rest machining of pockets: what the main cutter leaves (the pocket minus the pocket "opened" by the cutter) and the area a smaller cutter must visit. |
+| `joints` | Dogbone corner reliefs and finger joints, and the box plates. |
+| `pieces`, `split` | Inlay plugs on a separate piece of stock; one program split into several files (per tool or per operation). |
+| `feeds` | Feeds and speeds by material, tool and machine stiffness. |
+| `linetext` | Single-line (Hershey) text for pen drawing. |
 | `sim` | Material-removal simulation on a height field: each cutting move is stamped into a grid with the tool's profile, which the 3D preview shows. |
 | `checks` | Reads the generated toolpath and reports what would go wrong: clamp collisions, depth beyond the stock, and so on. |
+| `replay`, `verify`, `summary` | The G-code text read back: as steps for the 3D preview, as an independent safety check, and as a plain summary of what the program will do. Neither shares code with `toolpath`, so they catch its mistakes. |
+| `setup`, `sample`, `surface`, `setupsheet` | First-run setup (machine and starter tools); the sample projects (name plate, finger-joint box) made to fit the user's machine; the Surface tool (a pocket over the whole stock with a wide cutter); the printable setup sheet (HTML). |
 | `history` | Undo and redo as project snapshots, each tagged Drawing / Project / Both, so the toolbar and the Edit menu can step differently. |
 | `selection` | Selection units, group and ungroup. |
 | `machines`, `toollib` | Machine definitions and the tool library. |
@@ -56,6 +63,10 @@ changes the project inside a drawing function, it probably belongs in core.
 | `zoomcard.rs` | The zoom card (2D and 3D). |
 | `text.rs`, `array.rs`, `offset.rs`, `combine.rs`, `corners.rs`, `align.rs`, `trace.rs`, `cleanup.rs` | The dialogs and popovers of the tools of the same name (Text, Array and copy, Offset, Combine, Fillet and chamfer, Align, bitmap trace, Clean up). |
 | `toolmgr.rs`, `machmgr.rs`, `toolpick.rs` | Tool and machine managers, the tool picker. |
+| `fingers.rs`, `boxgen.rs`, `surface.rs` | The Finger joint, Box and Surface windows. |
+| `setup.rs`, `tour.rs` | The setup assistant (first run) and the quick tour. |
+| `exportui.rs`, `timeui.rs`, `units.rs`, `tips.rs` | The export window (split into files); the time breakdown; messages from the core rewritten in the user's units; hover help. |
+| `audit.rs`, `fuzz.rs`, `perf.rs` | Tests only: every dialog drawn and checked in every size and unit; random sequences of user actions; frame time of the 3D preview with big toolpaths. |
 | `checkui.rs`, `osnap.rs`, `dynin.rs` | The warnings chip, list and 3D markers; object snap; typed values while drawing. |
 | `icons.rs`, `theme.rs`, `widgets.rs`, `csd.rs`, `about.rs`, `update.rs`, `prefs.rs`, `shortcuts.rs` | Drawn icons, colours, shared widgets, the window header, About, update check, preferences, the shortcut list. |
 

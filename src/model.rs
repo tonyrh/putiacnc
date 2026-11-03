@@ -4,7 +4,6 @@
 use serde::{Deserialize, Serialize};
 
 fn d_true() -> bool { true }
-fn d_one() -> f64 { 1.0 }
 fn d_flat() -> String { "flat".into() }
 fn d_two() -> u32 { 2 }
 fn d_60() -> f64 { 60.0 }
@@ -450,8 +449,6 @@ impl Units {
     pub fn name(self) -> &'static str { if self == Units::Imperial { "in" } else { "mm" } }
 }
 
-pub const _UNUSED: f64 = 1.0;
-#[allow(dead_code)] fn _silence() -> f64 { d_one() }
 
 fn is_false(b: &bool) -> bool { !*b }
 fn is_zero(v: &f64) -> bool { *v == 0.0 }
