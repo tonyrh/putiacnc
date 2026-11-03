@@ -1125,25 +1125,41 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         let step = ((tool.dia * fso / 100.0 / g).round() as usize).max(1);
         if step as f64 * g > tool.dia * fso / 100.0 * 1.6 { notes.push(format!("{}the model's resolution ({} {}) limits the finishing line spacing; re-import it finer for a smoother surface.", pre, fnum(g), un)); }
         let margin = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
-        let lines = finish_lines(&f, &fp, margin, step, 0.01);
-        nlines = lines.len();
+        // the lines along X, along Y (the surface turned, and the lines turned back), or both, X first
+        let dir = o.p.f_dir.as_deref().unwrap_or("x");
+        let mut sets: Vec<Vec<Vec<[f64; 3]>>> = Vec::new();
+        if dir != "y" { sets.push(finish_lines(&f, &fp, margin, step, 0.01)); }
+        if dir == "y" || dir == "xy" {
+            let ft = f.transposed();
+            let mut ls = finish_lines(&ft, &fp, margin, step, 0.01);
+            for l in ls.iter_mut() { for p in l.iter_mut() { *p = [p[1], p[0], p[2]]; } }
+            sets.push(ls);
+        }
+        nlines = sets.iter().map(|s| s.len()).sum();
         select_tool(e, ts, mach, tool, sz, &fnum(tool.dia), un);
         e.g.push(format!("(Operation {}: relief, finishing, {} {} {}, lines {} {} apart)", k + 1, fgeo.shape.label(), fnum(tool.dia), un, fnum(step as f64 * g), un));
-        for (li, line) in lines.iter().enumerate() {
-            let pts: Vec<[f64; 3]> = if li % 2 == 1 { line.iter().rev().copied().collect() } else { line.clone() };
-            e.pn = layers + li + 1;
-            let a = pts[0];
-            if li == 0 {
-                e.go("G0", None, None, Some(sz), 0.0);
-                e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
-                e.go("G0", None, None, Some(z0 + hop), 0.0);
-                e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
-            } else {
-                e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + a[2]), tool.feed);
+        let mut count = 0usize;
+        for (si, lines) in sets.iter().enumerate() {
+            if si == 1 { e.g.push(format!("(Operation {}: relief, finishing, second direction)", k + 1)); }
+            for (li, line) in lines.iter().enumerate() {
+                let pts: Vec<[f64; 3]> = if li % 2 == 1 { line.iter().rev().copied().collect() } else { line.clone() };
+                count += 1;
+                e.pn = layers + count;
+                let a = pts[0];
+                if li == 0 {
+                    // the first line of a direction: up, across to its start, down (the end of the last line is far away)
+                    e.go("G0", None, None, Some(if si == 0 { sz } else { z0 + hop }), 0.0);
+                    e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+                    e.go("G0", None, None, Some(z0 + hop), 0.0);
+                    e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
+                } else {
+                    e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + a[2]), tool.feed);
+                }
+                for p in &pts[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), tool.feed); }
             }
-            for p in &pts[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), tool.feed); }
         }
         e.go("G0", None, None, Some(sz), 0.0);
+        if dir == "xy" { notes.push(format!("{}finishing in both directions takes twice as long; the second pass evens out the ridges the first one leaves between its lines.", pre)); }
         if tool.shape == "flat" { notes.push(format!("{}a flat end mill as the finishing tool leaves a stepped surface; use a ball nose.", pre)); }
     }
     // 3. detail: a smaller ball finishes only what the finishing ball could not reach

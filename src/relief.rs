@@ -248,6 +248,12 @@ impl Field {
     pub fn at(&self, i: i64, j: i64) -> f32 {
         if i < 0 || j < 0 || i >= self.nx as i64 || j >= self.ny as i64 { self.base } else { self.z[j as usize * self.nx + i as usize] }
     }
+    /// The same surface with x and y swapped, so lines along X of this one are lines along Y of the original.
+    pub fn transposed(&self) -> Field {
+        let mut z = vec![self.base; self.nx * self.ny];
+        for j in 0..self.ny { for i in 0..self.nx { z[i * self.ny + j] = self.z[j * self.nx + i]; } }
+        Field { ox: self.oy, oy: self.ox, g: self.g, nx: self.ny, ny: self.nx, pad: self.pad, z, base: self.base }
+    }
     pub fn x(&self, i: i64) -> f64 { self.ox + i as f64 * self.g }
     pub fn y(&self, j: i64) -> f64 { self.oy + j as f64 * self.g }
 }

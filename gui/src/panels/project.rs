@@ -585,6 +585,17 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.weak("of the tool diameter");
                                 if p.f_so.is_some() && reset_button(ui, "Use the tool's stepover") { p.f_so = None; changed = true; }
                             });
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = sp;
+                                rlabel(ui, lw2, "Lines");
+                                let cur = p.f_dir.clone().unwrap_or_else(|| "x".into());
+                                let name = |d: &str| match d { "y" => "Along Y", "xy" => "Along X, then Y", _ => "Along X" };
+                                egui::ComboBox::from_id_source(("fdir", id)).width(150.0).selected_text(name(&cur)).show_ui(ui, |ui| {
+                                    for d in ["x", "y", "xy"] {
+                                        if ui.selectable_label(cur == d, name(d)).clicked() && cur != d { p.f_dir = if d == "x" { None } else { Some(d.into()) }; changed = true; }
+                                    }
+                                }).response.on_hover_text("The direction of the finishing lines. Walls that run along the lines come out rougher: choose the other direction, or both (twice the time) for an even surface");
+                            });
                             // rest machining: a smaller ball nose that finishes only what the one above could not reach
                             let main_ball = tools_ref.iter().find(|t| t.id == p.tool).filter(|t| t.shape == "ball").map(|t| t.dia);
                             if let Some(md) = main_ball {

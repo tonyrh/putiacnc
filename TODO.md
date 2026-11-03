@@ -21,6 +21,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Surface the stock or the spoilboard (Edit > Surface the stock…): a Pocket over a rectangle a cutter radius larger than the stock, with a wide cutter (0.4.2).
 - [x] The message when a pocket or inside profile makes no toolpath names the reason (tool wider than the shape, with the widths and a tool that fits; open lines).
 - [x] Rest machining: when the main cutter is too big to cut anything, the Corners cutter cuts the whole pocket, with an information note.
+- [x] Relief finishing lines along X, Y or both.
 - [x] Finishing pass with stock to leave for Profile and Pocket (the Finish row).
 - [x] Rest machining for 3D relief: a smaller ball nose (the Detail row of the Finishing step) finishes only what the finishing ball could not reach. V-carve does not need it (one bit cuts every width).
 - [ ] Probing and homing snippets for the machine's start code (touch plate for Z zero).

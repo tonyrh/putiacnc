@@ -310,6 +310,8 @@ pub struct OpParams {
     #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
     /// Profile and pocket: leave this much (mm) on the walls in the depth passes and cut them to size in a finishing pass; `None` = no finishing pass.
     #[serde(default, rename = "wLeave", skip_serializing_if = "Option::is_none")] pub w_leave: Option<f64>,
+    /// 3D relief finishing: the direction of the lines, "x" (default), "y", or "xy" (along X, then along Y over the same surface).
+    #[serde(default, rename = "fDir", skip_serializing_if = "Option::is_none")] pub f_dir: Option<String>,
     /// 3D relief detail tool: stepover in % of the tool diameter; `None` = the detail tool's own.
     #[serde(default, rename = "dSo", skip_serializing_if = "Option::is_none")] pub d_so: Option<f64>,
     /// Stop the program after this operation: the tool lifts, the spindle stops, and the program waits (`M0`) with this message until you resume

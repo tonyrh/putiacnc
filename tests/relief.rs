@@ -219,3 +219,34 @@ fn a_detail_tool_as_big_as_the_main_one_is_refused_with_a_note() {
     assert!(!out.moves.iter().any(|m| m.det));
     assert!(out.notes.iter().any(|n| n.contains("not smaller")));
 }
+
+#[test]
+fn the_finishing_lines_can_run_along_y_or_both_ways() {
+    let mut worst = Vec::new();
+    for dir in [None, Some("y"), Some("xy")] {
+        let mut d = project(true);
+        d.ops[0].p.f_dir = dir.map(|s| s.to_string());
+        let out = generate(&d, Units::Metric).unwrap();
+        // the finishing lines are the cuts with the ball (not the second tool): their long moves run along x, along y, or both
+        let fin: Vec<_> = out.moves.iter().filter(|m| m.cut && !m.alt && (m.from[0] != m.to[0] || m.from[1] != m.to[1])).collect();
+        let along_x = fin.iter().filter(|m| m.from[1] == m.to[1]).count();
+        let along_y = fin.iter().filter(|m| m.from[0] == m.to[0]).count();
+        match dir { None => assert!(along_x > 3 * along_y), Some("y") => assert!(along_y > 3 * along_x), _ => assert!(along_x > 20 && along_y > 20) }
+        assert_eq!(out.gcode().contains("second direction"), dir == Some("xy"));
+        // all of them leave the surface right: not gouged, and close to the model
+        let mut s = Sim::new(&d, 160_000);
+        s.advance(&out.moves, out.moves.len());
+        let f = Field::new(d.relief.as_ref().unwrap(), 6.0, 2.0);
+        let (mut gouge, mut sum, mut n) = (0.0f32, 0.0f64, 0);
+        for iy in 0..s.ny { for ix in 0..s.nx {
+            let (x, y) = ((ix as f64 + 0.5) * s.cell, (iy as f64 + 0.5) * s.cell);
+            if !(12.0..=28.0).contains(&x) || !(12.0..=28.0).contains(&y) { continue; }
+            let err = s.at(ix, iy) - f.at(((x - f.ox) / f.g).round() as i64, ((y - f.oy) / f.g).round() as i64);
+            gouge = gouge.min(err); sum += err as f64; n += 1;
+        } }
+        assert!(gouge > -0.25, "{dir:?}: gouged {gouge}");
+        assert!(sum / (n as f64) > -0.1 && sum / (n as f64) < 0.25, "{dir:?}: mean {}", sum / n as f64);
+        worst.push(gouge);
+    }
+    assert_eq!(worst.len(), 3);
+}
