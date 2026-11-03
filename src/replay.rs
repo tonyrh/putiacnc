@@ -105,7 +105,7 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
     // per operation: the labels of its tool and its second tool
     let labels: Vec<(String, Option<String>)> = data.ops.iter().map(|o| {
         let name = |id: &str| data.tools.iter().find(|t| t.id == id).map(|t| tool_label(&t.name)).unwrap_or_default();
-        (name(&o.p.tool), o.p.tool2.as_deref().map(name))
+        (name(&o.p.tool), o.p.second_tool().map(name))
     }).collect();
 
     let mut r = Replay::default();

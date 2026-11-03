@@ -327,7 +327,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let tools = d.tools.clone();
         // the tools the operations use, in order of first use: the tool pickers offer them first
         let mut job_tools: Vec<String> = Vec::new();
-        for o in &d.ops { for t in std::iter::once(&o.p.tool).chain(o.p.tool2.iter()) { if !t.is_empty() && !job_tools.contains(t) { job_tools.push(t.clone()); } } }
+        for o in &d.ops { for t in std::iter::once(&o.p.tool).chain(o.p.tool2.iter()).chain(o.p.rest.iter()) { if !t.is_empty() && !job_tools.contains(t) { job_tools.push(t.clone()); } } }
         let machine_now = d.machine.clone();
         let cut_mat = d.stock.cut.clone();
         let mut act_remove: Option<usize> = None;
@@ -456,7 +456,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let bf = egui::TextStyle::Body.resolve(ui.style());
                 let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
                 // 2 x 2 grid: Type | Cut  /  Tool | Depth
-                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle")).max(tw_of(ui, "Stepover")).max(tw_of(ui, "Pen down"));
+                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle")).max(tw_of(ui, "Stepover")).max(tw_of(ui, "Pen down")).max(tw_of(ui, "Corners"));
                 let l3 = tw_of(ui, "Cut").max(tw_of(ui, "Pass"));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
                 let cw = tw_of(ui, "Conventional") + 44.0;
@@ -611,6 +611,22 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 .tip(if p.kind == "pocket" { "Eases the tool down along each ring of the pocket instead of plunging straight down" } else { "Eases the tool down along the first pass (not needed with a lead-in arc)" }).changed();
                         }
                     });
+                    let main_dia = tools.iter().find(|t| t.id == p.tool).filter(|t| t.shape == "flat").map(|t| t.dia);
+                    if let (true, Some(md)) = (p.kind == "pocket", main_dia) {
+                        // rest machining: a smaller flat cutter that clears the corners and narrow parts the main one could not reach
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = sp;
+                            let tool_w = (ui.available_width() - l1 - tw_of(ui, "Ramp in") - 30.0 - 3.0 * sp - 8.0).max(100.0);
+                            rlabel(ui, l1, "Corners");
+                            let cur = p.rest.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "leave as they are".into());
+                            let cur = elide(ui, &cur, tool_w - 30.0);
+                            let (r2, pk2) = crate::toolpick::picker(ui, ("optoolrest", id), tool_w, cur, p.rest.as_deref(), &job_tools, &tools, |t| t.shape == "flat" && t.dia < md - 1e-9);
+                            match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.rest = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
+                            r2.tip("A smaller flat end mill that clears the corners and narrow parts the tool above cannot reach, after it has cut the pocket (rest machining)");
+                            if p.rest.is_some() && ui.small_button("Remove").on_hover_text("Leave the corners as the main tool cuts them").clicked() { p.rest = None; changed = true; }
+                        });
+                    }
                     if p.kind == "draw" {
                         // a pen: down at the paper (or a little into it, for a spring-loaded holder), up a few millimetres between strokes
                         let lw3 = l1;

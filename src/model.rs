@@ -259,6 +259,11 @@ pub fn hex_rgb(c: [u8; 3]) -> String { format!("#{:02x}{:02x}{:02x}", c[0], c[1]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Operation { pub id: i64, pub p: OpParams }
 
+impl OpParams {
+    /// The operation's second tool: the flat end mill of an inlay or relief (`tool2`), or the cleanup cutter of a pocket (`rest`).
+    pub fn second_tool(&self) -> Option<&str> { if self.kind == "pocket" { self.rest.as_deref() } else { self.tool2.as_deref() } }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct OpParams {
     /// outside, inside, online, pocket, vcarve, drill, inlay (pocket), plug (inlay plug), relief or draw (a pen).
@@ -272,6 +277,8 @@ pub struct OpParams {
     #[serde(default, skip_serializing_if = "is_false")] pub air: bool,
     /// A surfacing pocket (made by the Surface tool): its rectangle is a cutter radius larger than the stock on purpose, so it is not warned about.
     #[serde(default, skip_serializing_if = "is_false")] pub surf: bool,
+    /// Rest machining (pockets): a smaller flat cutter (a tool id) that clears the corners and narrow parts the main tool could not reach.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub rest: Option<String>,
     /// Depth per pass in mm; `None` = the tool's own pass depth.
     #[serde(default, rename = "passD", skip_serializing_if = "Option::is_none")] pub pass_depth: Option<f64>,
     /// Radius (mm) of the arc the tool uses to enter and leave a profile cut; `None` = plunge straight onto the line.

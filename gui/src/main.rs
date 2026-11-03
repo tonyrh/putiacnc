@@ -128,6 +128,19 @@ fn main() -> eframe::Result<()> {
             if std::env::var_os("PUTIACNC_AIR").is_some() { for o in &mut app.project.data.ops { o.p.air = true; } }
             if std::env::var_os("PUTIACNC_NO_PATHS").is_some() { app.show_toolpath = false; }
         }
+        // PUTIACNC_SHOW_REST: a pocket with a 6 mm cutter and a 2 mm one for the corners (3D preview when PUTIACNC_VIEW=3d)
+        if std::env::var_os("PUTIACNC_SHOW_REST").is_some() {
+            let by = |a: &app::App, n: &str| a.project.data.tools.iter().find(|t| t.name == n).map(|t| t.id.clone());
+            if let (Some(big), Some(small)) = (by(&app, "6 mm flat end mill"), by(&app, "2 mm flat end mill")) {
+                let mut p = putiacnc_core::shapes::default_op_params(&big);
+                p.kind = "pocket".into(); p.depth = 4.0; p.rest = Some(small);
+                let d = &mut app.project.data;
+                d.stock.w = 100.0; d.stock.h = 80.0; d.stock.t = 10.0;
+                d.ops.push(putiacnc_core::model::Operation { id: 1, p }); d.oid = 1; d.act = 1;
+                d.loops.push(putiacnc_core::shapes::new_rect([20.0, 20.0], [80.0, 60.0], 0.0, 1));
+                if std::env::var("PUTIACNC_VIEW").as_deref() == Ok("3d") { app.view_tab = view3d::ViewTab::Preview; }
+            }
+        }
         // PUTIACNC_SHOW_SURFACE[=add]: the Surface window (and with =add, the operation already added)
         if let Ok(v) = std::env::var("PUTIACNC_SHOW_SURFACE") {
             if v == "add" {

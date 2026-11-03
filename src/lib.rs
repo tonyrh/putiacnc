@@ -26,6 +26,7 @@ pub mod joints;
 pub mod setup;
 pub mod sample;
 pub mod surface;
+pub mod rest;
 pub mod setupsheet;
 pub mod linetext;
 pub mod text;

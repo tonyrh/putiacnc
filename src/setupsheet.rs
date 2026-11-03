@@ -62,6 +62,7 @@ fn tools_in_order(data: &ProjectData) -> Vec<(&Tool, Vec<usize>)> {
         } else {
             add(&o.p.tool, i + 1);
             if matches!(o.p.kind.as_str(), "inlay" | "plug") { if let Some(t) = &o.p.tool2 { add(t, i + 1); } }
+            if o.p.kind == "pocket" { if let Some(t) = &o.p.rest { add(t, i + 1); } }
         }
     }
     out

@@ -40,7 +40,7 @@ impl Sim {
         let nx = ((st.w / cell).ceil() as usize).max(2) + 1;
         let ny = ((st.h / cell).ceil() as usize).max(2) + 1;
         // two slots per operation: its tool and its second tool (inlays)
-        let tools = data.ops.iter().flat_map(|o| [Some(o.p.tool.as_str()), o.p.tool2.as_deref()]).map(|id| {
+        let tools = data.ops.iter().flat_map(|o| [Some(o.p.tool.as_str()), o.p.second_tool()]).map(|id| {
             let t: Option<&Tool> = id.and_then(|id| data.tools.iter().find(|t| t.id == id));
             match t {
                 Some(t) => {

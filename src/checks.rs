@@ -84,7 +84,7 @@ pub struct Finding {
 
 pub fn tool_of(d: &ProjectData, op: usize, alt: bool) -> Option<&Tool> {
     let o = d.ops.get(op)?;
-    let id = if alt { o.p.tool2.as_deref()? } else { o.p.tool.as_str() };
+    let id = if alt { o.p.second_tool()? } else { o.p.tool.as_str() };
     d.tools.iter().find(|t| t.id == id)
 }
 

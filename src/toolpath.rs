@@ -678,6 +678,31 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
 
 /// Emit what it takes to start drawing with a pen: no spindle, ever. A tool change when another tool was in (the spindle stops first
 /// if it ever ran), and a marker line the checker reads so that it does not call the moves "cutting with the spindle off".
+/// Rest machining of a pocket: after the main cutter, a smaller flat cutter visits only what the main one could not reach.
+#[allow(clippy::too_many_arguments)]
+fn rest_pass(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, o: &Operation, k: usize, mach: bool, main: &OpCtx, region: &[Path], tool: &Tool, id: &str) {
+    let pre = format!("Op {}: ", k + 1);
+    let (ku, un) = (e.ku, if e.imp { "in" } else { "mm" });
+    let Some(rt) = data.tools.iter().find(|t| t.id == id) else { notes.push(format!("{}rest machining skipped: its tool is not in the tool list.", pre)); return };
+    if rt.shape != "flat" || tool.shape != "flat" { notes.push(format!("{}rest machining needs flat end mills (the main tool and the cleanup tool).", pre)); return; }
+    if rt.dia >= tool.dia - 1e-9 { notes.push(format!("{}rest machining skipped: the cleanup tool ({} {}) must be smaller than the main tool ({} {}).", pre, num(to_fixed(rt.dia / ku, 4)), un, num(to_fixed(tool.dia / ku, 4)), un)); return; }
+    if !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) { notes.push(format!("{}rest machining skipped: check the cleanup tool's values.", pre)); return; }
+    let area = crate::rest::cleanup_region(region, tool.dia / 2.0, rt.dia / 2.0);
+    if area.is_empty() { notes.push(format!("{}rest machining: nothing is left for the {} {} tool to clear.", pre, num(to_fixed(rt.dia / ku, 4)), un)); return; }
+    let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(tool.pd).min(rt.pd);
+    let nz = (o.p.depth / pd - 1e-9).ceil().clamp(1.0, 5000.0) as usize;
+    let zs: Vec<f64> = (0..nz).map(|i| -(o.p.depth / nz as f64) * (i as f64 + 1.0)).collect();
+    let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: main.ramp, rev: main.rev, z0: main.z0, sz: main.sz, zs: zs.clone(),
+        tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0 };
+    let mut jobs = mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0);
+    if jobs.is_empty() { notes.push(format!("{}rest machining: what is left is too narrow for the {} {} tool.", pre, num(to_fixed(rt.dia / ku, 4)), un)); return; }
+    select_tool(e, ts, mach, rt, main.sz, &num(to_fixed(rt.dia / ku, 4)), un);
+    e.g.push(format!("(Operation {}: pocket, corners and narrow parts, tool {} {})", k + 1, num(to_fixed(rt.dia / ku, 4)), un));
+    e.alt = true;
+    run_jobs(e, &rctx, &mut jobs, &area, &zs, &[]);
+    e.alt = false;
+}
+
 fn select_pen(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64) {
     if !st.ids.contains(&tool.id) { st.ids.push(tool.id.clone()); }
     let tno = st.ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
@@ -1460,6 +1485,9 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             }
         } else if kind == "pocket" {
             run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &[]);
+            if let Some(id) = o.p.rest.as_deref() {
+                rest_pass(&mut e, &mut ts, &mut notes, data, o, k, mach, &ctx, &region, tool, id);
+            }
         } else {
             let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
             run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &guard);

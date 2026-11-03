@@ -88,6 +88,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
             } else {
                 add(&o.p.tool);
                 if matches!(o.p.kind.as_str(), "inlay" | "plug") { if let Some(t) = &o.p.tool2 { add(t); } }
+                if o.p.kind == "pocket" { if let Some(t) = &o.p.rest { add(t); } }
             }
         }
     }
