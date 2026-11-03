@@ -108,7 +108,7 @@ impl App {
 
     /// Closes the windows of the tools that work on the selection.
     pub fn close_tool_windows(&mut self) {
-        self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false; self.fingers.open = false; self.boxgen.open = false;
+        self.align_open = false; self.combine_open = false; self.array.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false; self.fingers.open = false; self.boxgen.open = false; self.surface.open = false; self.surface.spec = None;
     }
 
     /// Shows `msg` in the banner at the given level.
@@ -145,6 +145,7 @@ impl App {
             ToolWin::Clean => self.clean.open,
             ToolWin::Fingers => self.fingers.open,
             ToolWin::Box => self.boxgen.open,
+            ToolWin::Surface => self.surface.open,
         }
     }
 
@@ -155,7 +156,7 @@ impl App {
 
     /// Safety net for any way of opening a tool window: when more than one is open, the one opened last stays.
     pub fn one_tool_window(&mut self) {
-        const ALL: [ToolWin; 8] = [ToolWin::Align, ToolWin::Offset, ToolWin::Array, ToolWin::Corners, ToolWin::Combine, ToolWin::Clean, ToolWin::Fingers, ToolWin::Box];
+        const ALL: [ToolWin; 9] = [ToolWin::Align, ToolWin::Offset, ToolWin::Array, ToolWin::Corners, ToolWin::Combine, ToolWin::Clean, ToolWin::Fingers, ToolWin::Box, ToolWin::Surface];
         let open: Vec<ToolWin> = ALL.into_iter().filter(|w| self.tool_window_open(*w)).collect();
         if open.len() > 1 {
             let newest = open.iter().copied().find(|w| !self.tool_wins_seen.contains(w)).unwrap_or(open[open.len() - 1]);
@@ -178,6 +179,7 @@ impl App {
             ToolWin::Clean => { self.clean.open = true; self.clean.msg.clear(); }
             ToolWin::Fingers => self.fingers.open = true,
             ToolWin::Box => self.boxgen.open = true,
+            ToolWin::Surface => self.surface.open = true,
         }
     }
 

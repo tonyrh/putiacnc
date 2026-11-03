@@ -1130,7 +1130,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
     let mut notes: Vec<String> = limit_notes;
 
-    if data.loops.iter().any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
+    if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
         notes.push("⚠ Shapes extend beyond the stock.".into());
     }
     if data.loops.iter().any(|l| !data.ops.iter().any(|o| o.id == l.op)) { notes.push("Some shapes have no operation (not machined).".into()); }

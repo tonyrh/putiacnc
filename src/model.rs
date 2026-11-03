@@ -270,6 +270,8 @@ pub struct OpParams {
     #[serde(default)] pub tabs: bool,
     /// Air cut: run this operation 10 mm above the stock, without cutting.
     #[serde(default, skip_serializing_if = "is_false")] pub air: bool,
+    /// A surfacing pocket (made by the Surface tool): its rectangle is a cutter radius larger than the stock on purpose, so it is not warned about.
+    #[serde(default, skip_serializing_if = "is_false")] pub surf: bool,
     /// Depth per pass in mm; `None` = the tool's own pass depth.
     #[serde(default, rename = "passD", skip_serializing_if = "Option::is_none")] pub pass_depth: Option<f64>,
     /// Radius (mm) of the arc the tool uses to enter and leave a profile cut; `None` = plunge straight onto the line.

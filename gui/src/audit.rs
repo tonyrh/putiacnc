@@ -156,6 +156,8 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
         ("array", |a| { all_sel(a); a.array.open = true; }),
         ("array circle", |a| { all_sel(a); a.array.open = true; a.array.circular = true; }),
         ("box", |a| a.boxgen.open = true),
+        ("surface", |a| a.surface.open = true),
+        ("surface spoilboard", |a| { a.surface.open = true; a.surface.spoil = true; }),
         ("box dogbones", |a| { a.boxgen.open = true; a.boxgen.dogbone = true; }),
         ("combine", |a| { all_sel(a); a.combine_open = true; }),
         ("clean up", |a| a.clean.open = true),
@@ -259,7 +261,7 @@ fn long_names_do_not_run_out_of_the_panels() {
 #[test]
 fn tool_windows_have_the_agreed_buttons() {
     let rule: &[(&str, &[&str])] = &[
-        ("box", &["OK", "Cancel"]), ("fingers", &["OK", "Cancel"]), ("combine", &["OK", "Cancel"]),
+        ("box", &["OK", "Cancel"]), ("surface", &["OK", "Cancel"]), ("surface spoilboard", &["OK", "Cancel"]), ("fingers", &["OK", "Cancel"]), ("combine", &["OK", "Cancel"]),
         ("offset", &["Apply", "Close"]), ("array", &["Apply", "Close"]), ("fillet", &["Apply", "Close"]),
     ];
     let mut problems = vec![];
