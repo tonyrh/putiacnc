@@ -232,7 +232,7 @@ mod tests {
         crate::sample::fill_kind(&mut f.data, inch, crate::sample::Kind::NamePlate).unwrap();
         f.data.notes += "\nA <b>note</b> & more";
         let parts = generate_parts(&f.data, units).unwrap();
-        html(&f.data, &parts, units, &SheetInfo { version: "0.4.2".into() }, "My <job>")
+        html(&f.data, &parts, units, &SheetInfo { version: "0.4.3".into() }, "My <job>")
     }
 
     #[test]
@@ -242,7 +242,7 @@ mod tests {
             assert!(s.contains(want), "missing {want:?}");
         }
         assert!(!s.contains("<b>note</b>") && !s.contains("My <job>"), "text is not escaped");
-        assert!(s.contains("PutiaCNC 0.4.2"));
+        assert!(s.contains("PutiaCNC 0.4.3"));
     }
 
     #[test]
