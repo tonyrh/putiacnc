@@ -147,4 +147,28 @@ mod tests {
         let r = crate::replay::replay(&o.lines, &d);
         assert!(r.moves.iter().any(|m| m.alt && m.cut));
     }
+
+    #[test]
+    fn a_pocket_narrower_than_its_tool_says_so_and_names_a_tool_that_fits() {
+        use crate::{generate, Units};
+        let mut d = pocket_project(false);
+        d.loops = vec![crate::shapes::new_rect([20.0, 20.0], [80.0, 24.0], 0.0, 1)]; // 4 mm wide
+        let e = generate(&d, Units::Metric).unwrap_err();
+        assert!(e.starts_with("No toolpath. Op 1: Pocket: the 6 mm flat end mill is 6 mm wide"), "{e}");
+        assert!(e.contains("about 4 mm wide") && e.contains("3 mm flat end mill fits"), "{e}");
+        assert!(!e.contains("attach closed shapes"), "{e}");
+        // nothing at all attached: the general advice stays
+        d.loops.clear();
+        let e = generate(&d, Units::Metric).unwrap_err();
+        assert!(!e.is_empty());
+    }
+
+    #[test]
+    fn open_lines_in_a_pocket_are_named() {
+        use crate::{generate, Units};
+        let mut d = pocket_project(false);
+        d.loops = vec![crate::shapes::new_poly(&[[20.0, 20.0], [80.0, 20.0], [80.0, 40.0]], false, 1).unwrap()];
+        let e = generate(&d, Units::Metric).unwrap_err();
+        assert!(e.contains("Pocket needs closed shapes"), "{e}");
+    }
 }

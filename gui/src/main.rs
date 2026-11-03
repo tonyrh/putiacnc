@@ -134,10 +134,12 @@ fn main() -> eframe::Result<()> {
             if let (Some(big), Some(small)) = (by(&app, "6 mm flat end mill"), by(&app, "2 mm flat end mill")) {
                 let mut p = putiacnc_core::shapes::default_op_params(&big);
                 p.kind = "pocket".into(); p.depth = 4.0; p.rest = Some(small);
+                let narrow = std::env::var("PUTIACNC_SHOW_REST").as_deref() == Ok("narrow");
+                if narrow { p.rest = None; }
                 let d = &mut app.project.data;
                 d.stock.w = 100.0; d.stock.h = 80.0; d.stock.t = 10.0;
                 d.ops.push(putiacnc_core::model::Operation { id: 1, p }); d.oid = 1; d.act = 1;
-                d.loops.push(putiacnc_core::shapes::new_rect([20.0, 20.0], [80.0, 60.0], 0.0, 1));
+                d.loops.push(putiacnc_core::shapes::new_rect([20.0, 20.0], [80.0, if narrow { 24.0 } else { 60.0 }], 0.0, 1));
                 if std::env::var("PUTIACNC_VIEW").as_deref() == Ok("3d") { app.view_tab = view3d::ViewTab::Preview; }
             }
         }

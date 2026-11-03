@@ -703,6 +703,34 @@ fn rest_pass(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     e.alt = false;
 }
 
+/// Why an operation that should cut something produced no toolpath, in words that tell the user what to change. `None` when it is not a case
+/// we can name (the caller then says what it always said).
+#[allow(clippy::too_many_arguments)]
+fn no_toolpath_reason(data: &ProjectData, k: usize, kind: &str, tool: &Tool, region: &[Path], closed: &[Path], ku: f64, un: &str) -> Option<String> {
+    if !matches!(kind, "pocket" | "inside") { return None; }
+    let pre = format!("Op {}: ", k + 1);
+    let kname = if kind == "pocket" { "Pocket" } else { "Profile inside" };
+    let fl = |v: f64| num(to_fixed(v / ku, if ku == 1.0 { 2 } else { 4 }));
+    let tname = if tool.name.is_empty() { "tool".to_string() } else { tool_label(&tool.name) };
+    if closed.is_empty() || region.is_empty() {
+        return Some(format!("{pre}{kname} needs closed shapes, and this operation has none (open lines cannot be pocketed: close them, or use Profile on the line)."));
+    }
+    // how wide the shape is at its narrowest: the biggest tool radius that still fits, found by halving
+    let (mut lo, mut hi) = (0.0_f64, tool.dia / 2.0);
+    for _ in 0..14 {
+        let mid = (lo + hi) / 2.0;
+        if off_raw(region, -mid * S).is_empty() { hi = mid; } else { lo = mid; }
+    }
+    let width = 2.0 * lo;
+    // the biggest cutter of the same kind (flat, ball...) in the project that does fit
+    let fits = data.tools.iter().filter(|t| t.shape == tool.shape && t.dia > 0.0 && t.dia <= width - 0.05).max_by(|a, b| a.dia.total_cmp(&b.dia));
+    let advice = match fits {
+        Some(t) => format!("Use a tool of {} {un} or less (your {} fits), or make the shape bigger.", fl(width), tool_label(&t.name)),
+        None => format!("Use a tool of {} {un} or less (none of your tools is that small), or make the shape bigger.", fl(width)),
+    };
+    Some(format!("{pre}{kname}: the {tname} is {} {un} wide, but the shape is only about {} {un} wide at its narrowest, so the tool does not fit inside. {advice}", fl(tool.dia), fl(width)))
+}
+
 fn select_pen(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64) {
     if !st.ids.contains(&tool.id) { st.ids.push(tool.id.clone()); }
     let tno = st.ids.iter().position(|i| *i == tool.id).unwrap_or(0) + 1;
@@ -1430,7 +1458,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             jobs = mk_jobs(&ctx, &region, &closed, &open, rm);
         }
         if if kind == "drill" { holes.is_empty() } else if kind == "vcarve" { vr.is_empty() } else { !by_pass && jobs.is_empty() } {
-            notes.push(format!("{}no toolpath (tool too large?).", pre));
+            notes.push(no_toolpath_reason(data, k, kind, tool, &region, &closed, ku, un).unwrap_or_else(|| format!("{}no toolpath (tool too large?).", pre)));
             continue;
         }
         if tabs_req && !tabs_on { notes.push(format!("{}tabs skipped: the tab height must be smaller than the cut depth.", pre)); }
@@ -1500,7 +1528,12 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         op_pause(&mut e, &mut ts, o, k, mach, sz);
         any = true;
     }
-    if !any { return Err(format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" "))); }
+    if !any {
+        // say why, operation by operation, when we know; the general advice only when nothing more specific is known
+        let why: Vec<&String> = notes.iter().filter(|n| n.starts_with("Op ")).collect();
+        return Err(if why.is_empty() { format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" ")) }
+            else { format!("No toolpath. {}", why.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" ")) });
+    }
     if ts.spun { e.g.push("M5".into()); }
     e.g.push("G0 X0 Y0".into()); e.g.push(if mach { "M30" } else { "M2" }.into());
     let cut_len: f64 = e.moves.iter().filter(|m| m.cut).map(|m| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt()).sum();
