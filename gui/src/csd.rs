@@ -265,12 +265,28 @@ pub fn anchor(app: &crate::app::App) -> Pos2 {
     Pos2::new(app.canvas_left + 10.0, app.bars_bottom + 8.0)
 }
 
+/// The part of the window dialogs may be moved over: what is left after the side panels and the bars (both views of the split
+/// view included, so a dialog can go over the 3D half), which main sets every frame before the dialogs are shown.
+pub fn work_area(ctx: &egui::Context) -> Rect {
+    ctx.data(|d| d.get_temp::<Rect>(egui::Id::new("work_area"))).filter(|r| r.is_positive()).unwrap_or_else(|| ctx.screen_rect())
+}
+
+/// Where a dialog may be as a whole: the whole window below the header. (A rectangle as small as the work area would also clip a dialog
+/// that is wider than it, such as the machine manager beside the panels, so the work area only limits where the dialog's anchor goes.)
+pub fn dialog_bounds(ctx: &egui::Context) -> Rect {
+    let mut r = ctx.screen_rect();
+    r.min.y = (r.min.y + HEADER_H).min(r.max.y);
+    r
+}
+
+pub fn set_work_area(ctx: &egui::Context, r: Rect) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("work_area"), r)); }
+
 /// Where a dialog goes: its starting spot plus however far the user has dragged it by the header
 /// (kept so the dialog's anchor point stays inside the window).
 pub fn spot(ctx: &egui::Context, title: &str, base: Pos2) -> Pos2 {
     let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::new(title));
     let off = ctx.data(|d| d.get_temp::<egui::Vec2>(dialog_key(layer))).unwrap_or_default();
-    let s = ctx.screen_rect().shrink(30.0);
+    let s = work_area(ctx).shrink(30.0);
     let p = base + off;
     let p = Pos2::new(p.x.clamp(s.min.x, s.max.x.max(s.min.x)), p.y.clamp(s.min.y, s.max.y.max(s.min.y)));
     ctx.data_mut(|d| d.insert_temp(dialog_key(layer), p - base));

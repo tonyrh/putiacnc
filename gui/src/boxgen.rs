@@ -73,7 +73,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let pnote = app.ghost.note_of("box").map(String::from);
     let thick = app.project.data.stock.t;
     let (mut apply, mut close) = (false, false);
-    egui::Window::new("Box").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Box").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Box", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(2.0 * (LW + 70.0 + 30.0) + 20.0 + 6.0 * 8.0);
         if crate::csd::dialog_header_help(ui, "Box", true, |ui| {

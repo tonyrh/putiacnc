@@ -14,7 +14,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let n = app.sel.len();
     let mut apply = false;
     let mut close = false;
-    egui::Window::new("Offset").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Offset").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Offset", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Offset", true, |ui| { ui.label("Open shapes are skipped. Outer corners come out rounded."); }) { close = true; }

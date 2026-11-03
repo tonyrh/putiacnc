@@ -32,7 +32,7 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
     let red = if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xc0, 0x1c, 0x28) };
     let amber = if dark { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xf5, 0xc2, 0x11) };
     let name = app.file_name();
-    egui::Window::new("Unsaved changes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).resizable(false)
+    egui::Window::new("Unsaved changes").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).resizable(false)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
             ui.set_width(420.0);
             #[cfg(test)]

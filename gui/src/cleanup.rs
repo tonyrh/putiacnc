@@ -48,7 +48,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let joinable = ends.iter().filter(|e| e.3).count();
     let n = if app.sel.is_empty() { None } else { Some(app.sel.len()) };
     let (mut apply, mut close) = (false, false);
-    egui::Window::new("Clean up drawing").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Clean up drawing").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Clean up drawing", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Clean up drawing", true, |ui| { ui.label("Rectangles, circles and ellipses are left as they are. Undo restores everything."); }) { close = true; }

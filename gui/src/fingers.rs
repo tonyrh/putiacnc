@@ -106,7 +106,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let has = app.selection_has_rect();
     let thick = app.project.data.stock.t;
     let (mut apply, mut close) = (false, false);
-    egui::Window::new("Finger joint").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Finger joint").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Finger joint", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Finger joint", true, |ui| {

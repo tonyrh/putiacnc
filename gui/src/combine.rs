@@ -13,7 +13,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let pnote = app.ghost.note_of("combine").filter(|_| app.sel.len() >= 2).map(String::from);
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
-    egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Combine shapes", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Combine shapes", true, |ui| { ui.label("The result takes the operation of the base shape. Open shapes are skipped."); }) { close = true; }

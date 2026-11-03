@@ -33,7 +33,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     if !app.export_open { return; }
     let name = if app.project.name.trim().is_empty() { "output".to_string() } else { app.project.name.trim().to_string() };
     let (mut close, mut go) = (false, false);
-    egui::Window::new("Export G-code").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Export G-code").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Export G-code", ctx.screen_rect().center())).show(ctx, |ui| {
         ui.set_width(480.0);
         if crate::csd::dialog_header(ui, "Export G-code", true) { close = true; }

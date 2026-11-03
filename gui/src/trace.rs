@@ -93,7 +93,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     }
     // as large as the window allows: the picture is what the settings are judged by
     let (dw, ph) = { let r = ctx.screen_rect(); ((r.width() - 140.0).clamp(380.0, 660.0), (r.height() - 90.0 - 300.0).clamp(200.0, 460.0)) };
-    egui::Window::new("Import bitmap").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Import bitmap").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Import bitmap", egui::pos2(560.0, 172.0))).show(ctx, |ui| {
         ui.set_width(dw);
         if crate::csd::dialog_header(ui, "Import bitmap", true) { cancel = true; }

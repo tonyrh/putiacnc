@@ -492,7 +492,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let stock = app.project.data.stock.clone();
     let (mut do_place, mut cancel) = (false, false);
     let editing = app.text.edit.is_some();
-    egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Text", crate::csd::anchor(app))).show(ctx, |ui| {
         ui.set_width(376.0);
         let found = app.text.found;

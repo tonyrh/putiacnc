@@ -22,7 +22,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let Some(t) = total_timing(app) else { return };
     let dark = app.theme.dark;
     let mut close = false;
-    egui::Window::new("Estimated time").frame(crate::csd::dialog_frame(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new("Estimated time").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Estimated time", ctx.screen_rect().center())).show(ctx, |ui| {
         ui.set_width(520.0);
         if crate::csd::dialog_header(ui, "Estimated time", true) { close = true; }
