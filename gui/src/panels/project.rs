@@ -592,7 +592,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     ui.spacing_mut().item_spacing.x = sp;
                                     rlabel(ui, lw2, "Detail");
                                     let cur = p.rest.as_ref().and_then(|id| tools_ref.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
-                                    let w = (ui.available_width() - 70.0).max(100.0);
+                                    let w = (ui.available_width() - 100.0).max(100.0);
                                     let cur = elide(ui, &cur, w - 30.0);
                                     let (r2, pk2) = crate::toolpick::picker(ui, ("optooldetail", id), w, cur, p.rest.as_deref(), &job_tools, tools_ref, |t| t.shape == "ball" && t.dia < md - 1e-9);
                                     match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.rest = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
