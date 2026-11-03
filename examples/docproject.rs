@@ -24,7 +24,7 @@ fn main() {
     if inch {
         d.stock.w = 10.0 * k; d.stock.h = 6.5 * k; d.stock.t = 0.75 * k;
         // a work area of 12 x 8 x 2.5 in
-        d.machine = Some(putiacnc_core::model::Machine { id: "m_inch_router".into(), name: "Workshop CNC".into(), x: 12.0 * k, y: 8.0 * k, z: 2.5 * k, ..Default::default() });
+        d.machine = Some(putiacnc_core::model::Machine { id: "m_inch_router".into(), name: "Workshop CNC".into(), x: 12.0 * k, y: 8.0 * k, z: 2.5 * k, inches: Some(true), ..Default::default() });
     } else {
         d.stock.w = 240.0; d.stock.h = 160.0; d.stock.t = 18.0;
     }
