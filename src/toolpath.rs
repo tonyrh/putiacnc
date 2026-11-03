@@ -587,6 +587,8 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
     e.go("G1", None, None, Some(c.z0), c.plunge);
     if pz < 0.0 { e.go("G1", None, None, Some(c.z0 + pz), c.plunge); }
+    // whether the tool is at the end of an open line (so the next depth runs back along it)
+    let mut at_end = false;
     for &z in zl {
         e.pn = c.zs.iter().position(|&q| q == z).map(|i| i + 1).unwrap_or(0);
         let tiv = if c.tabs_on && job.closed && z < c.ztab - 1e-9 { tab_iv(e, c, job, &pts) } else { None };
@@ -613,8 +615,12 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
                 e.lap = false;
             }
         } else {
+            // an open line is cut back and forth: each depth starts where the last one ended, instead of cutting a line
+            // straight back across the work from the end to the start of the path at the new depth
             e.go("G1", None, None, Some(c.z0 + z), c.plunge);
-            for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
+            if at_end { for q in pts.iter().rev() { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
+            else { for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
+            if !job.closed { at_end = !at_end; }
         }
         if let Some(l) = &lead { for q in &l.arc_out { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
         pz = z;
