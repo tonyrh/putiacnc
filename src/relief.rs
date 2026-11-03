@@ -322,6 +322,85 @@ pub fn finish_lines(f: &Field, fp: &Footprint, margin: usize, step_cells: usize,
     }).collect()
 }
 
+/// Where a finishing ball leaves material it could not reach (a groove narrower than the ball, the tip of a needle, an inside corner):
+/// for each cell of the model, whether more than `tol` mm of material stays above the surface. The ball runs with its tip at the lowest
+/// height `tip` allows everywhere, so what is left at a point is the lowest of the ball's surfaces over it.
+pub fn leftover_mask(f: &Field, big: &Footprint, margin: usize, tol: f32) -> Vec<bool> {
+    use rayon::prelude::*;
+    let (i0, i1) = (f.pad.saturating_sub(margin), (f.nx - f.pad + margin).min(f.nx));
+    let (j0, j1) = (f.pad.saturating_sub(margin), (f.ny - f.pad + margin).min(f.ny));
+    let (w, h) = (i1 - i0, j1 - j0);
+    let mut tb = vec![0f32; w * h];
+    tb.par_chunks_mut(w).enumerate().for_each(|(j, row)| {
+        for (i, out) in row.iter_mut().enumerate() { *out = f.tip((i0 + i) as i64, (j0 + j) as i64, big, 0.0); }
+    });
+    let mut m = vec![false; f.nx * f.ny];
+    let rows: Vec<usize> = (f.pad..f.ny - f.pad).collect();
+    let res: Vec<Vec<bool>> = rows.par_iter().map(|&j| {
+        (f.pad..f.nx - f.pad).map(|i| {
+            let mut env = f32::MAX;
+            for &(di, dj, rise) in &big.0 {
+                let (a, b) = (i as i64 + di as i64 - i0 as i64, j as i64 + dj as i64 - j0 as i64);
+                if a < 0 || b < 0 || a >= w as i64 || b >= h as i64 { continue; }
+                env = env.min(tb[b as usize * w + a as usize] + rise);
+            }
+            env < f32::MAX && env - f.z[j * f.nx + i] > tol
+        }).collect()
+    }).collect();
+    for (r, &j) in rows.iter().enumerate() {
+        for (c, &v) in res[r].iter().enumerate() { m[j * f.nx + f.pad + c] = v; }
+    }
+    m
+}
+
+/// `mask` grown by `r` cells in every direction (a square, which is a little generous).
+pub fn dilate(mask: &[bool], nx: usize, ny: usize, r: usize) -> Vec<bool> {
+    let pass = |src: &[bool], horizontal: bool| -> Vec<bool> {
+        let mut out = vec![false; nx * ny];
+        let (len, lines) = if horizontal { (nx, ny) } else { (ny, nx) };
+        for l in 0..lines {
+            let at = |k: usize| if horizontal { l * nx + k } else { k * nx + l };
+            let mut pre = vec![0u32; len + 1];
+            for k in 0..len { pre[k + 1] = pre[k] + src[at(k)] as u32; }
+            for k in 0..len {
+                let (a, b) = (k.saturating_sub(r), (k + r + 1).min(len));
+                out[at(k)] = pre[b] > pre[a];
+            }
+        }
+        out
+    };
+    pass(&pass(mask, true), false)
+}
+
+/// The detail pass: lines along X, `step_cells` rows apart, only over the stretches of `need` (cells to finish), nearby stretches
+/// joined. Each row gives its stretches left to right, each a list of (x, y, z) with the small ball's tip on the surface.
+pub fn detail_lines(f: &Field, small: &Footprint, need: &[bool], step_cells: usize, join: usize, tol: f32) -> Vec<Vec<Vec<[f64; 3]>>> {
+    use rayon::prelude::*;
+    let (j0, j1) = (f.pad, f.ny - f.pad - 1);
+    let mut rows = Vec::new();
+    let mut j = j0;
+    while j <= j1 {
+        rows.push(j);
+        if j == j1 { break; }
+        j = (j + step_cells.max(1)).min(j1);
+    }
+    rows.par_iter().map(|&j| {
+        let mut runs: Vec<(usize, usize)> = Vec::new();
+        for i in f.pad..f.nx - f.pad {
+            if !need[j * f.nx + i] { continue; }
+            match runs.last_mut() {
+                Some(r) if i <= r.1 + join + 1 => r.1 = i,
+                _ => runs.push((i, i)),
+            }
+        }
+        runs.iter().map(|&(a, b)| {
+            let prof: Vec<(f64, f32)> = (a..=b).map(|i| (f.x(i as i64), f.tip(i as i64, j as i64, small, 0.0))).collect();
+            let keep = simplify(&prof, tol);
+            keep.iter().map(|&k| [prof[k].0, f.y(j as i64), prof[k].1 as f64]).collect()
+        }).collect()
+    }).collect()
+}
+
 /// Roughing plan: the lowest height the roughing tool may reach at each cell of a coarser grid.
 pub struct Rough {
     pub ox: f64, pub oy: f64, pub gc: f64,

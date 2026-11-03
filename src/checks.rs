@@ -82,9 +82,9 @@ pub struct Finding {
     pub clamps: Vec<usize>,
 }
 
-pub fn tool_of(d: &ProjectData, op: usize, alt: bool) -> Option<&Tool> {
+pub fn tool_of(d: &ProjectData, op: usize, which: usize) -> Option<&Tool> {
     let o = d.ops.get(op)?;
-    let id = if alt { o.p.second_tool()? } else { o.p.tool.as_str() };
+    let id = match which { 0 => o.p.tool.as_str(), 1 => o.p.second_tool()?, _ => o.p.detail_tool()? };
     d.tools.iter().find(|t| t.id == id)
 }
 
@@ -97,12 +97,12 @@ fn op_name(d: &ProjectData, op: usize) -> String {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Holder { pub r: f64, pub stick: f64 }
 
-/// The holder of the tool in this slot of an operation (`alt` = the second tool), when both the machine's holder diameter and the
+/// The holder of the tool in this slot of an operation (`which`: 0 its tool, 1 its second tool, 2 its detail tool), when both the machine's holder diameter and the
 /// tool's stick-out are known.
-pub fn holder_of(d: &ProjectData, op: usize, alt: bool) -> Option<Holder> {
+pub fn holder_of(d: &ProjectData, op: usize, which: usize) -> Option<Holder> {
     let m = d.machine.as_ref().filter(|m| m.holder_on)?;
     let dia = m.holder.filter(|v| *v > 0.0)?;
-    let stick = tool_of(d, op, alt)?.stick;
+    let stick = tool_of(d, op, which)?.stick;
     if stick > 0.0 { Some(Holder { r: dia / 2.0, stick }) } else { None }
 }
 
@@ -156,7 +156,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
     }
     for (op, d) in deepest.iter().enumerate() {
         let Some((z, i)) = *d else { continue };
-        let Some(t) = tool_of(data, op, false) else { continue };
+        let Some(t) = tool_of(data, op, 0) else { continue };
         if t.flute > 0.0 && -z > t.flute + 0.01 {
             let m = &out.moves[i];
             found.push(Finding { clamps: vec![], kind: Kind::TooDeep, op: Some(op), mv: Some(i), at: m.to, count: 1,
@@ -191,7 +191,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
     // shapes narrower than the cutter give no toolpath at all (a cone is skipped: it still cuts, shallower)
     for op in 0..n_ops {
         if !matches!(kinds[op], "inside" | "pocket") || regions[op].is_empty() { continue; }
-        let Some(t) = tool_of(data, op, false) else { continue };
+        let Some(t) = tool_of(data, op, 0) else { continue };
         let g = ToolGeo::new(t);
         if g.cone { continue; }
         let r = match g.shape { ShapeKind::Ball | ShapeKind::Arc => g.r_at(data.ops[op].p.depth), _ => g.r };
@@ -240,10 +240,10 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         if let Some(c) = clamp { if !found[k].clamps.contains(&c) { found[k].clamps.push(c); } }
     };
     for (i, m) in out.moves.iter().enumerate() {
-        let slot = m.op * 2 + m.alt as usize;
-        let tool = tool_of(data, m.op, m.alt);
+        let slot = m.slot();
+        let tool = tool_of(data, m.op, m.which());
         let r = sim.tool_radius(slot);
-        let holder = holder_of(data, m.op, m.alt);
+        let holder = holder_of(data, m.op, m.which());
         let len = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt();
         let n = ((len / step).ceil() as usize).max(1);
         let at = |k: usize| { let f = k as f64 / n as f64; [m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, m.from[2] + (m.to[2] - m.from[2]) * f] };
@@ -255,7 +255,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
                 None => {}
             }
         }
-        if m.cut && !m.alt && !over_done.get(m.op).copied().unwrap_or(true) && m.from[2].min(m.to[2]) < -0.01 && matches!(kinds[m.op], "outside" | "inside" | "pocket") {
+        if m.cut && m.which() == 0 && !over_done.get(m.op).copied().unwrap_or(true) && m.from[2].min(m.to[2]) < -0.01 && matches!(kinds[m.op], "outside" | "inside" | "pocket") {
             if let Some(g) = tool.map(ToolGeo::new) {
                 for k in 0..=n {
                     let p = at(k);
@@ -402,7 +402,7 @@ mod tests {
         d.machine.as_mut().unwrap().holder_on = false;
         assert!(!kinds(&d).contains(&Kind::Holder));
         assert_eq!(d.machine.as_ref().unwrap().holder, Some(40.0));
-        assert!(holder_of(&d, 0, false).is_none());
+        assert!(holder_of(&d, 0, 0).is_none());
     }
 
     #[test]

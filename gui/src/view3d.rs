@@ -399,8 +399,8 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let contacts: Vec<(usize, putiacnc_core::checks::Part)> = match &now {
         Some(n) if app.show_clamps => {
             let d = app.v3_data();
-            let r = putiacnc_core::checks::tool_of(d, n.op, n.alt).map_or(0.0, |t| t.dia / 2.0);
-            let h = putiacnc_core::checks::holder_of(d, n.op, n.alt);
+            let r = putiacnc_core::checks::tool_of(d, n.op, n.which).map_or(0.0, |t| t.dia / 2.0);
+            let h = putiacnc_core::checks::holder_of(d, n.op, n.which);
             d.clamps.iter().enumerate().filter_map(|(i, c)| putiacnc_core::checks::clamp_contact(c, n.tip, r, h).map(|p| (i, p))).collect()
         }
         _ => vec![],
@@ -512,7 +512,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let f = if m.dt > 1e-12 { ((st.t - start) / m.dt).clamp(0.0, 1.0) } else { 1.0 };
             let tip: Vec<f32> = (0..3).map(|i| (m.from[i] + (m.to[i] - m.from[i]) * f) as f32).collect();
             // with the holder known the tool is drawn as long as it sticks out, and the holder above it
-            let holder = putiacnc_core::checks::holder_of(app.v3_data(), m.op, m.alt);
+            let holder = putiacnc_core::checks::holder_of(app.v3_data(), m.op, m.which());
             let cutter_hit = contacts.iter().any(|(_, p)| *p == putiacnc_core::checks::Part::Cutter);
             let holder_hit = contacts.iter().any(|(_, p)| *p == putiacnc_core::checks::Part::Holder);
             if let Some(hd) = holder { draw_holder(&painter, &cam, [tip[0], tip[1], tip[2] + hd.stick as f32], hd.r as f32, holder_hit || cutter_hit); }
@@ -885,7 +885,7 @@ fn draw_gl(res: &std::sync::Mutex<GlRes>, pending: &std::sync::Mutex<Option<(usi
 
 
 /// The tool tip's place now: the move in progress, at the point the cutter has got to.
-struct ToolNow { op: usize, alt: bool, tip: [f64; 3] }
+struct ToolNow { op: usize, which: usize, tip: [f64; 3] }
 
 fn tool_now(app: &App) -> Option<ToolNow> {
     let (st, o) = (&app.v3, &*app.v3.rp);
@@ -895,7 +895,7 @@ fn tool_now(app: &App) -> Option<ToolNow> {
     let start = if done > 0 { st.cum.get(done - 1).copied().unwrap_or(0.0) } else { 0.0 };
     let f = if m.dt > 1e-12 { ((st.t - start) / m.dt).clamp(0.0, 1.0) } else { 1.0 };
     let tip = [0, 1, 2].map(|i| m.from[i] + (m.to[i] - m.from[i]) * f);
-    Some(ToolNow { op: m.op, alt: m.alt, tip })
+    Some(ToolNow { op: m.op, which: m.which(), tip })
 }
 
 /// The tool holder as a short cylinder whose underside is at `base`: translucent sides, a ring at each end. Red when it is in the way.

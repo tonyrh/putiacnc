@@ -39,8 +39,8 @@ impl Sim {
         let cell = (area / max_cells.max(1000) as f64).sqrt().max(0.05);
         let nx = ((st.w / cell).ceil() as usize).max(2) + 1;
         let ny = ((st.h / cell).ceil() as usize).max(2) + 1;
-        // two slots per operation: its tool and its second tool (inlays)
-        let tools = data.ops.iter().flat_map(|o| [Some(o.p.tool.as_str()), o.p.second_tool()]).map(|id| {
+        // three slots per operation: its tool, its second tool (inlays, roughing) and its detail tool
+        let tools = data.ops.iter().flat_map(|o| [Some(o.p.tool.as_str()), o.p.second_tool(), o.p.detail_tool()]).map(|id| {
             let t: Option<&Tool> = id.and_then(|id| data.tools.iter().find(|t| t.id == id));
             match t {
                 Some(t) => {
@@ -154,7 +154,7 @@ impl Sim {
 
     fn stamp_move(&mut self, m: &Move, f0: f64, f1: f64) {
         if !m.cut || f1 <= f0 || self.skip.get(m.op).copied().unwrap_or(false) || self.draws.get(m.op).copied().unwrap_or(false) { return; }
-        let slot = m.op * 2 + m.alt as usize;
+        let slot = m.slot();
         // when the cutter never gets lower further out (almost every tool), the move is swept in level pieces: one piece for a level move,
         // pieces at most 0.01 mm apart in height for a ramp (each cut at its lower end, so a ramp is never left too high), and one piece at
         // the bottom for a plunge. Much faster than stamping the cutter every 0.7 cell, above all for big cutters.
@@ -179,7 +179,7 @@ impl Sim {
             // skip samples clearly above the stock
             let z = m.from[2] + (m.to[2] - m.from[2]) * f;
             if z > 0.0 { continue; }
-            self.stamp(m.op * 2 + m.alt as usize, m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, z);
+            self.stamp(m.slot(), m.from[0] + (m.to[0] - m.from[0]) * f, m.from[1] + (m.to[1] - m.from[1]) * f, z);
         }
     }
 
@@ -197,7 +197,7 @@ impl Sim {
         }
     }
 
-    /// Radius of the cutter in this tool slot (two per operation), 0 if there is none.
+    /// Radius of the cutter in this tool slot (three per operation), 0 if there is none.
     pub fn tool_radius(&self, slot: usize) -> f64 { self.tools.get(slot).map_or(0.0, |t| t.0) }
 
     /// How far (mm) the stock stands inside the cutter when its tip is at (x, y, z): the largest height of the

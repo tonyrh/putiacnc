@@ -152,7 +152,7 @@ fn absurd_holder_sizes_and_stick_outs_give_a_finite_check_and_no_panic() {
         d.tools[0].stick = stick;
         let o = generate(&d, Units::Metric).unwrap();
         for f in checks::run(&d, &o) { assert!(f.at.iter().all(|v| v.is_finite()), "holder {holder}, stick {stick}: {:?}", f.at); }
-        let h = holder_of(&d, 0, false);
+        let h = holder_of(&d, 0, 0);
         assert!(h.is_none_or(|h| h.r > 0.0 && h.stick > 0.0), "{h:?}");
     }
     // a holder or a position that is not a number never touches anything and never panics

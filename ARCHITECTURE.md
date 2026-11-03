@@ -32,7 +32,7 @@ changes the project inside a drawing function, it probably belongs in core.
 | `trim`, `cleanup` | The Trim and Extend tool; the Clean up command for imported drawings (joins paths, drops duplicates, finds open contours). |
 | `svg`, `dxf`, `bitmap`, `text` | Importers and the font-to-outline code. |
 | `toolpath` | `generate(&ProjectData, Units) -> Output`: profile, pocket, V-carve, drill, inlay, tabs, lead-in, G-code lines and a time estimate. |
-| `relief` | The 3D model roughing and finishing passes. |
+| `relief` | The 3D model roughing, finishing and detail (rest machining) passes. |
 | `rest` | Rest machining of pockets: what the main cutter leaves (the pocket minus the pocket "opened" by the cutter) and the area a smaller cutter must visit. |
 | `joints` | Dogbone corner reliefs and finger joints, and the box plates. |
 | `pieces`, `split` | Inlay plugs on a separate piece of stock; one program split into several files (per tool or per operation). |

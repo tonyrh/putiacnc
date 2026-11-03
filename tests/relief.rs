@@ -171,3 +171,51 @@ fn relief_roughing_and_finishing_take_their_own_custom_feeds_and_speeds() {
     // an old project (no custom values) is unchanged
     assert_eq!(plain, generate(&project(true), Units::Metric).unwrap().gcode());
 }
+
+fn with_detail(big: f64, small: f64) -> putiacnc_core::ProjectData {
+    let mut d = project(false);
+    let mut t = d.tools.iter().find(|t| t.shape == "ball").unwrap().clone();
+    t.id = "big_ball".into(); t.name = "Big ball".into(); t.dia = big;
+    let mut s = t.clone();
+    s.id = "small_ball".into(); s.name = "Small ball".into(); s.dia = small;
+    d.tools.push(t); d.tools.push(s);
+    d.ops[0].p.tool = "big_ball".into();
+    d.ops[0].p.rest = Some("small_ball".into());
+    d
+}
+
+#[test]
+fn a_detail_ball_finishes_only_what_the_big_one_missed() {
+    let d = with_detail(6.0, 1.5);
+    let out = generate(&d, Units::Metric).unwrap();
+    let det: Vec<_> = out.moves.iter().filter(|m| m.det && m.cut).collect();
+    assert!(!det.is_empty(), "the foot of the pyramid is out of the big ball's reach");
+    // a ball reaches the convex slopes and the peak, but not the inside corner where the slopes meet the floor: the detail ball
+    // works along the foot of the pyramid (9 to 10 mm from the middle) and nowhere else
+    let cheb = |m: &&putiacnc_core::toolpath::Move| (m.to[0] - 20.0).abs().max((m.to[1] - 20.0).abs());
+    assert!(det.iter().all(|m| cheb(m) > 7.5), "detail cuts on the open slopes");
+    let all = out.moves.iter().filter(|m| m.cut).count();
+    assert!(det.len() * 2 < all, "{} of {}", det.len(), all);
+    assert!(out.gcode().contains("detail") && out.notes.iter().any(|n| n.contains("could not reach")));
+    // sim, checker and the surface: not gouged, and the apex is carved deeper than with the big ball alone
+    let mut s = Sim::new(&d, 160_000);
+    s.advance(&out.moves, out.moves.len());
+    let mut plain = d.clone();
+    plain.ops[0].p.rest = None;
+    let o2 = generate(&plain, Units::Metric).unwrap();
+    let mut s2 = Sim::new(&plain, 160_000);
+    s2.advance(&o2.moves, o2.moves.len());
+    let (cx, cy) = ((20.0 / s.cell) as usize, (20.0 / s.cell) as usize);
+    assert!(s.at(cx, cy) <= s2.at(cx, cy) + 1e-6);
+    // the replay of the written program knows the third tool as well
+    let r = putiacnc_core::replay::replay(&out.lines, &d);
+    assert!(r.moves.iter().any(|m| m.det && m.cut));
+}
+
+#[test]
+fn a_detail_tool_as_big_as_the_main_one_is_refused_with_a_note() {
+    let d = with_detail(3.0, 3.0);
+    let out = generate(&d, Units::Metric).unwrap();
+    assert!(!out.moves.iter().any(|m| m.det));
+    assert!(out.notes.iter().any(|n| n.contains("not smaller")));
+}

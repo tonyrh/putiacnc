@@ -103,9 +103,9 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
     // per operation: the labels of its tool and its second tool
-    let labels: Vec<(String, Option<String>)> = data.ops.iter().map(|o| {
+    let labels: Vec<(String, Option<String>, Option<String>)> = data.ops.iter().map(|o| {
         let name = |id: &str| data.tools.iter().find(|t| t.id == id).map(|t| tool_label(&t.name)).unwrap_or_default();
-        (name(&o.p.tool), o.p.second_tool().map(name))
+        (name(&o.p.tool), o.p.second_tool().map(name), o.p.detail_tool().map(name))
     }).collect();
 
     let mut r = Replay::default();
@@ -173,7 +173,8 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
         if pos[2].is_nan() { pos[2] = if to[2].is_nan() { 0.0 } else { to[2] }; }
         let to = [to[0], to[1], if to[2].is_nan() { pos[2] } else { to[2] }];
         // the tool of this move: the second tool of the operation (inlay floor, relief roughing) is `alt`
-        let alt = labels.get(op).is_some_and(|(t1, t2)| t2.as_ref().is_some_and(|t2| *t2 == tool && *t1 != tool));
+        let det = labels.get(op).is_some_and(|(t1, _, t3)| t3.as_ref().is_some_and(|t3| *t3 == tool && *t1 != tool));
+        let alt = !det && labels.get(op).is_some_and(|(t1, t2, _)| t2.as_ref().is_some_and(|t2| *t2 == tool && *t1 != tool));
         let cut = mode != 0;
         // a rapid ends the pass: the cuts after it say their pass again
         if !cut { pass = 0; lap = false; }
@@ -202,7 +203,7 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
         for q in pieces {
             let d = ((q[0] - pos[0]).powi(2) + (q[1] - pos[1]).powi(2) + (q[2] - pos[2]).powi(2)).sqrt();
             if d > 0.0 {
-                r.moves.push(Move { from: pos, to: q, cut, dt: d * secs_per_mm, pass, op, alt, lap: lap && cut });
+                r.moves.push(Move { from: pos, to: q, cut, dt: d * secs_per_mm, pass, op, alt, det, lap: lap && cut });
                 r.info.push(Info { line: li, kind: Kind::Move });
             }
             pos = q;
@@ -215,5 +216,5 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
 /// are all different and a stop can be told from the step after it.
 fn zero(pos: [f64; 3], op: usize, pass: usize, dt: f64) -> Move {
     let at = [pos[0], pos[1], if pos[2].is_nan() { 0.0 } else { pos[2] }];
-    Move { from: at, to: at, cut: false, dt: dt.max(1e-7), pass, op, alt: false, lap: false }
+    Move { from: at, to: at, cut: false, dt: dt.max(1e-7), pass, op, alt: false, det: false, lap: false }
 }

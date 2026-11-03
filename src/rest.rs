@@ -140,7 +140,7 @@ mod tests {
         let o = generate(&d, Units::Metric).unwrap();
         // the corner passes are made by the second tool, which is the 2 mm one
         assert!(o.moves.iter().any(|m| m.alt && m.cut));
-        assert!((crate::checks::tool_of(&d, 0, true).unwrap().dia - 2.0).abs() < 1e-9);
+        assert!((crate::checks::tool_of(&d, 0, 1).unwrap().dia - 2.0).abs() < 1e-9);
         let f = crate::checks::run(&d, &o);
         assert!(!f.iter().any(|f| f.kind == crate::checks::Kind::Overcut), "{:?}", f.iter().map(|f| &f.msg).collect::<Vec<_>>());
         // reading the program back agrees about which moves are the second tool's

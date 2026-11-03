@@ -21,7 +21,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Surface the stock or the spoilboard (Edit > Surface the stock…): a Pocket over a rectangle a cutter radius larger than the stock, with a wide cutter (0.4.2).
 - [x] The message when a pocket or inside profile makes no toolpath names the reason (tool wider than the shape, with the widths and a tool that fits; open lines).
 - [x] Rest machining: when the main cutter is too big to cut anything, the Corners cutter cuts the whole pocket, with an information note.
-- [ ] Rest machining, next: V-carve and relief.
+- [x] Rest machining for 3D relief: a smaller ball nose (the Detail row of the Finishing step) finishes only what the finishing ball could not reach. V-carve does not need it (one bit cuts every width).
 - [ ] Probing and homing snippets for the machine's start code (touch plate for Z zero).
 - [ ] G-code serial sender for GRBL (stream, pause, stop, position display). Needs testing on the real machine.
 - [ ] Check the setup assistant and the quick tour on macOS and Windows (only tested on Linux so far).
@@ -32,7 +32,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Text along an arc at any angle (done).
 - [x] Text arc: warn when the text is longer than the circle (done).
 - [ ] Maybe, only if asked: text along any picked path (rigid letters first, warped later; placed once, not live-linked). Decided not worth the cost for now.
-- [x] Rest machining for pockets: a smaller flat end mill (the Corners row of a Pocket operation) clears only what the main cutter could not reach (corners and parts narrower than it). Relief still to do.
+- [x] Rest machining for pockets: a smaller flat end mill (the Corners row of a Pocket operation) clears only what the main cutter could not reach (corners and parts narrower than it).
 - [ ] Bezier and arc node editing (0.4.0).
 - [ ] Marlin output (a third G-code style next to GRBL and Mach3): `;` comments instead of `( )`, no `M2` (end with `M5` and a lift), tool change and spindle `S` scaling as the machine's build needs, arcs optional. First ask the maintainer: is it a CNC build with a spindle, are `G2`/`G3` enabled, how are tools changed. Not checked against Marlin itself yet.
 - [ ] More G-code styles, in this order: Marlin (item above), then Smoothieware and Duet / RepRapFirmware, then a generic Fanuc-style output (`G54`-`G59`, `G43`, `M6` with `T`, `%` markers; the Haas manuals are free). GRBL-compatible controllers (grblHAL, FluidNC, Carbide Motion, OpenBuilds Blackbox) probably already work: only machine presets. Every new style is marked "untested on a machine" until someone has tried it.

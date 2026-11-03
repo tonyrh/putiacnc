@@ -17,8 +17,17 @@ pub struct Move {
     pub op: usize,
     /// Made with the operation's second tool (inlay operations use a V-bit and a flat end mill).
     pub alt: bool,
+    /// Cut with the operation's third tool (the detail ball of a relief).
+    pub det: bool,
     /// The flat lap that levels the floor after the ramped passes: part of the last pass, not a pass of its own.
     pub lap: bool,
+}
+
+impl Move {
+    /// Which of the operation's tools cuts this move: 0 its tool, 1 its second tool, 2 its detail tool.
+    pub fn which(&self) -> usize { if self.det { 2 } else { self.alt as usize } }
+    /// The move's tool slot in the simulation (three per operation).
+    pub fn slot(&self) -> usize { self.op * 3 + self.which() }
 }
 
 /// Where the generated toolpath leaves a holding tab uncut: the middle of the tab on the toolpath
@@ -198,7 +207,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool, pw: Option<(usize, usize, bool)>,
-    moves: Vec<Move>, alt: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
+    moves: Vec<Move>, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
 }
 
 impl Em {
@@ -227,7 +236,7 @@ impl Em {
         self.g.push(s);
         let dist = ((x - self.cur[0]).powi(2) + (y - self.cur[1]).powi(2) + (z - self.cur[2]).powi(2)).sqrt();
         let dt = dist / (if is_cut { fd } else { self.rap }) * self.tsc;
-        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, pass: self.pn, op: self.oi, alt: self.alt, lap: self.lap });
+        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, pass: self.pn, op: self.oi, alt: self.alt, det: self.det, lap: self.lap });
         self.time += dt;
         if is_cut { self.tc += dt; }
         self.cur = [x, y, z];
@@ -1090,6 +1099,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         notes.push(format!("{}no roughing tool chosen: the finishing tool cuts everything (slow, and hard on the tool). Pick a flat end mill as the roughing tool.", pre));
     }
 
+    let mut nlines = 0usize;
     if !o.p.f_off {
         // 2. finishing with the main tool, lines along X following the surface
         let fp = Footprint::new(g, tool.dia / 2.0, |rho| fgeo.rise(rho));
@@ -1098,6 +1108,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         if step as f64 * g > tool.dia * fso / 100.0 * 1.6 { notes.push(format!("{}the model's resolution ({} {}) limits the finishing line spacing; re-import it finer for a smoother surface.", pre, fnum(g), un)); }
         let margin = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
         let lines = finish_lines(&f, &fp, margin, step, 0.01);
+        nlines = lines.len();
         select_tool(e, ts, mach, tool, sz, &fnum(tool.dia), un);
         e.g.push(format!("(Operation {}: relief, finishing, {} {} {}, lines {} {} apart)", k + 1, fgeo.shape.label(), fnum(tool.dia), un, fnum(step as f64 * g), un));
         for (li, line) in lines.iter().enumerate() {
@@ -1116,6 +1127,54 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         }
         e.go("G0", None, None, Some(sz), 0.0);
         if tool.shape == "flat" { notes.push(format!("{}a flat end mill as the finishing tool leaves a stepped surface; use a ball nose.", pre)); }
+    }
+    // 3. detail: a smaller ball finishes only what the finishing ball could not reach
+    let detail = if o.p.f_off { None } else { o.p.detail_tool().and_then(|id| data.tools.iter().find(|t| t.id == id)) };
+    if let Some(dt) = detail {
+        if !(dt.dia > 0.0 && dt.so > 0.0 && dt.feed > 0.0 && dt.plunge > 0.0) { return Err(format!("Operation {}: check the detail tool's values", k + 1)); }
+        let dgeo = ToolGeo::new(dt);
+        if dt.dia >= tool.dia {
+            notes.push(format!("{}the detail tool ({} {}) is not smaller than the finishing tool ({} {}): choose a smaller ball nose.", pre, fnum(dt.dia), un, fnum(tool.dia), un));
+        } else {
+            use crate::relief::{dilate, leftover_mask, detail_lines};
+            let big = Footprint::new(g, tool.dia / 2.0, |rho| fgeo.rise(rho));
+            let bm = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
+            let mask = leftover_mask(&f, &big, bm, 0.05);
+            let total = ((f.nx - 2 * f.pad) * (f.ny - 2 * f.pad)).max(1);
+            let left = mask.iter().filter(|v| **v).count();
+            if left == 0 {
+                notes.push(format!("{}the finishing tool reaches the whole surface: the detail tool is not needed.", pre));
+            } else {
+                let rc = ((dt.dia / 2.0 / g).ceil() as usize).max(1);
+                let need = dilate(&mask, f.nx, f.ny, rc);
+                let small = Footprint::new(g, dt.dia / 2.0, |rho| dgeo.rise(rho));
+                let dso = o.p.d_so.filter(|v| *v > 0.0).unwrap_or(dt.so);
+                let step = ((dt.dia * dso / 100.0 / g).round() as usize).max(1);
+                let rows = detail_lines(&f, &small, &need, step, 2 * rc, 0.01);
+                select_tool(e, ts, mach, dt, sz, &fnum(dt.dia), un);
+                e.det = true;
+                e.g.push(format!("(Operation {}: relief, detail, {} {} {}, lines {} {} apart)", k + 1, dgeo.shape.label(), fnum(dt.dia), un, fnum(step as f64 * g), un));
+                let mut n = 0usize;
+                let mut first = true;
+                for (ri, row) in rows.iter().enumerate() {
+                    let row: Vec<&Vec<[f64; 3]>> = if ri % 2 == 1 { row.iter().rev().collect() } else { row.iter().collect() };
+                    for seg in row {
+                        let pts: Vec<[f64; 3]> = if ri % 2 == 1 { seg.iter().rev().copied().collect() } else { seg.clone() };
+                        n += 1;
+                        e.pn = layers + nlines + n;
+                        let a = pts[0];
+                        e.go("G0", None, None, Some(if first { sz } else { z0 + hop }), 0.0);
+                        e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+                        e.go("G1", None, None, Some(z0 + a[2]), dt.plunge);
+                        first = false;
+                        for p in &pts[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), dt.feed); }
+                    }
+                }
+                e.go("G0", None, None, Some(sz), 0.0);
+                e.det = false;
+                notes.push(format!("{}the detail tool finishes the {:.0}% of the surface the finishing tool could not reach.", pre, 100.0 * left as f64 / total as f64));
+            }
+        }
     }
     let _ = sz_init;
     Ok(())
@@ -1184,7 +1243,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], alt: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], alt: false, det: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {

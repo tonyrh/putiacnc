@@ -261,6 +261,8 @@ pub struct Operation { pub id: i64, pub p: OpParams }
 impl OpParams {
     /// The operation's second tool: the flat end mill of an inlay or relief (`tool2`), or the cleanup cutter of a pocket (`rest`).
     pub fn second_tool(&self) -> Option<&str> { if self.kind == "pocket" { self.rest.as_deref() } else { self.tool2.as_deref() } }
+    /// The operation's third tool: the small ball nose that finishes the detail of a relief (`rest`).
+    pub fn detail_tool(&self) -> Option<&str> { if self.kind == "relief" { self.rest.as_deref() } else { None } }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -306,6 +308,8 @@ pub struct OpParams {
     #[serde(default, rename = "rSo", skip_serializing_if = "Option::is_none")] pub r_so: Option<f64>,
     /// 3D relief finishing: stepover in % of the tool diameter; `None` = the finishing tool's own.
     #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
+    /// 3D relief detail tool: stepover in % of the tool diameter; `None` = the detail tool's own.
+    #[serde(default, rename = "dSo", skip_serializing_if = "Option::is_none")] pub d_so: Option<f64>,
     /// Stop the program after this operation: the tool lifts, the spindle stops, and the program waits (`M0`) with this message until you resume
     /// (flip the stock, move a clamp, clean up chips). `Some("")` = a pause with a standard message; `None` = no pause.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub pause: Option<String>,

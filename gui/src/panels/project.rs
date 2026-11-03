@@ -585,6 +585,32 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.weak("of the tool diameter");
                                 if p.f_so.is_some() && reset_button(ui, "Use the tool's stepover") { p.f_so = None; changed = true; }
                             });
+                            // rest machining: a smaller ball nose that finishes only what the one above could not reach
+                            let main_ball = tools_ref.iter().find(|t| t.id == p.tool).filter(|t| t.shape == "ball").map(|t| t.dia);
+                            if let Some(md) = main_ball {
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = sp;
+                                    rlabel(ui, lw2, "Detail");
+                                    let cur = p.rest.as_ref().and_then(|id| tools_ref.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                                    let w = (ui.available_width() - 70.0).max(100.0);
+                                    let cur = elide(ui, &cur, w - 30.0);
+                                    let (r2, pk2) = crate::toolpick::picker(ui, ("optooldetail", id), w, cur, p.rest.as_deref(), &job_tools, tools_ref, |t| t.shape == "ball" && t.dia < md - 1e-9);
+                                    match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.rest = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
+                                    r2.tip("A smaller ball nose that finishes only the places the finishing tool could not reach: narrow grooves, fine points and inside corners (rest machining)");
+                                    if p.rest.is_some() && ui.small_button("Remove").on_hover_text("Finish everything with the tool above").clicked() { p.rest = None; changed = true; }
+                                });
+                                if let Some(dt) = p.rest.as_ref().and_then(|id| tools_ref.iter().find(|t| &t.id == id)) {
+                                    ui.horizontal(|ui| {
+                                        ui.spacing_mut().item_spacing.x = sp;
+                                        rlabel(ui, lw2, "Stepover");
+                                        let mut v = p.d_so.unwrap_or(dt.so);
+                                        if dv_w(ui, 48.0, &mut v, 1.0, 100.0, "") { p.d_so = Some(v); changed = true; }
+                                        ui.weak("%");
+                                        ui.weak("of the detail tool");
+                                        if p.d_so.is_some() && reset_button(ui, "Use the tool's stepover") { p.d_so = None; changed = true; }
+                                    });
+                                }
+                            }
                             let t0 = tools_ref.iter().find(|t| t.id == p.tool);
                             changed |= relief_custom(ui, ("finish_cf", id), &mut p.custom, t0, lw2, sp, spd);
                         }
