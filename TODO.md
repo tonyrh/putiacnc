@@ -16,9 +16,9 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Dialog buttons: a window that does its job once (Box generator, Fingers, Combine) has OK (does it and closes) and Cancel; one that is used again and again (Offset, Array, Fillet and chamfer) has Apply (does it, stays open) and Close; Clean up keeps Clean up and Close. The dialog audit checks the labels, the row and the order.
 
 ## Bigger
-- [x] Setup assistant, quick tour, two sample projects (name plate, finger-joint box) that fit the user's machine and tools (0.4.0 to 0.4.2).
+- [x] Setup assistant, quick tour, three sample projects (name plate, finger-joint box, 3D relief) that fit the user's machine and tools (0.4.0 to 0.4.3).
 - [x] Setup sheet (File > Setup sheet…): a printable HTML page with the stock and zero, the tools in order, the operations with times, a checklist, the warnings and the notes (0.4.2).
-- [x] Surface the stock or the spoilboard (Edit > Surface the stock…): a Pocket over a rectangle a cutter radius larger than the stock, with a wide cutter (0.4.2).
+- [x] Surface the stock or the spoilboard (Generate > Surface the stock…): a Pocket over a rectangle a cutter radius larger than the stock, with a wide cutter (0.4.2).
 - [x] The message when a pocket or inside profile makes no toolpath names the reason (tool wider than the shape, with the widths and a tool that fits; open lines).
 - [x] Rest machining: when the main cutter is too big to cut anything, the Corners cutter cuts the whole pocket, with an information note.
 - [x] Relief finishing lines along X, Y or both.
@@ -87,8 +87,8 @@ Things that make a real job easier
 Toolpath quality
 - [x] Better path ordering (fewer and shorter rapids): done, always on.
 - [x] Dogbone corners (Fillet and chamfer window).
-- [x] Finger joints on rectangle edges (Edit menu).
-- [x] Box generator (Edit menu).
+- [x] Finger joints on rectangle edges (Modify menu).
+- [x] Box generator (Generate menu).
 - [x] T-bone corners and box dividers.
 - [x] Box dividers in both directions (half-lap crossings).
 - [ ] Box lids that slide or hinge.

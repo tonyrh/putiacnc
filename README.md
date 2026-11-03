@@ -12,19 +12,16 @@ stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`
 ![2D design: a rounded plate with a pocketed name and four drilled holes](docs/screenshot-2d.png)
 *2D design: draw or import shapes, assign them to profile, pocket, V-carve or drill operations, and set depth, tabs and tools.*
 
-
 ![3D preview: the finished cut in light wood](docs/screenshot-3d.png)
 *3D preview, here in inches shown as fractions (millimetres, decimal inches and fractions are a setting): the toolpath is replayed on the stock (shown once every operation has run), so you can check the result before sending the G-code to the machine.*
-
 
 https://github.com/user-attachments/assets/125b44a8-97f7-4a43-9ab0-32ccd8410e06
 
 *The 3D preview replaying a job: the cutter follows the toolpath and the stock is carved as it goes ([full-quality video](docs/demo.mp4)).*
 
-
 The workspace has two crates:
 
-- **`putiacnc-core`** (this folder): project model, geometry, SVG and DXF import, the material-removal
+- **`putiacnc-core`** (the repository root, `src/`): project model, geometry, SVG and DXF import, the material-removal
   simulation and G-code generation. It has no GUI dependency and also builds a command-line tool.
 - **`putiacnc-gui`** (`gui/`): the desktop app, built with egui/eframe (OpenGL).
 
@@ -43,7 +40,7 @@ The workspace has two crates:
 - Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
 - Rest machining: a smaller flat cutter clears only the corners and narrow parts the pocket's main cutter could not reach. A smaller ball nose does the same for the detail of a 3D relief.
 - Finishing pass: leave a little stock on the walls of a profile or pocket and cut them to size in a last pass. For a 3D relief the finishing lines can run along X, along Y or both.
-- Surface the stock or the spoilboard with a wide cutter (Edit > Surface the stock).
+- Surface the stock or the spoilboard with a wide cutter (Generate → Surface the stock).
 - Flat, bull, ball, V-bit, engraving, tapered ball and arc profile bits, shown with their real shape in the 3D preview.
 
 **Preview and checks**
@@ -55,14 +52,16 @@ The workspace has two crates:
 - Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files.
 
 **Everything else**
-- A setup assistant on first run, a quick tour and two sample projects (Help > Try a sample); a printable setup sheet (File > Setup sheet) with the stock, tools in order, operations and a checklist.
+- A setup assistant on first run, a quick tour and three sample projects (Generate → Sample projects); a printable setup sheet (File → Setup sheet) with the stock, tools in order, operations and a checklist.
 - G-code tab with a time estimate, optional inches and line numbers; project notes; keyboard shortcuts (F1); light and dark themes; check for updates (only when you ask); window and panel layout remembered between sessions.
+
+Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report (version, system and kernel, desktop session, CPU and memory, window scale, graphics driver, config folder; no user or computer name).
 
 The full list, with every option, is in [docs/features.md](docs/features.md).
 
 ### Build from source
 
-PutiaCNC needs Rust 1.75 or newer and a C++ compiler (the Clipper library is C++, built by the `cc` crate). Install Rust from [rustup.rs](https://rustup.rs). Then, on any system:
+PutiaCNC needs Rust 1.89 or newer and a C++ compiler (the Clipper library is C++, built by the `cc` crate). Install Rust from [rustup.rs](https://rustup.rs). Then, on any system:
 
     cargo run --release -p putiacnc-gui
     cargo run --release -p putiacnc-gui -- path/to/project.json
@@ -104,18 +103,19 @@ The program is called `putiacnc`. Your tool and machine libraries are stored per
 # putiacnc-core
 
 The calculation core of PutiaCNC, in Rust: project model, geometry and GRBL G-code generation.
-It turns a project into GRBL G-code; its output is pinned by snapshot tests and checked by an independent G-code verifier.
+It turns a project into G-code (GRBL, Mach3 or LinuxCNC); its output is pinned by snapshot tests and checked by an independent G-code verifier.
 
 ## What's in it
 
 | File | Purpose |
 |---|---|
 | `src/model.rs` | Data model (serde). Reads and writes the project files (`"app": "putia-cnc"`). |
-| `src/clip.rs` | Safe wrapper around Clipper 6.4 (Clipper 6.4): even-odd union, round-join offset, cleaning, area. |
-| `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, drill, inlay pocket and plug, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
+| `src/clip.rs` | Safe wrapper around Clipper 6.4: even-odd union, round-join offset, cleaning, area. |
+| `src/toolpath.rs` | Profile (outside / inside / on line), pocket, V-carve, drill, inlay pocket and plug, 3D relief, rest machining, tabs, ramping, tool shapes, tool changes, units, work zero / Z zero, time estimate. |
 | `src/svg.rs` | SVG import into closed and open shapes. |
 | `src/bitmap.rs` | Bitmap import: threshold, trace outlines and holes into closed shapes. |
 | `src/dxf.rs` | ASCII DXF import (lines, arcs, circles, polylines, splines, blocks). |
+| `src/relief.rs` | 3D relief: height field from images and STL / OBJ models, roughing, finishing and detail passes. |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |
 | `tests/golden.rs` | Golden tests: snapshots of the generator's own output. |
@@ -125,7 +125,7 @@ Also in the core: SVG and DXF import (`src/svg.rs`, `src/dxf.rs`), shape helpers
 
 ## Build and test
 
-Needs Rust 1.75 or newer and a C++ compiler (Clipper is C++, built by the `cc` crate).
+Needs Rust 1.89 or newer and a C++ compiler (Clipper is C++, built by the `cc` crate).
 
     cargo test
     cargo run --release --bin putia-gcode -- tests/data/tabs.project.json -o tabs.nc
@@ -150,8 +150,6 @@ now this project's own. To add a scenario, save a project from the app into `tes
 - G-code numbers are formatted to match the reference output exactly (fixed decimals, shortest form for integers).
 - Offsets that collapse a shape are very slow in Clipper. Repeated offsets (pocket rings, V-carve rings)
   therefore offset the previous ring by one step instead of offsetting the original shape by a growing distance.
-
-Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report (version, system and kernel, desktop session, CPU and memory, window scale, graphics driver, config folder; no user or computer name).
 
 ## Trademarks and bit data
 

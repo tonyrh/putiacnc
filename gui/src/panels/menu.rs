@@ -39,6 +39,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                     if ui.button("Clear list").clicked() { app.prefs.recent.clear(); ui.close_menu(); }
                 });
             });
+            ui.separator();
             if item(ui, "Import vectors…", "Ctrl+I", true) { app.import_dialog(); }
             if item(ui, "Import bitmap…", "", true) { app.import_bitmap_dialog(); }
             if item(ui, "Import 3D model…", "", true) { app.import_model_dialog(); }
@@ -65,15 +66,29 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             let can_group = putiacnc_core::selection::can_group(&app.project.data, &app.sel);
             if item(ui, "Group", "Ctrl+G", can_group) { app.group_selection(); }
             if item(ui, "Ungroup", "Ctrl+Shift+G", app.sel_in_group()) { app.ungroup_selection(); }
-            ui.separator();
+        });
+        ui.menu_button("Modify", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
             if item(ui, "Offset…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Offset); }
             if item(ui, "Array and copy…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Array); }
             if item(ui, "Fillet and chamfer…", "", app.selection_has_corners()) { app.open_tool_window(ToolWin::Corners); }
-            if item(ui, "Finger joint…", "", app.selection_has_rect()) { app.open_tool_window(ToolWin::Fingers); }
-            if item(ui, "Box with finger joints…", "", true) { app.open_tool_window(ToolWin::Box); }
             if item(ui, "Combine shapes…", "", app.sel.len() >= 2) { app.open_tool_window(ToolWin::Combine); }
-            if item(ui, "Surface the stock…", "", true) { app.open_tool_window(ToolWin::Surface); }
+            if item(ui, "Finger joint…", "", app.selection_has_rect()) { app.open_tool_window(ToolWin::Fingers); }
             if item(ui, "Clean up drawing…", "", !app.project.data.loops.is_empty()) { app.open_tool_window(ToolWin::Clean); }
+        });
+        ui.menu_button("Generate", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
+            if item(ui, "Box with finger joints…", "", true) { app.open_tool_window(ToolWin::Box); }
+            if item(ui, "Surface the stock…", "", true) { app.open_tool_window(ToolWin::Surface); }
+            ui.separator();
+            ui.menu_button("Sample projects", |ui| {
+                ui.style_mut().wrap = Some(false);
+                if ui.button("Name plate").on_hover_text("A plate with a recess and engraved lettering, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::NamePlate)); ui.close_menu(); }
+                if ui.button("Finger-joint box").on_hover_text("The five plates of a small box with finger joints, laid out on your stock; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Box)); ui.close_menu(); }
+                if ui.button("3D relief").on_hover_text("A six-petal rosette carved with roughing, finishing and detail tools, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Relief)); ui.close_menu(); }
+            });
         });
         ui.menu_button("View", |ui| {
             ui.style_mut().wrap = Some(false);
@@ -113,11 +128,6 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if ui.button("Quick tour").on_hover_text("A two-minute look at where things are").clicked() { app.tour.start(); ui.close_menu(); }
-            ui.menu_button("Try a sample", |ui| {
-                ui.style_mut().wrap = Some(false);
-                if ui.button("Name plate").on_hover_text("A plate with a recess and engraved lettering, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::NamePlate)); ui.close_menu(); }
-                if ui.button("Finger-joint box").on_hover_text("The five plates of a small box with finger joints, laid out on your stock; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Box)); ui.close_menu(); }
-            });
             if ui.button("Setup assistant…").on_hover_text("Set up a machine and a starter set of tools; nothing you have is deleted").clicked() { app.setup.start(false); ui.close_menu(); }
             ui.separator();
             if ui.add(egui::Button::new("Keyboard shortcuts").shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }

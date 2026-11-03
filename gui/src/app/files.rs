@@ -224,7 +224,7 @@ impl App {
         let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         let open = putiacnc_core::cleanup::open_count(&imp.loops);
         if open > 0 {
-            note.push(format!("{open} open contour{} (loose ends are marked): Edit > Clean up drawing can join them.", if open == 1 { "" } else { "s" }));
+            note.push(format!("{open} open contour{} (loose ends are marked): Modify > Clean up drawing can join them.", if open == 1 { "" } else { "s" }));
             sentences.push((super::NoteUntil::Closed(gid), note.last().cloned().unwrap_or_default()));
             self.show_open_ends = true;
         }

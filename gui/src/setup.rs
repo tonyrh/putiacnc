@@ -511,7 +511,7 @@ fn finish_step(ui: &mut egui::Ui, w: &Wizard) {
     });
     ui.add_space(14.0);
     ui.weak("Open this again any time from Help \u{2192} Setup assistant.");
-    ui.weak("There is more than one sample project: see Help \u{2192} Try a sample.");
+    ui.weak("There is more than one sample project: see Generate \u{2192} Sample projects.");
 }
 
 /// Dims the program behind the window so that the window is the one thing to look at. It is an area of its own, shown before the

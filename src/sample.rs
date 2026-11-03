@@ -1,4 +1,4 @@
-//! The sample project ("Try a sample"): a small name plate made to fit the user's own machine, tools and units.
+//! The sample projects (Generate → Sample projects): a small name plate made to fit the user's own machine, tools and units.
 //! The Notes tab explains it and how to try it as an air cut first.
 use crate::linetext::line_text_loops;
 use crate::model::{Operation, ProjectData, ShapeGroup, TextSpec, Tool};
@@ -93,12 +93,93 @@ Before cutting for real
 
 /// Which sample to make.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Kind { NamePlate, Box }
+pub enum Kind { NamePlate, Box, Relief }
 
-impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box" } } }
+impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box", Kind::Relief => "Sample 3D relief" } } }
 
 pub fn fill_kind(d: &mut ProjectData, inches: bool, kind: Kind) -> Result<(), String> {
-    match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches) }
+    match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches), Kind::Relief => fill_relief(d, inches) }
+}
+
+/// A six-petal rosette as a height map: the 3D relief sample needs no model file. Cells run from the bottom row up; 65535 is the top.
+fn rosette(n: usize) -> Vec<u16> {
+    let mut hm = vec![0u16; n * n];
+    for j in 0..n { for i in 0..n {
+        let (dx, dy) = ((i as f64 + 0.5) / n as f64 * 2.0 - 1.0, (j as f64 + 0.5) / n as f64 * 2.0 - 1.0);
+        let (r, th) = (dx.hypot(dy), dy.atan2(dx));
+        let edge = 0.62 + 0.34 * (3.0 * th).cos().abs();
+        let t = r / edge;
+        // a round petal, with a small dimple in the middle
+        let mut h = if t < 1.0 { (1.0 - t * t).powf(1.2) } else { 0.0 };
+        h *= 1.0 - 0.25 * (-(r / 0.12).powi(2)).exp();
+        hm[j * n + i] = (h.clamp(0.0, 1.0) * 65535.0).round() as u16;
+    } }
+    // the highest cell holds 65535
+    let top = hm.iter().copied().max().unwrap_or(1).max(1) as f64;
+    for v in hm.iter_mut() { *v = (*v as f64 / top * 65535.0).round() as u16; }
+    hm
+}
+
+/// A 3D relief: a six-petal rosette carved in the stock with a flat end mill for the roughing, a ball nose for the finishing and, when
+/// there is a smaller ball nose, a detail pass. The model is made here, so nothing has to be imported.
+pub fn fill_relief(d: &mut ProjectData, inches: bool) -> Result<(), String> {
+    let (mx, my, mz) = d.machine.as_ref().map(|m| (m.x, m.y, m.z)).unwrap_or((300.0, 200.0, 60.0));
+    // the roughing cutter: the widest flat end mill up to 6.5 mm (the roughing is quicker with a wide one), else any flat one
+    let flat = d.tools.iter().filter(|t| t.shape == "flat" && t.dia <= 6.5).max_by(|a, b| a.dia.total_cmp(&b.dia)).or_else(|| pick_flat(&d.tools)).ok_or("There is no flat end mill in the tool list.")?.clone();
+    // a project without a ball nose gets the two of the starter set (1/8 and 1/4 inch), so the sample can run
+    let mut added = false;
+    if !d.tools.iter().any(|t| t.shape == "ball" && t.dia <= 7.0) {
+        for t in crate::setup::starter_tools(crate::setup::ToolChoice { ball: true, ..Default::default() }).into_iter().filter(|t| t.shape == "ball") { d.tools.push(t); added = true; }
+    }
+    let mut balls: Vec<&Tool> = d.tools.iter().filter(|t| t.shape == "ball" && t.dia <= 7.0).collect();
+    balls.sort_by(|a, b| b.dia.total_cmp(&a.dia));
+    let ball = (*balls.first().ok_or("There is no ball nose in the tool list.")?).clone();
+    let detail = balls.iter().find(|t| t.dia < ball.dia - 1e-6 && t.dia >= 0.5).map(|t| (*t).clone());
+    let (big, small) = if inches { (6.35, 1.5875) } else { (5.0, 1.0) };
+    d.stock.w = floor_to(mx.min(90.0).min(mx * 0.9), big).max(big * 6.0);
+    d.stock.h = floor_to(my.min(90.0).min(my * 0.9), big).max(big * 6.0);
+    d.stock.t = floor_to((mz * 0.4).min(if inches { 12.7 } else { 12.0 }), small).max(small * 4.0);
+    let s = floor_to((d.stock.w.min(d.stock.h) * 0.8).min(60.0), big).max(big * 3.0);
+    let n = 160usize;
+    let zmax = floor_to((d.stock.t * 0.5).clamp(small * 2.0, if inches { 6.35 } else { 6.0 }), small).max(small);
+    let mut bytes = Vec::with_capacity(n * n * 2);
+    for v in rosette(n) { bytes.extend(v.to_le_bytes()); }
+    d.relief = Some(crate::model::Relief { name: "Rosette".into(), nx: n, ny: n, res: s / n as f64, zmax, hm: crate::relief::b64_encode(&bytes), x: (d.stock.w - s) / 2.0, y: (d.stock.h - s) / 2.0, scale: 1.0 });
+    let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
+    d.ops.clear(); d.loops.clear(); d.groups.clear();
+    let mut p = shapes::default_op_params(&ball.id);
+    p.kind = "relief".into();
+    p.depth = zmax; p.d_man = true;
+    p.pass_depth = Some((zmax / 4.0).max(0.5));
+    p.f_so = Some(20.0); p.d_so = Some(35.0); // a sample favours speed over a perfect surface
+    p.tool2 = Some(flat.id.clone());
+    p.rest = detail.as_ref().map(|t| t.id.clone());
+    d.ops.push(Operation { id: 1, p });
+    d.oid = 1; d.act = 1;
+    let steps = match &detail {
+        Some(t) => format!("3. Detail: the {} finishes only the places the {} could not reach (the dimple in the middle and the corners where the petals meet the floor).\n", t.name, ball.name),
+        None => "3. Detail: add a smaller ball nose in the Detail row of the Finishing step to finish the corners the big one cannot reach.\n".into(),
+    };
+    d.notes = format!("SAMPLE 3D RELIEF
+A six-petal rosette, {s} square and {h} high, carved into a piece of stock {sw} x {sh} x {st}. The model is made by the program, so nothing has to be imported: your own STL or OBJ files work the same way (File menu, Import 3D model).
+
+Operations
+1. Roughing: the {flat} takes most of the material away in layers, leaving a little for the finishing.
+2. Finishing: the {ball} follows the surface line by line.
+{steps}
+Look around
+- The 3D preview shows the stock being cut as the preview plays; use the Play button at the bottom.
+- In the Finishing step, \"Lines\" chooses the direction of the finishing lines (along X, along Y, or both) and \"Stepover\" how far apart they are.
+- Switch the Detail tool off with Remove, or Roughing off, and watch the toolpath and the time change.
+- Move or resize the model in the Imported card of the left panel.
+
+Before cutting for real
+{added}- Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
+- Tick \"Air cut (run without cutting)\" in the operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
+        s = u(s), h = u(zmax), sw = u(d.stock.w), sh = u(d.stock.h), st = u(d.stock.t), flat = flat.name, ball = ball.name, steps = steps,
+        added = if added { "- The ball nose bits of this sample (1/8 and 1/4 inch) were not in your tool list, so they were added to this project: check their feeds and speeds against your own bits.\n" } else { "" });
+    Ok(())
 }
 
 /// A small open box with finger joints: its five plates laid out on the stock, one outside cut through all of them with holding tabs,
@@ -254,6 +335,36 @@ mod tests {
             assert!(o.lines.len() > 100);
             assert!(!o.notes.iter().any(|n| n.starts_with('⚠')), "{x}x{y}: {:?}", o.notes);
         }
+    }
+
+    /// The relief sample fits every machine, is one relief operation with roughing, finishing and a detail ball, and makes G-code.
+    #[test]
+    fn relief_sample_fits_every_machine() {
+        for (x, y, z, inch) in [(180.0, 100.0, 45.0, false), (300.0, 200.0, 60.0, false), (800.0, 1200.0, 150.0, false), (300.0, 200.0, 60.0, true), (400.0, 400.0, 80.0, true)] {
+            let mut d = project(x, y, z, inch);
+            fill_relief(&mut d, inch).unwrap_or_else(|e| panic!("{x}x{y}: {e}"));
+            let rel = d.relief.as_ref().unwrap();
+            let (w, h) = rel.size();
+            assert!(rel.x >= 0.0 && rel.y >= 0.0 && rel.x + w <= d.stock.w + 1e-9 && rel.y + h <= d.stock.h + 1e-9, "{x}x{y}: the model leaves the stock");
+            assert!(d.ops.len() == 1 && d.ops[0].p.kind == "relief" && d.ops[0].p.tool2.is_some() && d.ops[0].p.rest.is_some());
+            assert!(d.ops[0].p.depth <= d.stock.t + 1e-9 && d.stock.t <= z * 0.4 + 1e-9);
+            assert!(d.notes.contains("SAMPLE 3D RELIEF") && d.notes.contains("Detail"));
+            let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}: {e}"));
+            assert!(o.moves.iter().any(|m| m.alt && m.cut) && o.moves.iter().any(|m| m.det && m.cut), "{x}x{y}: roughing and detail both cut");
+            assert!(o.time_min < 30.0, "{x}x{y}x{z}: a sample should not take {:.0} minutes", o.time_min);
+            assert!(!o.notes.iter().any(|n| n.starts_with('⚠')), "{x}x{y}: {:?}", o.notes);
+        }
+        // without a smaller ball nose there is no detail tool, and the notes say how to add one
+        let mut d = project(300.0, 200.0, 60.0, false);
+        d.tools.extend(crate::setup::starter_tools(crate::setup::ToolChoice { ball: true, ..Default::default() }).into_iter().filter(|t| t.shape == "ball"));
+        let big = d.tools.iter().filter(|t| t.shape == "ball").map(|t| t.dia).fold(0.0, f64::max);
+        d.tools.retain(|t| t.shape != "ball" || t.dia >= big);
+        fill_relief(&mut d, false).unwrap();
+        assert!(d.ops[0].p.rest.is_none() && d.notes.contains("add a smaller ball nose"));
+        // no ball nose at all: the starter ones are added to the project, and the notes say so
+        d.tools.retain(|t| t.shape != "ball");
+        fill_relief(&mut d, false).unwrap();
+        assert!(d.tools.iter().any(|t| t.shape == "ball") && d.notes.contains("were not in your tool list"));
     }
 
     #[test]

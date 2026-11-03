@@ -10,7 +10,7 @@ impl App {
         self.modified = false;
     }
 
-    /// "Try a sample": a new project made to fit the machine and tools in use (a name plate, or a finger-joint box).
+    /// "Sample projects": a new project made to fit the machine and tools in use (a name plate, or a finger-joint box).
     pub fn load_sample(&mut self, kind: putiacnc_core::sample::Kind) {
         self.new_project();
         let inches = self.disp_in;
