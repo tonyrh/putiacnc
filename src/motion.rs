@@ -29,7 +29,29 @@ impl Motion {
     }
 }
 
+/// The top speed of each axis in mm/min, infinite where there is no limit.
+pub type Rates = [f64; 3];
+
+/// The fastest the machine goes along the move `from` to `to` when the speed asked for is `speed` (mm/min): the speed is held down so
+/// that no axis goes faster than its own top speed, as Grbl does (a move along Z alone is limited by Z, a diagonal by the slowest axis
+/// in proportion to its share of the move).
+pub fn cap_speed(rates: &Rates, speed: f64, from: [f64; 3], to: [f64; 3]) -> f64 {
+    let d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+    let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+    if len < 1e-12 { return speed; }
+    let mut s = speed;
+    for k in 0..3 { if d[k].abs() > 1e-9 { s = s.min(rates[k] * len / d[k].abs()); } }
+    s
+}
+
 impl Machine {
+    /// The top speed of each axis (`rate`, `rate_y`, `rate_z`; Y and Z follow X where not set), infinite where there is none.
+    pub fn rates(&self) -> Rates {
+        let ok = |a: Option<f64>| a.filter(|a| a.is_finite() && *a > 0.0);
+        let x = ok(self.rate);
+        [x.unwrap_or(f64::INFINITY), ok(self.rate_y).or(x).unwrap_or(f64::INFINITY), ok(self.rate_z).or(x).unwrap_or(f64::INFINITY)]
+    }
+
     /// The motion limits, when the machine has an acceleration set.
     pub fn motion(&self) -> Option<Motion> {
         let ok = |a: Option<f64>| a.filter(|a| a.is_finite() && *a > 0.0).map(|a| a.clamp(1.0, 100_000.0));
@@ -188,5 +210,31 @@ mod tests {
         assert_eq!(mc.motion().unwrap().accel, [200.0, 200.0, 50.0]);
         mc.accel_y = Some(0.0); // nonsense is ignored
         assert_eq!(mc.motion().unwrap().accel, [200.0, 200.0, 50.0]);
+    }
+
+    #[test]
+    fn no_axis_goes_faster_than_its_top_speed() {
+        let r = [2000.0, 2000.0, 500.0];
+        // along Z alone the Z limit rules, along X the X limit, and a plain cut below both is left alone
+        assert_eq!(cap_speed(&r, 3000.0, [0.0; 3], [0.0, 0.0, -5.0]), 500.0);
+        assert_eq!(cap_speed(&r, 3000.0, [0.0; 3], [10.0, 0.0, 0.0]), 2000.0);
+        assert_eq!(cap_speed(&r, 800.0, [0.0; 3], [10.0, 0.0, 0.0]), 800.0);
+        // a ramp of 3 in X to 4 in Z (5 long): Z may only go 500, so the move goes 500 x 5 / 4
+        assert!((cap_speed(&r, 3000.0, [0.0; 3], [3.0, 0.0, -4.0]) - 625.0).abs() < 1e-9);
+        // no limit at all leaves the speed as it is
+        assert_eq!(cap_speed(&[f64::INFINITY; 3], 3000.0, [0.0; 3], [3.0, 4.0, 0.0]), 3000.0);
+    }
+
+    #[test]
+    fn y_and_z_follow_x_unless_they_are_set() {
+        let mut m = Machine::default();
+        assert!(m.rates().iter().all(|r| r.is_infinite()));
+        m.rate = Some(3000.0);
+        assert_eq!(m.rates(), [3000.0; 3]);
+        m.rate_z = Some(600.0);
+        assert_eq!(m.rates(), [3000.0, 3000.0, 600.0]);
+        m.rate = None;
+        assert_eq!(m.rates()[0], f64::INFINITY);
+        assert_eq!(m.rates()[2], 600.0);
     }
 }

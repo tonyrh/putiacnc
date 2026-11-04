@@ -211,7 +211,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool, pw: Option<(usize, usize, bool)>,
-    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, helix_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
+    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, helix_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64, rates: crate::motion::Rates, capped: usize,
 }
 
 impl Em {
@@ -242,7 +242,9 @@ impl Em {
         self.g.push(s);
         self.lastg = self.g.len();
         let dist = ((x - self.cur[0]).powi(2) + (y - self.cur[1]).powi(2) + (z - self.cur[2]).powi(2)).sqrt();
-        let feed = if is_cut { fd } else { self.rap };
+        let asked = if is_cut { fd } else { self.rap };
+        let feed = crate::motion::cap_speed(&self.rates, asked, self.cur, [x, y, z]);
+        if is_cut && feed < asked - 1e-6 { self.capped += 1; }
         let dt = dist / feed * self.tsc;
         self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, feed, stop, pass: self.pn, op: self.oi, alt: self.alt, det: self.det, lap: self.lap });
         self.time += dt;
@@ -1407,7 +1409,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, helix_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, helix_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s(), rates: machine.rates(), capped: 0 };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
@@ -1813,6 +1815,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             start_code.len(), if start_code.len() == 1 { "" } else { "s" }, end_code.len(), if end_code.len() == 1 { "" } else { "s" }));
     }
     if data.job.numbered { e.g = number_lines(e.g); }
+    if e.capped > 0 { notes.push(format!("{} cutting move{} asked for more than the machine's top speed on an axis; the time estimate holds {} down to it, as the controller does.", e.capped, if e.capped == 1 { "" } else { "s" }, if e.capped == 1 { "it" } else { "them" })); }
     // last of all, the text itself is read back by a checker that shares nothing with the code above
     notes.extend(crate::verify::hazards(&e.g));
     // with an acceleration set, the moves take what the machine really needs (the waits for the spindle stay as they were)

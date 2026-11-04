@@ -99,6 +99,7 @@ fn tool_in(comment: &str) -> Option<String> {
 pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
     let machine = data.machine.clone().unwrap_or_default();
     let (rapid, tsc) = (machine.rapid.max(1.0), machine.tsc);
+    let rates = machine.rates();
     let st = &data.stock;
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
@@ -178,8 +179,7 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
         let cut = mode != 0;
         // a rapid ends the pass: the cuts after it say their pass again
         if !cut { pass = 0; lap = false; }
-        let speed = if cut { feed } else { rapid };
-        let secs_per_mm = if speed > 0.0 { tsc / speed } else { 0.0 };
+        let asked = if cut { feed } else { rapid };
         let mut pieces: Vec<[f64; 3]> = Vec::new();
         if (mode == 2 || mode == 3) && (i_.is_some() || j_.is_some()) {
             let (cx, cy) = (pos[0] + i_.unwrap_or(0.0) * ku, pos[1] + j_.unwrap_or(0.0) * ku);
@@ -203,6 +203,8 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
         for q in pieces {
             let d = ((q[0] - pos[0]).powi(2) + (q[1] - pos[1]).powi(2) + (q[2] - pos[2]).powi(2)).sqrt();
             if d > 0.0 {
+                let speed = crate::motion::cap_speed(&rates, asked, pos, q);
+                let secs_per_mm = if speed > 0.0 { tsc / speed } else { 0.0 };
                 r.moves.push(Move { from: pos, to: q, cut, dt: d * secs_per_mm, feed: speed, stop: false, pass, op, alt, det, lap: lap && cut });
                 r.info.push(Info { line: li, kind: Kind::Move });
             }

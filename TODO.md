@@ -102,7 +102,7 @@ Toolpath quality
 - [ ] Nesting.
 
 Machine side
-- [x] Preview against the real machine limits (acceleration) for more accurate time estimates: done, Acceleration and Corner deviation in the machine editor (off by default). Still to do: check it against the time a real job takes on the machine, and fill the acceleration into the machine catalogue where the makers publish it. Per-axis limits are done (Acceleration Y and Z in the machine editor); per-axis top speeds (`$110` to `$112`) are not modelled.
+- [x] Preview against the real machine limits (acceleration) for more accurate time estimates: done, Acceleration and Corner deviation in the machine editor (off by default). Still to do: check it against the time a real job takes on the machine, and fill the acceleration into the machine catalogue where the makers publish it. Per-axis limits are done (Acceleration Y and Z in the machine editor); per-axis top speeds (`$110` to `$112`) are done too (Top speed X, Y and Z).
 
 Reach and polish
 - [ ] Italian translation and a colour-blind-safe theme.

@@ -356,6 +356,24 @@ fn form(ui: &mut Ui, app: &mut App) {
         c.add_space(8.0 - c.spacing().item_spacing.x);
         c.add(egui::Label::new("Acceleration Z (mm/s²)").wrap(false)).tip(ztip);
         ui.end_row();
+        // the top speed of each axis (Grbl's $110 to $112): 0 = no limit; Y and Z follow X where they are 0
+        let rtip = "The fastest each axis can go (Grbl's $110 to $112). The time estimate holds every move down to what its slowest axis allows, and a note says when a cut is asked to go faster. 0 = no limit; Y and Z follow X where they are 0.";
+        rlabel(ui, lw, format!("Top speed X ({sname})"));
+        let mut rx = m.rate.unwrap_or(0.0) / sfac;
+        if crate::widgets::num(ui, [fw, 22.0], &mut rx, 0.0, 1.0e6, 10.0 / sfac, 3, "").tip(rtip).changed() { m.rate = if rx > 0.0 { Some(rx * sfac) } else { None }; changed = true; }
+        spacer(ui);
+        ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
+        let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let mut ry = m.rate_y.unwrap_or(0.0) / sfac;
+        if crate::widgets::num(&mut c, [60.0, 22.0], &mut ry, 0.0, 1.0e6, 10.0 / sfac, 3, "").tip(rtip).changed() { m.rate_y = if ry > 0.0 { Some(ry * sfac) } else { None }; changed = true; }
+        c.add_space(8.0 - c.spacing().item_spacing.x);
+        c.add(egui::Label::new(format!("Top speed Y ({sname})")).wrap(false)).tip(rtip);
+        ui.end_row();
+        rlabel(ui, lw, format!("Top speed Z ({sname})"));
+        let mut rz = m.rate_z.unwrap_or(0.0) / sfac;
+        if crate::widgets::num(ui, [fw, 22.0], &mut rz, 0.0, 1.0e6, 10.0 / sfac, 3, "").tip(rtip).changed() { m.rate_z = if rz > 0.0 { Some(rz * sfac) } else { None }; changed = true; }
+        ui.end_row();
     });
     ui.add_space(2.0);
     egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
