@@ -967,7 +967,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.add_space(6.0);
                         // not with a lead-in arc, which already enters the cut gently
                         changed |= crate::widgets::check_if(ui, p.lead.is_none() || p.kind == "pocket", &mut p.helix, "Helical entry")
-                            .tip(if p.kind == "pocket" { "Enters the first ring of the pocket in a spiral down instead of ramping along it or plunging: a smoother entry for an end mill that does not cut at its centre" } else { "Enters the cut in a spiral down on the waste side, next to the start of the path, instead of ramping along it or plunging" }).changed();
+                            .tip(if p.kind == "pocket" { "Enters the first ring of the pocket in a spiral down instead of ramping along it or plunging: a smoother entry for an end mill that does not cut at its centre. It takes priority over Ramp in on that ring; Ramp in still applies to the rings inside it, and where the spiral does not fit" } else { "Enters the cut in a spiral down on the waste side, next to the start of the path, instead of ramping along it or plunging. It takes priority over Ramp in (which is used where the spiral does not fit) and leaves a round hole in the waste about two tool diameters wide: lower the Circle size, or untick this and use Ramp in, if that material matters" }).changed();
                         if p.helix {
                             let (mut d, mut a) = (p.helix_d.unwrap_or(100.0), p.helix_a.unwrap_or(3.0));
                             ui.add_space(10.0);
