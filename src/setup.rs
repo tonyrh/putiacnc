@@ -43,11 +43,13 @@ pub struct MachineSetup {
     pub inches: bool,
     /// Free text kept on the machine (where the figures come from, caveats).
     pub notes: String,
+    /// Acceleration in mm/s² (`None` = not known: the time estimate then has no acceleration model).
+    pub accel: Option<f64>,
 }
 
 impl MachineSetup {
     pub fn from_preset(p: &Preset) -> MachineSetup {
-        MachineSetup { name: "My CNC machine".into(), x: p.x, y: p.y, z: p.z, rapid: p.rapid, post: String::new(), rpm_max: p.rpm_max, feed_max: p.feed_max, plunge_max: p.plunge_max, rigid: p.rigid.into(), inches: false, notes: String::new() }
+        MachineSetup { name: "My CNC machine".into(), x: p.x, y: p.y, z: p.z, rapid: p.rapid, post: String::new(), rpm_max: p.rpm_max, feed_max: p.feed_max, plunge_max: p.plunge_max, rigid: p.rigid.into(), inches: false, notes: String::new(), accel: None }
     }
 
     /// The machine, with a new id and every value in range.
@@ -65,6 +67,8 @@ impl MachineSetup {
         m.rigid = self.rigid.clone();
         m.inches = Some(self.inches);
         m.notes = self.notes.clone();
+        // a known acceleration is modelled in the time estimate, so the correction that stood in for it goes back to 1
+        if let Some(a) = self.accel.filter(|a| a.is_finite() && *a > 0.0) { m.accel = Some(a); m.tsc = 1.0; }
         crate::machines::normalize(&mut m);
         m
     }
@@ -129,6 +133,9 @@ pub struct CatalogMachine {
     #[serde(default)] pub post: String,
     /// Our own estimate of the stiffness (`feeds::RIGIDITY`), not the maker's.
     #[serde(default)] pub rigid: String,
+    /// The factory acceleration (`$120`) in mm/s², where a published settings listing gives one (`accel_source` says where).
+    #[serde(default)] pub accel: Option<f64>,
+    #[serde(default)] pub accel_source: String,
     /// The maker's page the figures come from.
     pub source: String,
     #[serde(default)] pub note: String,
@@ -162,10 +169,11 @@ impl CatalogMachine {
         let mut notes = format!("Figures from the maker: {}", self.source);
         if self.rpm_max.is_some() { notes.push_str("\nThe spindle limit is for the spindle supplied; change it if you fit another."); }
         if !self.note.is_empty() { notes.push('\n'); notes.push_str(&self.note); }
+        if let Some(a) = self.accel { notes.push_str(&format!("\nAcceleration {a} mm/s²: the factory value in a published settings listing ({}); check it against your own $$ listing.", self.accel_source)); }
         MachineSetup {
             name: self.name(), x: self.x, y: self.y, z: self.z, rapid: self.rapid.unwrap_or(2000.0), post: self.post.clone(),
             rpm_max: self.rpm_max, feed_max: None, plunge_max: None,
-            rigid: if self.rigid.is_empty() { "light".into() } else { self.rigid.clone() }, inches: false, notes,
+            rigid: if self.rigid.is_empty() { "light".into() } else { self.rigid.clone() }, inches: false, notes, accel: self.accel,
         }
     }
 }
@@ -191,6 +199,11 @@ mod tests {
             assert_eq!(m.name, e.name());
             assert!(m.notes.contains(&e.source));
             assert!(m.feed_max.is_none(), "a top speed is not a cutting limit");
+            // an acceleration comes with where it was read, and is modelled in the time estimate (so the correction goes back to 1)
+            assert_eq!(e.accel.is_some(), !e.accel_source.is_empty(), "{}", e.name());
+            assert!(e.accel.is_none_or(|a| (5.0..=5000.0).contains(&a)), "{}", e.name());
+            assert_eq!(m.accel, e.accel);
+            if e.accel.is_some() { assert!(m.tsc == 1.0 && m.notes.contains(&e.accel_source), "{}", e.name()); }
         }
         let mk = makers();
         assert!(mk.contains(&"Genmitsu") && mk.contains(&"NymoLabs"));

@@ -43,7 +43,9 @@
    "rpm_max": 10000,
    "rigid": "light",
    "source": "https://www.foxalien.com/products/cnc-router-machine-4040-xe",
-   "post": ""
+   "post": "",
+   "accel": 300,
+   "accel_source": "https://hisnhershandcrafted.myshopify.com/blogs/the-blog/foxalien-cnc-default-grbl-settings"
   },
   {
    "maker": "FoxAlien",
@@ -89,7 +91,9 @@
    "rapid": 1200,
    "rigid": "light",
    "source": "https://www.sainsmart.com/products/sainsmart-genmitsu-cnc-router-pro-diy-kit",
-   "post": ""
+   "post": "",
+   "accel": 300,
+   "accel_source": "https://jamesdeandesigns.com/sainsmart-genmitsu-3018-pro-default-grbl-settings/"
   },
   {
    "maker": "Genmitsu",
@@ -124,7 +128,9 @@
    "rpm_max": 9000,
    "rigid": "light",
    "source": "https://www.sainsmart.com/products/genmitsu-4040-pro-semi-assembly-desktop-cnc-machine-for-carving-and-cutting",
-   "post": ""
+   "post": "",
+   "accel": 20,
+   "accel_source": "https://jamesdeandesigns.com/sainsmart-genmitsu-4040-pro-default-grbl-settings/"
   },
   {
    "maker": "Genmitsu",
@@ -148,7 +154,9 @@
    "rpm_max": 12000,
    "rigid": "light",
    "source": "https://www.sainsmart.com/products/proverxl-4030s",
-   "post": ""
+   "post": "",
+   "accel": 300,
+   "accel_source": "https://hisnhershandcrafted.myshopify.com/blogs/the-blog/sainsmart-genmitsu-proverxl-4030-and-6060-default-grbl-settings"
   },
   {
    "maker": "Genmitsu",
@@ -184,7 +192,9 @@
    "rpm_max": 12000,
    "rigid": "light",
    "source": "https://www.sainsmart.com/products/proverxl-6050-plus",
-   "post": ""
+   "post": "",
+   "accel": 300,
+   "accel_source": "https://jamesdeandesigns.com/sainsmart-genmitsu-proverxl6050-plus-default-grbl-settings/"
   },
   {
    "maker": "NymoLabs",
