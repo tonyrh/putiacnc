@@ -304,9 +304,17 @@ const TAB_PENDING: &str = "tab_trap_pending";
 const TAB_SHIFT: &str = "tab_trap_last_shift";
 const TAB_SPIN: &str = "tab_trap_spin";
 
+const KEYBOARD_FOCUS: &str = "keyboard_focus";
+
 /// Call before every frame (`eframe::App::raw_input_hook`): remembers which way Tab was pressed and sends the key a wrap asked for.
 pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
     for e in &raw.events {
+        // focus that came from the keyboard is drawn; a click on something does not make a ring
+        match e {
+            egui::Event::Key { key: egui::Key::Tab, pressed: true, .. } => ctx.data_mut(|d| d.insert_temp(egui::Id::new(KEYBOARD_FOCUS), true)),
+            egui::Event::PointerButton { pressed: true, .. } => ctx.data_mut(|d| d.insert_temp(egui::Id::new(KEYBOARD_FOCUS), false)),
+            _ => {}
+        }
         if let egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } = e {
             let s = modifiers.shift;
             ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_SHIFT), s));
@@ -316,6 +324,19 @@ pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
         let modifiers = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
         raw.events.push(egui::Event::Key { key: egui::Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers });
     }
+}
+
+/// A ring round the control that has the keyboard focus, drawn after everything else so that every control shows it the same way, the
+/// custom ones (tick boxes, icon buttons, the zero corner picker) included. Not while a text field is being typed in: it has its cursor.
+pub fn focus_ring(ctx: &egui::Context) {
+    if !ctx.data(|d| d.get_temp::<bool>(egui::Id::new(KEYBOARD_FOCUS))).unwrap_or(false) { return; }
+    let Some(id) = ctx.memory(|m| m.focused()) else { return };
+    if egui::text_edit::TextEditState::load(ctx, id).is_some() { return; }
+    let Some(r) = ctx.read_response(id) else { return };
+    let rect = r.interact_rect;
+    if rect.width() < 4.0 || rect.height() < 4.0 { return; }
+    let col = ctx.style().visuals.selection.bg_fill;
+    ctx.layer_painter(r.layer_id).rect_stroke(rect.expand(2.0), 5.0, Stroke::new(2.0_f32, col));
 }
 
 /// Wraps a dialog's contents so that Tab and Shift+Tab stay inside it: `.show(ctx, trapped(|ui| { ... }))`.
@@ -356,19 +377,30 @@ mod trap_tests {
     use super::*;
     use egui::{Event, Key, Modifiers};
 
-    struct Rig { ctx: egui::Context, time: f64, ids: Vec<egui::Id> }
+    struct Rig { ctx: egui::Context, time: f64, ids: Vec<egui::Id>, rings: usize }
     impl Rig {
         fn frame(&mut self, events: Vec<Event>, modifiers: Modifiers) {
             self.time += 0.1;
             let mut input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(500.0, 400.0))), time: Some(self.time), events, modifiers, ..Default::default() };
             tab_hook(&self.ctx, &mut input);
             let ids = &mut self.ids;
-            let _ = self.ctx.run(input, |ctx| {
+            let out = self.ctx.run(input, |ctx| {
                 ids.clear();
                 egui::CentralPanel::default().show(ctx, |ui| { let r = ui.button("before"); ids.push(r.id); });
                 egui::Window::new("d").show(ctx, trapped(|ui| { for n in ["one", "two", "three"] { let r = ui.button(n); ids.push(r.id); } }));
                 egui::TopBottomPanel::bottom("p").show(ctx, |ui| { let r = ui.button("after"); ids.push(r.id); });
+                focus_ring(ctx);
             });
+            let col = self.ctx.style().visuals.selection.bg_fill;
+            fn rings(s: &egui::Shape, col: egui::Color32, n: &mut usize) {
+                match s {
+                    egui::Shape::Rect(r) if r.stroke.width == 2.0 && r.stroke.color == col && r.fill == egui::Color32::TRANSPARENT => *n += 1,
+                    egui::Shape::Vec(v) => for x in v { rings(x, col, n); },
+                    _ => {}
+                }
+            }
+            self.rings = 0;
+            for c in &out.shapes { rings(&c.shape, col, &mut self.rings); }
         }
         fn tab(&mut self, shift: bool) {
             let m = if shift { Modifiers::SHIFT } else { Modifiers::NONE };
@@ -380,7 +412,7 @@ mod trap_tests {
 
     #[test]
     fn tab_wraps_inside_the_dialog_both_ways() {
-        let mut r = Rig { ctx: egui::Context::default(), time: 0.0, ids: vec![] };
+        let mut r = Rig { ctx: egui::Context::default(), time: 0.0, ids: vec![], rings: 0 };
         r.frame(vec![], Modifiers::NONE);
         r.ctx.memory_mut(|m| m.request_focus(r.ids[1]));
         r.frame(vec![], Modifiers::NONE);
@@ -390,5 +422,20 @@ mod trap_tests {
         r.tab(false); assert_eq!(r.at(), Some(1), "Tab from the last control comes back to the first, not to the panel behind");
         r.tab(true); assert_eq!(r.at(), Some(3), "Shift+Tab from the first control goes to the last");
         r.tab(true); assert_eq!(r.at(), Some(2));
+    }
+
+    #[test]
+    fn the_control_that_tab_reaches_gets_a_ring_and_a_click_takes_it_away() {
+        let mut r = Rig { ctx: egui::Context::default(), time: 0.0, ids: vec![], rings: 0 };
+        r.frame(vec![], Modifiers::NONE);
+        assert_eq!(r.rings, 0, "no ring before anything has focus");
+        r.ctx.memory_mut(|m| m.request_focus(r.ids[1]));
+        r.frame(vec![], Modifiers::NONE);
+        assert_eq!(r.rings, 0, "focus that did not come from Tab is not drawn");
+        r.tab(false);
+        assert_eq!(r.at(), Some(2));
+        assert_eq!(r.rings, 1, "Tab puts one ring round the control");
+        r.frame(vec![Event::PointerButton { pos: Pos2::new(5.0, 5.0), button: egui::PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE }], Modifiers::NONE);
+        assert_eq!(r.rings, 0, "a click takes it away");
     }
 }

@@ -166,6 +166,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.gl_info.is_empty() { if let Some(gl) = frame.gl() { self.gl_info = about::gl_summary(gl); if std::env::var_os("PUTIACNC_PRINT_VERSION_INFO").is_some() { eprintln!("{}", about::version_info(ctx, &self.gl_info)); } } }
         self.ui_frame(ctx);
+        csd::focus_ring(ctx);
     }
 }
 
