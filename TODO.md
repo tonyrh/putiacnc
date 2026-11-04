@@ -42,9 +42,9 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [ ] Bezier and arc node editing (0.4.0).
 - [ ] Marlin output (a third G-code style next to GRBL and Mach3): `;` comments instead of `( )`, no `M2` (end with `M5` and a lift), tool change and spindle `S` scaling as the machine's build needs, arcs optional. First ask the maintainer: is it a CNC build with a spindle, are `G2`/`G3` enabled, how are tools changed. Not checked against Marlin itself yet.
 - [ ] More G-code styles, in this order: Marlin (item above), then Smoothieware and Duet / RepRapFirmware, then a generic Fanuc-style output (`G54`-`G59`, `G43`, `M6` with `T`, `%` markers; the Haas manuals are free). GRBL-compatible controllers (grblHAL, FluidNC, Carbide Motion, OpenBuilds Blackbox) probably already work: only machine presets. Every new style is marked "untested on a machine" until someone has tried it.
-- [ ] Machine presets for popular hobby machines: search the web for the current specs (work area, controller, spindle speed range) of Genmitsu 3018 / 4040 / ProVerXL, Shapeoko, X-Carve, OpenBuilds (WorkBee, LEAD, ACRO), Sienci LongMill, BobsCNC, Snapmaker (CNC mode), Carvera, Onefinity; draft the preset values for the maintainer to check before adding any. Take numbers from the vendors' own pages, not from other programs' files. The usable area can differ from the stated one (clamps, homing offsets), so presets are starting points.
+- [x] (Done: the machine catalogue has 20 machines; the rest are listed under "More machines" below.) Machine presets for popular hobby machines: search the web for the current specs (work area, controller, spindle speed range) of Genmitsu 3018 / 4040 / ProVerXL, Shapeoko, X-Carve, OpenBuilds (WorkBee, LEAD, ACRO), Sienci LongMill, BobsCNC, Snapmaker (CNC mode), Carvera, Onefinity; draft the preset values for the maintainer to check before adding any. Take numbers from the vendors' own pages, not from other programs' files. The usable area can differ from the stated one (clamps, homing offsets), so presets are starting points.
 - [x] Inlay plug on a separate piece of stock: done ("Cut from a separate piece" in the plug operation: size, thickness, position, XY zero, material; two G-code files, "name.nc" and "name-plug.nc"; G-code tab switches between them; 2D and 3D show and simulate the piece). The toolpath checks run on the piece too (warnings are marked "plug piece" and Show in 3D switches to it). Replacing the main stock: a piece that takes the main stock's place (same size and zero, the clamps apply) is the default. A piece that stays beside is checked against the clamps at the place where it is drawn. A new piece looks like a contrasting wood.
-- [ ] Other ideas from the feature comparison: more post-processors, dogbone corners, helical entry, nesting.
+- [ ] Other ideas from the feature comparison: more post-processors, helical entry, nesting. (Dogbone and T-bone corners exist: Modify → Fillet and chamfer, and in the box generator.)
 - [x] Export split: Export G-code asks how to split the program: one file (as now, the default), one file per tool, or one file per operation. Each file is complete on its own (header with spindle on and a first move to safe Z, a safe end, a summary of its own operation, tool and time); names `<project>-<number>-<operation>.nc`; the dialog lists the files with their times before saving. A tool change or "Pause afterwards" at a file boundary becomes the end of that file, not an `M0`; every file after a tool change repeats the "touch off Z0 again" reminder. Operations with the same tool stay separate files. The 3D preview and the time estimate still describe the whole job; plug pieces stay separate files, with the split inside each piece. Mockup agreed 2026-10-30; build after the air cut on the GRBL machine shows how `M0` behaves.
 - [x] Plotter mode, first step: a pen or marker as the tool, to draw outlines on paper. A tool shape "pen" (line width, draw speed, pen-down speed) and a Draw operation (pen down at Z0 or a little below for a spring-loaded holder, lifted a few mm between strokes, nearest stroke first, one pass, no spindle). Draw stays separate from cutting: a pen only works in Draw, a cutter never in Draw. The G-code never starts the spindle, the checker and the 3D simulation know it, and there is a pen test project for a real machine.
 - [x] Single-line text: six built-in single-stroke (Hershey) fonts in the text tool (Sans, Sans bold, Roman, Roman bold, Script, Cursive), listed first as "Single line · …". Letters are open strokes (an o closes on itself) that a Draw operation follows with the pen; Italian and Latin-1 accents are put together from the plain letter and a mark. Straight, stacked, arc, spacing, fit to width and shadow all work; kerning does not apply. Credit in `fonts/hershey/NOTICE.txt`.
@@ -83,9 +83,9 @@ Done: "…" and "×" everywhere in the app's texts, sentence case in the menus. 
 
 ## Long term ideas
 Things that make a real job easier
-- [ ] Setup sheet: a printable page or PDF with the stock, work zero, tools in order and estimated time (both files and both zeros for the two-piece inlay).
+- [x] Setup sheet (done in 0.4.2, File → Setup sheet): a printable page or PDF with the stock, work zero, tools in order and estimated time (both files and both zeros for the two-piece inlay).
 - [x] Feeds and speeds by material: Material in the Stock section (softwood, hardwood, plywood, MDF, acrylic, aluminium, foam) and Rigidity in the machine editor (light, medium, heavy); "Suggest for <material>" in an operation's custom feeds fills in spindle speed, feed, plunge, stepover and depth per pass, and a line shows the chip load against the usual range. Numbers are typical hobby-router starting values (`src/feeds.rs`), not tool-maker data: to check against real cuts and adjust the table. Not yet: per-tool-maker chip-load data (CMT, Amana), surface-speed limits for big cutters beyond a simple rule, spindle power.
-- [ ] Surfacing / spoilboard flattening wizard.
+- [x] Surfacing / spoilboard flattening (done in 0.4.2, Generate → Surface the stock).
 - [ ] Double-sided work: flip the piece with registration holes or dowels.
 
 Toolpath quality
@@ -100,13 +100,13 @@ Toolpath quality
 - [ ] Nesting.
 
 Machine side
-- [ ] Preview against the real machine limits (acceleration) for more accurate time estimates.
+- [ ] Preview against the real machine limits (acceleration) for more accurate time estimates. (Today a time correction multiplier in the machine editor covers acceleration and corners roughly.)
 
 Reach and polish
 - [ ] Italian translation and a colour-blind-safe theme.
-- [ ] Distribution: Windows installer, AppImage / Flatpak, signed Mac build.
-- [ ] Project templates and an example gallery; a short manual with videos.
-- [ ] Shared tool and machine preset libraries on GitHub.
+- [ ] Distribution: a Windows installer, Flatpak, a notarized Mac build. (The AppImage, the macOS disk image and the portable Windows zip are done.)
+- [ ] More project templates and an example gallery (three samples exist: Generate → Sample projects); a short manual with videos.
+- [x] Shared tool and machine preset libraries on GitHub (the ready-made libraries are in `libraries/`; removals and corrections are taken as issues).
 - [x] First-run setup assistant (units, machine, starter tools).
 - [x] Machine catalogue from the makers' published specs (20 machines; setup assistant and Machines → From catalogue).
 - [ ] More machines: Lunyee and TwoTrees (maker pages not found yet), Sienci LongMill (travel per size), OpenBuilds LEAD, Stepcraft. Needs app work first: Makera Carvera (Smoothieware-based firmware, M6 tool changes) and Onefinity (Redline controller, not GRBL).
