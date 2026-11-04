@@ -112,3 +112,5 @@ Reach and polish
 - [x] First-run setup assistant (units, machine, starter tools).
 - [x] Machine catalogue from the makers' published specs (20 machines; setup assistant and Machines → From catalogue).
 - [ ] More machines: Lunyee and TwoTrees (maker pages not found yet), Sienci LongMill (travel per size), OpenBuilds LEAD, Stepcraft. Needs app work first: Makera Carvera (Smoothieware-based firmware, M6 tool changes) and Onefinity (Redline controller, not GRBL).
+
+- [ ] Upgrade egui (now 0.27). In 0.27 a disabled widget still takes the Tab focus for one frame and drops it, so Tab cannot get past a greyed-out button: the Operations panel's controls are out of reach by keyboard while no shapes are selected, and the same can happen in any dialog with a greyed-out button (the Tab wrap in dialogs included). Check that the newer version fixes it, then test Tab in the Operations panel with nothing selected and in dialogs with a disabled button. (Chosen for now: leave it. Another fix would be a vendored egui with a one-line change in `create_widget`: skip `interested_in_focus` when the widget is disabled.)
