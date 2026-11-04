@@ -39,7 +39,7 @@ impl ModelTool {
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if let Some(e) = app.model3d.error.take() { app.error = Some(e); }
+    if let Some(e) = app.model3d.error.take() { app.say(crate::app::Level::Error, e); }
     if !app.model3d.open { return; }
     let (mut place, mut cancel) = (false, false);
     {
@@ -117,7 +117,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         t.tex = None;
         match rel {
             Some(Ok(r)) => app.place_relief(r),
-            Some(Err(e)) => app.error = Some(format!("Could not import the model: {e}")),
+            Some(Err(e)) => app.say(crate::app::Level::Error, format!("Could not import the model: {e}")),
             None => {}
         }
     }

@@ -6,7 +6,7 @@ impl App {
         self.error = None;
         match std::fs::read_to_string(path).map_err(|e| e.to_string()).and_then(|s| load_project(&s)) {
             Ok(p) => { self.project = p; self.reset_after_load(); crate::prefs::push_recent(&mut self.prefs.recent, path); }
-            Err(e) => { self.error = Some(format!("Could not open {path}: {e}")); self.prefs.recent.retain(|r| r != path); }
+            Err(e) => { self.say(crate::app::Level::Error, format!("Could not open {path}: {e}")); self.prefs.recent.retain(|r| r != path); }
         }
     }
 
@@ -71,7 +71,7 @@ impl App {
                 if p.extension().is_none() { p.set_extension("nc"); }
                 // the drawing may have changed while the dialog was open
                 self.finish_generation();
-                if self.output.is_none() { self.error = Some(format!("Export failed: {}", self.gen_error.clone().unwrap_or_else(|| "there is no G-code.".into()))); }
+                if self.output.is_none() { self.say(crate::app::Level::Error, format!("Export failed: {}", self.gen_error.clone().unwrap_or_else(|| "there is no G-code.".into()))); }
                 let mode = if self.can_split() { self.export_split } else { putiacnc_core::split::Split::One };
                 if mode != putiacnc_core::split::Split::One {
                     // the files are made on a worker, like the whole program is; the export window picks them up
@@ -87,7 +87,7 @@ impl App {
                     let mut err = None;
                     for (path, text) in &files { if let Err(e) = std::fs::write(path, text) { err = Some(format!("Export failed: {e}")); break; } }
                     match err {
-                        Some(e) => self.error = Some(e),
+                        Some(e) => self.say(crate::app::Level::Error, e),
                         None if files.len() > 1 => {
                             let names: Vec<String> = files.iter().filter_map(|(p, _)| p.file_name().map(|n| n.to_string_lossy().into_owned())).collect();
                             self.say(Level::Info, format!("Saved {} files: {}. Each piece has its own work zero.", files.len(), names.join(", ")));
@@ -205,7 +205,7 @@ impl App {
         let dxf = path.to_lowercase().ends_with(".dxf");
         let imp = match std::fs::read(path).map_err(|e| e.to_string()).and_then(|b| if dxf { putiacnc_core::dxf::import(&b) } else { putiacnc_core::svg::import(&b) }) {
             Ok(i) => i,
-            Err(e) => { self.error = Some(format!("Could not import {path}: {e}")); return; }
+            Err(e) => { self.say(crate::app::Level::Error, format!("Could not import {path}: {e}")); return; }
         };
         let gname = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "drawing".into());
         self.place_import(imp, gname);
@@ -214,7 +214,7 @@ impl App {
     /// Put imported shapes on the stock as one drawing: centred when it fits, otherwise its lower-left corner
     /// at the stock origin. The shapes are in no operation and become the selection.
     pub fn place_import(&mut self, imp: putiacnc_core::svg::Imported, gname: String) {
-        if imp.loops.is_empty() { self.error = Some(imp.warnings.join(" ")); return; }
+        if imp.loops.is_empty() { self.say(crate::app::Level::Warning, imp.warnings.join(" ")); return; }
         let Some(b) = shapes::bbox_many(imp.loops.iter()) else { return };
         let (bw, bh) = (b[2] - b[0], b[3] - b[1]);
         let st = &self.project.data.stock;
@@ -280,14 +280,14 @@ impl App {
         };
         let (_, path) = self.split_job.take().expect("a job");
         match res {
-            Err(e) => self.error = Some(format!("Export failed: {e}")),
+            Err(e) => self.say(crate::app::Level::Error, format!("Export failed: {e}")),
             Ok(files) => {
                 let mut out: Vec<(std::path::PathBuf, String)> = files.iter().map(|f| (Self::split_path(&path, &f.suffix), f.out.gcode())).collect();
                 out.extend(self.gcode_files(&path).into_iter().skip(1));
                 let mut err = None;
                 for (p, t) in &out { if let Err(e) = std::fs::write(p, t) { err = Some(format!("Export failed: {e}")); break; } }
                 match err {
-                    Some(e) => self.error = Some(e),
+                    Some(e) => self.say(crate::app::Level::Error, e),
                     None => {
                         let names: Vec<String> = out.iter().filter_map(|(p, _)| p.file_name().map(|n| n.to_string_lossy().into_owned())).collect();
                         self.error = None;
@@ -301,14 +301,14 @@ impl App {
 
     pub fn export_gcode_dialog(&mut self) {
         self.finish_generation();
-        if self.output.is_none() { self.error = Some("Nothing to export: there is no G-code yet.".into()); return; }
+        if self.output.is_none() { self.say(crate::app::Level::Warning, "Nothing to export: there is no G-code yet.".into()); return; }
         if self.can_split() { self.export_open = true; } else { self.export_split = putiacnc_core::split::Split::One; self.choose_export_file(); }
     }
 
     /// File → Setup sheet…: asks where to save the page, then writes it and opens it in the browser to print or save as PDF.
     pub fn setup_sheet_dialog(&mut self) {
         self.finish_generation();
-        if self.output.is_none() { self.error = Some("There is no toolpath yet: add an operation first.".into()); return; }
+        if self.output.is_none() { self.say(crate::app::Level::Warning, "There is no toolpath yet: add an operation first.".into()); return; }
         let name = if self.project.name.trim().is_empty() { "job".to_string() } else { self.project.name.trim().to_string() };
         let dir = crate::prefs::existing_dir(&self.prefs.dir_gcode)
             .or_else(|| if self.path.is_empty() { None } else { std::path::Path::new(&self.path).parent().map(|d| d.to_path_buf()) })
@@ -323,7 +323,7 @@ impl App {
     fn write_setup_sheet(&mut self, mut p: std::path::PathBuf) {
         if p.extension().is_none() { p.set_extension("html"); }
         self.finish_generation();
-        let Some(out) = self.output.clone() else { self.error = Some("There is no toolpath yet.".into()); return };
+        let Some(out) = self.output.clone() else { self.say(crate::app::Level::Warning, "There is no toolpath yet.".into()); return };
         let mut parts = vec![putiacnc_core::pieces::PartOutput { piece: None, out }];
         parts.extend(self.pieces.iter().map(|pp| putiacnc_core::pieces::PartOutput { piece: Some(pp.job.clone()), out: pp.output.clone() }));
         let units = if self.imperial { putiacnc_core::Units::Imperial } else { putiacnc_core::Units::Metric };
@@ -333,7 +333,7 @@ impl App {
                 let _ = open::that_detached(&p);
                 self.say(Level::Info, format!("Saved {} and opened it in your browser: print it, or save it as PDF from there.", p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
             }
-            Err(e) => self.error = Some(format!("Could not save the setup sheet: {e}")),
+            Err(e) => self.say(crate::app::Level::Error, format!("Could not save the setup sheet: {e}")),
         }
     }
 
@@ -363,7 +363,7 @@ impl App {
         if let Some(o) = &self.output { p.data.gcode = o.gcode(); }
         match save_project(&p).and_then(|s| std::fs::write(&self.path, s).map_err(|e| e.to_string())) {
             Ok(()) => { self.modified = false; self.error = None; let p = self.path.clone(); crate::prefs::push_recent(&mut self.prefs.recent, &p); }
-            Err(e) => self.error = Some(format!("Save failed: {e}")),
+            Err(e) => self.say(crate::app::Level::Error, format!("Save failed: {e}")),
         }
     }
 

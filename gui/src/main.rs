@@ -95,7 +95,7 @@ fn main() -> eframe::Result<()> {
             match v.as_str() {
                 "warning" => app.say(app::Level::Warning, "The drawing (190.5 × 202.4 mm) is larger than the stock; resize it with Width/Height in the Selection panel.".into()),
                 "info" => app.say(app::Level::Info, "Imported hill.stl: 120.0 × 80.0 × 25.0 mm. Scaled down to 80% to fit the stock (96.0 × 64.0 mm); change the size with Width in the Imported section.".into()),
-                _ => app.error = Some("Save failed: permission denied (os error 13).".into()),
+                _ => app.say(crate::app::Level::Error, "Save failed: permission denied (os error 13).".into()),
             }
         }
         // PUTIACNC_TAB_EDIT=1: the first operation has manual tabs and is in tab placement (for screenshots)

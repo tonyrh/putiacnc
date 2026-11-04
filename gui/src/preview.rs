@@ -48,13 +48,13 @@ impl App {
         }
         // run the tool on a scratch copy and put everything it touches back afterwards
         let before = self.project.data.clone();
-        let (sel, modified, gen_pending, note, error) = (self.sel.clone(), self.modified, self.gen_pending, self.note.clone(), self.error.clone());
+        let (sel, modified, gen_pending, note, error) = (self.sel.clone(), self.modified, self.gen_pending, self.note.clone(), (self.error.clone(), self.banner_level.clone()));
         let hist = std::mem::take(&mut self.hist);
         let msg = run(self);
         let after = std::mem::replace(&mut self.project.data, before);
         self.hist = hist;
         self.sel = sel;
-        self.modified = modified; self.gen_pending = gen_pending; self.note = note; self.error = error;
+        self.modified = modified; self.gen_pending = gen_pending; self.note = note; (self.error, self.banner_level) = error;
         // what changed: shapes only in the result are the ghost, shapes only in the drawing are faded
         let mut used = vec![false; after.loops.len()];
         let mut hide = BTreeSet::new();

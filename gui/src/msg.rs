@@ -67,4 +67,33 @@ mod tests {
         // and the colours are the ones the banner has always had
         assert_eq!(colour(Level::Warning, true), Color32::from_rgb(0xff, 0x95, 0x2e));
     }
+
+    /// A message is raised with `say` and its level, never by setting the banner's text directly (which shows as an error whatever it is).
+    #[test]
+    fn nothing_sets_the_banner_text_without_a_level() {
+        fn walk(dir: &std::path::Path, bad: &mut Vec<String>) {
+            for e in std::fs::read_dir(dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() { walk(&p, bad); continue; }
+                let name = p.file_name().unwrap().to_string_lossy().into_owned();
+                // `say` itself, the preview that puts the banner back as it was, and the model tool's own field are the exceptions
+                if !name.ends_with(".rs") || ["msg.rs", "edit.rs", "preview.rs", "model3d.rs"].contains(&name.as_str()) { continue; }
+                for (n, l) in std::fs::read_to_string(&p).unwrap().lines().enumerate() {
+                    if l.contains("app.error = Some(") || l.contains("self.error = Some(") || l.contains("a.error = Some(") { bad.push(format!("{name}:{}", n + 1)); }
+                }
+            }
+        }
+        let mut bad = Vec::new();
+        walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut bad);
+        assert!(bad.is_empty(), "set with app.say(level, text) instead: {bad:?}");
+    }
+
+    #[test]
+    fn nothing_to_export_is_a_warning_not_an_error() {
+        let mut a = crate::app::App::new(None);
+        a.project.data.ops.clear();
+        a.export_gcode_dialog();
+        assert!(a.error.is_some());
+        assert_eq!(a.banner_level_now(), Level::Warning);
+    }
 }

@@ -79,7 +79,7 @@ impl TraceTool {
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if let Some(e) = app.trace.take_error() { app.error = Some(e); }
+    if let Some(e) = app.trace.take_error() { app.say(crate::app::Level::Error, e); }
     if !app.trace.open { return; }
     let (mut place, mut cancel) = (false, false);
     {

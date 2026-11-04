@@ -91,7 +91,7 @@ impl App {
             }
         }
         if changed { self.touch(); }
-        if let Some(m) = msg { if self.error.is_none() { self.error = Some(m); } }
+        if let Some(m) = msg { if self.error.is_none() { self.say(crate::app::Level::Warning, m); } }
     }
 }
 
