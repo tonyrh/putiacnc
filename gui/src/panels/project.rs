@@ -979,6 +979,19 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                 }
+                if p.kind == "pocket" {
+                    ui.horizontal(|ui| {
+                        ui.add_space(6.0);
+                        changed |= crate::widgets::check_if(ui, true, &mut p.adaptive, "Adaptive clearing")
+                            .tip("A light stepover and the corners of the inner rings rounded, so the tool meets about the same amount of material all along the path. Gentler on the tool and the machine, and it can cut at full flute depth with a larger pass depth. More rings, so more moves").changed();
+                        if p.adaptive {
+                            let mut a = p.adaptive_so.unwrap_or(12.0);
+                            ui.add_space(10.0);
+                            ui.label("Stepover");
+                            if dl_w(ui, 42.0, &mut a, 2.0, 40.0, "%") { p.adaptive_so = Some(a); changed = true; }
+                        }
+                    });
+                }
                 if ["outside", "inside"].contains(&p.kind.as_str()) {
                     ui.horizontal(|ui| {
                         let mut on = p.lead.is_some();

@@ -273,6 +273,8 @@ struct OpCtx<'a> {
     kind: &'a str, dia: f64, so: f64, plunge: f64, feed: f64, ramp: bool, rev: bool,
     /// Helical entry: the circle's diameter (% of the tool) and the steepest angle (degrees).
     helix: Option<(f64, f64)>,
+    /// Adaptive clearing: the inner rings of a pocket have their corners rounded.
+    adapt: bool,
     z0: f64, sz: f64, zs: Vec<f64>,
     tabs_on: bool, ztab: f64, tab_w: f64, tab_n: f64,
     /// Lead-in / lead-out arc radius in mm (0 = none).
@@ -292,7 +294,19 @@ fn mk_jobs(c: &OpCtx, region: &[Path], closed: &[Path], open: &[Path], rm: f64) 
             let mut cur = off_raw(region, -r);
             for gen in 0..500 {
                 if cur.is_empty() { break; }
-                let q = clean_paths(&cur);
+                // adaptive: the rings inside the first round their corners (out, then back in, with round joins on the way in), so the tool
+                // does not meet a sudden wedge of material where a ring turns sharply; the ring is never moved by more than a little
+                let shown = if c.adapt && gen > 0 {
+                    let k = (c.dia * S * 0.25).min(st2 * 4.0);
+                    let opened = off_raw(&off_raw(&cur, -k), k);
+                    // a part too thin to survive the rounding (a narrow finger of the pocket) keeps its own ring, so nothing is left uncut:
+                    // the corners' slivers are within 0.42 k of the rounded outline, anything farther out is such a part
+                    let grown = off_raw(&opened, 0.5 * k);
+                    let mut all = opened;
+                    all.extend(clip::boolean(clip::BoolKind::Difference, &clip::simplify_even_odd(&cur), &grown));
+                    all
+                } else { cur.clone() };
+                let q = clean_paths(if shown.is_empty() { &cur } else { &shown });
                 if q.is_empty() { break; }
                 for p in q { jb.push(Job { p, closed: true, pocket: true, gen, iv: None }); }
                 cur = off_raw(&cur, -st2);
@@ -800,7 +814,7 @@ fn rest_pass(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(tool.pd).min(rt.pd);
     let nz = (o.p.depth / pd - 1e-9).ceil().clamp(1.0, 5000.0) as usize;
     let zs: Vec<f64> = (0..nz).map(|i| -(o.p.depth / nz as f64) * (i as f64 + 1.0)).collect();
-    let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: main.ramp, rev: main.rev, helix: None, z0: main.z0, sz: main.sz, zs: zs.clone(),
+    let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: main.ramp, rev: main.rev, helix: None, adapt: false, z0: main.z0, sz: main.sz, zs: zs.clone(),
         tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0 };
     let mut jobs = mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0);
     if jobs.is_empty() { notes.push(format!("{}rest machining: what is left is too narrow for the {} {} tool.", pre, num(to_fixed(rt.dia / ku, 4)), un)); return; }
@@ -1466,7 +1480,9 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let tab_h = o.p.tab_h.unwrap_or(2.0);
         let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside" || kind == "online"); // open paths on a line are cut without tabs
         let tabs_on = tabs_req && tab_h > 0.0 && tab_h < depth - 1e-6;
-        let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, helix: if o.p.helix && matches!(kind, "outside" | "inside" | "pocket") { Some((o.p.helix_d.filter(|v| *v > 0.0).unwrap_or(100.0).clamp(20.0, 400.0), o.p.helix_a.filter(|v| *v > 0.0).unwrap_or(3.0).clamp(0.5, 45.0))) } else { None }, z0, sz, zs: zs.clone(),
+        let adapt = o.p.adaptive && kind == "pocket";
+        let so = if adapt { o.p.adaptive_so.filter(|v| *v > 0.0).unwrap_or(12.0).clamp(2.0, 40.0) } else { so };
+        let mut ctx = OpCtx { kind, dia, so, adapt, plunge, feed, ramp: o.p.ramp, rev: false, helix: if o.p.helix && matches!(kind, "outside" | "inside" | "pocket") { Some((o.p.helix_d.filter(|v| *v > 0.0).unwrap_or(100.0).clamp(20.0, 400.0), o.p.helix_a.filter(|v| *v > 0.0).unwrap_or(3.0).clamp(0.5, 45.0))) } else { None }, z0, sz, zs: zs.clone(),
             tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
             lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 } };
 
@@ -1498,7 +1514,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let conv = o.p.dir == "conv";
             let mkzs = |d: f64| -> Vec<f64> { let n = ((d / fpd) - 1e-9).ceil().max(1.0) as usize; (0..n).map(|i| -(d / n as f64) * (i as f64 + 1.0)).collect() };
             let fctx = |kind: &'static str, zs: Vec<f64>, rev: bool| OpCtx {
-                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, helix: None, z0, sz, zs,
+                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, helix: None, adapt: false, z0, sz, zs,
                 tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0,
             };
             let ring_rev = !conv;

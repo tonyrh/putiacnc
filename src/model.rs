@@ -319,6 +319,10 @@ pub struct OpParams {
     /// The helix circle the tool centre follows, as a percentage of the tool diameter (`None` = 100), and the steepest angle of the spiral in degrees (`None` = 3).
     #[serde(default, rename = "helixD", skip_serializing_if = "Option::is_none")] pub helix_d: Option<f64>,
     #[serde(default, rename = "helixA", skip_serializing_if = "Option::is_none")] pub helix_a: Option<f64>,
+    /// Pocket: adaptive clearing: a light stepover (`adaptive_so` % of the tool, `None` = 12) and the corners of the inner rings rounded, so the tool
+    /// meets about the same amount of material all along the path and can cut at full flute depth.
+    #[serde(default, skip_serializing_if = "is_false")] pub adaptive: bool,
+    #[serde(default, rename = "adaptiveSo", skip_serializing_if = "Option::is_none")] pub adaptive_so: Option<f64>,
     #[serde(default, rename = "wLeave", skip_serializing_if = "Option::is_none")] pub w_leave: Option<f64>,
     /// 3D relief finishing: the direction of the lines, "x" (default), "y", or "xy" (along X, then along Y over the same surface).
     #[serde(default, rename = "fDir", skip_serializing_if = "Option::is_none")] pub f_dir: Option<String>,

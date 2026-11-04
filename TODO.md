@@ -92,6 +92,7 @@ Toolpath quality
 - [x] Better path ordering (fewer and shorter rapids): done, always on.
 - [x] Dogbone corners (Fillet and chamfer window).
 - [x] Helical entry for pockets and profiles.
+- [x] Adaptive clearing, simple form (light stepover, rounded inner rings). A true constant-engagement toolpath (trochoidal loops following the remaining material) is not done.
 - [x] Finger joints on rectangle edges (Modify menu).
 - [x] Box generator (Generate menu).
 - [x] T-bone corners and box dividers.
