@@ -972,7 +972,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let (mut d, mut a) = (p.helix_d.unwrap_or(100.0), p.helix_a.unwrap_or(3.0));
                             ui.add_space(10.0);
                             ui.label("Circle");
-                            if dl_w(ui, 42.0, &mut d, 20.0, 400.0, "%") { p.helix_d = Some(d); changed = true; }
+                            if dl_w(ui, 54.0, &mut d, 20.0, 400.0, "%") { p.helix_d = Some(d); changed = true; }
                             ui.add_space(6.0);
                             ui.label("Angle");
                             if dl_w(ui, 36.0, &mut a, 0.5, 45.0, "°") { p.helix_a = Some(a); changed = true; }
