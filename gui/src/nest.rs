@@ -15,10 +15,12 @@ pub struct NestTool {
     pub shape: bool,
     /// Turn in steps of this many degrees (with `turn`), when fitting by outline.
     pub step: f64,
+    /// Let other parts go into the holes cut right through a part.
+    pub holes: bool,
 }
 
 impl Default for NestTool {
-    fn default() -> Self { NestTool { open: false, gap: 6.0, margin: 3.0, turn: true, shape: true, step: 90.0 } }
+    fn default() -> Self { NestTool { open: false, gap: 6.0, margin: 3.0, turn: true, shape: true, step: 90.0, holes: true } }
 }
 
 impl App {
@@ -39,13 +41,38 @@ impl App {
         let clamps: Vec<[f64; 4]> = self.project.data.clamps.iter().map(|c| [c.x, c.y, c.x + c.w, c.y + c.h]).collect();
         // each part is turned (if it turns) and put so the lower left corner of its box lands on (x, y)
         let moves: Vec<(usize, f64, f64, f64)> = if self.nest.shape {
-            let parts: Vec<Vec<putiacnc_core::nest::Poly>> = units.iter().map(|u| u.iter().map(|&i| &self.project.data.loops[i]).map(|l| {
-                if l.closed() && l.pts.len() >= 6 { shapes::points(l) } else { let b = shapes::bbox(l).unwrap_or([0.0; 4]); vec![[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] }
-            }).collect()).collect();
+            let d = &self.project.data;
+            let parts: Vec<putiacnc_core::nest::Part> = units.iter().map(|u| {
+                let ls: Vec<&putiacnc_core::model::LoopData> = u.iter().map(|&i| &d.loops[i]).collect();
+                let closed: Vec<usize> = (0..ls.len()).filter(|&k| ls[k].closed() && ls[k].pts.len() >= 6).collect();
+                let mut part = putiacnc_core::nest::Part::default();
+                for (k, l) in ls.iter().enumerate() {
+                    if !closed.contains(&k) {
+                        let b = shapes::bbox(l).unwrap_or([0.0; 4]);
+                        part.outline.push(vec![[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]]);
+                        continue;
+                    }
+                    // how many other closed shapes of the part contain this one: even = an outline, odd = a hole (or what stands in one)
+                    let p0 = shapes::points(l)[0];
+                    let depth = closed.iter().filter(|&&j| j != k && shapes::point_in_loop(ls[j], p0)).count();
+                    let poly = shapes::points(l);
+                    if depth == 0 { part.outline.push(poly); }
+                    else if depth % 2 == 1 {
+                        // only a hole cut right through is room for another part: an inside profile as deep as the stock is thick
+                        let through = self.nest.holes && d.ops.iter().any(|o| o.id == l.op && o.p.kind == "inside" && o.p.depth >= d.stock.t - 1e-6);
+                        if through { part.holes.push(poly); }
+                    } else if self.nest.holes { part.islands.push(poly); }
+                }
+                part
+            }).collect();
             let step = self.nest.step.clamp(5.0, 180.0);
             let angles: Vec<f64> = if self.nest.turn { (0..(360.0 / step).floor() as usize).map(|k| k as f64 * step).collect() } else { vec![0.0] };
             // the parts are turned about the middle of their box, so turn them there for the fit as well
-            let centred: Vec<Vec<putiacnc_core::nest::Poly>> = parts.iter().zip(&boxes).map(|(ps, b)| { let c = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]; ps.iter().map(|p| p.iter().map(|q| [q[0] - c[0], q[1] - c[1]]).collect()).collect() }).collect();
+            let centred: Vec<putiacnc_core::nest::Part> = parts.iter().zip(&boxes).map(|(pt, b)| {
+                let c = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0];
+                let mv = |ps: &Vec<putiacnc_core::nest::Poly>| -> Vec<putiacnc_core::nest::Poly> { ps.iter().map(|p| p.iter().map(|q| [q[0] - c[0], q[1] - c[1]]).collect()).collect() };
+                putiacnc_core::nest::Part { outline: mv(&pt.outline), holes: mv(&pt.holes), islands: mv(&pt.islands) }
+            }).collect();
             let r = putiacnc_core::nest::nest_shapes(&centred, sheet, self.nest.gap, &angles, &clamps);
             left_out = r.left_out;
             r.placed.iter().map(|p| (p.item, p.angle, p.x, p.y)).collect()
@@ -83,7 +110,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if crate::csd::dialog_header_help(ui, "Nest on the stock", true, |ui| {
             ui.label("Packs the selected shapes onto the stock to use less material, starting from the lower left corner: by their outlines (largest first, a part may go into the space beside or inside another), or in rows of boxes, tallest first. A group or a placed text moves as one part.");
             ui.add_space(4.0);
-            ui.label("Leave a gap at least as wide as the cutter. Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. Finer turning steps fit better and take longer. A hole in a part is not used for other parts.");
+            ui.label("Leave a gap at least as wide as the cutter. Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. Finer turning steps fit better and take longer. Holes cut right through a part (an Inside profile as deep as the stock) can take other parts.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select the shapes to nest first.".to_string() } else { format!("{n} part{} selected.", if n == 1 { "" } else { "s" }) });
@@ -99,6 +126,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(4.0);
         crate::widgets::check(ui, &mut app.nest.shape, "Follow the outlines (tighter fit)").on_hover_text("Fit parts by their real shape, so a small part can go beside a curve or into the corner of an L. Off: rows of boxes.");
+        if app.nest.shape { crate::widgets::check(ui, &mut app.nest.holes, "Use the holes in parts").on_hover_text("Other parts may go into a hole that is cut right through a part (an Inside profile as deep as the stock is thick). Holes that are only pocketed or engraved are never used."); }
         ui.horizontal(|ui| {
             crate::widgets::check(ui, &mut app.nest.turn, if app.nest.shape { "Allow turning, in steps of" } else { "Allow turning by 90°" });
             if app.nest.shape && app.nest.turn {
@@ -219,6 +247,34 @@ mod tests {
         let wide = putiacnc_core::clip::offset(std::slice::from_ref(&p), 3900.0, 50.0);
         assert!(putiacnc_core::clip::boolean(putiacnc_core::clip::BoolKind::Intersect, &wide, &[q]).is_empty(), "closer than the gap");
         for b in boxes(&a) { assert!(b[0] >= -1e-6 && b[1] >= -1e-6 && b[2] <= 100.0 + 1e-6 && b[3] <= 100.0 + 1e-6, "{b:?}"); }
+    }
+
+    #[test]
+    fn a_part_goes_into_a_hole_cut_right_through_another() {
+        let mut a = App::new(None);
+        a.project.data.stock.w = 100.0; a.project.data.stock.h = 100.0; a.project.data.stock.t = 6.0;
+        // a plate with a hole (grouped as one part), and a small square far away
+        a.project.data.loops = vec![
+            shapes::new_rect([200.0, 200.0], [290.0, 290.0], 0.0, 0),
+            shapes::new_rect([220.0, 220.0], [270.0, 270.0], 0.0, 0),
+            shapes::new_rect([400.0, 400.0], [430.0, 430.0], 0.0, 0),
+        ];
+        for l in a.project.data.loops.iter_mut().take(2) { l.ug = Some(1); }
+        shapes::add_operation(&mut a.project.data, &[1].into_iter().collect(), "inside");
+        let op = a.project.data.ops.last_mut().expect("an operation");
+        op.p.kind = "inside".into(); op.p.depth = 6.0;
+        let id = op.id;
+        a.project.data.loops[1].op = id;
+        a.sel = (0..3).collect();
+        a.nest.gap = 4.0; a.nest.margin = 0.0; a.nest.turn = false;
+        assert!(a.nest_selection().is_none(), "all fit: the square goes into the hole");
+        let b = boxes(&a);
+        assert!(b[2][0] >= b[1][0] + 4.0 - 1e-6 && b[2][2] <= b[1][2] - 4.0 + 1e-6 && b[2][1] >= b[1][1] + 4.0 - 1e-6 && b[2][3] <= b[1][3] - 4.0 + 1e-6, "{b:?}");
+        // with the tick off, or a hole that is not cut through, it does not fit
+        a.do_undo();
+        a.nest.holes = false;
+        let msg = a.nest_selection().expect("a part is left out");
+        assert!(msg.contains("did not fit"), "{msg}");
     }
 
     #[test]

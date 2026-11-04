@@ -75,6 +75,16 @@ use crate::clip;
 /// One closed outline, in mm.
 pub type Poly = Vec<[f64; 2]>;
 
+/// One part: its outer outlines, the holes cut right through it (other parts may go into those) and anything standing inside a hole.
+#[derive(Debug, Clone, Default)]
+pub struct Part { pub outline: Vec<Poly>, pub holes: Vec<Poly>, pub islands: Vec<Poly> }
+
+impl Part {
+    /// A part without usable holes.
+    pub fn solid(outline: Vec<Poly>) -> Part { Part { outline, holes: vec![], islands: vec![] } }
+    fn map(&self, f: impl Fn(&[Poly]) -> Vec<Poly>) -> Part { Part { outline: f(&self.outline), holes: f(&self.holes), islands: f(&self.islands) } }
+}
+
 /// Where a part goes: turn it `angle` degrees (counter-clockwise, about the origin), then put the lower left corner of its box at `x`, `y`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Fitted { pub item: usize, pub angle: f64, pub x: f64, pub y: f64 }
@@ -122,6 +132,27 @@ fn fill(bits: &mut Bits, poly: &[[f64; 2]]) {
     }
 }
 
+/// Clears the cells whose middle is inside the outline (`poly` in cell units).
+fn clear_inside(bits: &mut Bits, poly: &[[f64; 2]]) {
+    let n = poly.len();
+    if n < 3 { return; }
+    let mut xs: Vec<f64> = vec![];
+    for row in 0..bits.h {
+        let yc = row as f64 + 0.5;
+        xs.clear();
+        for i in 0..n {
+            let (a, b) = (poly[i], poly[(i + 1) % n]);
+            if (a[1] <= yc) != (b[1] <= yc) { xs.push(a[0] + (yc - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); }
+        }
+        xs.sort_by(|a, b| a.total_cmp(b));
+        for pair in xs.chunks_exact(2) {
+            for x in ((pair[0] - 0.5).ceil() as i64)..=((pair[1] - 0.5).floor() as i64) {
+                if x >= 0 && (x as usize) < bits.w { bits.rows[row * bits.wpr + x as usize / 64] &= !(1 << (x as usize % 64)); }
+            }
+        }
+    }
+}
+
 fn turned(polys: &[Poly], deg: f64) -> Vec<Poly> {
     let (sn, cs) = deg.to_radians().sin_cos();
     polys.iter().map(|p| p.iter().map(|q| [q[0] * cs - q[1] * sn, q[0] * sn + q[1] * cs]).collect()).collect()
@@ -163,7 +194,7 @@ fn fits(occ: &Bits, mask: &Bits, ix: usize, iy: usize) -> bool {
 
 /// Packs parts by their outlines (`parts[i]` = the closed outlines of part `i`, mm) onto `sheet` (`[x0, y0, x1, y1]`), `gap` mm apart and
 /// `gap` mm from every rectangle in `blocked`, trying each of `angles` (degrees) for every part. Parts go largest first.
-pub fn nest_shapes(parts: &[Vec<Poly>], sheet: [f64; 4], gap: f64, angles: &[f64], blocked: &[[f64; 4]]) -> Fitting {
+pub fn nest_shapes(parts: &[Part], sheet: [f64; 4], gap: f64, angles: &[f64], blocked: &[[f64; 4]]) -> Fitting {
     let (sw, sh) = (sheet[2] - sheet[0], sheet[3] - sheet[1]);
     let mut out = Fitting::default();
     if sw <= 0.0 || sh <= 0.0 { out.left_out = (0..parts.len()).collect(); return out; }
@@ -179,19 +210,19 @@ pub fn nest_shapes(parts: &[Vec<Poly>], sheet: [f64; 4], gap: f64, angles: &[f64
     }
     let area = |polys: &[Poly]| -> f64 { polys.iter().map(|p| { let n = p.len(); (0..n).map(|i| p[i][0] * p[(i + 1) % n][1] - p[(i + 1) % n][0] * p[i][1]).sum::<f64>().abs() / 2.0 }).sum() };
     let mut order: Vec<usize> = (0..parts.len()).collect();
-    order.sort_by(|&a, &b| area(&parts[b]).total_cmp(&area(&parts[a])).then(a.cmp(&b)));
+    order.sort_by(|&a, &b| area(&parts[b].outline).total_cmp(&area(&parts[a].outline)).then(a.cmp(&b)));
     let angles: Vec<f64> = if angles.is_empty() { vec![0.0] } else { angles.to_vec() };
     for i in order {
-        // (height reached, x cell, y cell, angle, outlines placed at the origin)
-        let mut best: Option<(usize, usize, usize, f64, Vec<Poly>)> = None;
+        // (height reached, x cell, y cell, angle, the part placed at the origin)
+        let mut best: Option<(usize, usize, usize, f64, Part)> = None;
         for &deg in &angles {
-            let rot = turned(&parts[i], deg);
-            let Some(b) = bounds(&rot) else { continue };
-            let at0: Vec<Poly> = rot.iter().map(|p| p.iter().map(|q| [q[0] - b[0], q[1] - b[1]]).collect()).collect();
+            let rot = parts[i].map(|ps| turned(ps, deg));
+            let Some(b) = bounds(&rot.outline) else { continue };
+            let at0 = rot.map(|ps| ps.iter().map(|p| p.iter().map(|q| [q[0] - b[0], q[1] - b[1]]).collect()).collect());
             let (mw, mh) = (((b[2] - b[0]) / cell).floor() as usize + 2, ((b[3] - b[1]) / cell).floor() as usize + 2);
             if mw > occ.w || mh > occ.h { continue; }
             let mut mask = Bits::new(mw, mh);
-            for p in to_cells(&at0, 0.0, 0.0) { fill(&mut mask, &p); }
+            for p in to_cells(&at0.outline, 0.0, 0.0) { fill(&mut mask, &p); }
             if mask.count() == 0 { continue; }
             let limit = best.as_ref().map_or(usize::MAX, |b| b.0);
             'scan: for iy in 0..=(occ.h - mh) {
@@ -207,8 +238,15 @@ pub fn nest_shapes(parts: &[Vec<Poly>], sheet: [f64; 4], gap: f64, angles: &[f64
         }
         let Some((_, ix, iy, deg, at0)) = best else { out.left_out.push(i); continue };
         let (x, y) = (sheet[0] + ix as f64 * cell, sheet[1] + iy as f64 * cell);
-        let placed: Vec<Poly> = at0.iter().map(|p| p.iter().map(|q| [q[0] + x, q[1] + y]).collect()).collect();
-        for w in to_cells(&widened(&placed, pad), sheet[0], sheet[1]) { fill(&mut occ, &w); }
+        let placed = at0.map(|ps| ps.iter().map(|p| p.iter().map(|q| [q[0] + x, q[1] + y]).collect()).collect());
+        for w in to_cells(&widened(&placed.outline, pad), sheet[0], sheet[1]) { fill(&mut occ, &w); }
+        // the room inside a hole: the cells that lie wholly inside it, kept the gap away from its wall, are free again (nothing was
+        // there when the part went down, as the part's footprint was free), and what stands inside the hole is drawn back
+        if !placed.holes.is_empty() {
+            let room = widened(&placed.holes, -(pad + 0.75 * cell));
+            for w in to_cells(&room, sheet[0], sheet[1]) { clear_inside(&mut occ, &w); }
+            for w in to_cells(&widened(&placed.islands, pad), sheet[0], sheet[1]) { fill(&mut occ, &w); }
+        }
         out.placed.push(Fitted { item: i, angle: deg, x, y });
     }
     out.left_out.sort_unstable();
@@ -309,11 +347,11 @@ mod tests {
     #[test]
     fn by_shape_an_l_goes_into_the_corner_of_the_one_before() {
         // two L shapes: their boxes (60 x 60) do not fit twice side by side on 100 wide, but the shapes interlock when one is turned
-        let parts = vec![vec![ell()], vec![ell()]];
+        let parts = vec![Part::solid(vec![ell()]), Part::solid(vec![ell()])];
         let by_box = nest(&[(60.0, 60.0), (60.0, 60.0)], [0.0, 0.0, 100.0, 100.0], 4.0, true, &[]);
         let r = nest_shapes(&parts, [0.0, 0.0, 100.0, 100.0], 4.0, &[0.0, 90.0, 180.0, 270.0], &[]);
         assert_eq!(r.placed.len(), 2, "{r:?}");
-        let (a, b) = (at(&parts[0][0], &r.placed[0]), at(&parts[1][0], &r.placed[1]));
+        let (a, b) = (at(&parts[0].outline[0], &r.placed[0]), at(&parts[1].outline[0], &r.placed[1]));
         assert!(apart(&a, &b, 4.0), "the two L shapes touch: {a:?} {b:?}");
         let top = |p: &Poly| p.iter().map(|q| q[1]).fold(0.0_f64, f64::max);
         let used = top(&a).max(top(&b));
@@ -324,11 +362,11 @@ mod tests {
 
     #[test]
     fn by_shape_parts_keep_the_gap_and_clear_of_clamps() {
-        let parts: Vec<Vec<Poly>> = (0..6).map(|i| vec![if i % 2 == 0 { ell() } else { rect(0.0, 0.0, 25.0, 15.0) }]).collect();
+        let parts: Vec<Part> = (0..6).map(|i| Part::solid(vec![if i % 2 == 0 { ell() } else { rect(0.0, 0.0, 25.0, 15.0) }])).collect();
         let clamp = [[0.0, 0.0, 30.0, 100.0]];
         let r = nest_shapes(&parts, [0.0, 0.0, 200.0, 100.0], 5.0, &[0.0, 90.0], &clamp);
         assert!(r.placed.len() >= 5, "{r:?}");
-        let shapes: Vec<Poly> = r.placed.iter().map(|f| at(&parts[f.item][0], f)).collect();
+        let shapes: Vec<Poly> = r.placed.iter().map(|f| at(&parts[f.item].outline[0], f)).collect();
         for (i, a) in shapes.iter().enumerate() {
             assert!(apart(a, &rect(0.0, 0.0, 30.0, 100.0), 5.0), "part {i} is too near the clamp");
             for b in shapes.iter().skip(i + 1) { assert!(apart(a, b, 5.0), "two parts are closer than the gap"); }
@@ -337,11 +375,38 @@ mod tests {
 
     #[test]
     fn by_shape_what_does_not_fit_is_left_out_and_the_layout_repeats() {
-        let parts = vec![vec![rect(0.0, 0.0, 80.0, 80.0)], vec![rect(0.0, 0.0, 80.0, 80.0)], vec![rect(0.0, 0.0, 300.0, 5.0)]];
+        let parts = vec![Part::solid(vec![rect(0.0, 0.0, 80.0, 80.0)]), Part::solid(vec![rect(0.0, 0.0, 80.0, 80.0)]), Part::solid(vec![rect(0.0, 0.0, 300.0, 5.0)])];
         let a = nest_shapes(&parts, [0.0, 0.0, 100.0, 100.0], 2.0, &[0.0], &[]);
         assert_eq!(a.left_out, vec![1, 2], "{a:?}");
         assert_eq!(a.placed.len(), 1);
         assert_eq!(a.placed, nest_shapes(&parts, [0.0, 0.0, 100.0, 100.0], 2.0, &[0.0], &[]).placed);
+    }
+
+    #[test]
+    fn a_small_part_goes_into_the_hole_of_a_big_one() {
+        // a 90 x 90 plate with a 50 x 50 hole, and a 30 x 30 part: the sheet is only just big enough for the plate
+        let plate = Part { outline: vec![rect(0.0, 0.0, 90.0, 90.0)], holes: vec![rect(20.0, 20.0, 50.0, 50.0)], islands: vec![] };
+        let small = Part::solid(vec![rect(0.0, 0.0, 30.0, 30.0)]);
+        let sheet = [0.0, 0.0, 100.0, 100.0];
+        let with = nest_shapes(&[plate.clone(), small.clone()], sheet, 4.0, &[0.0], &[]);
+        assert_eq!(with.placed.len(), 2, "{with:?}");
+        let b = at(&small.outline[0], with.placed.iter().find(|f| f.item == 1).unwrap());
+        // the small part is inside the hole's window, apart from its wall by the gap
+        let (px, py) = (with.placed.iter().find(|f| f.item == 0).unwrap().x, with.placed.iter().find(|f| f.item == 0).unwrap().y);
+        assert!(b.iter().all(|q| q[0] >= px + 20.0 + 4.0 - 1e-6 && q[0] <= px + 70.0 - 4.0 + 1e-6 && q[1] >= py + 20.0 + 4.0 - 1e-6 && q[1] <= py + 70.0 - 4.0 + 1e-6), "{b:?} not in the hole of the plate at {px},{py}");
+        // without the hole being usable it does not fit
+        let solid = Part::solid(plate.outline.clone());
+        let without = nest_shapes(&[solid, small], sheet, 4.0, &[0.0], &[]);
+        assert_eq!(without.left_out, vec![1], "{without:?}");
+    }
+
+    #[test]
+    fn a_part_too_big_for_the_hole_stays_out_and_what_stands_in_the_hole_stays_clear() {
+        // an island of 20 x 20 stands in the middle of a 50 x 50 hole: a 30 x 30 part has no room there any more
+        let plate = Part { outline: vec![rect(0.0, 0.0, 90.0, 90.0)], holes: vec![rect(20.0, 20.0, 50.0, 50.0)], islands: vec![rect(35.0, 35.0, 20.0, 20.0)] };
+        let small = Part::solid(vec![rect(0.0, 0.0, 30.0, 30.0)]);
+        let r = nest_shapes(&[plate, small], [0.0, 0.0, 100.0, 100.0], 4.0, &[0.0], &[]);
+        assert_eq!(r.left_out, vec![1], "{r:?}");
     }
 }
 
