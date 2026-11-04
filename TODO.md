@@ -2,6 +2,12 @@
 
 Things we agreed to do, or decided to wait on. Newest thinking first; cross items off when done.
 
+## Out of scope
+
+PutiaCNC creates G-code; it does not run the machine. Everything that talks to the machine is left to the sender the user already likes (UGS, gSender, CNCjs, bCNC, the controller's own screen), so these are decided against, not postponed:
+- A G-code sender (streaming over serial, jogging, pause and stop, position display).
+- Probing and homing routines. The machine profile's own start and end G-code boxes let a user paste their own.
+
 ## Needs the maintainer
 - [x] 3D preview with a very big toolpath (140,000 moves and more): 30 ms a frame at 140,000 moves and 115 ms at 770,000 (see docs/testing.md, `gui/src/perf.rs`). Decided not to draw the toolpath on the GPU: it cannot be tested without a GPU, needs hand-written GL for the glow backend, and only matters for rare huge jobs. Skipping steps shorter than a few pixels did not help either.
 - [ ] Try the recent changes on real projects: operation eye, clamp fold and hide, warning signs in 3D, tool dialogs closing on Esc / right-click.
@@ -24,8 +30,6 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [x] Relief finishing lines along X, Y or both.
 - [x] Finishing pass with stock to leave for Profile and Pocket (the Finish row).
 - [x] Rest machining for 3D relief: a smaller ball nose (the Detail row of the Finishing step) finishes only what the finishing ball could not reach. V-carve does not need it (one bit cuts every width).
-- [ ] Probing and homing snippets for the machine's start code (touch plate for Z zero).
-- [ ] G-code serial sender for GRBL (stream, pause, stop, position display). Needs testing on the real machine.
 - [ ] Check the setup assistant and the quick tour on macOS and Windows (only tested on Linux so far).
 - [x] Grouping (Edit > Group, Ctrl+G; Ungroup, Ctrl+Shift+G): done. Groups are flat (grouping a group with something else merges them); a copy of a group is a group of its own.
 - [ ] Maybe later: layers (name, colour, eye, lock; hidden layers still get cut, as in Aspire) and dimension lines (linear, radius, diameter, angle; display only, attached to their points). Left out for now: operations already group shapes by what is cut.
@@ -40,7 +44,7 @@ Things we agreed to do, or decided to wait on. Newest thinking first; cross item
 - [ ] More G-code styles, in this order: Marlin (item above), then Smoothieware and Duet / RepRapFirmware, then a generic Fanuc-style output (`G54`-`G59`, `G43`, `M6` with `T`, `%` markers; the Haas manuals are free). GRBL-compatible controllers (grblHAL, FluidNC, Carbide Motion, OpenBuilds Blackbox) probably already work: only machine presets. Every new style is marked "untested on a machine" until someone has tried it.
 - [ ] Machine presets for popular hobby machines: search the web for the current specs (work area, controller, spindle speed range) of Genmitsu 3018 / 4040 / ProVerXL, Shapeoko, X-Carve, OpenBuilds (WorkBee, LEAD, ACRO), Sienci LongMill, BobsCNC, Snapmaker (CNC mode), Carvera, Onefinity; draft the preset values for the maintainer to check before adding any. Take numbers from the vendors' own pages, not from other programs' files. The usable area can differ from the stated one (clamps, homing offsets), so presets are starting points.
 - [x] Inlay plug on a separate piece of stock: done ("Cut from a separate piece" in the plug operation: size, thickness, position, XY zero, material; two G-code files, "name.nc" and "name-plug.nc"; G-code tab switches between them; 2D and 3D show and simulate the piece). The toolpath checks run on the piece too (warnings are marked "plug piece" and Show in 3D switches to it). Replacing the main stock: a piece that takes the main stock's place (same size and zero, the clamps apply) is the default. A piece that stays beside is checked against the clamps at the place where it is drawn. A new piece looks like a contrasting wood.
-- [ ] Other ideas from the feature comparison: G-code sender, more post-processors, dogbone corners, helical entry, nesting.
+- [ ] Other ideas from the feature comparison: more post-processors, dogbone corners, helical entry, nesting.
 - [x] Export split: Export G-code asks how to split the program: one file (as now, the default), one file per tool, or one file per operation. Each file is complete on its own (header with spindle on and a first move to safe Z, a safe end, a summary of its own operation, tool and time); names `<project>-<number>-<operation>.nc`; the dialog lists the files with their times before saving. A tool change or "Pause afterwards" at a file boundary becomes the end of that file, not an `M0`; every file after a tool change repeats the "touch off Z0 again" reminder. Operations with the same tool stay separate files. The 3D preview and the time estimate still describe the whole job; plug pieces stay separate files, with the split inside each piece. Mockup agreed 2026-10-30; build after the air cut on the GRBL machine shows how `M0` behaves.
 - [x] Plotter mode, first step: a pen or marker as the tool, to draw outlines on paper. A tool shape "pen" (line width, draw speed, pen-down speed) and a Draw operation (pen down at Z0 or a little below for a spring-loaded holder, lifted a few mm between strokes, nearest stroke first, one pass, no spindle). Draw stays separate from cutting: a pen only works in Draw, a cutter never in Draw. The G-code never starts the spindle, the checker and the 3D simulation know it, and there is a pen test project for a real machine.
 - [x] Single-line text: six built-in single-stroke (Hershey) fonts in the text tool (Sans, Sans bold, Roman, Roman bold, Script, Cursive), listed first as "Single line · …". Letters are open strokes (an o closes on itself) that a Draw operation follows with the pen; Italian and Latin-1 accents are put together from the plain letter and a mark. Straight, stacked, arc, spacing, fit to width and shadow all work; kerning does not apply. Credit in `fonts/hershey/NOTICE.txt`.
@@ -96,7 +100,6 @@ Toolpath quality
 - [ ] Nesting.
 
 Machine side
-- [ ] Send G-code to a GRBL machine over serial (jog, set zero, run, pause). Probing snippets are an easier first step.
 - [ ] Preview against the real machine limits (acceleration) for more accurate time estimates.
 
 Reach and polish
