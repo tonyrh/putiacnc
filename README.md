@@ -34,12 +34,13 @@ The workspace has two crates:
 **Drawing**
 - Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font or in a built-in single-line font for pen drawing (text stays editable).
 - Import SVG, DXF, bitmaps (traced into outlines or centre lines), and STL / OBJ models for 3D relief.
-- Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), align, array, rotate, clean up broken outlines.
+- Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), align, array, nest on the stock, rotate, clean up broken outlines.
 
 **Operations**
 - Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
 - Rest machining: a smaller flat cutter clears only the corners and narrow parts the pocket's main cutter could not reach. A smaller ball nose does the same for the detail of a 3D relief.
 - Finishing pass: leave a little stock on the walls of a profile or pocket and cut them to size in a last pass. For a 3D relief the finishing lines can run along X, along Y or both.
+- Helical entry for pockets and profiles, and adaptive clearing for pockets (a light stepover and rounded inner rings). Nest on the stock packs the selected parts in rows. The time estimate can use the machine's acceleration.
 - Surface the stock or the spoilboard with a wide cutter (Generate → Surface the stock).
 - Flat, bull, ball, V-bit, engraving, tapered ball and arc profile bits, shown with their real shape in the 3D preview.
 
