@@ -11,10 +11,14 @@ pub struct NestTool {
     pub margin: f64,
     /// Allow a quarter turn.
     pub turn: bool,
+    /// Fit the parts by their outlines instead of their boxes.
+    pub shape: bool,
+    /// Turn in steps of this many degrees (with `turn`), when fitting by outline.
+    pub step: f64,
 }
 
 impl Default for NestTool {
-    fn default() -> Self { NestTool { open: false, gap: 6.0, margin: 3.0, turn: true } }
+    fn default() -> Self { NestTool { open: false, gap: 6.0, margin: 3.0, turn: true, shape: true, step: 90.0 } }
 }
 
 impl App {
@@ -31,23 +35,40 @@ impl App {
         let sheet = [m, m, sw - m, sh - m];
         if sheet[2] <= sheet[0] || sheet[3] <= sheet[1] { return Some("The margin leaves no room on the stock.".into()); }
         let dims: Vec<(f64, f64)> = boxes.iter().map(|b| (b[2] - b[0], b[3] - b[1])).collect();
+        let left_out: Vec<usize>;
         let clamps: Vec<[f64; 4]> = self.project.data.clamps.iter().map(|c| [c.x, c.y, c.x + c.w, c.y + c.h]).collect();
-        let r = putiacnc_core::nest::nest(&dims, sheet, self.nest.gap, self.nest.turn, &clamps);
-        if r.placed.is_empty() { return Some("None of the shapes fits on the stock. Try a smaller gap or margin, or allow turning.".into()); }
+        // each part is turned (if it turns) and put so the lower left corner of its box lands on (x, y)
+        let moves: Vec<(usize, f64, f64, f64)> = if self.nest.shape {
+            let parts: Vec<Vec<putiacnc_core::nest::Poly>> = units.iter().map(|u| u.iter().map(|&i| &self.project.data.loops[i]).map(|l| {
+                if l.closed() && l.pts.len() >= 6 { shapes::points(l) } else { let b = shapes::bbox(l).unwrap_or([0.0; 4]); vec![[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] }
+            }).collect()).collect();
+            let step = self.nest.step.clamp(5.0, 180.0);
+            let angles: Vec<f64> = if self.nest.turn { (0..(360.0 / step).floor() as usize).map(|k| k as f64 * step).collect() } else { vec![0.0] };
+            // the parts are turned about the middle of their box, so turn them there for the fit as well
+            let centred: Vec<Vec<putiacnc_core::nest::Poly>> = parts.iter().zip(&boxes).map(|(ps, b)| { let c = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0]; ps.iter().map(|p| p.iter().map(|q| [q[0] - c[0], q[1] - c[1]]).collect()).collect() }).collect();
+            let r = putiacnc_core::nest::nest_shapes(&centred, sheet, self.nest.gap, &angles, &clamps);
+            left_out = r.left_out;
+            r.placed.iter().map(|p| (p.item, p.angle, p.x, p.y)).collect()
+        } else {
+            let r = putiacnc_core::nest::nest(&dims, sheet, self.nest.gap, self.nest.turn, &clamps);
+            left_out = r.left_out;
+            r.placed.iter().map(|p| (p.item, if p.turned { 90.0 } else { 0.0 }, p.x, p.y)).collect()
+        };
+        if moves.is_empty() { return Some("None of the shapes fits on the stock. Try a smaller gap or margin, or allow turning.".into()); }
         self.hist.record(&self.project.data);
-        for p in &r.placed {
-            let unit: std::collections::BTreeSet<usize> = units[p.item].iter().copied().collect();
-            let b = boxes[p.item];
+        for &(item, angle, x, y) in &moves {
+            let unit: std::collections::BTreeSet<usize> = units[item].iter().copied().collect();
+            let b = boxes[item];
             let d = &mut self.project.data;
-            if p.turned {
+            if angle != 0.0 {
                 let tabs0 = shapes::tab_positions(&d.loops, &d.ops, &unit);
-                shapes::rotate_selection(&mut d.loops, &mut d.ops, &unit, [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0], 90.0, &tabs0);
+                shapes::rotate_selection(&mut d.loops, &mut d.ops, &unit, [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0], angle, &tabs0);
             }
             let Some(nb) = shapes::bbox_many(unit.iter().map(|&i| &d.loops[i])) else { continue };
-            for &i in &unit { shapes::translate(&mut d.loops[i], p.x - nb[0], p.y - nb[1]); }
+            for &i in &unit { shapes::translate(&mut d.loops[i], x - nb[0], y - nb[1]); }
         }
         self.touch();
-        let k = r.left_out.len();
+        let k = left_out.len();
         (k > 0).then(|| format!("{k} shape{} did not fit and {} left where {} {}: allow turning, or use a smaller gap or margin.", if k == 1 { "" } else { "s" }, if k == 1 { "was" } else { "were" }, if k == 1 { "it" } else { "they" }, if k == 1 { "was" } else { "were" }))
     }
 }
@@ -60,9 +81,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         .current_pos(crate::csd::spot(ctx, "Nest on the stock", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Nest on the stock", true, |ui| {
-            ui.label("Packs the selected shapes onto the stock in rows, tallest first from the lower left corner, to use less material. A group or a placed text moves as one part.");
+            ui.label("Packs the selected shapes onto the stock to use less material, starting from the lower left corner: by their outlines (largest first, a part may go into the space beside or inside another), or in rows of boxes, tallest first. A group or a placed text moves as one part.");
             ui.add_space(4.0);
-            ui.label("Leave a gap at least as wide as the cutter. Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. It works from each part's bounding box, so odd shapes are not interlocked.");
+            ui.label("Leave a gap at least as wide as the cutter. Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. Finer turning steps fit better and take longer. A hole in a part is not used for other parts.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select the shapes to nest first.".to_string() } else { format!("{n} part{} selected.", if n == 1 { "" } else { "s" }) });
@@ -77,7 +98,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.end_row();
         });
         ui.add_space(4.0);
-        crate::widgets::check(ui, &mut app.nest.turn, "Allow turning by 90°");
+        crate::widgets::check(ui, &mut app.nest.shape, "Follow the outlines (tighter fit)").on_hover_text("Fit parts by their real shape, so a small part can go beside a curve or into the corner of an L. Off: rows of boxes.");
+        ui.horizontal(|ui| {
+            crate::widgets::check(ui, &mut app.nest.turn, if app.nest.shape { "Allow turning, in steps of" } else { "Allow turning by 90°" });
+            if app.nest.shape && app.nest.turn {
+                egui::ComboBox::from_id_source("nest_step").width(60.0).selected_text(format!("{}°", app.nest.step)).show_ui(ui, |ui| {
+                    for v in [90.0, 45.0, 15.0] { ui.selectable_value(&mut app.nest.step, v, format!("{v}°")); }
+                });
+            }
+        });
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "nest").map(|(_, m)| m);
         if let Some(m) = mine { crate::msg::line(ui, crate::app::Level::Warning, m); }
         ui.add_space(8.0);
@@ -163,6 +192,33 @@ mod tests {
             let on = b[0] < 44.0 - 1e-6 && b[2] > -4.0 && b[1] < 29.0 - 1e-6 && b[3] > -4.0;
             assert!(!on, "{b:?} is on the clamp");
         }
+    }
+
+    #[test]
+    fn rows_mode_still_packs_boxes() {
+        let mut a = app_with_parts();
+        a.nest.shape = false; a.nest.gap = 4.0; a.nest.margin = 2.0; a.nest.turn = false;
+        assert!(a.nest_selection().is_none());
+        let b = boxes(&a);
+        // tallest first in the lower left corner of the margin
+        assert_eq!([b[2][0], b[2][1]], [2.0, 2.0]);
+    }
+
+    #[test]
+    fn by_outline_two_l_shapes_interlock_and_keep_the_gap() {
+        let mut a = App::new(None);
+        a.project.data.stock.w = 100.0;
+        a.project.data.stock.h = 100.0;
+        let ell = |ox: f64| shapes::new_poly(&[[ox, 0.0], [ox + 60.0, 0.0], [ox + 60.0, 20.0], [ox + 20.0, 20.0], [ox + 20.0, 60.0], [ox, 60.0]], true, 0).unwrap();
+        a.project.data.loops = vec![ell(200.0), ell(300.0)];
+        a.sel = [0, 1].into_iter().collect();
+        a.nest.gap = 4.0; a.nest.margin = 0.0; a.nest.turn = true; a.nest.step = 90.0;
+        assert!(a.nest_selection().is_none(), "both fit");
+        let to = |l: &putiacnc_core::model::LoopData| -> Vec<[i64; 2]> { let mut v = l.path(); if putiacnc_core::clip::area(&v) < 0.0 { v.reverse(); } v };
+        let (p, q) = (to(&a.project.data.loops[0]), to(&a.project.data.loops[1]));
+        let wide = putiacnc_core::clip::offset(std::slice::from_ref(&p), 3900.0, 50.0);
+        assert!(putiacnc_core::clip::boolean(putiacnc_core::clip::BoolKind::Intersect, &wide, &[q]).is_empty(), "closer than the gap");
+        for b in boxes(&a) { assert!(b[0] >= -1e-6 && b[1] >= -1e-6 && b[2] <= 100.0 + 1e-6 && b[3] <= 100.0 + 1e-6, "{b:?}"); }
     }
 
     #[test]

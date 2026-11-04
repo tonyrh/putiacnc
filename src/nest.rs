@@ -65,6 +65,156 @@ pub fn nest(items: &[(f64, f64)], sheet: [f64; 4], gap: f64, rotate: bool, block
     best.map(|b| b.0).unwrap_or_default()
 }
 
+// ---- Nesting by the true shape ----
+// The sheet is a grid of small cells. Each part, in each turn allowed, is drawn on the grid and tried at every spot from the lower left
+// upwards; the first spot where it touches nothing is its place, and the turn that reaches the lowest wins. What is already placed (and
+// the clamps) is drawn wider by the gap, and a part counts every cell it touches, so the gap is kept (a little more, never less).
+
+use crate::clip;
+
+/// One closed outline, in mm.
+pub type Poly = Vec<[f64; 2]>;
+
+/// Where a part goes: turn it `angle` degrees (counter-clockwise, about the origin), then put the lower left corner of its box at `x`, `y`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Fitted { pub item: usize, pub angle: f64, pub x: f64, pub y: f64 }
+
+#[derive(Debug, Clone, Default)]
+pub struct Fitting { pub placed: Vec<Fitted>, pub left_out: Vec<usize> }
+
+struct Bits { w: usize, h: usize, wpr: usize, rows: Vec<u64> }
+
+impl Bits {
+    fn new(w: usize, h: usize) -> Bits { let wpr = w.div_ceil(64).max(1); Bits { w, h, wpr, rows: vec![0; wpr * h] } }
+    fn set(&mut self, x: i64, y: i64) {
+        if x >= 0 && y >= 0 && (x as usize) < self.w && (y as usize) < self.h { self.rows[y as usize * self.wpr + x as usize / 64] |= 1 << (x as usize % 64); }
+    }
+    fn row(&self, y: usize) -> &[u64] { &self.rows[y * self.wpr..(y + 1) * self.wpr] }
+    fn count(&self) -> usize { self.rows.iter().map(|w| w.count_ones() as usize).sum() }
+}
+
+/// Marks every cell the outline touches or encloses (`poly` in cell units).
+fn fill(bits: &mut Bits, poly: &[[f64; 2]]) {
+    let n = poly.len();
+    if n < 2 { return; }
+    for i in 0..n {
+        let (a, b) = (poly[i], poly[(i + 1) % n]);
+        let steps = ((b[0] - a[0]).hypot(b[1] - a[1]) * 4.0).ceil().max(1.0) as usize;
+        for k in 0..=steps {
+            let t = k as f64 / steps as f64;
+            bits.set((a[0] + (b[0] - a[0]) * t).floor() as i64, (a[1] + (b[1] - a[1]) * t).floor() as i64);
+        }
+    }
+    if n < 3 { return; }
+    let mut xs: Vec<f64> = vec![];
+    for row in 0..bits.h {
+        let yc = row as f64 + 0.5;
+        xs.clear();
+        for i in 0..n {
+            let (a, b) = (poly[i], poly[(i + 1) % n]);
+            if (a[1] <= yc) != (b[1] <= yc) { xs.push(a[0] + (yc - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); }
+        }
+        xs.sort_by(|a, b| a.total_cmp(b));
+        for pair in xs.chunks_exact(2) {
+            let (from, to) = ((pair[0] - 0.5).ceil() as i64, (pair[1] - 0.5).floor() as i64);
+            for x in from..=to { bits.set(x, row as i64); }
+        }
+    }
+}
+
+fn turned(polys: &[Poly], deg: f64) -> Vec<Poly> {
+    let (sn, cs) = deg.to_radians().sin_cos();
+    polys.iter().map(|p| p.iter().map(|q| [q[0] * cs - q[1] * sn, q[0] * sn + q[1] * cs]).collect()).collect()
+}
+
+fn bounds(polys: &[Poly]) -> Option<[f64; 4]> {
+    let mut b: Option<[f64; 4]> = None;
+    for q in polys.iter().flatten() {
+        b = Some(match b { None => [q[0], q[1], q[0], q[1]], Some(a) => [a[0].min(q[0]), a[1].min(q[1]), a[2].max(q[0]), a[3].max(q[1])] });
+    }
+    b
+}
+
+/// The outlines wider by `by` mm (round corners), as polygons in mm.
+fn widened(polys: &[Poly], by: f64) -> Vec<Poly> {
+    let paths: Vec<clip::Path> = polys.iter().filter(|p| p.len() > 2).map(|p| {
+        let mut v: clip::Path = p.iter().map(|q| [(q[0] * 1000.0).round() as i64, (q[1] * 1000.0).round() as i64]).collect();
+        if clip::area(&v) < 0.0 { v.reverse(); }
+        v
+    }).collect();
+    clip::offset(&paths, by * 1000.0, (by * 1000.0 * 0.05).max(40.0)).iter().map(|p| p.iter().map(|q| [q[0] as f64 / 1000.0, q[1] as f64 / 1000.0]).collect()).collect()
+}
+
+fn fits(occ: &Bits, mask: &Bits, ix: usize, iy: usize) -> bool {
+    let (base, sh) = (ix / 64, ix % 64);
+    for r in 0..mask.h {
+        let (o, m) = (occ.row(iy + r), mask.row(r));
+        for (k, &mw) in m.iter().enumerate() {
+            if mw == 0 { continue; }
+            if o.get(base + k).is_none_or(|ow| ow & (mw << sh) != 0) { return false; }
+            if sh > 0 {
+                let hi = mw >> (64 - sh);
+                if hi != 0 && o.get(base + k + 1).is_none_or(|ow| ow & hi != 0) { return false; }
+            }
+        }
+    }
+    true
+}
+
+/// Packs parts by their outlines (`parts[i]` = the closed outlines of part `i`, mm) onto `sheet` (`[x0, y0, x1, y1]`), `gap` mm apart and
+/// `gap` mm from every rectangle in `blocked`, trying each of `angles` (degrees) for every part. Parts go largest first.
+pub fn nest_shapes(parts: &[Vec<Poly>], sheet: [f64; 4], gap: f64, angles: &[f64], blocked: &[[f64; 4]]) -> Fitting {
+    let (sw, sh) = (sheet[2] - sheet[0], sheet[3] - sheet[1]);
+    let mut out = Fitting::default();
+    if sw <= 0.0 || sh <= 0.0 { out.left_out = (0..parts.len()).collect(); return out; }
+    let gap = gap.max(0.0);
+    let cell = (sw * sh / 300_000.0).sqrt().max(0.5);
+    let pad = gap + 0.75 * cell;
+    let (nx, ny) = ((sw / cell).floor() as usize, (sh / cell).floor() as usize);
+    let mut occ = Bits::new(nx.max(1), ny.max(1));
+    let to_cells = |polys: &[Poly], ox: f64, oy: f64| -> Vec<Poly> { polys.iter().map(|p| p.iter().map(|q| [(q[0] - ox) / cell, (q[1] - oy) / cell]).collect()).collect() };
+    for b in blocked {
+        let r: Poly = vec![[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
+        for w in to_cells(&widened(&[r], pad), sheet[0], sheet[1]) { fill(&mut occ, &w); }
+    }
+    let area = |polys: &[Poly]| -> f64 { polys.iter().map(|p| { let n = p.len(); (0..n).map(|i| p[i][0] * p[(i + 1) % n][1] - p[(i + 1) % n][0] * p[i][1]).sum::<f64>().abs() / 2.0 }).sum() };
+    let mut order: Vec<usize> = (0..parts.len()).collect();
+    order.sort_by(|&a, &b| area(&parts[b]).total_cmp(&area(&parts[a])).then(a.cmp(&b)));
+    let angles: Vec<f64> = if angles.is_empty() { vec![0.0] } else { angles.to_vec() };
+    for i in order {
+        // (height reached, x cell, y cell, angle, outlines placed at the origin)
+        let mut best: Option<(usize, usize, usize, f64, Vec<Poly>)> = None;
+        for &deg in &angles {
+            let rot = turned(&parts[i], deg);
+            let Some(b) = bounds(&rot) else { continue };
+            let at0: Vec<Poly> = rot.iter().map(|p| p.iter().map(|q| [q[0] - b[0], q[1] - b[1]]).collect()).collect();
+            let (mw, mh) = (((b[2] - b[0]) / cell).floor() as usize + 2, ((b[3] - b[1]) / cell).floor() as usize + 2);
+            if mw > occ.w || mh > occ.h { continue; }
+            let mut mask = Bits::new(mw, mh);
+            for p in to_cells(&at0, 0.0, 0.0) { fill(&mut mask, &p); }
+            if mask.count() == 0 { continue; }
+            let limit = best.as_ref().map_or(usize::MAX, |b| b.0);
+            'scan: for iy in 0..=(occ.h - mh) {
+                if iy + mh > limit { break; }
+                for ix in 0..=(occ.w - mw) {
+                    if fits(&occ, &mask, ix, iy) {
+                        let key = (iy + mh, ix);
+                        if best.as_ref().is_none_or(|b| key < (b.0, b.1)) { best = Some((iy + mh, ix, iy, deg, at0)); }
+                        break 'scan;
+                    }
+                }
+            }
+        }
+        let Some((_, ix, iy, deg, at0)) = best else { out.left_out.push(i); continue };
+        let (x, y) = (sheet[0] + ix as f64 * cell, sheet[1] + iy as f64 * cell);
+        let placed: Vec<Poly> = at0.iter().map(|p| p.iter().map(|q| [q[0] + x, q[1] + y]).collect()).collect();
+        for w in to_cells(&widened(&placed, pad), sheet[0], sheet[1]) { fill(&mut occ, &w); }
+        out.placed.push(Fitted { item: i, angle: deg, x, y });
+    }
+    out.left_out.sort_unstable();
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,4 +291,57 @@ mod tests {
     fn nothing_to_nest_is_nothing() {
         assert!(nest(&[], [0.0, 0.0, 10.0, 10.0], 1.0, true, &[]).placed.is_empty());
     }
+
+    fn rect(x: f64, y: f64, w: f64, h: f64) -> Poly { vec![[x, y], [x + w, y], [x + w, y + h], [x, y + h]] }
+    fn at(poly: &Poly, f: &Fitted) -> Poly {
+        let r = turned(std::slice::from_ref(poly), f.angle);
+        let b = bounds(&r).unwrap();
+        r[0].iter().map(|q| [q[0] - b[0] + f.x, q[1] - b[1] + f.y]).collect()
+    }
+    fn apart(a: &Poly, b: &Poly, gap: f64) -> bool {
+        let to = |p: &Poly| -> clip::Path { let mut v: clip::Path = p.iter().map(|q| [(q[0] * 1000.0).round() as i64, (q[1] * 1000.0).round() as i64]).collect(); if clip::area(&v) < 0.0 { v.reverse(); } v };
+        let wide = clip::offset(&[to(a)], gap * 1000.0 * 0.98, 50.0);
+        clip::boolean(clip::BoolKind::Intersect, &wide, &[to(b)]).is_empty()
+    }
+    /// An L: 60 x 60 with a 40 x 40 corner cut out.
+    fn ell() -> Poly { vec![[0.0, 0.0], [60.0, 0.0], [60.0, 20.0], [20.0, 20.0], [20.0, 60.0], [0.0, 60.0]] }
+
+    #[test]
+    fn by_shape_an_l_goes_into_the_corner_of_the_one_before() {
+        // two L shapes: their boxes (60 x 60) do not fit twice side by side on 100 wide, but the shapes interlock when one is turned
+        let parts = vec![vec![ell()], vec![ell()]];
+        let by_box = nest(&[(60.0, 60.0), (60.0, 60.0)], [0.0, 0.0, 100.0, 100.0], 4.0, true, &[]);
+        let r = nest_shapes(&parts, [0.0, 0.0, 100.0, 100.0], 4.0, &[0.0, 90.0, 180.0, 270.0], &[]);
+        assert_eq!(r.placed.len(), 2, "{r:?}");
+        let (a, b) = (at(&parts[0][0], &r.placed[0]), at(&parts[1][0], &r.placed[1]));
+        assert!(apart(&a, &b, 4.0), "the two L shapes touch: {a:?} {b:?}");
+        let top = |p: &Poly| p.iter().map(|q| q[1]).fold(0.0_f64, f64::max);
+        let used = top(&a).max(top(&b));
+        let by_box_top = by_box.placed.iter().map(|p| p.y + 60.0).fold(0.0_f64, f64::max);
+        assert!(used < by_box_top - 1.0 || by_box.placed.len() < 2, "interlocked ({used}) should use less height than the boxes ({by_box_top})");
+        assert!(a.iter().chain(&b).all(|q| q[0] >= -1e-6 && q[1] >= -1e-6 && q[0] <= 100.0 + 1e-6 && q[1] <= 100.0 + 1e-6));
+    }
+
+    #[test]
+    fn by_shape_parts_keep_the_gap_and_clear_of_clamps() {
+        let parts: Vec<Vec<Poly>> = (0..6).map(|i| vec![if i % 2 == 0 { ell() } else { rect(0.0, 0.0, 25.0, 15.0) }]).collect();
+        let clamp = [[0.0, 0.0, 30.0, 100.0]];
+        let r = nest_shapes(&parts, [0.0, 0.0, 200.0, 100.0], 5.0, &[0.0, 90.0], &clamp);
+        assert!(r.placed.len() >= 5, "{r:?}");
+        let shapes: Vec<Poly> = r.placed.iter().map(|f| at(&parts[f.item][0], f)).collect();
+        for (i, a) in shapes.iter().enumerate() {
+            assert!(apart(a, &rect(0.0, 0.0, 30.0, 100.0), 5.0), "part {i} is too near the clamp");
+            for b in shapes.iter().skip(i + 1) { assert!(apart(a, b, 5.0), "two parts are closer than the gap"); }
+        }
+    }
+
+    #[test]
+    fn by_shape_what_does_not_fit_is_left_out_and_the_layout_repeats() {
+        let parts = vec![vec![rect(0.0, 0.0, 80.0, 80.0)], vec![rect(0.0, 0.0, 80.0, 80.0)], vec![rect(0.0, 0.0, 300.0, 5.0)]];
+        let a = nest_shapes(&parts, [0.0, 0.0, 100.0, 100.0], 2.0, &[0.0], &[]);
+        assert_eq!(a.left_out, vec![1, 2], "{a:?}");
+        assert_eq!(a.placed.len(), 1);
+        assert_eq!(a.placed, nest_shapes(&parts, [0.0, 0.0, 100.0, 100.0], 2.0, &[0.0], &[]).placed);
+    }
 }
+
