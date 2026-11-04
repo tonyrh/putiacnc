@@ -13,6 +13,7 @@ pub mod cleanup;
 pub mod clip;
 pub mod machines;
 pub mod model;
+pub mod motion;
 pub mod pieces;
 pub mod relief;
 pub mod replay;

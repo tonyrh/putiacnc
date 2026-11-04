@@ -297,6 +297,8 @@ fn the_texts_next_to_the_machines_checkboxes_show_their_help() {
     for c in &out.shapes { spots(&c.shape, &mut at); }
     for (word, tip) in [
         ("Time correction ×", "Multiplies the estimated time to account for acceleration and corners"),
+        ("Acceleration (mm/s²)", "How fast the machine speeds up and slows down (Grbl's $120 to $122). With a value here the time estimate and the playback account for the ramps and the corners; leave 0 to use the plain length / feed times the correction."),
+        ("Corner deviation (mm)", "How closely the path may cut a corner off (Grbl's $11, 0.01 mm by default): the larger it is, the faster corners are taken. Used with the acceleration."),
         ("Line numbers", "Number the G-code lines (N10, N20…), for controllers that want them"),
         ("Check it against the clamps", "Off by default. When on, give the holder's diameter here and each tool's stick-out in the tool manager: the warnings and the 3D preview then check the holder against the clamps and draw it."),
     ] {

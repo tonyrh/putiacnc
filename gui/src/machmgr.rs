@@ -316,6 +316,28 @@ fn form(ui: &mut Ui, app: &mut App) {
         c.add_space(8.0 - c.spacing().item_spacing.x);
         c.add(egui::Label::new("Time correction ×").wrap(false)).tip(tip);
         ui.end_row();
+        // the acceleration model: 0 leaves it off (the time is then length / feed times the correction)
+        rlabel(ui, lw, "Acceleration (mm/s²)");
+        let mut acc = m.accel.unwrap_or(0.0);
+        let atip = "How fast the machine speeds up and slows down (Grbl's $120 to $122). With a value here the time estimate and the playback account for the ramps and the corners; leave 0 to use the plain length / feed times the correction.";
+        if crate::widgets::num(ui, [fw, 22.0], &mut acc, 0.0, 100_000.0, 10.0, 0, "").tip(atip).changed() {
+            // the correction was standing in for the ramps and corners: it goes back to 1 when they are modelled
+            if m.accel.is_none() && acc > 0.0 && m.tsc > 1.0 { m.tsc = 1.0; }
+            m.accel = if acc > 0.0 { Some(acc) } else { None };
+            changed = true;
+        }
+        spacer(ui);
+        ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
+        let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let jtip = "How closely the path may cut a corner off (Grbl's $11, 0.01 mm by default): the larger it is, the faster corners are taken. Used with the acceleration.";
+        let mut jd = m.junction.unwrap_or(putiacnc_core::motion::DEFAULT_JUNCTION);
+        c.add_enabled_ui(m.accel.is_some(), |c| {
+            if crate::widgets::num(c, [60.0, 22.0], &mut jd, 0.001, 10.0, 0.005, 3, "").tip(jtip).changed() { m.junction = Some(jd); changed = true; }
+        });
+        c.add_space(8.0 - c.spacing().item_spacing.x);
+        c.add(egui::Label::new("Corner deviation (mm)").wrap(false)).tip(jtip);
+        ui.end_row();
     });
     ui.add_space(2.0);
     egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {

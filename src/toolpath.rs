@@ -12,6 +12,10 @@ pub struct Move {
     pub cut: bool,
     /// Minutes, including the machine's time correction.
     pub dt: f64,
+    /// The speed it is programmed at, mm/min (the machine's rapid rate for a rapid).
+    pub feed: f64,
+    /// The machine stands still before this move (the spindle starting, a dwell, a tool change): it starts from rest.
+    pub stop: bool,
     /// 1-based pass number inside the operation (0 = approach).
     pub pass: usize,
     pub op: usize,
@@ -207,7 +211,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool, pw: Option<(usize, usize, bool)>,
-    moves: Vec<Move>, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
+    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
 }
 
 impl Em {
@@ -233,10 +237,14 @@ impl Em {
             self.g.push(format!("(Pass {}{})", self.pn, if self.lap { ", levelling lap" } else { "" }));
             self.pw = Some((self.oi, self.pn, self.lap));
         }
+        // the machine stops where the text since the last move starts the spindle, waits, pauses or changes the tool
+        let stop = self.g[self.lastg.min(self.g.len())..].iter().any(|l| l.starts_with('M') || l.starts_with("G4") || l.starts_with('T'));
         self.g.push(s);
+        self.lastg = self.g.len();
         let dist = ((x - self.cur[0]).powi(2) + (y - self.cur[1]).powi(2) + (z - self.cur[2]).powi(2)).sqrt();
-        let dt = dist / (if is_cut { fd } else { self.rap }) * self.tsc;
-        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, pass: self.pn, op: self.oi, alt: self.alt, det: self.det, lap: self.lap });
+        let feed = if is_cut { fd } else { self.rap };
+        let dt = dist / feed * self.tsc;
+        self.moves.push(Move { from: self.cur, to: [x, y, z], cut: is_cut, dt, feed, stop, pass: self.pn, op: self.oi, alt: self.alt, det: self.det, lap: self.lap });
         self.time += dt;
         if is_cut { self.tc += dt; }
         self.cur = [x, y, z];
@@ -1295,7 +1303,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], alt: false, det: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
@@ -1697,6 +1705,13 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     if data.job.numbered { e.g = number_lines(e.g); }
     // last of all, the text itself is read back by a checker that shares nothing with the code above
     notes.extend(crate::verify::hazards(&e.g));
+    // with an acceleration set, the moves take what the machine really needs (the waits for the spindle stay as they were)
+    if let Some(m) = machine.motion() {
+        let before: f64 = e.moves.iter().map(|mv| mv.dt).sum();
+        let after = crate::motion::retime(&mut e.moves, &m, machine.tsc);
+        e.time += after - before;
+        e.tc = e.moves.iter().filter(|mv| mv.cut).map(|mv| mv.dt).sum();
+    }
     Ok(Output { lines: e.g, moves: e.moves, time_min: e.time, cut_time_min: e.tc, cut_len_mm: cut_len, notes, tab_marks: e.marks })
 }
 

@@ -203,12 +203,14 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
         for q in pieces {
             let d = ((q[0] - pos[0]).powi(2) + (q[1] - pos[1]).powi(2) + (q[2] - pos[2]).powi(2)).sqrt();
             if d > 0.0 {
-                r.moves.push(Move { from: pos, to: q, cut, dt: d * secs_per_mm, pass, op, alt, det, lap: lap && cut });
+                r.moves.push(Move { from: pos, to: q, cut, dt: d * secs_per_mm, feed: speed, stop: false, pass, op, alt, det, lap: lap && cut });
                 r.info.push(Info { line: li, kind: Kind::Move });
             }
             pos = q;
         }
     }
+    // with an acceleration set, the moves take what the machine really needs
+    if let Some(m) = machine.motion() { crate::motion::retime(&mut r.moves, &m, tsc); }
     r
 }
 
@@ -216,5 +218,5 @@ pub fn replay(lines: &[String], data: &ProjectData) -> Replay {
 /// are all different and a stop can be told from the step after it.
 fn zero(pos: [f64; 3], op: usize, pass: usize, dt: f64) -> Move {
     let at = [pos[0], pos[1], if pos[2].is_nan() { 0.0 } else { pos[2] }];
-    Move { from: at, to: at, cut: false, dt: dt.max(1e-7), pass, op, alt: false, det: false, lap: false }
+    Move { from: at, to: at, cut: false, dt: dt.max(1e-7), feed: 0.0, stop: true, pass, op, alt: false, det: false, lap: false }
 }
