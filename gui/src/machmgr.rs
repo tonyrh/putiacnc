@@ -274,7 +274,7 @@ fn form(ui: &mut Ui, app: &mut App) {
     let mut changed = false;
 
     // compact fixed layout: two label + field pairs side by side
-    let (lw, fw) = (135.0_f32, 100.0_f32);
+    let (lw, fw) = (178.0_f32, 100.0_f32);
     let sp = 8.0_f32;
     let gap = 20.0_f32;
     let aw = 2.0 * (lw + fw) + gap + 4.0 * sp;
@@ -310,7 +310,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         // the whole control (label and box) sits flush with the right edge, like the checkbox and the button below
         ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
-        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + lw), Layout::right_to_left(Align::Center));
         let tip = "Multiplies the estimated time to account for acceleration and corners";
         changed |= crate::widgets::num(&mut c, [60.0, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "").tip(tip).changed();
         c.add_space(8.0 - c.spacing().item_spacing.x);
@@ -329,7 +329,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         spacer(ui);
         ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
-        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + lw), Layout::right_to_left(Align::Center));
         let jtip = "How closely the path may cut a corner off (Grbl's $11, 0.01 mm by default): the larger it is, the faster corners are taken. Used with the acceleration.";
         let mut jd = m.junction.unwrap_or(putiacnc_core::motion::DEFAULT_JUNCTION);
         c.add_enabled_ui(m.accel.is_some(), |c| {
@@ -348,7 +348,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         spacer(ui);
         ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
-        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + lw), Layout::right_to_left(Align::Center));
         let mut az = m.accel_z.unwrap_or(0.0);
         c.add_enabled_ui(m.accel.is_some(), |c| {
             if crate::widgets::num(c, [60.0, 22.0], &mut az, 0.0, 100_000.0, 10.0, 0, "").tip(ztip).changed() { m.accel_z = if az > 0.0 { Some(az) } else { None }; changed = true; }
@@ -364,7 +364,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         spacer(ui);
         ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
-        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + lw), Layout::right_to_left(Align::Center));
         let mut ry = m.rate_y.unwrap_or(0.0) / sfac;
         if crate::widgets::num(&mut c, [60.0, 22.0], &mut ry, 0.0, 1.0e6, 10.0 / sfac, 3, "").tip(rtip).changed() { m.rate_y = if ry > 0.0 { Some(ry * sfac) } else { None }; changed = true; }
         c.add_space(8.0 - c.spacing().item_spacing.x);
