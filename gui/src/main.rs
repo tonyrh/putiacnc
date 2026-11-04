@@ -11,6 +11,7 @@ mod units;
 mod align;
 mod app;
 mod array;
+mod nest;
 mod canvas;
 mod cleanup;
 mod combine;
@@ -269,6 +270,7 @@ impl App {
         exportui::window(ctx, self);
         combine::dialog(ctx, self);
         array::dialog(ctx, self);
+        nest::dialog(ctx, self);
         corners::dialog(ctx, self);
         fingers::dialog(ctx, self);
         surface::dialog(ctx, self);
