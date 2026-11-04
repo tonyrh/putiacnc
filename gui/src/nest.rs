@@ -19,7 +19,7 @@ impl Default for NestTool {
 
 impl App {
     /// Moves (and, where it helps, turns by 90 degrees) the selected parts so they sit in rows on the stock.
-    /// Parts that do not fit stay where they are. Returns a message when something is worth saying.
+    /// Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. Returns a message when something is worth saying.
     pub fn nest_selection(&mut self) -> Option<String> {
         if self.sel.is_empty() { return Some("Select the shapes to nest first.".into()); }
         if self.sel_locked() { return Some("This drawing is locked.".into()); }
@@ -31,7 +31,8 @@ impl App {
         let sheet = [m, m, sw - m, sh - m];
         if sheet[2] <= sheet[0] || sheet[3] <= sheet[1] { return Some("The margin leaves no room on the stock.".into()); }
         let dims: Vec<(f64, f64)> = boxes.iter().map(|b| (b[2] - b[0], b[3] - b[1])).collect();
-        let r = putiacnc_core::nest::nest(&dims, sheet, self.nest.gap, self.nest.turn);
+        let clamps: Vec<[f64; 4]> = self.project.data.clamps.iter().map(|c| [c.x, c.y, c.x + c.w, c.y + c.h]).collect();
+        let r = putiacnc_core::nest::nest(&dims, sheet, self.nest.gap, self.nest.turn, &clamps);
         if r.placed.is_empty() { return Some("None of the shapes fits on the stock. Try a smaller gap or margin, or allow turning.".into()); }
         self.hist.record(&self.project.data);
         for p in &r.placed {
@@ -56,12 +57,12 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let n = crate::align::units(app).len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Nest on the stock").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Nest on the stock", crate::csd::anchor(app))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Nest on the stock", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Nest on the stock", true, |ui| {
             ui.label("Packs the selected shapes onto the stock in rows, tallest first from the lower left corner, to use less material. A group or a placed text moves as one part.");
             ui.add_space(4.0);
-            ui.label("Leave a gap at least as wide as the cutter. Parts that do not fit stay where they are. It works from each part's bounding box, so odd shapes are not interlocked.");
+            ui.label("Leave a gap at least as wide as the cutter. Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. It works from each part's bounding box, so odd shapes are not interlocked.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select the shapes to nest first.".to_string() } else { format!("{n} part{} selected.", if n == 1 { "" } else { "s" }) });
@@ -85,7 +86,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.button("Close").clicked() { close = true; }
         });
         });
-    });
+    }));
     if apply { app.run_tool("nest", |a| a.nest_selection()); }
     if close { app.nest.open = false; }
 }
@@ -149,6 +150,19 @@ mod tests {
         let b = boxes(&a)[0];
         assert!(((b[2] - b[0]) - 80.0).abs() < 1e-6 && ((b[3] - b[1]) - 10.0).abs() < 1e-6, "{b:?}");
         assert!(b[0] >= -1e-6 && b[1] >= -1e-6 && b[2] <= 100.0 + 1e-6);
+    }
+
+    #[test]
+    fn nested_parts_keep_the_gap_from_a_clamp() {
+        let mut a = app_with_parts();
+        a.nest.gap = 4.0; a.nest.margin = 2.0; a.nest.turn = false;
+        a.project.data.stock.h = 100.0;
+        a.project.data.clamps = vec![putiacnc_core::model::Clamp { x: 0.0, y: 0.0, w: 40.0, h: 25.0, height: 20.0 }];
+        assert!(a.nest_selection().is_none(), "all three still fit");
+        for b in boxes(&a) {
+            let on = b[0] < 44.0 - 1e-6 && b[2] > -4.0 && b[1] < 29.0 - 1e-6 && b[3] > -4.0;
+            assert!(!on, "{b:?} is on the clamp");
+        }
     }
 
     #[test]

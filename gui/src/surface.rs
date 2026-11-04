@@ -45,7 +45,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let tools = app.project.data.tools.clone();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Surface").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Surface", crate::csd::anchor(app))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Surface", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Surface", true, |ui| {
             ui.label("Takes a thin layer off the whole stock with a wide flat cutter, so the top is flat and level with the work zero. Use it on a new stock, or on the spoilboard to level the bed.");
@@ -98,7 +98,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.button("Cancel").clicked() { close = true; }
         });
         });
-    });
+    }));
     if apply {
         if let Some(spec) = app.surface.spec.clone() {
             let fill = app.surface.spoil && app.surface.fill_area;

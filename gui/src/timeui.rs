@@ -23,7 +23,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let dark = app.theme.dark;
     let mut close = false;
     egui::Window::new("Estimated time").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Estimated time", ctx.screen_rect().center())).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Estimated time", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(520.0);
         if crate::csd::dialog_header(ui, "Estimated time", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
@@ -74,6 +74,6 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             ui.add(egui::Label::new(egui::RichText::new("Solid: cutting. Faded: moving between cuts (rapids, plunges, retracts). Pauses for you (M0) and tool changes by hand take no time here. Includes the machine's time correction, and the plug pieces.").small().weak()).wrap(true));
             ui.add_space(6.0);
         });
-    });
+    }));
     if close || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.time_open = false; }
 }

@@ -111,7 +111,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     if app.about_icon.is_none() { app.about_icon = icon_texture(ctx); }
     let mut close = false;
     egui::Window::new("About PutiaCNC").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "About PutiaCNC", ctx.screen_rect().center())).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "About PutiaCNC", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(500.0);
         if crate::csd::dialog_header(ui, "About PutiaCNC", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
@@ -147,7 +147,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(6.0);
         });
-    });
+    }));
     if close || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.about_open = false; }
 }
 

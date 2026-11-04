@@ -147,7 +147,7 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
     let mut pick: Option<usize> = None;
     egui::Window::new("Add a ready-made library").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Add a ready-made library", ctx.screen_rect().center()))
-        .show(ctx, |ui| {
+        .show(ctx, crate::csd::trapped(|ui| {
             if crate::csd::dialog_header(ui, "Add a ready-made library", true) { close = true; }
             ui.set_min_width(340.0);
             ui.add_space(4.0);
@@ -161,7 +161,7 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
             ui.weak("\"added\" marks libraries you already have.");
             ui.add_space(4.0);
             ui.add(egui::Label::new(egui::RichText::new("Brand names are trademarks of their owners; PutiaCNC is not affiliated with or endorsed by them. Dimensions come from the makers' published catalogs; speeds and feeds are generic starting values, not the makers' recommendations.").small().weak()).wrap(true));
-        });
+        }));
     if let Some(i) = pick { app.lib_action(LibAct::Bundled(i)); close = true; }
     if close { app.ready_open = false; }
 }
@@ -173,12 +173,12 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(true)
         .default_size([925.0, 650.0]).min_width(925.0).max_width(925.0).min_height(340.0)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Tool library", ctx.screen_rect().center()))
-        .show(ctx, |ui| {
+        .show(ctx, crate::csd::trapped(|ui| {
             if crate::csd::dialog_header(ui, "Tool library", true) { close = true; }
             let was = app.ready_open;
             body(ui, app);
             if app.ready_open && !was { ctx.request_repaint(); }   // draw the new window right away, not on the next mouse move
-        });
+        }));
     ready_window(ctx, app);
     if close { open = false; }
     if !open {

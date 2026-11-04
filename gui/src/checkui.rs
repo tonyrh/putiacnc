@@ -85,7 +85,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let mut show: Option<usize> = None;
     let mut goto: Option<usize> = None;
     egui::Window::new("Toolpath warnings").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Toolpath warnings", ctx.screen_rect().center())).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Toolpath warnings", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(520.0);
         if crate::csd::dialog_header(ui, "Toolpath warnings", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
@@ -124,7 +124,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(6.0);
         });
-    });
+    }));
     if let Some(i) = show { show_in_3d(app, i); }
     if let Some(i) = goto {
         if let Some(op) = app.checks[i].op { if let Some(o) = app.project.data.ops.get(op) { app.project.data.act = o.id; app.tab = crate::app::RightTab::Ops; } }

@@ -532,7 +532,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     // one size for every step, so the window does not jump about
     let body_h = (scr.height() - 130.0).clamp(380.0, 580.0);
     egui::Window::new(name).frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, name, scr.center())).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, name, scr.center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(win_w);
         if crate::csd::dialog_header(ui, name, true) { skip = true; }
         ui.add_space(6.0);
@@ -572,7 +572,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             });
         });
         ui.add_space(4.0);
-    });
+    }));
     if next { app.setup.step += 1; }
     if back { app.setup.step = app.setup.step.saturating_sub(1); }
     if done {

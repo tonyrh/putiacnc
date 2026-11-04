@@ -148,7 +148,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let has = app.selection_has_corners() || (app.corners.dog && app.sel.iter().any(|&i| app.project.data.loops.get(i).is_some_and(|l| l.closed())));
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Fillet and chamfer").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", crate::csd::anchor(app))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Fillet and chamfer", true, |ui| {
             ui.label("Smooth curves, circles and ellipses are left alone.");
@@ -205,7 +205,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
         });
         });
-    });
+    }));
     if apply {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;

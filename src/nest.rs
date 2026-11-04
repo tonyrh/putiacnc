@@ -10,7 +10,7 @@ pub struct Placed { pub item: usize, pub x: f64, pub y: f64, pub turned: bool }
 #[derive(Debug, Clone, Default)]
 pub struct Nesting { pub placed: Vec<Placed>, pub left_out: Vec<usize> }
 
-fn shelves(dims: &[(f64, f64)], turned: &[bool], sheet: [f64; 4], gap: f64) -> Nesting {
+fn shelves(dims: &[(f64, f64)], turned: &[bool], sheet: [f64; 4], gap: f64, blocked: &[[f64; 4]]) -> Nesting {
     let size = |i: usize| if turned[i] { (dims[i].1, dims[i].0) } else { dims[i] };
     let mut order: Vec<usize> = (0..dims.len()).collect();
     // tallest first, then widest, then as given (so the result is the same every time)
@@ -20,7 +20,21 @@ fn shelves(dims: &[(f64, f64)], turned: &[bool], sheet: [f64; 4], gap: f64) -> N
     for i in order {
         let (w, h) = size(i);
         if w > sheet[2] - sheet[0] + 1e-9 || h > sheet[3] - sheet[1] + 1e-9 { out.left_out.push(i); continue; }
-        if x + w > sheet[2] + 1e-9 && row_h > 0.0 { x = sheet[0]; y += row_h + gap; row_h = 0.0; }
+        // walk along the row, past anything in the way, and on to the next row when the row runs out
+        loop {
+            if x + w > sheet[2] + 1e-9 {
+                if row_h > 0.0 { y += row_h + gap; row_h = 0.0; }
+                else {
+                    // nothing was placed in this row: the next row starts above whatever blocked it
+                    let up = blocked.iter().filter(|o| o[1] < y + h + gap && o[3] + gap > y).map(|o| o[3] + gap).fold(f64::INFINITY, f64::min);
+                    y = if up.is_finite() { up } else { y + gap.max(1.0) };
+                }
+                x = sheet[0];
+            }
+            if y + h > sheet[3] + 1e-9 { break; }
+            let hit = blocked.iter().find(|o| x < o[2] + gap - 1e-9 && o[0] < x + w + gap - 1e-9 && y < o[3] + gap - 1e-9 && o[1] < y + h + gap - 1e-9);
+            match hit { Some(o) => x = o[2] + gap, None => break }
+        }
         if y + h > sheet[3] + 1e-9 { out.left_out.push(i); continue; }
         out.placed.push(Placed { item: i, x, y, turned: turned[i] });
         x += w + gap;
@@ -30,8 +44,9 @@ fn shelves(dims: &[(f64, f64)], turned: &[bool], sheet: [f64; 4], gap: f64) -> N
     out
 }
 
-/// Packs boxes `(width, height)` onto `sheet` (`[x0, y0, x1, y1]`, mm) with `gap` mm between neighbouring boxes.
-pub fn nest(items: &[(f64, f64)], sheet: [f64; 4], gap: f64, rotate: bool) -> Nesting {
+/// Packs boxes `(width, height)` onto `sheet` (`[x0, y0, x1, y1]`, mm) with `gap` mm between neighbouring boxes, keeping `gap` clear of
+/// every rectangle in `blocked` (`[x0, y0, x1, y1]`, the clamps).
+pub fn nest(items: &[(f64, f64)], sheet: [f64; 4], gap: f64, rotate: bool, blocked: &[[f64; 4]]) -> Nesting {
     let n = items.len();
     let mut tries: Vec<Vec<bool>> = vec![vec![false; n]];
     if rotate {
@@ -41,7 +56,7 @@ pub fn nest(items: &[(f64, f64)], sheet: [f64; 4], gap: f64, rotate: bool) -> Ne
     let gap = gap.max(0.0);
     let mut best: Option<(Nesting, f64)> = None;
     for t in &tries {
-        let r = shelves(items, t, sheet, gap);
+        let r = shelves(items, t, sheet, gap, blocked);
         // the most parts first, then the least sheet used up the side
         let top = r.placed.iter().map(|p| { let (w, h) = if p.turned { (items[p.item].1, items[p.item].0) } else { items[p.item] }; let _ = w; p.y + h }).fold(sheet[1], f64::max);
         let better = match &best { None => true, Some((b, bt)) => r.placed.len() > b.placed.len() || (r.placed.len() == b.placed.len() && top < *bt - 1e-9) };
@@ -65,7 +80,7 @@ mod tests {
     #[test]
     fn parts_land_in_rows_inside_the_sheet_with_the_gap_between_them() {
         let items = [(40.0, 20.0), (30.0, 20.0), (50.0, 10.0), (20.0, 20.0), (60.0, 30.0)];
-        let r = nest(&items, [0.0, 0.0, 100.0, 100.0], 5.0, false);
+        let r = nest(&items, [0.0, 0.0, 100.0, 100.0], 5.0, false, &[]);
         assert!(r.left_out.is_empty() && r.placed.len() == 5, "{r:?}");
         assert!(!overlaps(&items, &r, 5.0));
         assert!(r.placed.iter().all(|p| p.x >= 0.0 && p.y >= 0.0 && p.x + items[p.item].0 <= 100.0 + 1e-9 && p.y + items[p.item].1 <= 100.0 + 1e-9));
@@ -76,7 +91,7 @@ mod tests {
     #[test]
     fn what_does_not_fit_is_left_out_not_squeezed_in() {
         let items = [(60.0, 60.0), (60.0, 60.0), (200.0, 10.0)];
-        let r = nest(&items, [0.0, 0.0, 100.0, 100.0], 2.0, false);
+        let r = nest(&items, [0.0, 0.0, 100.0, 100.0], 2.0, false, &[]);
         assert_eq!(r.left_out, vec![1, 2], "{r:?}"); // the second does not fit beside or above the first; the third is wider than the sheet
         assert_eq!(r.placed.len(), 1);
     }
@@ -85,8 +100,8 @@ mod tests {
     fn turning_a_part_makes_room_for_more() {
         // tall strips on a wide, short sheet only fit lying down
         let items = [(10.0, 90.0), (10.0, 90.0), (10.0, 90.0)];
-        let plain = nest(&items, [0.0, 0.0, 100.0, 40.0], 2.0, false);
-        let turned = nest(&items, [0.0, 0.0, 100.0, 40.0], 2.0, true);
+        let plain = nest(&items, [0.0, 0.0, 100.0, 40.0], 2.0, false, &[]);
+        let turned = nest(&items, [0.0, 0.0, 100.0, 40.0], 2.0, true, &[]);
         assert!(plain.placed.is_empty(), "{plain:?}");
         assert_eq!(turned.placed.len(), 3, "{turned:?}");
         assert!(turned.placed.iter().all(|p| p.turned));
@@ -96,14 +111,34 @@ mod tests {
     #[test]
     fn the_same_input_always_gives_the_same_layout() {
         let items: Vec<(f64, f64)> = (0..12).map(|i| (10.0 + (i % 5) as f64 * 7.0, 8.0 + (i % 3) as f64 * 9.0)).collect();
-        let a = nest(&items, [5.0, 5.0, 195.0, 145.0], 3.0, true);
-        let b = nest(&items, [5.0, 5.0, 195.0, 145.0], 3.0, true);
+        let a = nest(&items, [5.0, 5.0, 195.0, 145.0], 3.0, true, &[]);
+        let b = nest(&items, [5.0, 5.0, 195.0, 145.0], 3.0, true, &[]);
         assert_eq!(a.placed, b.placed);
         assert!(!overlaps(&items, &a, 3.0));
     }
 
     #[test]
+    fn parts_keep_clear_of_the_clamps() {
+        let items = [(30.0, 20.0), (30.0, 20.0), (30.0, 20.0), (30.0, 20.0)];
+        // a clamp across the lower left of the sheet
+        let clamp = [[0.0, 0.0, 40.0, 25.0]];
+        let r = nest(&items, [0.0, 0.0, 100.0, 100.0], 5.0, false, &clamp);
+        assert_eq!(r.placed.len(), 4, "{r:?}");
+        for p in &r.placed {
+            let (w, h) = items[p.item];
+            let hit = p.x < clamp[0][2] + 5.0 - 1e-9 && clamp[0][0] < p.x + w + 5.0 - 1e-9 && p.y < clamp[0][3] + 5.0 - 1e-9 && clamp[0][1] < p.y + h + 5.0 - 1e-9;
+            assert!(!hit, "part at {},{} is on the clamp", p.x, p.y);
+        }
+        assert!(!overlaps(&items, &r, 5.0));
+        // a clamp across the whole width leaves only the part above it
+        let wall = [[0.0, 0.0, 100.0, 60.0]];
+        let r = nest(&items, [0.0, 0.0, 100.0, 100.0], 5.0, false, &wall);
+        assert!(r.placed.iter().all(|p| p.y >= 65.0 - 1e-9), "{r:?}");
+        assert_eq!(r.placed.len(), 3, "one row of three fits in the 35 mm above: {r:?}");
+    }
+
+    #[test]
     fn nothing_to_nest_is_nothing() {
-        assert!(nest(&[], [0.0, 0.0, 10.0, 10.0], 1.0, true).placed.is_empty());
+        assert!(nest(&[], [0.0, 0.0, 10.0, 10.0], 1.0, true, &[]).placed.is_empty());
     }
 }

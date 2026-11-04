@@ -220,7 +220,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let (mut do_check, mut do_download, mut close) = (false, None::<Release>, false);
     let mut auto = up.auto;
     egui::Window::new("Check for updates").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Check for updates", ctx.screen_rect().center())).show(ctx, |ui| {
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Check for updates", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(420.0);
         if crate::csd::dialog_header(ui, "Check for updates", true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
@@ -267,7 +267,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         });
         ui.add_space(4.0);
         });
-    });
+    }));
     if auto != up.auto { up.auto = auto; save_auto(auto); }
     if do_check { up.check(false); }
     if let Some(r) = do_download { up.download(r); }

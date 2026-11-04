@@ -493,7 +493,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut do_place, mut cancel) = (false, false);
     let editing = app.text.edit.is_some();
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Text", crate::csd::anchor(app))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Text", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         let found = app.text.found;
         if crate::csd::dialog_header_help(ui, if editing { "Edit text" } else { "Text" }, true, |ui| help_text(ui, editing, found)) { cancel = true; }
@@ -682,7 +682,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.button("Cancel").clicked() { cancel = true; }
         });
         });
-    });
+    }));
     if do_place { place(app); }
     if cancel { app.text.open = false; app.text.edit = None; app.text.angle = 0.0; app.text.rest = [1.0, 0.0, 0.0, 1.0]; app.mode = Mode::Select; }
 }

@@ -64,7 +64,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
     }
     egui::Window::new("Import 3D model").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Import 3D model", egui::pos2(560.0, 172.0))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Import 3D model", egui::pos2(560.0, 172.0))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(380.0);
         if crate::csd::dialog_header_help(ui, "Import 3D model", true, |ui| { ui.label("The picture of the model is a height map: light is high, dark is low."); }) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
@@ -108,7 +108,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if ui.button("Cancel").clicked() { cancel = true; }
         });
         });
-    });
+    }));
     if place {
         let t = &mut app.model3d;
         let rel = t.mesh.as_ref().map(|m| m.relief(&t.name, 600_000, t.orient));

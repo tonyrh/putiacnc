@@ -33,7 +33,7 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
     let amber = crate::msg::colour(crate::app::Level::Warning, dark);
     let name = app.file_name();
     egui::Window::new("Unsaved changes").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).resizable(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, crate::csd::trapped(|ui| {
             ui.set_width(420.0);
             #[cfg(test)]
             crate::audit::note(ui.ctx(), crate::audit::HeaderNote { title: "Save changes?".into(), layer: ui.layer_id().id, header: egui::Rect::NOTHING, close: egui::Rect::NOTHING, has_header: false });
@@ -63,7 +63,7 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
                 if dlg_button(ui, Icon::Close, "Cancel", None, None, false).clicked() { choice = 3; }
             });
             ui.add_space(8.0);
-        });
+        }));
     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) { choice = 3; }
     match choice {
         1 => {

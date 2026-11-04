@@ -14,7 +14,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let n = app.sel.len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Combine shapes").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Combine shapes", crate::csd::anchor(app))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Combine shapes", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Combine shapes", true, |ui| { ui.label("The result takes the operation of the base shape. Open shapes are skipped."); }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
@@ -48,7 +48,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
         });
         });
-    });
+    }));
     if apply {
         let (op, keep, swap) = (app.combine_op, app.combine_keep, app.combine_swap);
         app.ghost.clear();

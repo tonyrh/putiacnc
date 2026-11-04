@@ -107,7 +107,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let thick = app.project.data.stock.t;
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Finger joint").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Finger joint", crate::csd::anchor(app))).show(ctx, |ui| {
+        .current_pos(crate::csd::spot(ctx, "Finger joint", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Finger joint", true, |ui| {
             ui.label("Cuts tabs or slots into the edges of the selected rectangle. Give one plate Tabs and the plate it meets Slots on edges of the same length, and they slot together.");
@@ -151,7 +151,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
         });
         });
-    });
+    }));
     if apply {
         let ft = &app.fingers;
         let dia = crate::corners::cutter_dia(ft.auto, app.sel_cutter_dia(), ft.dia);

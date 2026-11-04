@@ -294,3 +294,101 @@ pub fn spot(ctx: &egui::Context, title: &str, base: Pos2) -> Pos2 {
     ctx.data_mut(|d| { d.insert_temp(dialog_key(layer), p - base); d.insert_temp(last_key, p); });
     p
 }
+
+// ---- Tab stays inside a dialog ----
+// egui moves keyboard focus through every widget in the order they were made, dialogs and panels alike. Each dialog is bracketed
+// by two invisible stops. Tab that reaches the end stop wraps to the first control, Shift+Tab that reaches the start stop wraps to
+// the last. egui has no call to move focus by one step, so the wrap puts focus on the stop and has `tab_hook` send the key again.
+
+const TAB_PENDING: &str = "tab_trap_pending";
+const TAB_SHIFT: &str = "tab_trap_last_shift";
+const TAB_SPIN: &str = "tab_trap_spin";
+
+/// Call before every frame (`eframe::App::raw_input_hook`): remembers which way Tab was pressed and sends the key a wrap asked for.
+pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
+    for e in &raw.events {
+        if let egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } = e {
+            let s = modifiers.shift;
+            ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_SHIFT), s));
+        }
+    }
+    if let Some(shift) = ctx.data_mut(|d| d.remove_temp::<bool>(egui::Id::new(TAB_PENDING))) {
+        let modifiers = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
+        raw.events.push(egui::Event::Key { key: egui::Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers });
+    }
+}
+
+/// Wraps a dialog's contents so that Tab and Shift+Tab stay inside it: `.show(ctx, trapped(|ui| { ... }))`.
+pub fn trapped<R>(f: impl FnOnce(&mut Ui) -> R) -> impl FnOnce(&mut Ui) -> R {
+    move |ui| {
+        let (a, b) = (ui.id().with("trap_start"), ui.id().with("trap_end"));
+        let at = ui.min_rect().min;
+        let start = tab_stop(ui, a, at);
+        let r = f(ui);
+        let end = tab_stop(ui, b, Pos2::new(at.x, ui.min_rect().max.y));
+        if start.gained_focus() || end.gained_focus() { tab_wrap(ui.ctx(), a, b); }
+        r
+    }
+}
+
+fn tab_stop(ui: &mut Ui, id: egui::Id, at: Pos2) -> egui::Response {
+    ui.interact(Rect::from_min_size(at, egui::Vec2::ZERO), id, Sense { click: false, drag: false, focusable: true })
+}
+
+fn tab_wrap(ctx: &egui::Context, start: egui::Id, end: egui::Id) {
+    let shift = ctx.data(|d| d.get_temp::<bool>(egui::Id::new(TAB_SHIFT))).unwrap_or(false);
+    let now = ctx.frame_nr();
+    // a dialog with nothing to focus would bounce between its stops for ever
+    let spin = ctx.data_mut(|d| {
+        let (last, n) = d.get_temp::<(u64, u32)>(egui::Id::new(TAB_SPIN)).unwrap_or((0, 0));
+        let n = if now <= last + 3 { n + 1 } else { 0 };
+        d.insert_temp(egui::Id::new(TAB_SPIN), (now, n));
+        n
+    });
+    if spin >= 4 { ctx.memory_mut(|m| { m.surrender_focus(start); m.surrender_focus(end); }); return; }
+    ctx.memory_mut(|m| m.request_focus(if shift { end } else { start }));
+    ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_PENDING), shift));
+    ctx.request_repaint();
+}
+
+#[cfg(test)]
+mod trap_tests {
+    use super::*;
+    use egui::{Event, Key, Modifiers};
+
+    struct Rig { ctx: egui::Context, time: f64, ids: Vec<egui::Id> }
+    impl Rig {
+        fn frame(&mut self, events: Vec<Event>, modifiers: Modifiers) {
+            self.time += 0.1;
+            let mut input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(500.0, 400.0))), time: Some(self.time), events, modifiers, ..Default::default() };
+            tab_hook(&self.ctx, &mut input);
+            let ids = &mut self.ids;
+            let _ = self.ctx.run(input, |ctx| {
+                ids.clear();
+                egui::CentralPanel::default().show(ctx, |ui| { let r = ui.button("before"); ids.push(r.id); });
+                egui::Window::new("d").show(ctx, trapped(|ui| { for n in ["one", "two", "three"] { let r = ui.button(n); ids.push(r.id); } }));
+                egui::TopBottomPanel::bottom("p").show(ctx, |ui| { let r = ui.button("after"); ids.push(r.id); });
+            });
+        }
+        fn tab(&mut self, shift: bool) {
+            let m = if shift { Modifiers::SHIFT } else { Modifiers::NONE };
+            self.frame(vec![Event::Key { key: Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: m }], m);
+            for _ in 0..6 { self.frame(vec![], m); }
+        }
+        fn at(&self) -> Option<usize> { self.ids.iter().position(|i| self.ctx.memory(|m| m.has_focus(*i))) }
+    }
+
+    #[test]
+    fn tab_wraps_inside_the_dialog_both_ways() {
+        let mut r = Rig { ctx: egui::Context::default(), time: 0.0, ids: vec![] };
+        r.frame(vec![], Modifiers::NONE);
+        r.ctx.memory_mut(|m| m.request_focus(r.ids[1]));
+        r.frame(vec![], Modifiers::NONE);
+        assert_eq!(r.at(), Some(1));
+        r.tab(false); assert_eq!(r.at(), Some(2));
+        r.tab(false); assert_eq!(r.at(), Some(3));
+        r.tab(false); assert_eq!(r.at(), Some(1), "Tab from the last control comes back to the first, not to the panel behind");
+        r.tab(true); assert_eq!(r.at(), Some(3), "Shift+Tab from the first control goes to the last");
+        r.tab(true); assert_eq!(r.at(), Some(2));
+    }
+}

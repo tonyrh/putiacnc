@@ -161,6 +161,8 @@ fn main() -> eframe::Result<()> {
 impl eframe::App for App {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] { [0.0, 0.0, 0.0, 0.0] }
 
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) { csd::tab_hook(ctx, raw_input); }
+
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.gl_info.is_empty() { if let Some(gl) = frame.gl() { self.gl_info = about::gl_summary(gl); if std::env::var_os("PUTIACNC_PRINT_VERSION_INFO").is_some() { eprintln!("{}", about::version_info(ctx, &self.gl_info)); } } }
         self.ui_frame(ctx);
