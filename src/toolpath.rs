@@ -211,7 +211,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool, pw: Option<(usize, usize, bool)>,
-    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
+    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, helix_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64,
 }
 
 impl Em {
@@ -271,6 +271,8 @@ struct Job { p: Path, closed: bool, pocket: bool, gen: usize, iv: Option<Option<
 
 struct OpCtx<'a> {
     kind: &'a str, dia: f64, so: f64, plunge: f64, feed: f64, ramp: bool, rev: bool,
+    /// Helical entry: the circle's diameter (% of the tool) and the steepest angle (degrees).
+    helix: Option<(f64, f64)>,
     z0: f64, sz: f64, zs: Vec<f64>,
     tabs_on: bool, ztab: f64, tab_w: f64, tab_n: f64,
     /// Lead-in / lead-out arc radius in mm (0 = none).
@@ -363,7 +365,7 @@ fn finish_pass(e: &mut Em, c: &OpCtx, fin: &mut [Job], region: &[Path], zs: &[f6
     let one = tool.flute > 0.0 && depth <= tool.flute + 1e-9;
     let fz: Vec<f64> = if one { zs.last().map(|z| vec![*z]).unwrap_or_default() } else { zs.to_vec() };
     e.g.push(format!("(Operation {}: finishing pass to size{})", k + 1, if one { ", full depth" } else { "" }));
-    let guard: Vec<Path> = fin.iter().map(|j| j.p.clone()).collect();
+    let guard: Vec<Path> = fin.iter().filter(|j| !j.pocket || j.gen == 0).map(|j| j.p.clone()).collect();
     run_jobs(e, c, fin, region, &fz, &guard);
 }
 
@@ -375,6 +377,9 @@ fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64]
         } else { vec![(0..jobs.len()).collect()] };
         // the first ring cut in a piece has no cleared ring beside it, whatever its generation
         for g in &groups { if let Some(&f) = g.first() { jobs[f].gen = 0; } }
+        // the helical entry's room: inside the outermost rings, outside the rings around islands
+        let g0: Vec<Path> = jobs.iter().filter(|j| j.gen == 0).map(|j| j.p.clone()).collect();
+        let guard = &g0[..];
         for &z in zs {
             let order: Vec<usize> = if groups.len() > 1 {
                 let gs: Vec<[f64; 2]> = groups.iter().map(|g| entry(&jobs[g[0]], c.rev)).collect();
@@ -530,6 +535,45 @@ pub(crate) fn inside_eo(paths: &[Path], x: f64, y: f64) -> bool {
     c
 }
 
+/// A helix to enter a closed toolpath: a circle the tool centre follows, on the waste side and touching the path at its start, so the
+/// spiral ends where the cut goes on. `guard` and `waste_inside` say where the tool centre may be, as for `make_lead`. The radius shrinks
+/// until the circle fits; None if even `r_min` does not.
+struct Helix { c: [f64; 2], r: f64, th0: f64, sign: f64 }
+
+fn make_helix(pts: &[[f64; 2]], guard: &[Path], waste_inside: bool, r_max: f64, r_min: f64) -> Option<Helix> {
+    let p0 = pts[0];
+    let t = pts.iter().skip(1).find_map(|q| { let (dx, dy) = (q[0] - p0[0], q[1] - p0[1]); let l = dx.hypot(dy); (l > 1e-6).then(|| [dx / l, dy / l]) })?;
+    let ok = |q: [f64; 2]| inside_eo(guard, q[0], q[1]) == waste_inside;
+    let l = [-t[1], t[0]];
+    let n = if ok([p0[0] + l[0] * 0.2, p0[1] + l[1] * 0.2]) { l } else if ok([p0[0] - l[0] * 0.2, p0[1] - l[1] * 0.2]) { [-l[0], -l[1]] } else { return None };
+    let mut r = r_max;
+    while r >= r_min {
+        // straight in from the path, or tilted away from it, for a start at a corner of the shape
+        for deg in [0.0f64, 30.0, -30.0, 50.0, -50.0, 70.0, -70.0] {
+            let (sn, cs) = deg.to_radians().sin_cos();
+            let d = [n[0] * cs - n[1] * sn, n[0] * sn + n[1] * cs];
+            let c = [p0[0] + d[0] * r, p0[1] + d[1] * r];
+            // the circle passes through the start of the path, where the join is not judged, as in make_lead
+            let fits = ok(c) && (0..32).all(|i| {
+                let a = std::f64::consts::TAU * i as f64 / 32.0;
+                let q = [c[0] + r * a.cos(), c[1] + r * a.sin()];
+                (q[0] - p0[0]).hypot(q[1] - p0[1]) <= 0.3 || ok(q)
+            });
+            if fits {
+                let rv = [p0[0] - c[0], p0[1] - c[1]];
+                // turn the way the path goes on from the start
+                let sign = if rv[0] * t[1] - rv[1] * t[0] > 0.0 { 1.0 } else { -1.0 };
+                return Some(Helix { c, r, th0: rv[1].atan2(rv[0]), sign });
+            }
+        }
+        r /= 2.0;
+    }
+    None
+}
+
+/// Points per turn of a circle of radius `r` mm, so the chords stay within 0.01 mm of it.
+fn helix_steps(r: f64) -> usize { ((std::f64::consts::TAU / (2.0 * (1.0 - 0.01 / r.max(0.02)).clamp(-1.0, 1.0).acos()).clamp(0.1, 0.5)).ceil() as usize).max(12) }
+
 /// A tangent arc to enter the cut and one to leave it, on the waste side of the toolpath.
 struct Lead { s: [f64; 2], arc_in: Vec<[f64; 2]>, arc_out: Vec<[f64; 2]> }
 
@@ -607,6 +651,17 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
     e.go("G1", None, None, Some(c.z0), c.plunge);
     if pz < 0.0 { e.go("G1", None, None, Some(c.z0 + pz), c.plunge); }
+    // helical entry: a spiral down beside the start of the path (the first ring of a pocket, or a profile)
+    let helix = match c.helix {
+        Some((pct, _)) if lead.is_none() && job.closed && pts.len() > 3 && if job.pocket { job.gen == 0 && c.kind == "pocket" } else { matches!(c.kind, "outside" | "inside") } => {
+            // (for a pocket the guard is its outermost rings, outside and around islands: the tool centre is inside them)
+            let (g, waste_inside) = (guard.to_vec(), job.pocket || c.kind == "inside");
+            let h = make_helix(&pts, &g, waste_inside, c.dia * pct / 200.0, (0.1 * c.dia).max(0.3));
+            if h.is_none() { e.helix_skipped += 1; }
+            h
+        }
+        _ => None,
+    };
     // whether the tool is at the end of an open line (so the next depth runs back along it)
     let mut at_end = false;
     for &z in zl {
@@ -620,6 +675,24 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
         }
         if let Some(iv) = tiv {
             tab_pass(e, c, &pts, z, &iv);
+        } else if let (Some(h), Some((_, ang))) = (&helix, c.helix) {
+            // down in a spiral at the start of the path (the tool is there, at the height of the pass above), a flat turn to clear the
+            // floor of the hole, then the pass itself
+            let per_turn = std::f64::consts::TAU * h.r * ang.to_radians().tan();
+            let turns = ((pz - z) / per_turn).ceil().max(1.0);
+            let sp = helix_steps(h.r);
+            let n = (turns * sp as f64) as usize;
+            for k in 1..=n {
+                let th = h.th0 + h.sign * std::f64::consts::TAU * turns * k as f64 / n as f64;
+                let q = if k == n { pts[0] } else { [h.c[0] + h.r * th.cos(), h.c[1] + h.r * th.sin()] };
+                e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + pz + (z - pz) * k as f64 / n as f64), c.feed);
+            }
+            for k in 1..=sp {
+                let th = h.th0 + h.sign * std::f64::consts::TAU * k as f64 / sp as f64;
+                let q = if k == sp { pts[0] } else { [h.c[0] + h.r * th.cos(), h.c[1] + h.r * th.sin()] };
+                e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed);
+            }
+            for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
         } else if c.ramp && lead.is_none() && job.closed && (!job.pocket || c.kind == "pocket") && pts.len() > 2 && (!inner_plunge || job.gen == 0) {
             let mut lc = vec![0.0];
             let mut t = 0.0;
@@ -727,7 +800,7 @@ fn rest_pass(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(tool.pd).min(rt.pd);
     let nz = (o.p.depth / pd - 1e-9).ceil().clamp(1.0, 5000.0) as usize;
     let zs: Vec<f64> = (0..nz).map(|i| -(o.p.depth / nz as f64) * (i as f64 + 1.0)).collect();
-    let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: main.ramp, rev: main.rev, z0: main.z0, sz: main.sz, zs: zs.clone(),
+    let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: main.ramp, rev: main.rev, helix: None, z0: main.z0, sz: main.sz, zs: zs.clone(),
         tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0 };
     let mut jobs = mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0);
     if jobs.is_empty() { notes.push(format!("{}rest machining: what is left is too narrow for the {} {} tool.", pre, num(to_fixed(rt.dia / ku, 4)), un)); return; }
@@ -1303,7 +1376,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, helix_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s() };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
@@ -1393,7 +1466,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let tab_h = o.p.tab_h.unwrap_or(2.0);
         let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside" || kind == "online"); // open paths on a line are cut without tabs
         let tabs_on = tabs_req && tab_h > 0.0 && tab_h < depth - 1e-6;
-        let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, z0, sz, zs: zs.clone(),
+        let mut ctx = OpCtx { kind, dia, so, plunge, feed, ramp: o.p.ramp, rev: false, helix: if o.p.helix && matches!(kind, "outside" | "inside" | "pocket") { Some((o.p.helix_d.filter(|v| *v > 0.0).unwrap_or(100.0).clamp(20.0, 400.0), o.p.helix_a.filter(|v| *v > 0.0).unwrap_or(3.0).clamp(0.5, 45.0))) } else { None }, z0, sz, zs: zs.clone(),
             tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
             lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 } };
 
@@ -1425,7 +1498,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let conv = o.p.dir == "conv";
             let mkzs = |d: f64| -> Vec<f64> { let n = ((d / fpd) - 1e-9).ceil().max(1.0) as usize; (0..n).map(|i| -(d / n as f64) * (i as f64 + 1.0)).collect() };
             let fctx = |kind: &'static str, zs: Vec<f64>, rev: bool| OpCtx {
-                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, z0, sz, zs,
+                kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, helix: None, z0, sz, zs,
                 tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0,
             };
             let ring_rev = !conv;
@@ -1504,7 +1577,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                     select_tool(&mut e, &mut ts, mach, ft, sz, &fdia, un);
                     e.alt = true;
                     e.g.push(format!("(Operation {}: {}, cut out through the stock, {})", k + 1, label, ftxt));
-                    let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
+                    let guard: Vec<Path> = jobs.iter().filter(|j| !j.pocket || j.gen == 0).map(|j| j.p.clone()).collect();
                     for j in jobs.iter_mut() { cut(&mut e, &c, j, &zso, &guard); }
                     e.alt = false;
                     notes.push(format!("{}the plug is cut free of the stock: hold it down, and it is sanded flush after gluing.", pre));
@@ -1660,7 +1733,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         } else if by_pass {
             for &z in &zs {
                 let mut jb = mk_jobs(&ctx, &region, &closed, &open, geo.r_at(-z));
-                let guard: Vec<Path> = jb.iter().map(|j| j.p.clone()).collect();
+                let guard: Vec<Path> = jb.iter().filter(|j| !j.pocket || j.gen == 0).map(|j| j.p.clone()).collect();
                 run_jobs(&mut e, &ctx, &mut jb, &region, &[z], &guard);
             }
         } else if kind == "pocket" {
@@ -1670,9 +1743,13 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 rest_pass(&mut e, &mut ts, &mut notes, data, o, k, mach, &ctx, &region, tool, id);
             }
         } else {
-            let guard: Vec<Path> = jobs.iter().map(|j| j.p.clone()).collect();
+            let guard: Vec<Path> = jobs.iter().filter(|j| !j.pocket || j.gen == 0).map(|j| j.p.clone()).collect();
             run_jobs(&mut e, &ctx, &mut jobs, &region, &zs, &guard);
             finish_pass(&mut e, &ctx, &mut fin, &region, &zs, tool, depth, k);
+        }
+        if e.helix_skipped > 0 {
+            notes.push(format!("{}helical entry skipped on {} path(s): not enough room for the circle, so they enter as the Ramp in setting says.", pre, e.helix_skipped));
+            e.helix_skipped = 0;
         }
         if e.lead_skipped > 0 {
             notes.push(format!("{}lead-in/out skipped on {} path(s): not enough room for the arc.", pre, e.lead_skipped));

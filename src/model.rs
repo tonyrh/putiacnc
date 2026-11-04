@@ -314,6 +314,11 @@ pub struct OpParams {
     /// 3D relief finishing: stepover in % of the tool diameter; `None` = the finishing tool's own.
     #[serde(default, rename = "fSo", skip_serializing_if = "Option::is_none")] pub f_so: Option<f64>,
     /// Profile and pocket: leave this much (mm) on the walls in the depth passes and cut them to size in a finishing pass; `None` = no finishing pass.
+    /// Enter a pocket's first ring or a profile with a helix (a spiral down the waste side) instead of ramping along the path.
+    #[serde(default, skip_serializing_if = "is_false")] pub helix: bool,
+    /// The helix circle the tool centre follows, as a percentage of the tool diameter (`None` = 100), and the steepest angle of the spiral in degrees (`None` = 3).
+    #[serde(default, rename = "helixD", skip_serializing_if = "Option::is_none")] pub helix_d: Option<f64>,
+    #[serde(default, rename = "helixA", skip_serializing_if = "Option::is_none")] pub helix_a: Option<f64>,
     #[serde(default, rename = "wLeave", skip_serializing_if = "Option::is_none")] pub w_leave: Option<f64>,
     /// 3D relief finishing: the direction of the lines, "x" (default), "y", or "xy" (along X, then along Y over the same surface).
     #[serde(default, rename = "fDir", skip_serializing_if = "Option::is_none")] pub f_dir: Option<String>,

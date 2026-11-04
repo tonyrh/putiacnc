@@ -962,6 +962,23 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                       });
                     }
                 }
+                if ["outside", "inside", "pocket"].contains(&p.kind.as_str()) {
+                    ui.horizontal(|ui| {
+                        ui.add_space(6.0);
+                        // not with a lead-in arc, which already enters the cut gently
+                        changed |= crate::widgets::check_if(ui, p.lead.is_none() || p.kind == "pocket", &mut p.helix, "Helical entry")
+                            .tip(if p.kind == "pocket" { "Enters the first ring of the pocket in a spiral down instead of ramping along it or plunging: a smoother entry for an end mill that does not cut at its centre" } else { "Enters the cut in a spiral down on the waste side, next to the start of the path, instead of ramping along it or plunging" }).changed();
+                        if p.helix {
+                            let (mut d, mut a) = (p.helix_d.unwrap_or(100.0), p.helix_a.unwrap_or(3.0));
+                            ui.add_space(10.0);
+                            ui.label("Circle");
+                            if dl_w(ui, 42.0, &mut d, 20.0, 400.0, "%") { p.helix_d = Some(d); changed = true; }
+                            ui.add_space(6.0);
+                            ui.label("Angle");
+                            if dl_w(ui, 36.0, &mut a, 0.5, 45.0, "°") { p.helix_a = Some(a); changed = true; }
+                        }
+                    });
+                }
                 if ["outside", "inside"].contains(&p.kind.as_str()) {
                     ui.horizontal(|ui| {
                         let mut on = p.lead.is_some();
