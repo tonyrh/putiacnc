@@ -7,8 +7,8 @@ use crate::toolpath::Move;
 /// The machine's motion limits.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Motion {
-    /// mm/s² (Grbl's `$120` to `$122`).
-    pub accel: f64,
+    /// mm/s² along X, Y and Z (Grbl's `$120` to `$122`).
+    pub accel: [f64; 3],
     /// Junction deviation in mm (Grbl's `$11`): how far the path may cut a corner off; the larger it is, the faster corners are taken.
     pub junction: f64,
 }
@@ -16,11 +16,25 @@ pub struct Motion {
 /// Grbl's default junction deviation.
 pub const DEFAULT_JUNCTION: f64 = 0.01;
 
+impl Motion {
+    /// The same acceleration on every axis.
+    pub fn uniform(a: f64, junction: f64) -> Motion { Motion { accel: [a; 3], junction } }
+
+    /// The acceleration along the direction `u` (a unit vector): the most it can be without any axis exceeding its own limit, which is
+    /// how Grbl's planner limits it. A move along one axis gets that axis's value, a diagonal less than the sum of the parts.
+    pub fn along(&self, u: [f64; 3]) -> f64 {
+        let mut a = f64::INFINITY;
+        for k in 0..3 { if u[k].abs() > 1e-9 { a = a.min(self.accel[k] / u[k].abs()); } }
+        if a.is_finite() { a } else { self.accel[0] }
+    }
+}
+
 impl Machine {
     /// The motion limits, when the machine has an acceleration set.
     pub fn motion(&self) -> Option<Motion> {
-        let a = self.accel.filter(|a| a.is_finite() && *a > 0.0)?;
-        Some(Motion { accel: a.clamp(1.0, 100_000.0), junction: self.junction.filter(|j| j.is_finite() && *j > 0.0).unwrap_or(DEFAULT_JUNCTION).clamp(0.0001, 10.0) })
+        let ok = |a: Option<f64>| a.filter(|a| a.is_finite() && *a > 0.0).map(|a| a.clamp(1.0, 100_000.0));
+        let x = ok(self.accel)?;
+        Some(Motion { accel: [x, ok(self.accel_y).unwrap_or(x), ok(self.accel_z).unwrap_or(x)], junction: self.junction.filter(|j| j.is_finite() && *j > 0.0).unwrap_or(DEFAULT_JUNCTION).clamp(0.0001, 10.0) })
     }
 }
 
@@ -35,11 +49,15 @@ fn segment_secs(len: f64, vin: f64, vout: f64, vmax: f64, a: f64) -> f64 {
 
 /// The speed at which the path may turn from direction `u0` into `u1`, between segments at most `cap` mm/s fast.
 fn corner_speed(u0: [f64; 3], u1: [f64; 3], cap: f64, m: &Motion) -> f64 {
+    // the acceleration that counts at a corner is the one along the line that splits the turn (Grbl's junction vector)
+    let d = [u0[0] - u1[0], u0[1] - u1[1], u0[2] - u1[2]];
+    let dl = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+    let acc = if dl > 1e-9 { m.along([d[0] / dl, d[1] / dl, d[2] / dl]) } else { m.accel[0] };
     let cos = -(u0[0] * u1[0] + u0[1] * u1[1] + u0[2] * u1[2]);
     if cos <= -0.999_999 { return cap; } // straight on
     if cos >= 0.999_999 { return 0.0; }  // turning right back
     let s = (0.5 * (1.0 - cos)).sqrt();
-    (m.accel * m.junction * s / (1.0 - s)).sqrt().min(cap)
+    (acc * m.junction * s / (1.0 - s)).sqrt().min(cap)
 }
 
 /// Gives every move the time it takes with `m`'s limits (minutes, times `tsc`, the machine's own correction on top). Moves that follow a
@@ -62,10 +80,12 @@ pub fn retime(moves: &mut [Move], m: &Motion, tsc: f64) -> f64 {
         // the speed at each junction: 0 at both ends, what the corner allows between
         let mut v = vec![0.0; seg.len() + 1];
         for k in 1..seg.len() { v[k] = corner_speed(u[k - 1], u[k], vmax[k - 1].min(vmax[k]), m); }
-        for k in 0..seg.len() { v[k + 1] = v[k + 1].min((v[k] * v[k] + 2.0 * m.accel * l[k]).sqrt()); }
-        for k in (0..seg.len()).rev() { v[k] = v[k].min((v[k + 1] * v[k + 1] + 2.0 * m.accel * l[k]).sqrt()); }
+        // each move speeds up and slows down at what its own direction allows
+        let acc: Vec<f64> = u.iter().map(|d| m.along(*d)).collect();
+        for k in 0..seg.len() { v[k + 1] = v[k + 1].min((v[k] * v[k] + 2.0 * acc[k] * l[k]).sqrt()); }
+        for k in (0..seg.len()).rev() { v[k] = v[k].min((v[k + 1] * v[k + 1] + 2.0 * acc[k] * l[k]).sqrt()); }
         for k in 0..seg.len() {
-            let secs = segment_secs(l[k], v[k], v[k + 1], vmax[k], m.accel);
+            let secs = segment_secs(l[k], v[k], v[k + 1], vmax[k], acc[k]);
             moves[i + k].dt = secs / 60.0 * tsc;
         }
         i = j;
@@ -80,7 +100,7 @@ mod tests {
     fn mv(from: [f64; 3], to: [f64; 3], feed: f64) -> Move {
         Move { from, to, cut: true, dt: 0.0, feed, stop: false, pass: 0, op: 0, alt: false, det: false, lap: false }
     }
-    fn motion() -> Motion { Motion { accel: 100.0, junction: 0.01 } }
+    fn motion() -> Motion { Motion::uniform(100.0, 0.01) }
 
     #[test]
     fn a_long_straight_move_reaches_the_feed_rate() {
@@ -136,11 +156,37 @@ mod tests {
     #[test]
     fn faster_acceleration_is_never_slower() {
         let path = || (0..200).map(|k| { let (a, b) = (k as f64 * 0.5, (k + 1) as f64 * 0.5); mv([a, (a * 0.7).sin(), 0.0], [b, (b * 0.7).sin(), 0.0], 1500.0) }).collect::<Vec<_>>();
-        let slow = retime(&mut path(), &Motion { accel: 50.0, junction: 0.01 }, 1.0);
-        let fast = retime(&mut path(), &Motion { accel: 500.0, junction: 0.01 }, 1.0);
+        let slow = retime(&mut path(), &Motion::uniform(50.0, 0.01), 1.0);
+        let fast = retime(&mut path(), &Motion::uniform(500.0, 0.01), 1.0);
         assert!(fast < slow, "{fast} {slow}");
         // and neither beats the plain length / feed
         let plain = 100.0 / 1500.0;
         assert!(fast > plain * 0.99);
+    }
+
+    #[test]
+    fn a_slow_axis_slows_the_moves_along_it_only() {
+        let m = Motion { accel: [100.0, 100.0, 25.0], junction: 0.01 };
+        // 1 mm from rest to rest: 2 x sqrt(1 / a)
+        let xy = retime(&mut [mv([0.0; 3], [1.0, 0.0, 0.0], 1200.0)], &m, 1.0) * 60.0;
+        let z = retime(&mut [mv([0.0; 3], [0.0, 0.0, -1.0], 1200.0)], &m, 1.0) * 60.0;
+        assert!((xy - 0.2).abs() < 1e-9 && (z - 0.4).abs() < 1e-9, "{xy} {z}");
+        // a diagonal is held back by the slow axis: along (0.6, 0, 0.8) the Z limit gives 25 / 0.8, the X limit 100 / 0.6
+        assert!((m.along([0.6, 0.0, -0.8]) - 31.25).abs() < 1e-9);
+        // a ramp is slower than the same move at the fast acceleration, and never slower than a plunge
+        let ramp = retime(&mut [mv([0.0; 3], [6.0, 0.0, -8.0], 1200.0)], &m, 1.0);
+        let flat = retime(&mut [mv([0.0; 3], [6.0, 0.0, -8.0], 1200.0)], &Motion::uniform(100.0, 0.01), 1.0);
+        assert!(ramp > flat);
+    }
+
+    #[test]
+    fn the_machine_gives_y_and_z_the_x_value_unless_they_are_set() {
+        let mut mc = Machine::default();
+        mc.accel = Some(200.0);
+        assert_eq!(mc.motion().unwrap().accel, [200.0; 3]);
+        mc.accel_z = Some(50.0);
+        assert_eq!(mc.motion().unwrap().accel, [200.0, 200.0, 50.0]);
+        mc.accel_y = Some(0.0); // nonsense is ignored
+        assert_eq!(mc.motion().unwrap().accel, [200.0, 200.0, 50.0]);
     }
 }

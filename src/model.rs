@@ -180,6 +180,9 @@ pub struct Machine {
     /// Acceleration in mm/s² (Grbl's `$120`): when set, the time estimate and the playback let the machine speed up, slow down and take corners
     /// the way it really does (`None` = no acceleration model: time is length / feed times the correction).
     #[serde(default, skip_serializing_if = "Option::is_none")] pub accel: Option<f64>,
+    /// The Y and Z accelerations (Grbl's `$121` and `$122`) where they differ from `accel` (`None` = the same as `accel`).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub accel_y: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub accel_z: Option<f64>,
     /// Junction deviation in mm (Grbl's `$11`; `None` = 0.01): how fast the machine takes corners when an acceleration is set.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub junction: Option<f64>,
     /// How stiff the machine is, for the feeds and speeds suggestion: "light" (also when empty), "medium" or "heavy" (`feeds::RIGIDITY`).
@@ -213,7 +216,7 @@ impl Machine {
 impl Default for Machine {
     fn default() -> Self {
         Machine { id: String::new(), name: "My CNC machine".into(), rapid: 2000.0, tsc: 1.2, x: 300.0, y: 200.0, z: 60.0, notes: String::new(),
-                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None, holder: None, holder_on: false, rigid: String::new(), accel: None, junction: None }
+                  post: Some(String::new()), numbered: Some(false), safe: Some(5.0), rpm_min: None, rpm_max: None, feed_max: None, plunge_max: None, inches: Some(false), arcs: Some(false), spin_up: Some(2.0), start_code: None, end_code: None, holder: None, holder_on: false, rigid: String::new(), accel: None, accel_y: None, accel_z: None, junction: None }
     }
 }
 

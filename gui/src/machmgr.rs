@@ -338,6 +338,24 @@ fn form(ui: &mut Ui, app: &mut App) {
         c.add_space(8.0 - c.spacing().item_spacing.x);
         c.add(egui::Label::new("Corner deviation (mm)").wrap(false)).tip(jtip);
         ui.end_row();
+        // Y and Z can differ from X (Z is usually the slowest); 0 = the same as the first value
+        let ztip = "Grbl's $121 (Y) and $122 (Z) where they differ from the first value: Z is often much slower than X and Y, and it decides how fast the machine plunges and ramps. 0 = the same as the first.";
+        rlabel(ui, lw, "Acceleration Y (mm/s²)");
+        let mut ay = m.accel_y.unwrap_or(0.0);
+        ui.add_enabled_ui(m.accel.is_some(), |ui| {
+            if crate::widgets::num(ui, [fw, 22.0], &mut ay, 0.0, 100_000.0, 10.0, 0, "").tip(ztip).changed() { m.accel_y = if ay > 0.0 { Some(ay) } else { None }; changed = true; }
+        });
+        spacer(ui);
+        ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
+        let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
+        let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + 140.0), Layout::right_to_left(Align::Center));
+        let mut az = m.accel_z.unwrap_or(0.0);
+        c.add_enabled_ui(m.accel.is_some(), |c| {
+            if crate::widgets::num(c, [60.0, 22.0], &mut az, 0.0, 100_000.0, 10.0, 0, "").tip(ztip).changed() { m.accel_z = if az > 0.0 { Some(az) } else { None }; changed = true; }
+        });
+        c.add_space(8.0 - c.spacing().item_spacing.x);
+        c.add(egui::Label::new("Acceleration Z (mm/s²)").wrap(false)).tip(ztip);
+        ui.end_row();
     });
     ui.add_space(2.0);
     egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
