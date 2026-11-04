@@ -29,8 +29,8 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
     let mut choice = 0; // 1 save, 2 discard, 3 cancel
     let dark = app.theme.dark;
     let accent = app.theme.accent;
-    let red = if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xc0, 0x1c, 0x28) };
-    let amber = if dark { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xf5, 0xc2, 0x11) };
+    let red = crate::msg::colour(crate::app::Level::Error, dark);
+    let amber = crate::msg::colour(crate::app::Level::Warning, dark);
     let name = app.file_name();
     egui::Window::new("Unsaved changes").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).resizable(false)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {

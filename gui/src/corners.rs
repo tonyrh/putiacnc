@@ -195,7 +195,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             }
         });
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "corners").map(|(_, m)| m);
-        if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
+        if let Some(n) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(has, egui::Button::new("Apply")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }

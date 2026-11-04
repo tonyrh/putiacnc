@@ -164,7 +164,7 @@ fn footer(ui: &mut Ui, app: &mut App) {
     let sname = app.tool_speed().0;
     ui.horizontal(|ui| {
         if app.confirm_mach_del {
-            ui.colored_label(Color32::LIGHT_RED, "Delete this machine?");
+            ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), "Delete this machine?");
             if ui.button("Delete").clicked() {
                 let id = app.mach_sel.clone();
                 match app.machines.delete(&id) {

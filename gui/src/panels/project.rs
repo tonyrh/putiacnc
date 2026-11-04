@@ -626,7 +626,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             changed |= relief_custom(ui, ("finish_cf", id), &mut p.custom, t0, lw2, sp, spd);
                         }
                     });
-                    if p.r_off && p.f_off { ui.add_space(2.0); ui.colored_label(Color32::from_rgb(220, 120, 0), "Both steps are off: nothing will be cut."); }
+                    if p.r_off && p.f_off { ui.add_space(2.0); crate::msg::line(ui, crate::app::Level::Warning, "Both steps are off: nothing will be cut."); }
                 } else {
                     // Tool row: the selector takes all the room left of the right-aligned "Ramp in"
                     ui.horizontal(|ui| {
@@ -895,7 +895,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 }
                 if p.depth > stock_t + 1e-6 && p.kind != "draw" {
                     ui.add_space(2.0);
-                    let col = if ui.visuals().dark_mode { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(190, 100, 0) };
+                    let col = crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode);
                     crate::checkui::warn_line(ui, col, &format!("Depth is more than the stock thickness ({} mm): the cutter would go through into the spoilboard.", stock_t));
                 }
                 ui.add_space(2.0);
@@ -1066,7 +1066,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 if let (Some(c), Some((lo, hi))) = (putiacnc_core::toollib::chip_load(&held), putiacnc_core::feeds::chip_range(&cut_mat, t0, rigid)) {
                                     let (word, col) = if c < lo * 0.9 { ("light: it may rub and heat the cutter", None) } else if c > hi * 1.1 { ("heavy: more strain on the cutter and the machine", Some(true)) } else { ("in the usual range", None) };
                                     let line = format!("Chip load {:.3} mm per tooth, {} (usual in {}: {:.3} to {:.3})", c, word, m.label.split(" (").next().unwrap_or(m.label).to_lowercase(), lo, hi);
-                                    match col { Some(_) => { crate::checkui::warn_line(ui, if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) }, &line); } None => { ui.weak(line); } }
+                                    match col { Some(_) => { crate::checkui::warn_line(ui, crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode), &line); } None => { ui.weak(line); } }
                                 }
                                 if let Some(s) = putiacnc_core::feeds::suggest(&cut_mat, t0, rigid, machine_now.as_ref()) {
                                     for n in s.notes.iter().filter(|n| !n.starts_with("A starting point")) { ui.add(egui::Label::new(egui::RichText::new(n).weak()).wrap(true)); }
@@ -1099,7 +1099,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} · step {}% · {}/pass",
                         putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, crate::widgets::fmt_speed(ui, t.feed), crate::widgets::fmt_speed(ui, t.plunge), t.so, crate::widgets::fmt_len(ui, t.pd)));
                     if !warn.is_empty() {
-                        let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
+                        let col = crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode);
                         crate::checkui::warn_line(ui, col, &format!("Held to the machine's limits: {warn}."))
                             .tip("The G-code uses the limited values. Change the limits in Libraries → Machines, or the tool's values in the tool library.");
                     }

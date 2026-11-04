@@ -140,7 +140,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(2.0);
         crate::widgets::check(ui, &mut app.boxgen.cut, "Create the outside cut").tip("Adds an operation that cuts round the outside of every plate, right through the material. Choose its tool and tabs in the project panel.");
-        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref().filter(|(k, _)| *k == "box").map(|(_, m)| m)) { ui.weak(crate::widgets::localize(ui, n)); }
+        if let Some(n) = pnote.as_ref().or(app.tool_note.as_ref().filter(|(k, _)| *k == "box").map(|(_, m)| m)) { crate::msg::line(ui, crate::app::Level::Warning, n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.button("OK").on_hover_text("Add the box to the drawing and close the window").clicked() { apply = true; }

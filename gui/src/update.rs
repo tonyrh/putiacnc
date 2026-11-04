@@ -231,7 +231,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             Status::Checking => { ui.horizontal(|ui| { ui.spinner(); ui.label("Checking for updates…"); }); }
             Status::UpToDate => { ui.label("You have the latest version."); }
             Status::NoReleases => { ui.label("No releases have been published yet."); }
-            Status::Failed(e) => { ui.colored_label(egui::Color32::from_rgb(200, 90, 40), e.as_str()); }
+            Status::Failed(e) => { crate::msg::line(ui, crate::app::Level::Error, e.as_str()); }
             Status::Downloading(r) => { ui.horizontal(|ui| { ui.spinner(); ui.label(format!("Downloading {}…", r.version)); }); }
             Status::Installed(r) => { ui.label(format!("Version {} is installed. Restart PutiaCNC to use it.", r.version)); }
             Status::Available(r) => {

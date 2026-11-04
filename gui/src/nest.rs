@@ -78,7 +78,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(4.0);
         crate::widgets::check(ui, &mut app.nest.turn, "Allow turning by 90°");
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "nest").map(|(_, m)| m);
-        if let Some(m) = mine { ui.weak(m); }
+        if let Some(m) = mine { crate::msg::line(ui, crate::app::Level::Warning, m); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n > 0, egui::Button::new("Nest")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }

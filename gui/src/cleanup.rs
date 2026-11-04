@@ -56,7 +56,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.label(match n { Some(n) => format!("Working on the {n} selected shape{}.", if n == 1 { "" } else { "s" }), None => "Working on the whole drawing (select shapes to limit it).".to_string() });
         ui.add_space(4.0);
         if open == 0 { ui.label("No open contours."); }
-        else { ui.colored_label(egui::Color32::from_rgb(200, 90, 30), format!("{open} open contour{}, {} loose end{} ({joinable} can be joined at this tolerance).", if open == 1 { "" } else { "s" }, ends.len(), if ends.len() == 1 { "" } else { "s" })); }
+        else { crate::msg::line(ui, crate::app::Level::Warning, &format!("{open} open contour{}, {} loose end{} ({joinable} can be joined at this tolerance).", if open == 1 { "" } else { "s" }, ends.len(), if ends.len() == 1 { "" } else { "s" })); }
         ui.add_space(6.0);
         let lw = crate::panels::tw(ui, "Gap tolerance");
         egui::Grid::new("clean_grid").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {

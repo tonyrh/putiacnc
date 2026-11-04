@@ -1,6 +1,6 @@
 //! Warnings about the toolpath: the status-bar chip, the list window and the red markers in the 3D preview.
 use crate::app::App;
-use eframe::egui::{self, Color32, Pos2, Sense, Stroke};
+use eframe::egui::{self, Color32, Pos2, Stroke};
 use putiacnc_core::checks::Finding;
 
 pub const RED: Color32 = Color32::from_rgb(0xe0, 0x1b, 0x24);
@@ -19,7 +19,7 @@ pub fn bar_findings(app: &App) -> Vec<usize> {
 /// The bar under the view tabs for the toolpath warnings: the first one in words, how many more there are, and the way to the list
 /// and to the place in the 3D preview. It cannot be dismissed; it is there while the warnings are.
 pub fn bar(ui: &mut egui::Ui, app: &mut App) {
-    let col = if app.theme.dark { Color32::from_rgb(0xff, 0x95, 0x2e) } else { Color32::from_rgb(0xd3, 0x54, 0x00) };
+    let col = crate::msg::colour(crate::app::Level::Warning, app.theme.dark);
     let ids = bar_findings(app);
     let Some(&first) = ids.first() else { return };
     let n = app.checks.len();
@@ -32,24 +32,12 @@ pub fn bar(ui: &mut egui::Ui, app: &mut App) {
         if ui.add_enabled(go, egui::Button::new("Show in 3D")).on_hover_text("Jump the 3D preview to the move").clicked() { show = true; }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             ui.add_space(2.0);
-            warn_sign_col(ui, col);
+            crate::msg::sign(ui, crate::app::Level::Warning);
             ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, &text)).color(col)).wrap(true));
         });
     });
     if show { show_in_3d(app, first); }
     if list { app.checks_open = !app.checks_open; if app.checks_open { app.check_sel = None; } }
-}
-
-/// A small red warning triangle, painted (a glyph may be missing from the system's fonts).
-pub fn warn_sign(ui: &mut egui::Ui) { warn_sign_col(ui, RED) }
-
-pub fn warn_sign_col(ui: &mut egui::Ui, col: Color32) {
-    let (r, _) = ui.allocate_exact_size(egui::vec2(18.0, 16.0), Sense::hover());
-    let p = ui.painter();
-    let c = r.center();
-    p.add(egui::Shape::convex_polygon(vec![c + egui::vec2(0.0, -7.0), c + egui::vec2(8.0, 7.0), c + egui::vec2(-8.0, 7.0)], col, Stroke::new(1.0_f32, col)));
-    p.line_segment([c + egui::vec2(0.0, -2.5), c + egui::vec2(0.0, 2.0)], Stroke::new(1.6_f32, Color32::from_black_alpha(200)));
-    p.circle_filled(c + egui::vec2(0.0, 4.6), 1.0, Color32::from_black_alpha(200));
 }
 
 /// A warning sign in the 3D preview: a small dot on the exact spot, and a red triangle with a "!" standing over it. The picked
@@ -115,7 +103,8 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                         .inner_margin(egui::Margin::symmetric(6.0, 5.0)).rounding(4.0).show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.horizontal(|ui| {
-                            warn_sign(ui);
+                            // a collision with a clamp is an error, as in its bar; the other findings are warnings
+                            crate::msg::sign(ui, if f.kind.about_clamps() { crate::app::Level::Error } else { crate::app::Level::Warning });
                             ui.label(egui::RichText::new(f.kind.title()).strong().size(19.0));
                             if app.check_parts.get(i).is_some_and(|&p| p > 0) { ui.weak("plug piece"); }
                             if f.count > 1 { ui.weak(format!("({} moves)", f.count)); }
@@ -147,7 +136,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
 pub fn warn_line(ui: &mut egui::Ui, col: Color32, text: &str) -> egui::Response {
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
-        warn_sign_col(ui, col);
+        crate::msg::sign(ui, crate::app::Level::Warning);
         ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, text)).color(col)).wrap(true))
     }).inner
 }

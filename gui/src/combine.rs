@@ -38,7 +38,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(6.0);
         crate::widgets::check(ui, &mut app.combine_keep, "Keep the original shapes");
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "combine").map(|(_, m)| m);
-        if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
+        if let Some(n) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(n >= 2, egui::Button::new("OK")).on_hover_text("Do it and close the window").clicked() { apply = true; }

@@ -251,7 +251,7 @@ pub fn tabs_badged<T: PartialEq + Copy>(ui: &mut Ui, theme: &crate::theme::Theme
             let lx = rect.center().x - (gw + badge_w) / 2.0;
             ui.painter().galley(Pos2::new(lx, rect.center().y - galley.size().y / 2.0), galley, col);
             if *badge > 0 {
-                let amber = if theme.dark { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(210, 110, 0) };
+                let amber = crate::msg::colour(crate::app::Level::Warning, theme.dark);
                 let c = Pos2::new(lx + gw + 4.0 + 9.0, rect.center().y);
                 ui.painter().circle_filled(c, 9.0, amber);
                 let t = if *badge > 9 { "9+".to_string() } else { badge.to_string() };
@@ -655,7 +655,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     }
     if let Some(e) = &app.gen_error {
         // framed like the message bars: the panel colour, the error icon, and the same softer red (plain red on the dark canvas is hard to read)
-        let col = if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xa5, 0x1d, 0x2d) };
+        let col = crate::msg::colour(crate::app::Level::Error, dark);
         let g = painter.layout(e.clone(), FontId::proportional(13.0), col, (rect.width() - 24.0 - 44.0 - 150.0).max(100.0));
         let r = Rect::from_min_size(rect.left_top() + Vec2::new(12.0, 10.0), g.size() + Vec2::new(44.0, 20.0));
         painter.rect_filled(r, 8.0, app.theme.header());

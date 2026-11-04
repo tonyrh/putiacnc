@@ -323,7 +323,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
 fn tool_buttons(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         if app.confirm_tool_del {
-            ui.colored_label(Color32::LIGHT_RED, "Delete this tool?");
+            ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), "Delete this tool?");
             if ui.button("Delete").clicked() {
                 if app.tool_libs.current().tools.len() < 2 {
                     app.tool_msg = "Keep at least one tool in the library.".into();
@@ -423,7 +423,7 @@ fn lib_row_inner(ui: &mut Ui, app: &mut App) {
             if app.confirm_lib_del {
                 if ui.button("Cancel").clicked() { app.confirm_lib_del = false; }
                 if ui.button("Delete").clicked() { act = Some(LibAct::Delete); }
-                ui.colored_label(Color32::LIGHT_RED, "Delete library?");
+                ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), "Delete library?");
             } else if icon_button(ui, Icon::Trash, false, true, "Delete library").clicked() {
                 if app.tool_libs.libs.len() < 2 { app.tool_msg = "Keep at least one library.".into(); } else { app.confirm_lib_del = true; }
             }
@@ -578,7 +578,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
             if let Some(m) = &app.project.data.machine {
                 let warn = m.hold_text(&t);
                 if !warn.is_empty() {
-                    let col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
+                    let col = crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode);
                     ui.add_space(4.0);
                     crate::checkui::warn_line(ui, col, &format!("\"{}\" holds this tool to {warn}.", m.name))
                         .tip("The G-code uses the machine's limits, not the tool's values. Change them in Libraries → Machines.");
@@ -595,8 +595,8 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                         let (lo, hi) = chip_load_range(&t);
                         let dark = ui.visuals().dark_mode;
                         let (txt, col) = match load_level(&t) {
-                            Some(Load::Light) => ("light: the cutter may rub and heat up", if dark { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) }),
-                            Some(Load::Heavy) => ("heavy: risk of a rough cut or a broken bit", if dark { Color32::from_rgb(0xff, 0x7b, 0x63) } else { Color32::from_rgb(0xc0, 0x1c, 0x28) }),
+                            Some(Load::Light) => ("light: the cutter may rub and heat up", crate::msg::colour(crate::app::Level::Warning, dark)),
+                            Some(Load::Heavy) => ("heavy: risk of a rough cut or a broken bit", crate::msg::colour(crate::app::Level::Error, dark)),
                             _ => ("in the usual range", if dark { Color32::from_rgb(0x8f, 0xd1, 0x8a) } else { Color32::from_rgb(0x2a, 0x8a, 0x3e) }),
                         };
                         // the help sits on both texts: a row that holds them would not get the pointer, the texts do

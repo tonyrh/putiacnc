@@ -11,6 +11,7 @@ mod units;
 mod align;
 mod app;
 mod array;
+mod msg;
 mod nest;
 mod canvas;
 mod cleanup;

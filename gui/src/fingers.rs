@@ -141,7 +141,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         crate::widgets::check(ui, &mut app.fingers.dogbone, "Dogbones in the slots").tip("A small round relief in each slot corner so a round cutter leaves room for the square tab");
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "fingers").map(|(_, m)| m);
-        if let Some(n) = pnote.as_ref().or(mine) { ui.weak(n); }
+        if let Some(n) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(has, egui::Button::new("OK")).on_hover_text("Do it and close the window").clicked() { apply = true; }

@@ -91,7 +91,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             }
         }
         if !note.is_empty() && !app.surface.fill_area { ui.weak(note); }
-        if let Some((_, m)) = app.tool_note.as_ref().filter(|(k, _)| *k == "surface") { ui.weak(m); }
+        if let Some((_, m)) = app.tool_note.as_ref().filter(|(k, _)| *k == "surface") { crate::msg::line(ui, crate::app::Level::Warning, m); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui.add_enabled(app.surface.spec.is_some(), egui::Button::new("OK")).on_hover_text("Do it and close the window").clicked() { apply = true; }

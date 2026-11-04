@@ -214,7 +214,7 @@ pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
         ui.label(egui::RichText::new("Warnings").strong());
         for n in &warnings {
             match n.strip_prefix("⚠ ") {
-                Some(rest) => { crate::checkui::warn_line(ui, if app.theme.dark { Color32::from_rgb(255, 176, 64) } else { Color32::from_rgb(190, 100, 0) }, rest); }
+                Some(rest) => { crate::checkui::warn_line(ui, crate::msg::colour(crate::app::Level::Warning, app.theme.dark), rest); }
                 None => { ui.label(format!("• {n}")); }
             }
         }
@@ -281,39 +281,11 @@ pub fn message_bar(ui: &mut Ui, app: &mut App) {
     let Some(msg) = app.error.clone() else { return };
     let level = app.banner_level_now();
     let dark = app.theme.dark;
-    let col = match (level, dark) {
-        (Level::Error, true) => Color32::from_rgb(0xff, 0x7b, 0x63),
-        (Level::Error, false) => Color32::from_rgb(0xa5, 0x1d, 0x2d),
-        (Level::Warning, true) => Color32::from_rgb(0xff, 0x95, 0x2e),
-        (Level::Warning, false) => Color32::from_rgb(0xd3, 0x54, 0x00),
-        (Level::Info, true) => Color32::from_rgb(0x7c, 0xb7, 0xff),
-        (Level::Info, false) => Color32::from_rgb(0x1f, 0x5f, 0xb5),
-    };
+    let col = crate::msg::colour(level, dark);
     let mut close = false;
     ui.horizontal_top(|ui| {
         ui.add_space(2.0);
-        let (r, _) = ui.allocate_exact_size(egui::vec2(18.0, 20.0), egui::Sense::hover());
-        let c = r.center();
-        let stroke = egui::Stroke::new(1.8_f32, Color32::WHITE);
-        match level {
-            Level::Error => {
-                ui.painter().circle_filled(c, 8.0, col);
-                ui.painter().line_segment([c + egui::vec2(0.0, -3.5), c + egui::vec2(0.0, 1.0)], stroke);
-                ui.painter().circle_filled(c + egui::vec2(0.0, 4.0), 1.1, Color32::WHITE);
-            }
-            Level::Warning => {
-                // a triangle with the same mark inside
-                let tri = vec![c + egui::vec2(0.0, -8.5), c + egui::vec2(9.0, 7.0), c + egui::vec2(-9.0, 7.0)];
-                ui.painter().add(egui::Shape::convex_polygon(tri, col, egui::Stroke::new(1.6_f32, col)));
-                ui.painter().line_segment([c + egui::vec2(0.0, -2.5), c + egui::vec2(0.0, 2.0)], stroke);
-                ui.painter().circle_filled(c + egui::vec2(0.0, 4.6), 1.0, Color32::WHITE);
-            }
-            Level::Info => {
-                ui.painter().circle_filled(c, 8.0, col);
-                ui.painter().circle_filled(c + egui::vec2(0.0, -3.8), 1.1, Color32::WHITE);
-                ui.painter().line_segment([c + egui::vec2(0.0, -0.8), c + egui::vec2(0.0, 4.5)], stroke);
-            }
-        }
+        crate::msg::sign(ui, level);
         let w = (ui.available_width() - 34.0).max(60.0);
         ui.allocate_ui(egui::vec2(w, 0.0), |ui| { ui.set_width(w); ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, &msg)).color(col)).wrap(true)); });
         if icon_close(ui).clicked() { close = true; }
@@ -324,7 +296,7 @@ pub fn message_bar(ui: &mut Ui, app: &mut App) {
 /// The bar for clamp collisions: which operations run into which clamps, and a way to see where. It cannot be dismissed; it is there
 /// while the toolpath hits a clamp. (The warnings bar's count and list still include these.)
 pub fn clamp_bar(ui: &mut Ui, app: &mut App) {
-    let col = if app.theme.dark { Color32::from_rgb(0xff, 0x95, 0x2e) } else { Color32::from_rgb(0xd3, 0x54, 0x00) };
+    let col = crate::msg::colour(Level::Error, app.theme.dark);
     let mut ops: Vec<usize> = app.clamp_hits.iter().flat_map(|h| h.1.iter().copied()).collect();
     ops.sort_unstable(); ops.dedup();
     let mut clamps: Vec<usize> = app.clamp_hits.iter().map(|h| h.0).collect();
@@ -343,7 +315,7 @@ pub fn clamp_bar(ui: &mut Ui, app: &mut App) {
         if ui.add_enabled(first.is_some(), egui::Button::new("Show in 3D")).on_hover_text("Jump the 3D preview to the first move that hits the clamp").clicked() { show = true; }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             ui.add_space(2.0);
-            crate::checkui::warn_sign_col(ui, col);
+            crate::msg::sign(ui, Level::Error);
             ui.add(egui::Label::new(egui::RichText::new(&text).color(col)).wrap(true));
         });
     });
