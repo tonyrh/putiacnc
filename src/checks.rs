@@ -125,6 +125,19 @@ pub fn clamp_contact_seg(c: &crate::model::Clamp, a: [f64; 3], b: [f64; 3], r: f
     None
 }
 
+/// Where along the move from `a` to `b` the tool first touches the clamp (the start of the move if it is already in contact there).
+pub fn clamp_first_contact(c: &crate::model::Clamp, a: [f64; 3], b: [f64; 3], r: f64, h: Option<Holder>) -> [f64; 3] {
+    let at = |t: f64| [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    if clamp_contact_seg(c, a, a, r, h).is_some() { return a; }
+    // a longer piece of the move touches whenever a shorter one does, so the first touch is found by halving
+    let (mut lo, mut hi) = (0.0_f64, 1.0_f64);
+    for _ in 0..30 {
+        let mid = 0.5 * (lo + hi);
+        if clamp_contact_seg(c, a, at(mid), r, h).is_some() { hi = mid; } else { lo = mid; }
+    }
+    at(hi)
+}
+
 /// Does the segment from a to b come within r of the rectangle?
 fn seg_near_rect(a: [f64; 2], b: [f64; 2], c: &crate::model::Clamp, r: f64) -> bool {
     let (x0, y0, x1, y1) = (c.x - r, c.y - r, c.x + c.w + r, c.y + c.h + r);
@@ -250,8 +263,8 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
 
         for (ci, c) in data.clamps.iter().enumerate() {
             match clamp_contact_seg(c, m.from, m.to, r, holder) {
-                Some(Part::Cutter) => note(&mut found, Kind::Clamp, i, m.to, format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y), Some(ci)),
-                Some(Part::Holder) => note(&mut found, Kind::Holder, i, m.to, format!("{}: the tool holder runs into a clamp at {:.0}, {:.0} mm ({:.0} mm of the tool shows below it, the clamp stands {:.0} mm above the stock).", op_name(data, m.op), c.x, c.y, holder.map_or(0.0, |h| h.stick), c.height), Some(ci)),
+                Some(Part::Cutter) => note(&mut found, Kind::Clamp, i, clamp_first_contact(c, m.from, m.to, r, holder), format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y), Some(ci)),
+                Some(Part::Holder) => note(&mut found, Kind::Holder, i, clamp_first_contact(c, m.from, m.to, r, holder), format!("{}: the tool holder runs into a clamp at {:.0}, {:.0} mm ({:.0} mm of the tool shows below it, the clamp stands {:.0} mm above the stock).", op_name(data, m.op), c.x, c.y, holder.map_or(0.0, |h| h.stick), c.height), Some(ci)),
                 None => {}
             }
         }
@@ -342,6 +355,15 @@ mod tests {
     fn cutting_far_below_the_stock_is_found() {
         let d = proj("outside", 14.0);
         assert!(kinds(&d).contains(&Kind::Spoilboard));
+    }
+
+    #[test]
+    fn the_first_touch_of_a_clamp_is_where_the_move_reaches_it() {
+        let c = crate::model::Clamp { x: 10.0, y: 10.0, w: 10.0, h: 10.0, height: 20.0 };
+        let p = clamp_first_contact(&c, [-50.0, 15.0, 5.0], [100.0, 15.0, 5.0], 3.0, None);
+        assert!((p[0] - 7.0).abs() < 1e-3 && (p[1] - 15.0).abs() < 1e-9, "{p:?}");
+        // already touching at the start of the move
+        assert_eq!(clamp_first_contact(&c, [12.0, 15.0, 5.0], [100.0, 15.0, 5.0], 3.0, None), [12.0, 15.0, 5.0]);
     }
 
     #[test]
