@@ -17,6 +17,8 @@ fn the_spiral_goes_down_gently_and_the_cut_is_the_same() {
         let (a, b) = (project(name, false), project(name, true));
         let (plain, spiral) = (generate(&a, Units::Metric).unwrap(), generate(&b, Units::Metric).unwrap());
         assert!(spiral.lines.len() > plain.lines.len(), "{name}: the spirals add moves");
+        // a rectangle starts at a corner, where no circle fits: the path is cut from the middle of its longest edge, and nothing is skipped
+        assert!(!spiral.notes.iter().any(|n| n.contains("helical entry skipped")), "{name}: {:?}", spiral.notes);
         // every cutting move that goes down and sideways at once does so at no more than 3 degrees (the default), not counting the straight plunges
         let steepest = spiral.moves.iter().filter(|m| m.cut).filter_map(|m| {
             let xy = (m.to[0] - m.from[0]).hypot(m.to[1] - m.from[1]);

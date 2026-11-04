@@ -117,6 +117,31 @@ fn parse_plain(text: &str) -> Option<f64> {
 /// Width of a number field in the dialogs.
 pub const FIELD_W: f32 = 70.0;
 
+/// The number fields drawn in the last frame and the one before it, in drawing order, with the layer each belongs to: the order Tab follows.
+#[derive(Clone, Default)]
+struct FieldOrder { frame: u64, now: Vec<(egui::Id, egui::LayerId)>, before: Vec<(egui::Id, egui::LayerId)> }
+
+fn note_field(ui: &Ui, id: egui::Id) {
+    let key = egui::Id::new("num_field_order");
+    let (frame, layer) = (ui.ctx().frame_nr(), ui.layer_id());
+    ui.ctx().data_mut(|d| {
+        let o = d.get_temp_mut_or_default::<FieldOrder>(key);
+        if o.frame != frame { o.before = std::mem::take(&mut o.now); o.frame = frame; }
+        o.now.push((id, layer));
+    });
+}
+
+/// The number field after (or, with `back`, before) `id` in the same window or panel, going round at the ends. The order is the one of the
+/// last complete frame, so a field that has just appeared is not in it yet.
+fn neighbour_field(ui: &Ui, id: egui::Id, back: bool) -> Option<egui::Id> {
+    let layer = ui.layer_id();
+    let o: FieldOrder = ui.ctx().data(|d| d.get_temp(egui::Id::new("num_field_order")))?;
+    let list: Vec<egui::Id> = o.before.iter().filter(|(_, l)| *l == layer).map(|(i, _)| *i).collect();
+    let at = list.iter().position(|&i| i == id)?;
+    let n = list.len();
+    Some(list[if back { (at + n - 1) % n } else { (at + 1) % n }])
+}
+
 /// A numeric field like egui's `DragValue` (drag to change, click to type) but with the text
 /// right-aligned. `speed` is the change per dragged pixel, `dec` the maximum decimals shown.
 pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
@@ -133,6 +158,11 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     let shown = |x: f64| if frac { fmt_inch(x, dec, true) } else { fmt_val(x, dec) };
     let edit_id = id.with("edit");
     let mut editing: Option<String> = ui.data(|d| d.get_temp(edit_id));
+    note_field(ui, id);
+    let start_edit = |ui: &mut Ui, v: f64| {
+        ui.data_mut(|d| { let t0 = if frac { fmt_inch_edit(v, dec, true) } else { fmt_val(v, dec) }; d.insert_temp(id.with("orig"), t0.clone()); d.insert_temp(edit_id, t0); d.insert_temp(id.with("first"), true); });
+        ui.ctx().request_repaint();
+    };
 
     if let Some(mut text) = editing.take() {
         let first = ui.data(|d| d.get_temp::<bool>(id.with("first"))).unwrap_or(true);
@@ -147,8 +177,13 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
             }
             ui.data_mut(|d| d.insert_temp(id.with("first"), false));
         }
+        // Tab and Shift+Tab take the value and open the next or the previous number field of the same window or panel: the field says it
+        // wants the Tab key, so egui does not move the focus on its own
+        ui.memory_mut(|m| m.set_focus_lock_filter(te_id, egui::EventFilter { tab: true, ..Default::default() }));
+        let tab = if out.has_focus() { ui.input(|i| i.key_pressed(egui::Key::Tab).then_some(i.modifiers.shift)) } else { None };
+        if let Some(back) = tab { if let Some(to) = neighbour_field(ui, id, back) { ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("num_tab_to"), to)); } }
         let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
-        if out.lost_focus() || esc {
+        if out.lost_focus() || esc || tab.is_some() {
             // text left as it was when the field was clicked changes nothing (the value may have more decimals than the text shows)
             let untouched = ui.data(|d| d.get_temp::<String>(id.with("orig"))).is_some_and(|o| o == text);
             if !esc && !untouched {
@@ -164,15 +199,19 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
         return resp;
     }
 
+    // the field being edited makes a child ui, which uses up one of the parent's automatic widget ids; making one here too keeps the ids of
+    // the fields after this one the same whether or not it is being edited (the order Tab follows, and every field's state, depend on them)
+    let _same_ids = ui.child_ui(rect, egui::Layout::left_to_right(Align::Center));
     if resp.dragged() {
         let nv = (*v + resp.drag_delta().x as f64 * speed).clamp(lo, hi);
         if nv != *v { *v = nv; resp.mark_changed(); }
     }
     if resp.hovered() || resp.dragged() { ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal); }
-    if resp.clicked() {
-        ui.data_mut(|d| { let t0 = if frac { fmt_inch_edit(*v, dec, true) } else { fmt_val(*v, dec) }; d.insert_temp(id.with("orig"), t0.clone()); d.insert_temp(edit_id, t0); d.insert_temp(id.with("first"), true); });
-        ui.ctx().request_repaint();
-    }
+    // a click opens the field for typing, and so does the keyboard arriving here (Tab or Shift+Tab from the field before or after: the one
+    // being edited is closed by the same key, with its value taken)
+    let asked = ui.ctx().data(|d| d.get_temp::<egui::Id>(egui::Id::new("num_tab_to"))) == Some(id);
+    if asked { ui.ctx().data_mut(|d| d.remove::<egui::Id>(egui::Id::new("num_tab_to"))); }
+    if resp.clicked() || resp.gained_focus() || asked { start_edit(ui, *v); }
     let vis = *ui.style().interact(&resp);
     ui.painter().rect(rect, vis.rounding, vis.weak_bg_fill, vis.bg_stroke);
     let font = egui::TextStyle::Button.resolve(ui.style());
@@ -450,5 +489,62 @@ mod unit_tests {
         let (s, _) = crate::canvas::rulers_tick_step(4.0, k);
         assert!((s * k * 4.0) >= 70.0 && s <= 1.0, "{s}");
         assert_eq!(crate::canvas::rulers_tick_step(4.0, 1.0).0, 20.0);
+    }
+}
+
+#[cfg(test)]
+mod tab_tests {
+    use super::*;
+    use egui::{Event, Key, Modifiers, PointerButton, Pos2, Rect};
+
+    struct Rig { ctx: egui::Context, vals: [f64; 3], ids: Vec<egui::Id>, rects: Vec<Rect>, time: f64 }
+
+    impl Rig {
+        fn new() -> Self { Rig { ctx: egui::Context::default(), vals: [1.0, 2.0, 3.0], ids: vec![], rects: vec![], time: 0.0 } }
+        fn frame(&mut self, events: Vec<Event>, modifiers: Modifiers) {
+            self.time += 0.1;
+            let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))), time: Some(self.time), events, modifiers, ..Default::default() };
+            let (vals, ids, rects) = (&mut self.vals, &mut self.ids, &mut self.rects);
+            let _ = self.ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ids.clear(); rects.clear();
+                    for v in vals.iter_mut() { let r = num(ui, [80.0, 24.0], v, 0.0, 100.0, 1.0, 1, ""); ids.push(r.id); rects.push(r.rect); }
+                });
+            });
+        }
+        fn settle(&mut self, m: Modifiers) { for _ in 0..3 { self.frame(vec![], m); } }
+        fn editing(&self, i: usize) -> bool { self.ctx.data(|d| d.get_temp::<String>(self.ids[i].with("edit"))).is_some() }
+        fn click(&mut self, i: usize) {
+            let p = self.rects[i].center();
+            self.frame(vec![Event::PointerMoved(p)], Modifiers::NONE);
+            self.frame(vec![Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE }], Modifiers::NONE);
+            self.frame(vec![Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE }], Modifiers::NONE);
+            self.settle(Modifiers::NONE);
+        }
+        fn tab(&mut self, shift: bool) {
+            let m = if shift { Modifiers::SHIFT } else { Modifiers::NONE };
+            self.frame(vec![Event::Key { key: Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: m }], m);
+            self.frame(vec![Event::Key { key: Key::Tab, physical_key: None, pressed: false, repeat: false, modifiers: m }], m);
+            self.settle(m);
+        }
+    }
+
+    #[test]
+    fn tab_takes_the_value_and_opens_the_next_field_and_shift_tab_the_one_before() {
+        let mut r = Rig::new();
+        r.settle(Modifiers::NONE);
+        assert!(!r.editing(0) && !r.editing(1));
+        r.click(0);
+        assert!(r.editing(0), "a click opens the field");
+        r.frame(vec![Event::Key { key: Key::A, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::COMMAND }], Modifiers::COMMAND);
+        r.frame(vec![Event::Text("42".into())], Modifiers::NONE);
+        r.tab(false);
+        assert_eq!(r.vals[0], 42.0, "Tab takes what was typed");
+        assert!(!r.editing(0) && r.editing(1), "and opens the next field: {} {} {}", r.editing(0), r.editing(1), r.editing(2));
+        r.tab(false);
+        assert!(r.editing(2) && !r.editing(1));
+        r.tab(true);
+        assert!(r.editing(1) && !r.editing(2), "Shift+Tab goes back");
+        assert_eq!(r.vals[1], 2.0, "a field left untouched keeps its value");
     }
 }

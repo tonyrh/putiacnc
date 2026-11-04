@@ -646,13 +646,41 @@ fn make_lead(pts: &[[f64; 2]], guard: &[Path], waste_inside: bool, r_max: f64) -
     None
 }
 
+/// A closed path (last point = first) started at the middle of its longest edge instead.
+fn start_mid_edge(pts: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    let n = pts.len() - 1;
+    let long = (0..n).max_by(|&i, &j| { let l = |k: usize| (pts[k + 1][0] - pts[k][0]).hypot(pts[k + 1][1] - pts[k][1]); l(i).total_cmp(&l(j)) }).unwrap_or(0);
+    let m = [(pts[long][0] + pts[long + 1][0]) / 2.0, (pts[long][1] + pts[long + 1][1]) / 2.0];
+    let mut v = vec![m];
+    v.extend((1..=n).map(|k| pts[(long + k) % n]));
+    v.push(m);
+    v
+}
+
 fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
-    let pts = path_f(&job.p, c.rev, job.closed);
+    let mut pts = path_f(&job.p, c.rev, job.closed);
     let lead = if c.lead > 0.0 && job.closed && !job.pocket {
         let l = make_lead(&pts, guard, c.kind == "inside", c.lead);
         if l.is_none() { e.lead_skipped += 1; }
         l
     } else { None };
+    // helical entry: a spiral down beside the start of the path (the first ring of a pocket, or a profile). A circle cannot touch a corner of
+    // the shape from inside it, so when the start of the path is a corner the path is cut from the middle of its longest edge instead
+    let helix = match c.helix {
+        Some((pct, _)) if lead.is_none() && job.closed && pts.len() > 3 && if job.pocket { job.gen == 0 && c.kind == "pocket" } else { matches!(c.kind, "outside" | "inside") } => {
+            // (for a pocket the guard is its outermost rings, outside and around islands: the tool centre is inside them)
+            let (g, waste_inside) = (guard.to_vec(), job.pocket || c.kind == "inside");
+            let (r_max, r_min) = (c.dia * pct / 200.0, (0.1 * c.dia).max(0.3));
+            let mut h = make_helix(&pts, &g, waste_inside, r_max, r_min);
+            if h.is_none() {
+                let moved = start_mid_edge(&pts);
+                if let Some(h2) = make_helix(&moved, &g, waste_inside, r_max, r_min) { pts = moved; h = Some(h2); }
+            }
+            if h.is_none() { e.helix_skipped += 1; }
+            h
+        }
+        _ => None,
+    };
     let a = lead.as_ref().map(|l| l.s).unwrap_or(pts[0]);
     e.go("G0", None, None, Some(c.sz), 0.0);
     e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
@@ -665,17 +693,6 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
     e.go("G1", None, None, Some(c.z0), c.plunge);
     if pz < 0.0 { e.go("G1", None, None, Some(c.z0 + pz), c.plunge); }
-    // helical entry: a spiral down beside the start of the path (the first ring of a pocket, or a profile)
-    let helix = match c.helix {
-        Some((pct, _)) if lead.is_none() && job.closed && pts.len() > 3 && if job.pocket { job.gen == 0 && c.kind == "pocket" } else { matches!(c.kind, "outside" | "inside") } => {
-            // (for a pocket the guard is its outermost rings, outside and around islands: the tool centre is inside them)
-            let (g, waste_inside) = (guard.to_vec(), job.pocket || c.kind == "inside");
-            let h = make_helix(&pts, &g, waste_inside, c.dia * pct / 200.0, (0.1 * c.dia).max(0.3));
-            if h.is_none() { e.helix_skipped += 1; }
-            h
-        }
-        _ => None,
-    };
     // whether the tool is at the end of an open line (so the next depth runs back along it)
     let mut at_end = false;
     for &z in zl {

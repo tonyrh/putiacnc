@@ -212,11 +212,10 @@ pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
     if !warnings.is_empty() {
         ui.add_space(8.0);
         ui.label(egui::RichText::new("Warnings").strong());
+        // every note under "Warnings" is a warning, with or without the sign in its text
         for n in &warnings {
-            match n.strip_prefix("⚠ ") {
-                Some(rest) => { crate::checkui::warn_line(ui, crate::msg::colour(crate::app::Level::Warning, app.theme.dark), rest); }
-                None => { ui.label(format!("• {n}")); }
-            }
+            let text = n.strip_prefix("⚠ ").unwrap_or(n);
+            crate::msg::line(ui, Level::Warning, text);
         }
     }
 }
