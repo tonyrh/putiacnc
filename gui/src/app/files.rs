@@ -236,11 +236,24 @@ impl App {
         let op = 0;
         let start = self.project.data.loops.len();
         self.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name: gname, locked: false, text: None });
+        // the layers of the file: a layer of the project with the same name takes the shapes, otherwise a new one is made
+        // (with the file's colour, and hidden or locked as the file has it); shapes on no layer go on the active one
+        let ids: Vec<i64> = imp.layers.iter().map(|il| {
+            let d = &mut self.project.data;
+            if let Some(l) = d.all_layers().into_iter().find(|l| l.name == il.name) { return l.id; }
+            let id = d.add_layer(&il.name);
+            if let Some(l) = d.layer_mut(id) {
+                if let Some(c) = il.color { l.color = putiacnc_core::model::hex_rgb(c); }
+                l.hidden = il.hidden;
+                l.locked = il.locked;
+            }
+            id
+        }).collect();
         for mut l in imp.loops {
             shapes::translate(&mut l, ox, oy);
             l.op = op;
             l.grp = Some(gid);
-            l.lay = self.new_shape_layer();
+            l.lay = match l.lay.and_then(|n| ids.get((n - 1) as usize).copied()) { Some(0) => None, Some(id) => Some(id), None => self.new_shape_layer() };
             self.project.data.loops.push(l);
         }
         self.sel = (start..self.project.data.loops.len()).collect();

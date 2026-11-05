@@ -180,4 +180,46 @@ mod tests {
         a.clean_drawing();
         assert_eq!(a.project.data.loops.len(), n);
     }
+
+    fn dxf_two_layers() -> Vec<u8> {
+        let circle = |layer: &str, x: f64| format!("0\nCIRCLE\n8\n{layer}\n10\n{x}\n20\n10\n40\n3\n");
+        format!("0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n0\nLAYER\n2\nCut\n70\n0\n62\n1\n0\nLAYER\n2\nGuide\n70\n1\n62\n5\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n{}{}{}0\nENDSEC\n0\nEOF\n", circle("Cut", 10.0), circle("Guide", 30.0), circle("Cut", 50.0)).into_bytes()
+    }
+
+    #[test]
+    fn an_imported_dxf_brings_its_layers_and_a_later_one_reuses_them() {
+        let mut a = App::new(None);
+        a.project.data.loops.clear();
+        let imp = putiacnc_core::dxf::import(&dxf_two_layers()).unwrap();
+        a.place_import(imp, "parts".into());
+        let d = &a.project.data;
+        let names: Vec<&str> = d.layers.iter().map(|l| l.name.as_str()).collect();
+        assert_eq!(names, ["Layer 1", "Cut", "Guide"]);
+        let cut = d.layers.iter().find(|l| l.name == "Cut").unwrap();
+        assert_eq!(cut.rgb(), Some([255, 0, 0]));
+        let guide = d.layers.iter().find(|l| l.name == "Guide").unwrap();
+        assert!(guide.hidden, "frozen in the file");
+        assert_eq!(d.loops.len(), 3);
+        assert_eq!(d.loops.iter().filter(|l| l.lay == Some(cut.id)).count(), 2);
+        assert_eq!(d.loops.iter().filter(|l| l.lay == Some(guide.id)).count(), 1);
+        // a second import joins the layers that are there, whatever the user did to them meanwhile
+        a.project.data.layer_mut(guide.id).unwrap().hidden = false;
+        let imp = putiacnc_core::dxf::import(&dxf_two_layers()).unwrap();
+        a.place_import(imp, "again".into());
+        let d = &a.project.data;
+        assert_eq!(d.layers.len(), 3, "no duplicates");
+        assert!(!d.layers.iter().find(|l| l.name == "Guide").unwrap().hidden, "the layer keeps its own state");
+        assert_eq!(d.loops.len(), 6);
+    }
+
+    #[test]
+    fn shapes_on_no_layer_go_on_the_active_layer() {
+        let mut a = App::new(None);
+        a.project.data.loops.clear();
+        let b = a.project.data.add_layer("Mine");
+        a.project.data.active_layer = b;
+        let imp = putiacnc_core::dxf::import(b"0\nSECTION\n2\nENTITIES\n0\nCIRCLE\n10\n5\n20\n5\n40\n2\n0\nENDSEC\n0\nEOF\n").unwrap();
+        a.place_import(imp, "c".into());
+        assert_eq!(a.project.data.loops[0].lay, Some(b));
+    }
 }

@@ -5,7 +5,7 @@
 //!
 //! Like the SVG import the result keeps the drawing's own frame (Y up); the caller places it.
 use crate::shapes;
-use crate::svg::Imported;
+use crate::svg::{ImpLayer, Imported};
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
@@ -44,6 +44,20 @@ struct Doc {
     units_mm: f64,
     blocks: BTreeMap<String, (P, Vec<Ent>)>,
     ents: Vec<Ent>,
+    /// What the file says about its layers (TABLES section): colour, switched off or frozen, locked.
+    layers: BTreeMap<String, LayerStyle>,
+}
+
+#[derive(Default, Clone, Copy)]
+struct LayerStyle { color: Option<[u8; 3]>, hidden: bool, locked: bool }
+
+/// The colour of an AutoCAD colour index, for the nine basic ones; the others (and 7, which is white or black as the
+/// background asks) get none, so the usual colours are used.
+fn aci_rgb(i: i32) -> Option<[u8; 3]> {
+    match i.abs() {
+        1 => Some([255, 0, 0]), 2 => Some([255, 200, 0]), 3 => Some([0, 170, 0]), 4 => Some([0, 190, 220]), 5 => Some([0, 0, 255]),
+        6 => Some([200, 0, 200]), 8 => Some([128, 128, 128]), 9 => Some([192, 192, 192]), _ => None,
+    }
 }
 
 fn parse(text: &str) -> Result<Doc, String> {
@@ -68,6 +82,18 @@ fn parse(text: &str) -> Result<Doc, String> {
             if *c == 9 && v == "$INSUNITS" { if let Some(p) = pairs.get(i + 1) { insunits = p.1.parse().unwrap_or(0); } }
             if *c == 9 && v == "$MEASUREMENT" { if let Some(p) = pairs.get(i + 1) { measurement = p.1.parse().unwrap_or(1); } }
             i += 1;
+            continue;
+        }
+        if section == "TABLES" && *c == 0 && v == "LAYER" {
+            let mut j = i + 1;
+            while j < pairs.len() && pairs[j].0 != 0 { j += 1; }
+            let e = Ent { kind: v.clone(), g: pairs[i + 1..j].to_vec() };
+            if let Some(name) = e.s(2) {
+                let aci = e.f(62).unwrap_or(7.0) as i32;
+                let true_color = e.f(420).map(|v| v as u32).filter(|v| v >> 24 == 0x02 || *v <= 0xff_ffff).map(|v| [(v >> 16) as u8, (v >> 8) as u8, v as u8]);
+                doc.layers.insert(name.to_string(), LayerStyle { color: true_color.or_else(|| aci_rgb(aci)), hidden: aci < 0 || e.flag() & 1 != 0, locked: e.flag() & 4 != 0 });
+            }
+            i = j;
             continue;
         }
         if (section == "ENTITIES" || section == "BLOCKS") && *c == 0 {
@@ -167,11 +193,13 @@ enum Item { Path(Path), Circle(P, f64) }
 
 fn flip(e: &Ent) -> bool { e.f(230).is_some_and(|z| z < 0.0) }
 
-fn entities(ents: &[Ent], doc: &Doc, m: &M, depth: usize, out: &mut Vec<Item>, skipped: &mut BTreeMap<String, usize>) {
+/// `lays` holds the layer of every item of `out`; an entity on layer "0" takes the layer of the block reference that holds it.
+fn entities(ents: &[Ent], doc: &Doc, m: &M, depth: usize, out: &mut Vec<Item>, lays: &mut Vec<String>, inherit: &str, skipped: &mut BTreeMap<String, usize>) {
     let mut i = 0;
     while i < ents.len() {
         let e = &ents[i];
         i += 1;
+        let lay = match e.s(8) { Some(n) if n != "0" && !n.is_empty() => n.to_string(), _ => inherit.to_string() };
         // mirrored extrusion (negative Z) flips X
         let mm = if flip(e) && matches!(e.kind.as_str(), "ARC" | "CIRCLE" | "LWPOLYLINE" | "ELLIPSE") { m.after(&M([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0])) } else { *m };
         let pt = |x: &str, y: &str| -> Option<P> { Some([e.f(x.parse().ok()?)?, e.f(y.parse().ok()?)?]) };
@@ -269,11 +297,12 @@ fn entities(ents: &[Ent], doc: &Doc, m: &M, depth: usize, out: &mut Vec<Item>, s
                 let ro = M([cs, sn, -sn, cs, 0.0, 0.0]);
                 let tr = M([1.0, 0.0, 0.0, 1.0, ix, iy]);
                 let local = tr.after(&ro).after(&sc).after(&t_base);
-                entities(ents2, doc, &m.after(&local), depth + 1, out, skipped);
+                entities(ents2, doc, &m.after(&local), depth + 1, out, lays, if lay == "0" { inherit } else { &lay }, skipped);
             }
             "SEQEND" | "VERTEX" | "ATTRIB" | "ENDBLK" => {}
             other => { *skipped.entry(other.to_string()).or_default() += 1; }
         }
+        while lays.len() < out.len() { lays.push(lay.clone()); }
     }
 }
 
@@ -318,20 +347,38 @@ pub fn import(data: &[u8]) -> Result<Imported, String> {
     let doc = parse(&text).map_err(|e| format!("Could not read DXF: {e}"))?;
     let k = doc.units_mm;
     let mut items = Vec::new();
+    let mut lays: Vec<String> = Vec::new();
     let mut skipped = BTreeMap::new();
-    entities(&doc.ents, &doc, &M([k, 0.0, 0.0, k, 0.0, 0.0]), 0, &mut items, &mut skipped);
+    entities(&doc.ents, &doc, &M([k, 0.0, 0.0, k, 0.0, 0.0]), 0, &mut items, &mut lays, "0", &mut skipped);
 
-    let mut paths = Vec::new();
+    // the layers in use, in the order they first appear; layer "0" is the project's first layer (nothing to name)
+    let mut names: Vec<String> = Vec::new();
+    let mut lay_of = |name: &str| -> Option<i64> {
+        if name == "0" { return None; }
+        let i = names.iter().position(|n| n == name).unwrap_or_else(|| { names.push(name.to_string()); names.len() - 1 });
+        Some(i as i64 + 1)
+    };
+    for l in &lays { lay_of(l); } // numbered in the order the file uses them
+    let mut by_layer: BTreeMap<String, Vec<Path>> = BTreeMap::new();
+    let mut order: Vec<String> = Vec::new();
     let mut loops = Vec::new();
-    for it in items {
+    for (it, lay) in items.into_iter().zip(lays) {
         match it {
-            Item::Circle(c, r) => if r > 1e-6 { loops.push(shapes::new_circle(c, r, 0)); },
-            Item::Path(p) => paths.push(p),
+            Item::Circle(c, r) => if r > 1e-6 { let mut l = shapes::new_circle(c, r, 0); l.lay = lay_of(&lay); loops.push(l); },
+            Item::Path(p) => {
+                if !by_layer.contains_key(&lay) { order.push(lay.clone()); }
+                by_layer.entry(lay).or_default().push(p);
+            }
         }
     }
-    for p in join(paths) {
-        if let Some(l) = shapes::new_poly(&p.pts, p.closed, 0) { loops.push(l); }
+    // lines and arcs are joined into outlines within their layer only
+    for lay in order {
+        let id = lay_of(&lay);
+        for p in join(by_layer.remove(&lay).unwrap_or_default()) {
+            if let Some(mut l) = shapes::new_poly(&p.pts, p.closed, 0) { l.lay = id; loops.push(l); }
+        }
     }
+    let layers: Vec<ImpLayer> = names.iter().map(|n| { let st = doc.layers.get(n).copied().unwrap_or_default(); ImpLayer { name: n.clone(), color: st.color, hidden: st.hidden, locked: st.locked } }).collect();
     let mut warnings = Vec::new();
     if !skipped.is_empty() {
         let list: Vec<String> = skipped.iter().map(|(k, n)| format!("{n} {k}")).collect();
@@ -339,7 +386,7 @@ pub fn import(data: &[u8]) -> Result<Imported, String> {
     }
     if loops.is_empty() { warnings.push("The DXF contains no 2D outlines.".into()); }
     let (w, h) = match shapes::bbox_many(loops.iter()) { Some(b) => (b[2] - b[0], b[3] - b[1]), None => (0.0, 0.0) };
-    Ok(Imported { loops, width_mm: w, height_mm: h, warnings })
+    Ok(Imported { loops, width_mm: w, height_mm: h, warnings, layers })
 }
 
 #[cfg(test)]
@@ -441,5 +488,54 @@ mod tests {
     fn bad_input_is_an_error() {
         assert!(import(b"hello world").is_err());
         assert!(import(b"AutoCAD Binary DXF\r\n\x1a\x00").is_err());
+    }
+
+    fn on(layer: &str, a: P, b: P) -> String { format!("0\nLINE\n8\n{layer}\n10\n{}\n20\n{}\n11\n{}\n21\n{}\n", a[0], a[1], b[0], b[1]) }
+
+    fn square(layer: &str, x: f64) -> String {
+        [on(layer, [x, 0.0], [x + 10.0, 0.0]), on(layer, [x + 10.0, 0.0], [x + 10.0, 10.0]), on(layer, [x + 10.0, 10.0], [x, 10.0]), on(layer, [x, 10.0], [x, 0.0])].concat()
+    }
+
+    #[test]
+    fn entities_come_in_on_the_layers_of_the_file() {
+        let body = [square("Frame", 0.0), square("0", 30.0), "0\nCIRCLE\n8\nHoles\n10\n5\n20\n5\n40\n2\n".to_string()].concat();
+        let r = import(&dxf(4, &body)).unwrap();
+        assert_eq!(r.loops.len(), 3);
+        let names: Vec<&str> = r.layers.iter().map(|l| l.name.as_str()).collect();
+        assert_eq!(names, ["Frame", "Holes"], "layer 0 is the project's first layer and has no entry");
+        let lay = |i: usize| r.loops[i].lay;
+        let frame = r.loops.iter().find(|l| l.lay == Some(1)).unwrap();
+        assert!(frame.closed());
+        assert_eq!(r.loops.iter().filter(|l| l.lay.is_none()).count(), 1, "the layer 0 square");
+        assert_eq!(r.loops.iter().filter(|l| l.lay == Some(2)).count(), 1);
+        let _ = lay;
+    }
+
+    #[test]
+    fn lines_on_different_layers_are_not_joined() {
+        // two halves of a square on two layers touch end to end: they stay apart
+        let body = [on("A", [0.0, 0.0], [10.0, 0.0]), on("B", [10.0, 0.0], [10.0, 10.0])].concat();
+        let r = import(&dxf(4, &body)).unwrap();
+        assert_eq!(r.loops.len(), 2);
+    }
+
+    #[test]
+    fn the_layer_table_gives_colour_hidden_and_locked() {
+        let text = "0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n\
+            0\nLAYER\n2\nCut\n70\n0\n62\n1\n0\nLAYER\n2\nGuide\n70\n5\n62\n-5\n0\nENDTAB\n0\nENDSEC\n\
+            0\nSECTION\n2\nENTITIES\n0\nCIRCLE\n8\nCut\n10\n5\n20\n5\n40\n2\n0\nCIRCLE\n8\nGuide\n10\n15\n20\n5\n40\n2\n0\nENDSEC\n0\nEOF\n";
+        let r = import(text.as_bytes()).unwrap();
+        assert_eq!(r.layers.len(), 2);
+        assert_eq!(r.layers[0], ImpLayer { name: "Cut".into(), color: Some([255, 0, 0]), hidden: false, locked: false });
+        assert!(r.layers[1].hidden && r.layers[1].locked, "switched off and locked in the file");
+    }
+
+    #[test]
+    fn a_block_takes_its_layer_from_the_insert_unless_it_names_its_own() {
+        let text = "0\nSECTION\n2\nBLOCKS\n0\nBLOCK\n2\nSQ\n10\n0\n20\n0\n0\nCIRCLE\n8\n0\n10\n0\n20\n0\n40\n1\n0\nCIRCLE\n8\nInner\n10\n5\n20\n0\n40\n1\n0\nENDBLK\n0\nENDSEC\n\
+                    0\nSECTION\n2\nENTITIES\n0\nINSERT\n8\nParts\n2\nSQ\n10\n50\n20\n50\n0\nENDSEC\n0\nEOF\n";
+        let r = import(text.as_bytes()).unwrap();
+        assert_eq!(r.layers.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), ["Parts", "Inner"]);
+        assert_eq!(r.loops.len(), 2);
     }
 }

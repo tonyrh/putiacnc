@@ -9,8 +9,14 @@ use usvg::tiny_skia_path::{PathSegment, Point};
 const PX_MM: f64 = 25.4 / 96.0; // usvg resolves every unit to CSS pixels (96 dpi)
 const S: f64 = 1000.0;
 
+/// A layer found in an imported file. The shapes of the file point to it with `lay`, counting from 1 (the first layer of
+/// this list is 1); the caller turns that into the project's own layer numbers.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImpLayer { pub name: String, pub color: Option<[u8; 3]>, pub hidden: bool, pub locked: bool }
+
 pub struct Imported {
     pub loops: Vec<LoopData>,
+    pub layers: Vec<ImpLayer>,
     pub width_mm: f64,
     pub height_mm: f64,
     pub warnings: Vec<String>,
@@ -21,24 +27,59 @@ pub fn import(data: &[u8]) -> Result<Imported, String> {
     opt.fontdb_mut().load_system_fonts();
     let tree = usvg::Tree::from_data(data, &opt).map_err(|e| format!("Could not read SVG: {e}"))?;
     let h_px = tree.size().height() as f64;
-    let mut ctx = Ctx { h_px, loops: vec![], images: 0 };
+    let mut ctx = Ctx { h_px, loops: vec![], images: 0, named: inkscape_layers(data), layers: vec![], cur: None };
     walk(tree.root(), &mut ctx);
     let mut warnings = vec![];
     if ctx.images > 0 { warnings.push(format!("{} embedded image(s) were ignored (only vector shapes can be cut).", ctx.images)); }
     if ctx.loops.is_empty() { warnings.push("The SVG contains no vector outlines.".into()); }
-    Ok(Imported { loops: ctx.loops, width_mm: tree.size().width() as f64 * PX_MM, height_mm: h_px * PX_MM, warnings })
+    Ok(Imported { loops: ctx.loops, layers: ctx.layers, width_mm: tree.size().width() as f64 * PX_MM, height_mm: h_px * PX_MM, warnings })
 }
 
-struct Ctx { h_px: f64, loops: Vec<LoopData>, images: usize }
+struct Ctx {
+    h_px: f64, loops: Vec<LoopData>, images: usize,
+    /// Inkscape layers of the file: the id of the group and the name of the layer.
+    named: Vec<(String, String)>,
+    layers: Vec<ImpLayer>,
+    /// The layer the shapes being read belong to (a number of `layers`, from 1).
+    cur: Option<i64>,
+}
+
+/// The layers an Inkscape file names: groups with `inkscape:groupmode="layer"`, by id and label (the id when there is no label).
+fn inkscape_layers(data: &[u8]) -> Vec<(String, String)> {
+    const NS: &str = "http://www.inkscape.org/namespaces/inkscape";
+    let Ok(text) = std::str::from_utf8(data) else { return vec![] };
+    let Ok(doc) = usvg::roxmltree::Document::parse_with_options(text, usvg::roxmltree::ParsingOptions { allow_dtd: true, ..Default::default() }) else { return vec![] };
+    doc.descendants()
+        .filter(|n| n.is_element() && n.attribute((NS, "groupmode")) == Some("layer"))
+        .filter_map(|n| {
+            let id = n.attribute("id")?.to_string();
+            let name = n.attribute((NS, "label")).filter(|l| !l.trim().is_empty()).unwrap_or(&id).trim().to_string();
+            Some((id, name))
+        })
+        .collect()
+}
 
 fn walk(g: &usvg::Group, ctx: &mut Ctx) {
     for n in g.children() {
         match n {
-            usvg::Node::Group(g) => walk(g, ctx),
+            usvg::Node::Group(g) => {
+                // a layer of the file: its shapes (and those of the layers inside it, which take their own) are on it
+                let outer = ctx.cur;
+                if let Some((_, name)) = ctx.named.iter().find(|(id, _)| !id.is_empty() && id == g.id()) {
+                    let name = name.clone();
+                    let i = ctx.layers.iter().position(|l| l.name == name).unwrap_or_else(|| { ctx.layers.push(ImpLayer { name, color: None, hidden: false, locked: false }); ctx.layers.len() - 1 });
+                    ctx.cur = Some(i as i64 + 1);
+                }
+                walk(g, ctx);
+                ctx.cur = outer;
+            }
             usvg::Node::Path(p) => {
                 if !p.is_visible() { continue; }
                 let Some(path) = p.data().clone().transform(p.abs_transform()) else { continue };
+                let start = ctx.loops.len();
                 add_path(&path, ctx);
+                let cur = ctx.cur;
+                for l in &mut ctx.loops[start..] { l.lay = cur; }
             }
             usvg::Node::Text(t) => walk(t.flattened(), ctx),
             usvg::Node::Image(_) => ctx.images += 1,
@@ -173,5 +214,27 @@ mod tests {
         for mut l in r.loops { l.op = 1; p.data.loops.push(l); }
         let out = generate(&p.data, Units::Metric).unwrap();
         assert!(out.cut_len_mm > 100.0);
+    }
+
+    #[test]
+    fn inkscape_layers_are_named_and_the_rest_has_none() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="100mm" height="60mm" viewBox="0 0 100 60">
+            <rect x="0" y="0" width="5" height="5"/>
+            <g id="layer1" inkscape:groupmode="layer" inkscape:label="Frame"><rect x="10" y="5" width="30" height="20"/><circle cx="50" cy="30" r="4"/></g>
+            <g id="layer2" inkscape:groupmode="layer" inkscape:label="Holes"><circle cx="20" cy="40" r="3"/></g>
+            <g id="plain"><rect x="60" y="5" width="10" height="10"/></g></svg>"#;
+        let r = import(svg.as_bytes()).unwrap();
+        assert_eq!(r.layers.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), ["Frame", "Holes"]);
+        assert_eq!(r.loops.len(), 5);
+        assert_eq!(r.loops.iter().filter(|l| l.lay == Some(1)).count(), 2);
+        assert_eq!(r.loops.iter().filter(|l| l.lay == Some(2)).count(), 1);
+        assert_eq!(r.loops.iter().filter(|l| l.lay.is_none()).count(), 2, "outside any layer, and in a group that is not a layer");
+    }
+
+    #[test]
+    fn an_svg_without_layers_has_no_layers() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm"><g id="a"><rect width="5" height="5"/></g></svg>"#;
+        let r = import(svg.as_bytes()).unwrap();
+        assert!(r.layers.is_empty() && r.loops.iter().all(|l| l.lay.is_none()));
     }
 }

@@ -142,7 +142,7 @@ impl Bitmap {
         }
         let mut warnings = vec![];
         if loops.is_empty() { warnings.push("Nothing was traced: adjust the threshold, or switch Invert.".into()); }
-        Ok(Imported { loops, width_mm: wmm, height_mm: hmm, warnings })
+        Ok(Imported { loops, layers: vec![], width_mm: wmm, height_mm: hmm, warnings })
     }
 }
 
