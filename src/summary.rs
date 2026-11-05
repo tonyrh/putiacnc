@@ -50,7 +50,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
 
     // zero: the header comment says it, for the main piece and for a plug piece alike
     if let Some(h) = l.iter().find(|x| x.starts_with("(Stock ")) {
-        if let Some((_, z)) = h.trim_end_matches(')').split_once("; ") { rows.push(row("Zero", z.to_string(), false)); }
+        if let Some((_, z)) = h.trim_end_matches(')').split_once("; ") { rows.push(row("Zero", format!("{z}, in {}", data.job.wcs_name()), false)); }
     }
 
     // the first sideways move with no lift before it: the tool goes wherever it stands
@@ -193,6 +193,7 @@ mod tests {
     fn a_single_tool_job_is_summarised() {
         let r = rows("outside_holes", Units::Metric);
         assert!(get(&r, "Zero").unwrap().text.contains("lower-left corner of stock"));
+        assert!(get(&r, "Zero").unwrap().text.ends_with(", in G54"), "{}", get(&r, "Zero").unwrap().text);
         assert!(get(&r, "Start").unwrap().text.contains("rpm") && get(&r, "Start").unwrap().text.contains("waits 2 s"));
         assert!(get(&r, "Tools").unwrap().text.contains("No tool change"));
         let c = &get(&r, "Cutting").unwrap().text;

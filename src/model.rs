@@ -128,9 +128,21 @@ pub struct Job {
     #[serde(default, skip_serializing_if = "is_false")] pub numbered: bool,
     /// G-code dialect: "grbl" (default) or "mach" (Mach3 / LinuxCNC).
     #[serde(default, skip_serializing_if = "String::is_empty")] pub post: String,
+    /// The work coordinate system the program runs in: 0 = G54 (the default) to 5 = G59, then G59.1 to G59.3 (Mach3 / LinuxCNC only).
+    #[serde(default, skip_serializing_if = "is_zero_u8")] pub wcs: u8,
 }
 
+fn is_zero_u8(v: &u8) -> bool { *v == 0 }
+
+/// The work coordinate systems in the order of `Job::wcs`.
+pub const WCS: [&str; 9] = ["G54", "G55", "G56", "G57", "G58", "G59", "G59.1", "G59.2", "G59.3"];
+
 impl Job {
+    /// How many systems this controller has: GRBL knows G54 to G59, Mach3 / LinuxCNC three more.
+    pub fn wcs_count(&self) -> usize { if self.mach() { 9 } else { 6 } }
+    /// The G-code word of the chosen system (G54 when the choice is not one this controller has).
+    pub fn wcs_name(&self) -> &'static str { let i = self.wcs as usize; if i < self.wcs_count() { WCS[i] } else { WCS[0] } }
+
     /// True for the Mach3 / LinuxCNC dialect.
     pub fn mach(&self) -> bool { self.post == "mach" }
     /// The dialect as people name it, for the G-code's first comment and the G-code tab.

@@ -1427,10 +1427,10 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         // metric or imperial, absolute, XY plane, feed per minute; cancel cutter compensation, tool length and canned cycles
         e.g.push(format!("{} G90 G17 G94", if imp { "G20" } else { "G21" }));
         e.g.push("G40 G49 G80".into());
-        e.g.push("G54".into());
+        e.g.push(data.job.wcs_name().into());
     } else {
-        // metric or imperial, absolute, XY plane, feed per minute, first work coordinate system: nothing is left over from before
-        e.g.push(format!("{} G90 G17 G94 G54", if imp { "G20" } else { "G21" }));
+        // metric or imperial, absolute, XY plane, feed per minute, the work coordinate system (G54 unless the job says another): nothing is left over from before
+        e.g.push(format!("{} G90 G17 G94 {}", if imp { "G20" } else { "G21" }, data.job.wcs_name()));
     }
 
     let custom = |s: &Option<String>| -> Vec<String> { s.as_deref().unwrap_or("").lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect() };

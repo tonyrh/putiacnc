@@ -93,6 +93,8 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         let (d, n) = (app.project.data.job.dialect_name(), app.project.data.job.numbered);
         ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, units, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
         ui.add_space(4.0);
+        crate::exportui::wcs_pick(ui, app);
+        ui.add_space(4.0);
         // plug pieces have a file of their own: choose which one to read
         if app.gcode_part > app.pieces.len() && !app.gen_stale() { app.gcode_part = 0; }
         if !app.pieces.is_empty() {

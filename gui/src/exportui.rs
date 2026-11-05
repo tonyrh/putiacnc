@@ -27,6 +27,25 @@ pub fn file_list(app: &App, mode: Split, name: &str) -> Vec<(String, f64)> {
     v
 }
 
+/// The work coordinate system the program runs in (G54 to G59): a drop-down for the export window and the top of the G-code tab, both
+/// changing the same setting of the job. The program starts with that word, so the machine uses the zero that was set there.
+pub fn wcs_pick(ui: &mut egui::Ui, app: &mut App) {
+    let (n, cur) = (app.project.data.job.wcs_count(), app.project.data.job.wcs_name());
+    let mut pick: Option<usize> = None;
+    ui.horizontal(|ui| {
+        ui.label("Work coordinates");
+        let r = egui::ComboBox::from_id_source("wcs_pick").width(70.0).selected_text(cur).show_ui(ui, |ui| {
+            for (i, name) in putiacnc_core::model::WCS.iter().enumerate().take(n) { if ui.selectable_label(*name == cur, *name).clicked() { pick = Some(i); } }
+        });
+        r.response.on_hover_text("The work coordinate system the program runs in: the one where you set the zero on the machine (G54 is the first). The G-code starts with it, so a job made for G55 cannot run in G54 by mistake.");
+    });
+    if let Some(i) = pick.filter(|&i| i != app.project.data.job.wcs as usize) {
+        app.hist.record(&app.project.data);
+        app.project.data.job.wcs = i as u8;
+        app.touch();
+    }
+}
+
 pub fn window(ctx: &egui::Context, app: &mut App) {
     // a split being made: keep the frames coming until the files are written
     if app.split_job.is_some() && app.poll_split() { ctx.request_repaint_after(std::time::Duration::from_millis(50)); }
@@ -37,6 +56,8 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Export G-code", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(480.0);
         if crate::csd::dialog_header(ui, "Export G-code", true) { close = true; }
+        ui.add_space(8.0);
+        wcs_pick(ui, app);
         ui.add_space(8.0);
         ui.label(egui::RichText::new("Split into").strong());
         ui.add_space(4.0);
@@ -200,5 +221,16 @@ mod tests {
         // an old settings file without the choice keeps "one file"
         let old: crate::prefs::Settings = serde_json::from_str("{}").unwrap();
         assert!(old.export_split.is_none());
+    }
+
+    #[test]
+    fn the_work_coordinate_choice_reaches_the_gcode() {
+        let mut a = app("outside_holes.project.json");
+        assert!(a.output.as_ref().unwrap().gcode().contains("G54"));
+        a.project.data.job.wcs = 1;
+        a.start_generation();
+        a.finish_generation();
+        let g = a.output.as_ref().unwrap().gcode();
+        assert!(g.contains("G55") && !g.contains("G54"), "{}", g.lines().take(8).collect::<Vec<_>>().join(" | "));
     }
 }
