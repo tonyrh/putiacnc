@@ -716,7 +716,21 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     }
     if let Some(b) = shapes::bbox_many(app.sel.iter().filter_map(|&i| d.loops.get(i))).filter(|_| editing_nodes.is_none()) {
         let r = Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]])).expand(4.0);
-        painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.3)));
+        // a selected shape on a hidden layer is not drawn: its outline is only suggested, dashed, and the box says the same
+        let hidden_sel: Vec<usize> = app.sel.iter().copied().filter(|&i| app.loop_hidden(i)).collect();
+        if hidden_sel.is_empty() {
+            painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.3)));
+        } else {
+            let faint = Stroke::new(1.0_f32, th.shape_selected().gamma_multiply(0.6));
+            let corners = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
+            painter.extend(egui::Shape::dashed_line(&corners, faint, 4.0, 4.0));
+            for i in hidden_sel {
+                let l = &d.loops[i];
+                let mut pts: Vec<Pos2> = l.pts.chunks_exact(2).map(|c| to_s([c[0] as f64 / shapes::S, c[1] as f64 / shapes::S])).collect();
+                if l.closed() { if let Some(f) = pts.first().copied() { pts.push(f); } }
+                if pts.len() > 1 { painter.extend(egui::Shape::dashed_line(&pts, faint, 4.0, 4.0)); }
+            }
+        }
         if app.mode == Mode::Select && handles_apply(app) && app.rotate_mode {
             // rotate handles: a round handle with a turning arrow on each corner, and the centre of rotation
             let acc = Stroke::new(1.5_f32, th.accent);
