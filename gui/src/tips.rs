@@ -323,10 +323,10 @@ fn the_machines_window_with_the_holder_on_shows_its_rows_too() {
 }
 
 #[test]
-fn the_export_window_shows_help_on_the_work_coordinates_label_and_drop_down() {
+fn the_gcode_tab_shows_help_on_the_work_coordinates_label_and_drop_down() {
     let mut a = project();
-    a.export_open = true;
-    let r = check_scene("export", &mut a, true);
+    a.tab = crate::app::RightTab::Gcode;
+    let r = check_scene("gcode-tab", &mut a, true);
     assert!(r.0 >= 1, "only {} pairs found", r.0);
 }
 
