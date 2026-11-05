@@ -101,7 +101,14 @@ impl App {
 }
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
-    if !app.nest.open { if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "nest") { app.tool_note = None; } return; }
+    if !app.nest.open { app.ghost.clear_if("nest"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "nest") { app.tool_note = None; } return; }
+    {
+        let t = &app.nest;
+        let params = [t.gap.to_bits(), t.margin.to_bits(), t.turn as u64, t.shape as u64, t.holes as u64, t.step.to_bits()];
+        app.preview("nest", &params, |x| x.nest_selection());
+    }
+    // the window already says what to select; the preview's own message would repeat it
+    let pnote = app.ghost.note_of("nest").filter(|_| !app.sel.is_empty()).map(String::from);
     let n = crate::align::units(app).len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Nest on the stock").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
@@ -136,15 +143,18 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             }
         });
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "nest").map(|(_, m)| m);
-        if let Some(m) = mine { crate::msg::line(ui, crate::app::Level::Warning, m); }
+        if let Some(m) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, m); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(n > 0, egui::Button::new("Nest")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }
+            if ui.add_enabled(n > 0, egui::Button::new("Apply")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }
             if ui.button("Close").clicked() { close = true; }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                crate::widgets::Tip::tip(crate::widgets::check(ui, &mut app.preview_on, "Preview"), "Show the result in the drawing while you change the values");
+            });
         });
         });
     }));
-    if apply { app.run_tool("nest", |a| a.nest_selection()); }
+    if apply { app.ghost.clear(); app.run_tool("nest", |a| a.nest_selection()); }
     if close { app.nest.open = false; }
 }
 
@@ -282,5 +292,23 @@ mod tests {
         let mut a = app_with_parts();
         a.sel.clear();
         assert!(a.nest_selection().is_some());
+    }
+
+    #[test]
+    fn the_preview_shows_the_nesting_and_leaves_the_drawing_alone() {
+        let mut a = app_with_parts();
+        a.project.data.loops.push(shapes::new_rect([0.0, 0.0], [300.0, 10.0], 0.0, 0));
+        a.sel = (0..4).collect();
+        let (before, undo) = (a.project.data.clone(), a.hist.undo.len());
+        a.preview("nest", &[1], |x| x.nest_selection());
+        assert!(a.project.data == before, "the drawing is untouched");
+        assert_eq!(a.hist.undo.len(), undo);
+        assert!(!a.ghost.loops.is_empty(), "the moved parts are shown");
+        assert!(a.ghost.note_of("nest").is_some_and(|m| m.contains("did not fit")), "the preview says what will not fit");
+        // the preview shows what apply then does
+        let shown: Vec<_> = a.ghost.loops.iter().map(|l| shapes::bbox(l).unwrap()).collect();
+        a.ghost.clear();
+        a.nest_selection();
+        for r in shown { assert!(boxes(&a).contains(&r), "{r:?}"); }
     }
 }
