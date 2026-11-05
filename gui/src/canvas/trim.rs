@@ -8,6 +8,8 @@ pub(super) fn trim_hover(app: &App, w: [f64; 2], tol: f64) -> Option<TrimHover> 
     let loops = &app.project.data.loops;
     let t = loops.iter().enumerate()
         .filter(|(_, l)| !shapes::is_point(l) && (!app.trim_extend || !l.closed()))
+        // a hidden shape cannot be seen to be trimmed, and a locked one is not to be changed
+        .filter(|(i, l)| !app.project.data.shape_hidden(l) && !app.loop_locked(*i))
         .map(|(i, l)| (i, shapes::dist_to_loop(l, w)))
         .filter(|(_, d)| *d <= tol)
         .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())

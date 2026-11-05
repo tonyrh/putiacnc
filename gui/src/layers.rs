@@ -127,4 +127,36 @@ mod tests {
         let c = shapes::combine(&[&a.project.data.loops[0], &a.project.data.loops[1]], putiacnc_core::shapes::BoolOp::Union, false);
         assert!(c.iter().all(|l| l.lay == Some(b)));
     }
+
+    #[test]
+    fn the_tools_leave_the_shapes_of_a_locked_layer_alone() {
+        use putiacnc_core::shapes::CornerKind;
+        let mut a = app();
+        let b = a.project.data.add_layer("Box");
+        a.project.data.loops[1].lay = Some(b);
+        a.project.data.layer_mut(b).unwrap().locked = true;
+        a.sel = [1].into_iter().collect();
+        let before = a.project.data.loops.clone();
+        assert!(!a.run_tool("corners", |a| a.corner_selection(CornerKind::Fillet, 2.0)), "no fillet on a locked shape");
+        assert!(!a.run_tool("offset", |a| a.offset_selection(2.0, false)));
+        assert!(a.project.data.loops == before);
+        assert!(a.tool_note.as_ref().is_some_and(|(k, m)| *k == "corners" || m.contains("locked")));
+        // a preview shows nothing either
+        a.preview("corners", &[1], |x| x.corner_selection(CornerKind::Fillet, 2.0));
+        assert!(a.ghost.loops.is_empty());
+        // nudging does nothing; the unlocked shape still can be changed
+        a.nudge(5.0, 0.0);
+        assert!(a.project.data.loops == before);
+        // Delete keeps a locked shape too, and deletes the unlocked ones of a mixed selection
+        a.sel = [1].into_iter().collect();
+        a.delete_selection();
+        assert!(a.project.data.loops == before, "a locked shape is not deleted");
+        a.sel = [0, 1].into_iter().collect();
+        a.delete_selection();
+        assert_eq!(a.project.data.loops.len(), 1);
+        assert_eq!(a.project.data.loops[0].lay, Some(b), "only the locked one is left");
+        a.sel = [0].into_iter().collect();
+        a.project.data.loops.insert(0, shapes::new_rect([0.0, 0.0], [5.0, 5.0], 0.0, 0));
+        assert!(a.run_tool("corners", |a| a.corner_selection(CornerKind::Fillet, 2.0)));
+    }
 }

@@ -32,6 +32,8 @@ impl App {
     /// selection or the selected shapes change, and left alone otherwise.
     pub fn preview(&mut self, owner: &'static str, params: &[u64], run: impl FnOnce(&mut App) -> Option<String>) {
         if !self.preview_on { self.ghost.clear_if(owner); return; }
+        // locked shapes are not changed, so there is nothing to show
+        if App::changes_selection(owner) && self.sel_locked() { self.ghost.clear_if(owner); return; }
         let mut h = std::collections::hash_map::DefaultHasher::new();
         owner.hash(&mut h);
         params.hash(&mut h);

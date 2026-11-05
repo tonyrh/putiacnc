@@ -132,7 +132,7 @@ pub(super) fn selection_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
     let mut geom = false;
     let _ = n;
     // shapes of a locked drawing cannot be moved, resized or aligned
-    let locked = sel.iter().filter_map(|&i| d.loops[i].grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked));
+    let locked = sel.iter().any(|&i| d.shape_locked(&d.loops[i]) || d.loops[i].grp.is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.locked)));
     let _bar = egui::Area::new(egui::Id::new("selbar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 5.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 4.0;

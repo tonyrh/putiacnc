@@ -96,6 +96,14 @@ impl App {
 
     pub fn delete_selection(&mut self) {
         if self.sel.is_empty() { return; }
+        // shapes on a locked layer stay: say so, and delete the rest of the selection
+        let d = &self.project.data;
+        let kept: Vec<usize> = self.sel.iter().copied().filter(|&i| d.loops.get(i).is_some_and(|l| d.shape_locked(l))).collect();
+        if !kept.is_empty() {
+            self.sel.retain(|i| !kept.contains(i));
+            self.say(Level::Info, format!("{} shape{} on a locked layer {} not deleted.", kept.len(), if kept.len() == 1 { "" } else { "s" }, if kept.len() == 1 { "was" } else { "were" }));
+            if self.sel.is_empty() { self.sel = kept.into_iter().collect(); return; }
+        }
         self.hist.record(&self.project.data);
         for &i in self.sel.iter().rev() { self.project.data.loops.remove(i); }
         let removed: Vec<usize> = self.sel.iter().copied().collect();
@@ -187,9 +195,16 @@ impl App {
 
     /// Runs a tool that changes the selected shapes and shows its message, if any. True when the drawing changed, so the
     /// tool's window can close; when nothing happened it stays open for new values.
+    /// The tools that change or replace the selected shapes: they leave locked ones alone.
+    pub fn changes_selection(tool: &str) -> bool { matches!(tool, "corners" | "combine" | "offset" | "fingers" | "nest") }
+
     pub fn run_tool(&mut self, tool: &'static str, f: impl FnOnce(&mut App) -> Option<String>) -> bool {
         let before = self.project.data.loops.clone();
         self.tool_note = None;
+        if Self::changes_selection(tool) && self.sel_locked() {
+            self.tool_note = Some((tool, "Some of the selected shapes are locked (their layer or drawing): unlock them first.".into()));
+            return false;
+        }
         let msg = f(self);
         let changed = self.project.data.loops != before;
         // a result that only matters while the window is open stays in the window; a note about what was done goes to the banner

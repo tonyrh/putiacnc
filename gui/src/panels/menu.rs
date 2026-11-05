@@ -59,7 +59,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Undo", "Ctrl+Z", app.hist.can_undo(Scope::All)) { app.do_undo(); }
             if item(ui, "Redo", "Ctrl+Shift+Z", app.hist.can_redo(Scope::All)) { app.do_redo(); }
             ui.separator();
-            if item(ui, "Select all", "Ctrl+A", true) { app.sel = (0..app.project.data.loops.len()).collect(); }
+            if item(ui, "Select all", "Ctrl+A", true) { app.sel = (0..app.project.data.loops.len()).filter(|&i| !app.loop_hidden(i)).collect(); }
             if item(ui, "Duplicate", "Ctrl+D", !app.sel.is_empty()) { app.duplicate_selection(); }
             if item(ui, "Delete", "Del", !app.sel.is_empty()) { app.delete_selection(); }
             ui.separator();
