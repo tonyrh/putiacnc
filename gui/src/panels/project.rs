@@ -348,7 +348,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let n = d.loops.iter().filter(|l| l.op == o.id).count();
             let tool = d.tools.iter().find(|t| t.id == o.p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "no tool".into());
             let text = format!("{}. {}", i + 1, label_of(KINDS, &o.p.kind));
-            let sub = if o.p.kind == "relief" { tool.clone() } else { format!("{} · {} shape{}", tool, n, if n == 1 { "" } else { "s" }) };
+            // shapes on a hidden layer are still cut: the subtitle says how many of them are hidden
+            let nh = d.loops.iter().filter(|l| l.op == o.id && d.shape_hidden(l)).count();
+            let hid = if nh == 0 { String::new() } else if nh == n { ", hidden".to_string() } else { format!(", {nh} hidden") };
+            let sub = if o.p.kind == "relief" { tool.clone() } else { format!("{} · {} shape{}{}", tool, n, if n == 1 { "" } else { "s" }, hid) };
             let id = o.id;
             let o_kind = o.p.kind.clone();
             let n_ops = d.ops.len();
