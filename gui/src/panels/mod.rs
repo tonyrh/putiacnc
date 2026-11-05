@@ -1,4 +1,5 @@
 //! Side panels, toolbar and status bar.
+use crate::csd::ShowFollowing;
 use crate::app::{fmt_time, Action, App, Level, RightTab};
 use eframe::egui::{self, Color32, Ui};
 use crate::icons::{icon_text_button, paint_icon, small_icon_button, Icon};
@@ -132,7 +133,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                 let warn_col = if ui.visuals().dark_mode { Color32::from_rgb(0xf8, 0xe4, 0x5c) } else { Color32::from_rgb(0xb5, 0x83, 0x00) };
                 // on a short window the summary scrolls, so the G-code list and the buttons below it always keep their room
                 let cap = (ui.available_height() - 210.0).max(90.0);
-                egui::ScrollArea::vertical().id_source("gcode_summary_scroll").max_height(cap).auto_shrink([false, true]).show(ui, |ui| {
+                egui::ScrollArea::vertical().id_source("gcode_summary_scroll").max_height(cap).auto_shrink([false, true]).show_following(ui, |ui| {
                 egui::CollapsingHeader::new(egui::RichText::new("What this will do").strong()).id_source("gcode_summary").default_open(true).show(ui, |ui| {
                     let lw = rows.iter().map(|r| tw(ui, r.label)).fold(0.0_f32, f32::max);
                     ui.spacing_mut().item_spacing.y = 4.0;

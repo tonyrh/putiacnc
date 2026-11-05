@@ -399,7 +399,12 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             }
         }
         Some(Mode::Text) => {
-            if resp.clicked_by(prim) {
+            if resp.clicked_by(prim) && app.text.open && app.text.flow == putiacnc_core::text::Flow::Shape {
+                // along a shape the click chooses the shape to follow (the place comes from the shape, not from the click)
+                if let Some(h) = hover_w.and_then(|w| app.pick_shape(w, tol)) {
+                    if let Some(p) = crate::text::shape_path(&app.project.data, h) { app.sel = [h].into_iter().collect(); app.text.path = p; }
+                }
+            } else if resp.clicked_by(prim) {
                 if let Some(w) = hover_w { app.text.pos = Some(app.snap(w)); app.text.open = true; app.text.focus = true; }
             }
         }

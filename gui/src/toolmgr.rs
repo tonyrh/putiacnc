@@ -1,5 +1,6 @@
 //! Tool manager: tool libraries (several named sets), tool list and tool editor, like the
 //! browser app's "Tool library" dialog. Libraries live in the user's config directory.
+use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use crate::app::App;
 use crate::icons::{icon_button, paint_cutter, Icon};
@@ -214,7 +215,7 @@ fn body(ui: &mut Ui, app: &mut App) {
         ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
         let w = ui.available_width().max(380.0);
         ui.allocate_ui_with_layout(egui::vec2(w, h), Layout::top_down(Align::LEFT), |ui| {
-            egui::ScrollArea::vertical().id_source("toolform").max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show(ui, |ui| tool_form(ui, app));
+            egui::ScrollArea::vertical().id_source("toolform").max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show_following(ui, |ui| tool_form(ui, app));
         });
     });
     ui.add_space(6.0);
@@ -250,7 +251,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
         words.iter().all(|w| hay.contains(w.as_str()))
     };
     let mut shown = 0usize;
-    egui::ScrollArea::vertical().id_source("toollist").max_height(h - 44.0 - 30.0).auto_shrink([false, false]).show(ui, |ui| {
+    egui::ScrollArea::vertical().id_source("toollist").max_height(h - 44.0 - 30.0).auto_shrink([false, false]).show_following(ui, |ui| {
         for (sys, label) in groups {
             let g: Vec<_> = lib.tools.iter().filter(|t| t.sys == sys && matches(t)).collect();
             shown += g.len();

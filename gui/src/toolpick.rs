@@ -1,5 +1,6 @@
 //! The tool field of an operation: a button that opens a panel with a search box on top and the tools below it, grouped by
 //! unit and type. Typing narrows the list (all words must match the name, type or size); Enter takes the first match.
+use crate::csd::ShowFollowing;
 use eframe::egui::{self, Ui};
 use putiacnc_core::model::Tool;
 use putiacnc_core::toollib;
@@ -45,7 +46,7 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
         if te.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
             if let Some(t) = list.first() { picked = Some(Picked::Tool(t.id.clone())); }
         }
-        egui::ScrollArea::vertical().max_height(340.0).auto_shrink([false, true]).show(ui, |ui| {
+        egui::ScrollArea::vertical().max_height(340.0).auto_shrink([false, true]).show_following(ui, |ui| {
             if list.is_empty() { ui.weak("No tool matches."); }
             let mut job_shown = false;
             // the tools this job already uses come first: most jobs need only two or three

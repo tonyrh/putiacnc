@@ -1,6 +1,7 @@
 //! The setup assistant: units, machine and starter tools in a few steps. It opens by itself the first time the app runs
 //! (no settings file yet) and from Help → Setup assistant. The first time it replaces the default machine and the tools of the
 //! current library; later it only adds a new machine and a new library, so nothing the user made is lost.
+use crate::csd::ShowFollowing;
 use crate::app::App;
 use crate::widgets::Tip;
 use eframe::egui::{self, Color32};
@@ -545,7 +546,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 ui.set_min_height(body_h);
                 dots(ui, app.setup.step);
                 ui.add_space(8.0);
-                egui::ScrollArea::vertical().id_source("setup_body").max_height(body_h - 80.0).auto_shrink([false, false]).show(ui, |ui| {
+                egui::ScrollArea::vertical().id_source("setup_body").max_height(body_h - 80.0).auto_shrink([false, false]).show_following(ui, |ui| {
                     ui.set_width(pane_w - 14.0);
                     match app.setup.step {
                         0 => units_step(ui, &mut app.setup),

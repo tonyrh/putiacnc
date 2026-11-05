@@ -1,4 +1,5 @@
 //! Warnings about the toolpath: the status-bar chip, the list window and the red markers in the 3D preview.
+use crate::csd::ShowFollowing;
 use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Stroke};
 use putiacnc_core::checks::Finding;
@@ -95,7 +96,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
         } else {
             ui.add(egui::Label::new(egui::RichText::new("The G-code is still written. These are things to look at before cutting; the cutting length and shank of each tool are in the tool manager, clamps are under Stock.").weak()).wrap(true));
             ui.add_space(6.0);
-            egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
+            egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show_following(ui, |ui| {
                 let list: Vec<(usize, Finding)> = app.checks.iter().cloned().enumerate().collect();
                 for (i, f) in list {
                     let sel = app.check_sel == Some(i);

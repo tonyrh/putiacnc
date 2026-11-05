@@ -580,7 +580,7 @@ mod tests {
 /// distance along the curve and the height becomes distance from it, like [`bend`] does for a circle.
 pub fn along_shape(flat: &[LoopData], path: &[[f64; 2]], size: f64, gap: f64, deg: f64, face_in: bool) -> Result<Vec<LoopData>, String> {
     use crate::clip;
-    if path.len() < 3 { return Err("Choose a closed shape first.".into()); }
+    if path.len() < 3 { return Err("Click a closed shape in the drawing to follow it.".into()); }
     let ring: Vec<[i64; 2]> = path.iter().map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect();
     let off = gap.max(0.0) + if face_in { 0.0 } else { size };
     let inner = clip::offset(&[ring], -off * S, S * 0.01);

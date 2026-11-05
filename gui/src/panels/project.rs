@@ -1,4 +1,5 @@
 //! The project panel: stock, imports, shapes and operations.
+use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use super::*;
 
@@ -270,7 +271,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         });
         ui.separator();
     }
-    egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+    egui::ScrollArea::vertical().auto_shrink([false, false]).show_following(ui, |ui| {
         let App { project, sel, collapsed, tab_edit, show_clamps, .. } = app;
         if !ops {
         ui.horizontal(|ui| {

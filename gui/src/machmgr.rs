@@ -1,5 +1,6 @@
 //! Machine manager: the list of machines (name, rapid rate, time correction, work area) and the
 //! dialog to edit them, like the browser app's "Machines" dialog.
+use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use crate::app::App;
 use crate::icons::{icon_button, Icon};
@@ -147,7 +148,7 @@ fn body(ui: &mut Ui, app: &mut App) {
         ui.painter().line_segment([egui::pos2(sep.center().x, sep.min.y), egui::pos2(sep.center().x, sep.max.y)], ui.visuals().widgets.noninteractive.bg_stroke);
         let w = ui.available_width().max(380.0);
         ui.allocate_ui_with_layout(egui::vec2(w, h), Layout::top_down(Align::LEFT), |ui| {
-            egui::ScrollArea::vertical().id_source("machform").max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show(ui, |ui| form(ui, app));
+            egui::ScrollArea::vertical().id_source("machform").max_height(h).min_scrolled_height(h).auto_shrink([false, false]).show_following(ui, |ui| form(ui, app));
         });
     });
     ui.add_space(6.0);
@@ -245,7 +246,7 @@ fn footer(ui: &mut Ui, app: &mut App) {
 fn list(ui: &mut Ui, app: &mut App, h: f32) {
     let used = app.project.data.machine.as_ref().map(|m| m.id.clone()).unwrap_or_default();
     let mut pick: Option<String> = None;
-    egui::ScrollArea::vertical().id_source("machlist").max_height(h).auto_shrink([false, false]).show(ui, |ui| {
+    egui::ScrollArea::vertical().id_source("machlist").max_height(h).auto_shrink([false, false]).show_following(ui, |ui| {
         for m in &app.machines.list {
             let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 30.0), Sense::click());
             let sel = m.id == app.mach_sel;

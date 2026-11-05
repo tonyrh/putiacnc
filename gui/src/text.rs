@@ -1,4 +1,5 @@
 //! Text tool: click where the text starts, type it, pick a font and place it as cuttable outlines.
+use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use crate::app::{App, Mode};
 use eframe::egui;
@@ -273,6 +274,13 @@ impl TextTool {
     }
 }
 
+/// The outline of shape `i` as a path to set text along: one closed outline that is not a point or a letter.
+pub fn shape_path(d: &putiacnc_core::ProjectData, i: usize) -> Option<Vec<[f64; 2]>> {
+    let l = d.loops.get(i)?;
+    if !l.closed() || shapes::is_point(l) || l.grp.is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.text.is_some())) { return None; }
+    Some(l.pts.chunks_exact(2).map(|p| [p[0] as f64 / shapes::S, p[1] as f64 / shapes::S]).collect())
+}
+
 /// Adds the previewed text to the drawing, in no operation, and selects it. The shapes form a group that
 /// remembers the settings, so the text can be edited later; when a text is being edited its letters are replaced.
 pub fn place(app: &mut App) {
@@ -519,13 +527,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let editing = app.text.edit.is_some();
     // along a shape: the shape selected in the drawing (one closed outline that is not a letter) can be taken as the one to follow
     let pick_shape: Option<Vec<[f64; 2]>> = {
-        let d = &app.project.data;
-        let mut it = app.sel.iter().filter_map(|&i| d.loops.get(i));
-        match (it.next(), it.next()) {
-            (Some(l), None) if l.closed() && !shapes::is_point(l) && !l.grp.is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.text.is_some())) =>
-                Some(l.pts.chunks_exact(2).map(|p| [p[0] as f64 / shapes::S, p[1] as f64 / shapes::S]).collect()),
-            _ => None,
-        }
+        let mut it = app.sel.iter();
+        match (it.next(), it.next()) { (Some(&i), None) => shape_path(&app.project.data, i), _ => None }
     };
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Text", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
@@ -556,7 +559,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text("Search fonts").desired_width(f32::INFINITY));
                 ui.add_space(2.0);
                 let q = t.filter.to_lowercase();
-                egui::ScrollArea::vertical().max_height(340.0).show(ui, |ui| {
+                egui::ScrollArea::vertical().max_height(340.0).show_following(ui, |ui| {
                     let mut any = false;
                     for i in 0..t.fonts.len() {
                         if !q.is_empty() && !t.fonts[i].label.to_lowercase().contains(&q) { continue; }
@@ -658,7 +661,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 if t.flow == Flow::Shape {
                     crate::toolmgr::rlabel(ui, lw, "Shape");
                     ui.horizontal(|ui| {
-                        let b = ui.add_enabled(pick_shape.is_some(), egui::Button::new("Use the selected shape")).on_hover_text("Select one closed shape in the drawing (an oval, a rounded rectangle, any outline), then press: the text follows the inside of its edge. It is taken as it is now: if the shape changes, press again");
+                        let b = ui.add_enabled(pick_shape.is_some(), egui::Button::new("Use the selected shape")).on_hover_text("Click a closed shape in the drawing (an oval, a rounded rectangle, any outline), or select it and press this: the text follows the inside of its edge. It is taken as it is now: if the shape changes, press again");
                         if b.clicked() { if let Some(p) = &pick_shape { t.path = p.clone(); } }
                         ui.weak(if t.path.len() >= 3 { "set" } else { "none yet" });
                     });
@@ -1043,5 +1046,14 @@ mod tests {
         a.text.refresh();
         let b = shapes::bbox_many(a.text.preview.iter()).unwrap();
         assert!(b[3] < 60.0 && ((b[0] + b[2]) / 2.0 - 110.0).abs() < 2.0, "{b:?}");
+    }
+
+    #[test]
+    fn a_closed_shape_can_be_taken_as_the_path_but_a_line_or_a_letter_cannot() {
+        let mut a = oval_app();
+        assert!(shape_path(&a.project.data, 0).is_some_and(|p| p.len() > 50));
+        assert!(shape_path(&a.project.data, 5).is_none());
+        let mut ln = a.project.data.loops[0].clone(); ln.c = 0; ln.pts = vec![0, 0, 10000, 10000]; a.project.data.loops.push(ln);
+        assert!(shape_path(&a.project.data, 1).is_none(), "an open line has no inside");
     }
 }

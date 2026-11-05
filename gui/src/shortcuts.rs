@@ -1,4 +1,5 @@
 //! Keyboard shortcuts and mouse actions, as a reference window (Help menu or F1).
+use crate::csd::ShowFollowing;
 use crate::app::App;
 use eframe::egui::{self, Ui};
 
@@ -110,7 +111,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Keyboard shortcuts").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Keyboard shortcuts", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         if crate::csd::dialog_header(ui, "Keyboard shortcuts", true) { close = true; }
-        egui::ScrollArea::vertical().max_height((ctx.screen_rect().height() - 140.0).max(200.0)).auto_shrink([true, true]).show(ui, |ui| {
+        egui::ScrollArea::vertical().max_height((ctx.screen_rect().height() - 140.0).max(200.0)).auto_shrink([true, true]).show_following(ui, |ui| {
             ui.horizontal_top(|ui| {
                 ui.allocate_ui_with_layout(egui::vec2(370.0, 0.0), egui::Layout::top_down(egui::Align::LEFT), |ui| column(ui, LEFT, "sc_l", 160.0));
                 ui.add_space(24.0);

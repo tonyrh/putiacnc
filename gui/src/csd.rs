@@ -252,7 +252,7 @@ pub fn scroll<R>(ui: &mut Ui, reserve: f32, add: impl FnOnce(&mut Ui) -> R) -> R
     // than it is offered, so it would stay stuck at 420. Giving it its own room of `h` lets it take exactly what the content
     // needs, up to the window's height, and scroll only beyond that.
     ui.allocate_ui(egui::vec2(ui.available_width(), h), |ui| {
-        egui::ScrollArea::vertical().max_height(h).auto_shrink([false, true]).show(ui, add).inner
+        egui::ScrollArea::vertical().max_height(h).auto_shrink([false, true]).show_following(ui, add).inner
     }).inner
 }
 
@@ -311,7 +311,7 @@ pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
     for e in &raw.events {
         // focus that came from the keyboard is drawn; a click on something does not make a ring
         match e {
-            egui::Event::Key { key: egui::Key::Tab, pressed: true, .. } => ctx.data_mut(|d| d.insert_temp(egui::Id::new(KEYBOARD_FOCUS), true)),
+            egui::Event::Key { key: egui::Key::Tab, pressed: true, .. } => ctx.data_mut(|d| { d.insert_temp(egui::Id::new(KEYBOARD_FOCUS), true); d.insert_temp(egui::Id::new("follow_focus_seen"), egui::Id::NULL); }),
             egui::Event::PointerButton { pressed: true, .. } => ctx.data_mut(|d| d.insert_temp(egui::Id::new(KEYBOARD_FOCUS), false)),
             _ => {}
         }
@@ -337,6 +337,31 @@ pub fn focus_ring(ctx: &egui::Context) {
     if rect.width() < 4.0 || rect.height() < 4.0 { return; }
     let col = ctx.style().visuals.selection.bg_fill;
     ctx.layer_painter(r.layer_id).rect_stroke(rect.expand(2.0), 5.0, Stroke::new(2.0_f32, col));
+}
+
+/// Call at the end of a scroll area's contents: when Tab has just moved the focus to a control inside it, the area scrolls to show it
+/// (egui does not, so Tab would land on controls that are cut off, with no ring in sight).
+pub fn follow_focus(ui: &Ui) {
+    let ctx = ui.ctx();
+    if !ctx.data(|d| d.get_temp::<bool>(egui::Id::new(KEYBOARD_FOCUS))).unwrap_or(false) { return; }
+    let Some(id) = ctx.memory(|m| m.focused()) else { return };
+    let seen = egui::Id::new("follow_focus_seen");
+    // only when the focus has just arrived: scrolling with the wheel afterwards must not be undone
+    if ctx.data(|d| d.get_temp::<egui::Id>(seen)) == Some(id) { return; }
+    let Some(r) = ctx.read_response(id) else { return };
+    if r.layer_id != ui.layer_id() || !ui.min_rect().contains_rect(r.rect) { return; }
+    ui.scroll_to_rect(r.rect.expand(4.0), None);
+    ctx.data_mut(|d| d.insert_temp(seen, id));
+}
+
+/// Scroll areas that follow the keyboard focus: `ScrollArea::vertical().show_following(ui, |ui| ...)`.
+pub trait ShowFollowing {
+    fn show_following<R>(self, ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> egui::scroll_area::ScrollAreaOutput<R>;
+}
+impl ShowFollowing for egui::ScrollArea {
+    fn show_following<R>(self, ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> egui::scroll_area::ScrollAreaOutput<R> {
+        self.show(ui, |ui| { let r = add(ui); follow_focus(ui); r })
+    }
 }
 
 /// Wraps a dialog's contents so that Tab and Shift+Tab stay inside it: `.show(ctx, trapped(|ui| { ... }))`.
@@ -437,5 +462,37 @@ mod trap_tests {
         assert_eq!(r.rings, 1, "Tab puts one ring round the control");
         r.frame(vec![Event::PointerButton { pos: Pos2::new(5.0, 5.0), button: egui::PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE }], Modifiers::NONE);
         assert_eq!(r.rings, 0, "a click takes it away");
+    }
+
+    #[test]
+    fn tab_scrolls_a_scroll_area_to_the_control_that_got_the_focus() {
+        let ctx = egui::Context::default();
+        let mut time = 0.0;
+        let mut ids: Vec<egui::Id> = vec![];
+        let mut tops: Vec<f32> = vec![];
+        let mut run = |events: Vec<egui::Event>, ids: &mut Vec<egui::Id>| -> f32 {
+            time += 0.1;
+            let mut input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))), time: Some(time), events, ..Default::default() };
+            tab_hook(&ctx, &mut input);
+            let mut off = 0.0;
+            ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ids.clear();
+                    let o = egui::ScrollArea::vertical().max_height(100.0).auto_shrink([false, false]).show_following(ui, |ui| {
+                        for n in 0..30 { let r = ui.button(format!("button {n}")); ids.push(r.id); }
+                    });
+                    off = o.state.offset.y;
+                });
+            });
+            off
+        };
+        run(vec![], &mut ids);
+        let tab = || egui::Event::Key { key: egui::Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE };
+        ctx.memory_mut(|m| m.request_focus(ids[0]));
+        run(vec![], &mut ids);
+        let mut last = 0.0;
+        for _ in 0..12 { run(vec![tab()], &mut ids); last = run(vec![], &mut ids); }
+        assert!(last > 40.0, "twelve Tabs later the list must have scrolled with the focus: offset {last}");
+        let _ = &mut tops;
     }
 }
