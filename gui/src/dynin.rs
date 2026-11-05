@@ -149,6 +149,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
     }
 
     // keys first, so Tab does not move the focus out of the panel
+    { let now = ctx.frame_nr(); ctx.data_mut(|d| d.insert_temp(egui::Id::new(crate::csd::DYN_ACTIVE), now)); }
     let (enter, esc, tab) = ctx.input_mut(|i| (i.consume_key(Modifiers::NONE, Key::Enter), i.consume_key(Modifiers::NONE, Key::Escape), i.consume_key(Modifiers::NONE, Key::Tab) || i.consume_key(Modifiers::SHIFT, Key::Tab)));
     if esc { app.dyn_in = None; return; }
     let mut d = app.dyn_in.clone().unwrap();

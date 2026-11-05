@@ -1092,4 +1092,47 @@ mod tests {
             }
         }
     }
+
+    /// Tab in the main window: nothing happens when nothing is focused, and from a panel field it stays in the side panels
+    /// (never the menu, the toolbars, the status bar or the drawing).
+    #[test]
+    fn tab_in_the_main_window_stays_in_the_side_panels() {
+        let mut a = App::new(None);
+        let ctx = egui::Context::default();
+        let mut t = 0.0;
+        let mut run = |a: &mut App, tab: bool, shift: bool, extra: Vec<egui::Event>| {
+            t += 0.1;
+            let mods = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
+            let mut events = extra;
+            if tab { events.push(egui::Event::Key { key: egui::Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: mods }); }
+            let mut input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1500.0, 900.0))), time: Some(t), events, modifiers: mods, ..Default::default() };
+            crate::csd::tab_hook(&ctx, &mut input);
+            let _ = ctx.run(input, |ctx| a.ui_frame(ctx));
+        };
+        for _ in 0..4 { run(&mut a, false, false, vec![]); }
+        // nothing focused: Tab does nothing
+        for _ in 0..6 { run(&mut a, true, false, vec![]); run(&mut a, false, false, vec![]); }
+        assert!(ctx.memory(|m| m.focused()).is_none(), "Tab with nothing focused must not take the focus anywhere");
+        // a click in the Project name field of the left panel, then Tab round and round: every stop is in a side panel
+        let at = egui::pos2(200.0, 66.0);
+        let click = |down: bool| vec![egui::Event::PointerMoved(at), egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: down, modifiers: egui::Modifiers::NONE }];
+        for down in [true, false] { run(&mut a, false, false, click(down)); }
+        run(&mut a, false, false, vec![]);
+        let start = ctx.memory(|m| m.focused());
+        assert!(start.is_some(), "the click should have put the focus in the name field");
+        let mut seen = std::collections::HashSet::new();
+        for shift in [false, true] {
+            for n in 0..60 {
+                run(&mut a, true, shift, vec![]);
+                // a skip over a stop the keys may not visit takes a frame each
+                for _ in 0..200 { run(&mut a, false, false, vec![]); }
+                if let Some(r) = ctx.memory(|m| m.focused()).and_then(|id| ctx.read_response(id)) {
+                    let x = r.interact_rect.center().x;
+                    assert!(!(398.0..=1500.0 - 444.0).contains(&x), "shift={shift} step {n}: Tab reached something outside the side panels at {:?} {:?}", r.interact_rect, r.layer_id);
+                    seen.insert(r.id);
+                }
+            }
+        }
+        assert!(seen.len() > 10, "Tab should visit the fields of the panels: {}", seen.len());
+    }
 }

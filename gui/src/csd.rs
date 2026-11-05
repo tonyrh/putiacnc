@@ -305,6 +305,14 @@ const TAB_SHIFT: &str = "tab_trap_last_shift";
 const TAB_SPIN: &str = "tab_trap_spin";
 
 const KEYBOARD_FOCUS: &str = "keyboard_focus";
+/// The parts of the main window Tab may visit (the two side panels), this frame; and whether Tab was pressed for this frame, and how many stops it has skipped.
+const TAB_REGIONS: &str = "tab_regions";
+/// The layers of the dialogs drawn this frame: floating things on the drawing (the tool palette, the zoom buttons) are not among them.
+const TAB_DIALOGS: &str = "tab_dialogs";
+const TAB_THIS_FRAME: &str = "tab_this_frame";
+const TAB_HOPS: &str = "tab_hops";
+/// The frame a point-drawing box was last open: it takes Tab for itself.
+pub const DYN_ACTIVE: &str = "dyn_active";
 /// (frame, the open dialog's start stop, whether the focus is inside it): the last dialog drawn, for `tab_hook`.
 const OPEN_DIALOG: &str = "open_dialog_stop";
 
@@ -319,7 +327,7 @@ pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
         }
         if let egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } = e {
             let s = modifiers.shift;
-            ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_SHIFT), s));
+            ctx.data_mut(|d| { d.insert_temp(egui::Id::new(TAB_SHIFT), s); d.insert_temp(egui::Id::new(TAB_THIS_FRAME), true); });
         }
     }
     // Tab with nothing focused (a click on the drawing leaves it so), or with the focus outside the open dialog, goes to the dialog's
@@ -335,10 +343,60 @@ pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
             }
         }
     }
+    // Tab with nothing focused and no dialog open does nothing: it must not start a walk through the menu, toolbars and panels
+    let (dialog, dynin) = ctx.data(|d| (d.get_temp::<(u64, egui::Id, bool)>(egui::Id::new(OPEN_DIALOG)).is_some_and(|(st, _, _)| now <= st + 2), d.get_temp::<u64>(egui::Id::new(DYN_ACTIVE)).is_some_and(|st| now <= st + 2)));
+    if !dialog && !dynin && ctx.memory(|m| m.focused()).is_none() {
+        raw.events.retain(|e| !matches!(e, egui::Event::Key { key: egui::Key::Tab, .. }));
+        ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_THIS_FRAME), false));
+    }
     if let Some(shift) = ctx.data_mut(|d| d.remove_temp::<bool>(egui::Id::new(TAB_PENDING))) {
+        ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_THIS_FRAME), true));
         let modifiers = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
         raw.events.push(egui::Event::Key { key: egui::Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers });
     }
+}
+
+/// Names a part of the main window Tab may visit (call for each side panel, every frame, after `tab_regions_reset`).
+pub fn allow_tab(ctx: &egui::Context, r: Rect) {
+    ctx.data_mut(|d| { let mut v = d.get_temp::<Vec<Rect>>(egui::Id::new(TAB_REGIONS)).unwrap_or_default(); v.push(r); d.insert_temp(egui::Id::new(TAB_REGIONS), v); });
+}
+pub fn tab_regions_reset(ctx: &egui::Context) {
+    ctx.data_mut(|d| { d.insert_temp(egui::Id::new(TAB_REGIONS), Vec::<Rect>::new()); d.insert_temp(egui::Id::new(TAB_DIALOGS), Vec::<egui::LayerId>::new()); });
+}
+
+/// Whether Tab may stop at this widget: anything in a window, popup or menu, and in the main window only the side panels. The menu,
+/// the toolbars, the status bar and the drawing have shortcuts and the mouse.
+fn tab_allowed(ctx: &egui::Context, id: egui::Id) -> bool {
+    let Some(r) = ctx.read_response(id) else { return true };
+    if r.layer_id.order == egui::Order::Middle {
+        return ctx.data(|d| d.get_temp::<Vec<egui::LayerId>>(egui::Id::new(TAB_DIALOGS))).is_none_or(|v| v.contains(&r.layer_id));
+    }
+    if r.layer_id.order != egui::Order::Background { return true; }
+    let c = r.interact_rect.center();
+    ctx.data(|d| d.get_temp::<Vec<Rect>>(egui::Id::new(TAB_REGIONS))).is_none_or(|v| v.iter().any(|x| x.contains(c)))
+}
+
+/// Call at the end of every frame: when Tab has landed on a control it may not visit, press it again (the same way a dialog wraps).
+pub fn tab_skip(ctx: &egui::Context) {
+    let pressed = ctx.data_mut(|d| d.remove_temp::<bool>(egui::Id::new(TAB_THIS_FRAME))).unwrap_or(false);
+    let skipping = ctx.data(|d| d.get_temp::<u32>(egui::Id::new(TAB_HOPS))).unwrap_or(0) > 0;
+    let kb = ctx.data(|d| d.get_temp::<bool>(egui::Id::new(KEYBOARD_FOCUS))).unwrap_or(false);
+    if !pressed && !skipping && !kb { return; }
+    let now = ctx.frame_nr();
+    if ctx.data(|d| d.get_temp::<u64>(egui::Id::new(DYN_ACTIVE))).is_some_and(|st| now <= st + 2) { return; }
+    let done = |ctx: &egui::Context| ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_HOPS), 0u32));
+    let Some(id) = ctx.memory(|m| m.focused()) else {
+        // at the end of the whole order egui lets go of the focus for a frame before it starts again at the first control
+        if pressed || skipping { let waited = ctx.data_mut(|d| { let n = d.get_temp::<u32>(egui::Id::new(TAB_HOPS)).unwrap_or(0) + 1; d.insert_temp(egui::Id::new(TAB_HOPS), n); n }); if waited < 200 { ctx.request_repaint(); } else { done(ctx); } }
+        return;
+    };
+    // the focus moves a frame after the key, so this is checked every frame while the keyboard has the focus, not only when Tab was pressed
+    if !kb || tab_allowed(ctx, id) { done(ctx); return; }
+    let hops = ctx.data_mut(|d| { let n = d.get_temp::<u32>(egui::Id::new(TAB_HOPS)).unwrap_or(0) + 1; d.insert_temp(egui::Id::new(TAB_HOPS), n); n });
+    if hops > 200 { ctx.memory_mut(|m| m.surrender_focus(id)); done(ctx); return; }
+    let shift = ctx.data(|d| d.get_temp::<bool>(egui::Id::new(TAB_SHIFT))).unwrap_or(false);
+    ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_PENDING), shift));
+    ctx.request_repaint();
 }
 
 /// A ring round the control that has the keyboard focus, drawn after everything else so that every control shows it the same way, the
@@ -346,6 +404,7 @@ pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
 pub fn focus_ring(ctx: &egui::Context) {
     if !ctx.data(|d| d.get_temp::<bool>(egui::Id::new(KEYBOARD_FOCUS))).unwrap_or(false) { return; }
     let Some(id) = ctx.memory(|m| m.focused()) else { return };
+    if !tab_allowed(ctx, id) { return; }
     if egui::text_edit::TextEditState::load(ctx, id).is_some() { return; }
     let Some(r) = ctx.read_response(id) else { return };
     let rect = r.interact_rect;
@@ -391,7 +450,11 @@ pub fn trapped<R>(f: impl FnOnce(&mut Ui) -> R) -> impl FnOnce(&mut Ui) -> R {
             let ctx = ui.ctx();
             let inside = ctx.memory(|m| m.focused()).and_then(|id| ctx.read_response(id)).is_some_and(|r| r.layer_id == ui.layer_id());
             let now = ctx.frame_nr();
-            ctx.data_mut(|d| d.insert_temp(egui::Id::new(OPEN_DIALOG), (now, a, inside)));
+            let layer = ui.layer_id();
+            ctx.data_mut(|d| {
+                d.insert_temp(egui::Id::new(OPEN_DIALOG), (now, a, inside));
+                if let Some(mut v) = d.get_temp::<Vec<egui::LayerId>>(egui::Id::new(TAB_DIALOGS)) { v.push(layer); d.insert_temp(egui::Id::new(TAB_DIALOGS), v); }
+            });
         }
         if start.gained_focus() || end.gained_focus() { tab_wrap(ui.ctx(), a, b); }
         r

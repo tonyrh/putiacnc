@@ -178,6 +178,7 @@ impl App {
         widgets::set_fractions(ctx, self.frac_in);
         widgets::set_speed_unit(ctx, self.tool_speed());
         self.sync_grid_units();
+        csd::tab_regions_reset(ctx);
         self.refit_fingers();
         let dropped: Option<String> = ctx.input(|i| i.raw.dropped_files.first().and_then(|f| f.path.as_ref().map(|p| p.display().to_string())));
         if let Some(p) = dropped {
@@ -222,10 +223,12 @@ impl App {
         if fit_left {
             let r = egui::SidePanel::left("left").resizable(false).exact_width(LEFT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)); });
             tour::note(ctx, "left", r.response.rect);
+            csd::allow_tab(ctx, r.response.rect);
         }
         if fit_right {
             let r = egui::SidePanel::right("right").resizable(false).exact_width(RIGHT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)); });
             tour::note(ctx, "right", r.response.rect);
+            csd::allow_tab(ctx, r.response.rect);
         }
         egui::TopBottomPanel::bottom("toolbar").frame(bar_frame(ctx, self.theme.header())).show(ctx, |ui| panels::tool_bar(ui, self));
         let preview = self.view_tab == view3d::ViewTab::Preview;
@@ -283,6 +286,7 @@ impl App {
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
         model3d::dialog(ctx, self);
+        csd::tab_skip(ctx);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }
 
