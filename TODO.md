@@ -39,7 +39,8 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [ ] Text: manual kerning handles on the canvas.
 - [x] Text along an arc at any angle (done).
 - [x] Text arc: warn when the text is longer than the circle (done).
-- [ ] Maybe, only if asked: text along any picked path (rigid letters first, warped later; placed once, not live-linked). Decided not worth the cost for now.
+- [x] Text along a shape (an oval, any closed outline), at a fixed distance inside its edge; placed once, editable again (done).
+- [ ] Text along an open path or the outside of a shape.
 - [x] Rest machining for pockets: a smaller flat end mill (the Corners row of a Pocket operation) clears only what the main cutter could not reach (corners and parts narrower than it).
 - [ ] Bezier and arc node editing (0.4.0).
 - [ ] Marlin output (a third G-code style next to GRBL and Mach3): `;` comments instead of `( )`, no `M2` (end with `M5` and a lift), tool change and spindle `S` scaling as the machine's build needs, arcs optional. First ask the maintainer: is it a CNC build with a spindle, are `G2`/`G3` enabled, how are tools changed. Not checked against Marlin itself yet.

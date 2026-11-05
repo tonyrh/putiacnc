@@ -8,9 +8,10 @@ use ttf_parser::{Face, OutlineBuilder};
 pub enum Align { Left, Center, Right }
 
 /// How the letters are laid out: along a straight baseline, around a circle (outside it, reading clockwise over the top,
-/// or inside the bottom, reading left to right under it), or stacked top to bottom.
+/// or inside the bottom, reading left to right under it), stacked top to bottom, or along the edge of a shape (`Shape`, see
+/// [`along_shape`]).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub enum Flow { #[default] Straight, ArcTop, ArcBottom, Vertical, Arc }
+pub enum Flow { #[default] Straight, ArcTop, ArcBottom, Vertical, Arc, Shape }
 
 #[derive(Clone, Copy, Debug)]
 pub struct TextStyle {
@@ -568,5 +569,175 @@ mod tests {
         let wide = TextStyle { word_spacing_mm: 4.0, ..ST };
         assert!((ink_width(&f, "A B", wide) - ink_width(&f, "A B", ST) - 4.0).abs() < 0.05);
         assert!((ink_width(&f, "AB", wide) - ink_width(&f, "AB", ST)).abs() < 1e-6);
+    }
+}
+
+/// Sets text that was made straight (baseline at y = 0, centred or aligned on x = 0) along the inside of a closed shape.
+/// `path` is the outline of the shape in mm. The baseline follows the outline moved inwards by `gap` mm (the nearest the letters
+/// come to the edge): letters that `face_in` stand towards the middle of the shape and read counter-clockwise (the bottom reads left to
+/// right); the others stand outwards, towards the edge, and read clockwise (over the top). `deg` is where the text sits, seen from the middle of the shape
+/// (0 is the right, 90 the top, 180 the left, 270 the bottom). Every point of every outline is moved: x along the baseline becomes
+/// distance along the curve and the height becomes distance from it, like [`bend`] does for a circle.
+pub fn along_shape(flat: &[LoopData], path: &[[f64; 2]], size: f64, gap: f64, deg: f64, face_in: bool) -> Result<Vec<LoopData>, String> {
+    use crate::clip;
+    if path.len() < 3 { return Err("Choose a closed shape first.".into()); }
+    let ring: Vec<[i64; 2]> = path.iter().map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect();
+    let off = gap.max(0.0) + if face_in { 0.0 } else { size };
+    let inner = clip::offset(&[ring], -off * S, S * 0.01);
+    // the biggest piece, if the shape fell into several
+    let Some(best) = inner.into_iter().max_by(|a, b| area2(a).abs().partial_cmp(&area2(b).abs()).unwrap_or(std::cmp::Ordering::Equal)) else {
+        return Err("The shape is too small for the letters at this distance from its edge.".into());
+    };
+    let mut pts: Vec<[f64; 2]> = best.iter().map(|p| [p[0] as f64 / S, p[1] as f64 / S]).collect();
+    // thinned a little, so that the walk along it is quick, and dense enough for a smooth curve
+    pts = resample(&pts, 0.25);
+    // outwards-facing letters read clockwise, inwards-facing ones counter-clockwise: orient the ring that way
+    let ccw = signed_area(&pts) > 0.0;
+    if ccw != face_in { pts.reverse(); }
+    let n = pts.len();
+    let mut cum = vec![0.0_f64; n + 1];
+    for i in 0..n { let (a, b) = (pts[i], pts[(i + 1) % n]); cum[i + 1] = cum[i] + (b[0] - a[0]).hypot(b[1] - a[1]); }
+    let total = cum[n];
+    if total < 1e-6 { return Err("The shape is too small for the letters at this distance from its edge.".into()); }
+    let at = |s: f64| -> ([f64; 2], [f64; 2]) {
+        let s = s.rem_euclid(total);
+        let k = match cum.binary_search_by(|c| c.partial_cmp(&s).unwrap_or(std::cmp::Ordering::Equal)) { Ok(k) => k.min(n - 1), Err(k) => (k - 1).min(n - 1) };
+        let (a, b) = (pts[k], pts[(k + 1) % n]);
+        let seg = (cum[k + 1] - cum[k]).max(1e-12);
+        let t = (s - cum[k]) / seg;
+        ([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], [(b[0] - a[0]) / seg, (b[1] - a[1]) / seg])
+    };
+    // the direction of travel at a place, taken over a stretch of about a millimetre so a corner of the polygon does not turn the letter
+    let tangent = |s: f64| -> [f64; 2] {
+        let (p1, _) = at(s - 0.5);
+        let (p2, _) = at(s + 0.5);
+        let (dx, dy) = (p2[0] - p1[0], p2[1] - p1[1]);
+        let l = dx.hypot(dy).max(1e-12);
+        [dx / l, dy / l]
+    };
+    // where the text sits: the place of the baseline hit by a ray from the middle of the shape
+    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    for p in path { x0 = x0.min(p[0]); y0 = y0.min(p[1]); x1 = x1.max(p[0]); y1 = y1.max(p[1]); }
+    let mid = [(x0 + x1) / 2.0, (y0 + y1) / 2.0];
+    let (dx, dy) = (deg.to_radians().cos(), deg.to_radians().sin());
+    let mut s0: Option<f64> = None;
+    let mut best_t = f64::MAX;
+    for i in 0..n {
+        let (a, b) = (pts[i], pts[(i + 1) % n]);
+        let (ex, ey) = (b[0] - a[0], b[1] - a[1]);
+        let den = dx * ey - dy * ex;
+        if den.abs() < 1e-12 { continue; }
+        let (ax, ay) = (a[0] - mid[0], a[1] - mid[1]);
+        let t = (ax * ey - ay * ex) / den; // along the ray
+        let u = (ax * dy - ay * dx) / den; // along the edge
+        if t > 0.0 && (0.0..=1.0).contains(&u) && t < best_t { best_t = t; s0 = Some(cum[i] + u * (cum[i + 1] - cum[i])); }
+    }
+    let Some(s0) = s0 else { return Err("The text cannot be put there on this shape.".into()) };
+    // text longer than the way round
+    let (mut fx0, mut fx1) = (f64::MAX, f64::MIN);
+    for l in flat { for c in l.pts.chunks_exact(2) { let x = c[0] as f64 / S; fx0 = fx0.min(x); fx1 = fx1.max(x); } }
+    if fx1 > fx0 && fx1 - fx0 > total { return Err(format!("The text is {:.0} mm long but the way round the shape is only {:.0} mm.", fx1 - fx0, total)); }
+    let mut out = Vec::with_capacity(flat.len());
+    for l in flat {
+        let c: Vec<[f64; 2]> = l.pts.chunks_exact(2).map(|p| [p[0] as f64 / S, p[1] as f64 / S]).collect();
+        // long edges are cut first so that they bend too
+        let edges = if l.closed() { c.len() } else { c.len().saturating_sub(1) };
+        let mut dense: Vec<[f64; 2]> = Vec::with_capacity(c.len());
+        for i in 0..edges {
+            let (a, b) = (c[i], c[(i + 1) % c.len()]);
+            let k = ((b[0] - a[0]).hypot(b[1] - a[1]) / 0.3).ceil().max(1.0) as usize;
+            for j in 0..k { let t = j as f64 / k as f64; dense.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+        }
+        if !l.closed() { if let Some(&e) = c.last() { dense.push(e); } }
+        let mut m = l.clone();
+        m.pts = dense.iter().flat_map(|p| {
+            let s = s0 + p[0] - (fx0 + fx1) / 2.0;
+            let (q, _) = at(s);
+            let t = tangent(s);
+            // the letters stand on the left of the direction of travel
+            let up = [-t[1], t[0]];
+            [((q[0] + up[0] * p[1]) * S).round() as i64, ((q[1] + up[1] * p[1]) * S).round() as i64]
+        }).collect();
+        out.push(m);
+    }
+    Ok(out)
+}
+
+fn area2(p: &[[i64; 2]]) -> f64 {
+    let n = p.len();
+    (0..n).map(|i| { let (a, b) = (p[i], p[(i + 1) % n]); a[0] as f64 * b[1] as f64 - b[0] as f64 * a[1] as f64 }).sum()
+}
+
+fn signed_area(p: &[[f64; 2]]) -> f64 {
+    let n = p.len();
+    (0..n).map(|i| { let (a, b) = (p[i], p[(i + 1) % n]); a[0] * b[1] - b[0] * a[1] }).sum::<f64>() / 2.0
+}
+
+/// A closed ring with its points about `step` mm apart, so a coarse outline still gives a smooth walk.
+fn resample(p: &[[f64; 2]], step: f64) -> Vec<[f64; 2]> {
+    let n = p.len();
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let (a, b) = (p[i], p[(i + 1) % n]);
+        let k = ((b[0] - a[0]).hypot(b[1] - a[1]) / step).ceil().max(1.0) as usize;
+        for j in 0..k { let t = j as f64 / k as f64; out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+    }
+    out
+}
+
+#[cfg(test)]
+mod shape_tests {
+    use super::*;
+    use crate::shapes;
+
+    fn circle(cx: f64, cy: f64, r: f64) -> Vec<[f64; 2]> { (0..360).map(|k| { let a = (k as f64).to_radians(); [cx + r * a.cos(), cy + r * a.sin()] }).collect() }
+    /// A flat "word": a bar 20 long and 5 tall, centred on x = 0, standing on the baseline.
+    fn bar() -> Vec<LoopData> { vec![shapes::new_rect([-10.0, 0.0], [10.0, 5.0], 0.0, 0)] }
+    fn dists(ls: &[LoopData], c: [f64; 2]) -> (f64, f64, [f64; 2]) {
+        let pts: Vec<[f64; 2]> = ls.iter().flat_map(|l| l.pts.chunks_exact(2).map(|p| [p[0] as f64 / S, p[1] as f64 / S]).collect::<Vec<_>>()).collect();
+        let d: Vec<f64> = pts.iter().map(|p| (p[0] - c[0]).hypot(p[1] - c[1])).collect();
+        let n = pts.len() as f64;
+        (d.iter().cloned().fold(f64::MAX, f64::min), d.iter().cloned().fold(0.0, f64::max), [pts.iter().map(|p| p[0]).sum::<f64>() / n, pts.iter().map(|p| p[1]).sum::<f64>() / n])
+    }
+
+    #[test]
+    fn letters_facing_out_stand_between_the_edge_gap_and_the_baseline() {
+        // a round shape of radius 50, the letters 5 tall, 5 mm from the edge: they fill the ring from radius 40 to 45
+        let out = along_shape(&bar(), &circle(50.0, 50.0, 50.0), 5.0, 5.0, 90.0, false).unwrap();
+        let (lo, hi, mid) = dists(&out, [50.0, 50.0]);
+        assert!(lo > 39.8 && hi < 45.2, "{lo} {hi}");
+        assert!(mid[1] > 85.0 && (mid[0] - 50.0).abs() < 1.0, "at the top: {mid:?}");
+    }
+
+    #[test]
+    fn letters_facing_in_sit_at_the_bottom_and_stand_towards_the_middle() {
+        let out = along_shape(&bar(), &circle(50.0, 50.0, 50.0), 5.0, 5.0, 270.0, true).unwrap();
+        let (lo, hi, mid) = dists(&out, [50.0, 50.0]);
+        assert!(lo > 39.8 && hi < 45.2, "{lo} {hi}");
+        assert!(mid[1] < 15.0 && (mid[0] - 50.0).abs() < 1.0, "at the bottom: {mid:?}");
+    }
+
+    #[test]
+    fn on_an_oval_the_letters_keep_their_distance_from_the_edge_all_along() {
+        // a long oval: the middle of the text and its two ends are all about the same distance from the edge
+        let oval: Vec<[f64; 2]> = (0..720).map(|k| { let a = (k as f64 / 2.0).to_radians(); [110.0 + 100.0 * a.cos(), 70.0 + 60.0 * a.sin()] }).collect();
+        let long: Vec<LoopData> = vec![shapes::new_rect([-60.0, 0.0], [60.0, 5.0], 0.0, 0)];
+        let out = along_shape(&long, &oval, 5.0, 8.0, 90.0, false).unwrap();
+        for l in &out {
+            for p in l.pts.chunks_exact(2) {
+                let (x, y) = (p[0] as f64 / S, p[1] as f64 / S);
+                // the gap to the edge of the oval is at least 7.5 mm for every point (the top of the letters is 8 mm off)
+                let e = oval.iter().map(|q| (q[0] - x).hypot(q[1] - y)).fold(f64::MAX, f64::min);
+                assert!(e > 7.5 && e < 14.0, "{e} at {x},{y}");
+            }
+        }
+    }
+
+    #[test]
+    fn text_too_long_or_a_shape_too_small_gives_a_message() {
+        let long: Vec<LoopData> = vec![shapes::new_rect([-200.0, 0.0], [200.0, 5.0], 0.0, 0)];
+        assert!(along_shape(&long, &circle(50.0, 50.0, 50.0), 5.0, 5.0, 90.0, false).unwrap_err().contains("long"));
+        assert!(along_shape(&bar(), &circle(50.0, 50.0, 8.0), 5.0, 5.0, 90.0, false).is_err());
+        assert!(along_shape(&bar(), &[[0.0, 0.0], [1.0, 1.0]], 5.0, 5.0, 90.0, false).is_err());
     }
 }

@@ -145,6 +145,9 @@ pub struct TextSpec {
     /// Width (mm) the text was fitted to, 0 when its height was set by hand.
     #[serde(default)] pub fit_width: f64,
     #[serde(default)] pub shadow: [f64; 2],
+    /// Flow::Shape: the outline (mm) of the shape the text follows, as it was when the text was set; `radius` is then the
+    /// distance from its edge to the letters.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")] pub path: Vec<[f64; 2]>,
 }
 
 /// A 3D model reduced to a height map (seen from above), carved by relief operations.

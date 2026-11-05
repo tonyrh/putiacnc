@@ -39,6 +39,9 @@ pub struct TextTool {
     pub radius: f64,
     pub arc_deg: f64,
     pub arc_in: bool,
+    /// Along a shape: the outline of the shape (mm), and the distance from its edge to the letters.
+    pub path: Vec<[f64; 2]>,
+    pub gap: f64,
     /// Fit the text to a width: the height follows from it.
     pub fit_on: bool,
     pub fit_w: f64,
@@ -86,7 +89,7 @@ impl Default for TextTool {
         let first_outline = fonts.len();
         fonts.extend([FontEntry { label: "Hack".into(), id: None, line: None }, FontEntry { label: "Ubuntu Light".into(), id: None, line: None }]);
         TextTool {
-            open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, arc_deg: 90.0, arc_in: false, fit_on: false, fit_w: 100.0, fit_key: String::new(), shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
+            open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, arc_deg: 90.0, arc_in: false, path: vec![], gap: 6.0, fit_on: false, fit_w: 100.0, fit_key: String::new(), shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
             fonts, sel: first_outline, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None, previews: Default::default(),
         }
     }
@@ -173,6 +176,24 @@ impl TextTool {
 
     /// The letters of `text` in the chosen font: None when the font cannot be loaded.
     fn loops(&mut self, text: &str, style: TextStyle) -> Option<Result<Vec<LoopData>, String>> {
+        // along a shape: the text is set straight, then bent along the inside of the shape's edge
+        if style.flow == Flow::Shape {
+            let flat = TextStyle { flow: Flow::Straight, shadow: [0.0, 0.0], ..style };
+            let r = if let Some(id) = self.fonts.get(self.sel).and_then(|f| f.line) { line_text_loops(id, text, flat, [0.0, 0.0], 0) } else {
+                let (data, idx) = self.font_bytes()?;
+                text_loops(&data, idx, text, flat, [0.0, 0.0], 0)
+            };
+            return Some(r.and_then(|l| {
+                let mut out = putiacnc_core::text::along_shape(&l, &self.path, style.size_mm, style.radius_mm, style.arc_deg, style.arc_in)?;
+                if style.shadow != [0.0, 0.0] {
+                    let (dx, dy) = ((style.shadow[0] * shapes::S).round() as i64, (style.shadow[1] * shapes::S).round() as i64);
+                    let mut sh: Vec<LoopData> = out.iter().map(|l| LoopData { pts: l.pts.chunks(2).flat_map(|p| [p[0] + dx, p[1] + dy]).collect(), ..l.clone() }).collect();
+                    sh.extend(out);
+                    out = sh;
+                }
+                Ok(out)
+            }));
+        }
         if let Some(id) = self.fonts.get(self.sel).and_then(|f| f.line) { return Some(line_text_loops(id, text, style, [0.0, 0.0], 0)); }
         let (data, idx) = self.font_bytes()?;
         Some(text_loops(&data, idx, text, style, [0.0, 0.0], 0))
@@ -201,7 +222,7 @@ impl TextTool {
         self.bytes.clone()
     }
 
-    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.size * self.letter_pct / 100.0, word_spacing_mm: self.size * self.word_pct / 100.0, kerning: self.kerning, align: self.align, flow: self.flow, radius_mm: self.radius, arc_deg: self.arc_deg, arc_in: self.arc_in, shadow: self.shadow } }
+    fn style(&self) -> TextStyle { TextStyle { size_mm: self.size, spacing_mm: self.size * self.letter_pct / 100.0, word_spacing_mm: self.size * self.word_pct / 100.0, kerning: self.kerning, align: self.align, flow: self.flow, radius_mm: if self.flow == Flow::Shape { self.gap } else { self.radius }, arc_deg: self.arc_deg, arc_in: self.arc_in, shadow: self.shadow } }
 
     /// With fit to width on, sets the height so the widest line is as wide as asked (width grows in step with the height).
     fn fit(&mut self) {
@@ -219,12 +240,13 @@ impl TextTool {
 
     fn refresh(&mut self) {
         self.fit();
-        let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}|{}|{}|{}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow, self.arc_deg, self.arc_in, self.fit_on);
+        let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}|{}|{}|{}|{}|{:?}|{:?}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow, self.arc_deg, self.arc_in, self.fit_on, self.gap, self.path.len(), self.path.first().zip(self.path.get(self.path.len() / 2)));
         if key == self.key { return; }
         self.key = key;
         self.preview.clear();
         self.err = None;
-        let Some(pos) = self.pos else { return };
+        // along a shape the place comes from the shape, so no click is needed
+        let Some(pos) = self.pos.or((self.flow == Flow::Shape).then_some([0.0, 0.0])) else { return };
         if self.content.trim().is_empty() { return; }
         let (content, style) = (self.content.clone(), self.style());
         match self.loops(&content, style) {
@@ -233,7 +255,8 @@ impl TextTool {
                 Ok(mut l) => {
                     if l.is_empty() { self.err = Some("This font has none of those letters.".into()); }
                     // set at the origin, then turned and moved: the same steps the editor takes back later
-                    apply_affine(&mut l, &Affine::compose(self.angle.to_radians(), self.rest, pos));
+                    // (along a shape the letters are already where they belong: no move or turn)
+                    if self.flow != Flow::Shape { apply_affine(&mut l, &Affine::compose(self.angle.to_radians(), self.rest, pos)); }
                     self.preview = l;
                     // text longer than the circle would run into its own start
                     if self.flow == Flow::Arc && self.err.is_none() {
@@ -259,7 +282,7 @@ pub fn place(app: &mut App) {
     if loops.is_empty() { return; }
     let t = &app.text;
     let spec = putiacnc_core::model::TextSpec {
-        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.size * t.letter_pct / 100.0, word_spacing: t.size * t.word_pct / 100.0, kerning: t.kerning, align: t.align, flow: t.flow, radius: t.radius, arc_deg: t.arc_deg, arc_in: t.arc_in, fit_width: if t.fit_on && t.flow == Flow::Straight { t.fit_w } else { 0.0 }, shadow: t.shadow,
+        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.size * t.letter_pct / 100.0, word_spacing: t.size * t.word_pct / 100.0, kerning: t.kerning, align: t.align, flow: t.flow, radius: if t.flow == Flow::Shape { t.gap } else { t.radius }, arc_deg: t.arc_deg, arc_in: t.arc_in, fit_width: if t.fit_on && t.flow == Flow::Straight { t.fit_w } else { 0.0 }, shadow: t.shadow, path: if t.flow == Flow::Shape { t.path.clone() } else { vec![] },
     };
     let first = t.content.lines().find(|l| !l.trim().is_empty()).unwrap_or("").trim().chars().take(24).collect::<String>();
     let name = format!("Text: {first}");
@@ -398,6 +421,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     app.text.sel = idx;
     app.text.picked = true;
     app.text.bytes_for = None;
+    app.text.path = spec.path.clone();
     let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, word_spacing_mm: spec.word_spacing, kerning: spec.kerning, align: spec.align, flow: spec.flow, radius_mm: spec.radius, arc_deg: spec.arc_deg, arc_in: spec.arc_in, shadow: spec.shadow };
     let g0 = app.text.loops(&spec.content, style).and_then(|r| r.ok()).unwrap_or_default();
     let now: Vec<&LoopData> = app.project.data.loops.iter().filter(|l| l.grp == Some(gid)).collect();
@@ -420,7 +444,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     t.align = spec.align;
     // the two old circle choices are just arcs at the top and at the bottom
     (t.flow, t.arc_deg, t.arc_in) = match spec.flow { Flow::ArcTop => (Flow::Arc, 90.0, false), Flow::ArcBottom => (Flow::Arc, 270.0, true), f => (f, spec.arc_deg, spec.arc_in) };
-    t.radius = spec.radius * s;
+    if spec.flow == Flow::Shape { t.gap = spec.radius * s; } else { t.radius = spec.radius * s; }
     t.fit_on = spec.fit_width > 0.0 && spec.flow == Flow::Straight;
     if t.fit_on { t.fit_w = spec.fit_width * s; }
     t.fit_key.clear();
@@ -493,6 +517,16 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let stock = app.project.data.stock.clone();
     let (mut do_place, mut cancel) = (false, false);
     let editing = app.text.edit.is_some();
+    // along a shape: the shape selected in the drawing (one closed outline that is not a letter) can be taken as the one to follow
+    let pick_shape: Option<Vec<[f64; 2]>> = {
+        let d = &app.project.data;
+        let mut it = app.sel.iter().filter_map(|&i| d.loops.get(i));
+        match (it.next(), it.next()) {
+            (Some(l), None) if l.closed() && !shapes::is_point(l) && !l.grp.is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.text.is_some())) =>
+                Some(l.pts.chunks_exact(2).map(|p| [p[0] as f64 / shapes::S, p[1] as f64 / shapes::S]).collect()),
+            _ => None,
+        }
+    };
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Text", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
@@ -596,19 +630,21 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             Flow::Straight if t.fit_on => format!("straight · {} wide", crate::widgets::fmt_len(ui, t.fit_w)),
             Flow::Straight => "straight".to_string(),
             Flow::Vertical => "stacked".to_string(),
+            Flow::Shape => format!("along a shape · {}°", crate::panels::fmt_num(t.arc_deg)),
             _ => format!("arc, r {} · {}°", crate::panels::fmt_num(t.radius), crate::panels::fmt_num(t.arc_deg)),
         };
         section(ui, &mut t.sections, "layout", "Layout", &sum_layout, |ui| {
             grid("text_layout").show(ui, |ui| {
                 crate::toolmgr::rlabel(ui, lw, "Layout");
-                let flow_resp = egui::ComboBox::from_id_source("text_flow").width(crate::widgets::combo_fit(ui, &["Straight", "Along an arc", "Stacked, top to bottom"]).max(190.0)).selected_text(match t.flow {
-                    Flow::Straight => "Straight", Flow::Vertical => "Stacked, top to bottom", _ => "Along an arc",
+                let flow_resp = egui::ComboBox::from_id_source("text_flow").width(crate::widgets::combo_fit(ui, &["Straight", "Along an arc", "Along a shape", "Stacked, top to bottom"]).max(190.0)).selected_text(match t.flow {
+                    Flow::Straight => "Straight", Flow::Vertical => "Stacked, top to bottom", Flow::Shape => "Along a shape", _ => "Along an arc",
                 }).show_ui(ui, |ui| {
                     ui.selectable_value(&mut t.flow, Flow::Straight, "Straight");
                     ui.selectable_value(&mut t.flow, Flow::Arc, "Along an arc");
+                    ui.selectable_value(&mut t.flow, Flow::Shape, "Along a shape");
                     ui.selectable_value(&mut t.flow, Flow::Vertical, "Stacked, top to bottom");
                 }).response;
-                if !ui.memory(|m| m.any_popup_open()) { flow_resp.tip("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there"); }
+                if !ui.memory(|m| m.any_popup_open()) { flow_resp.tip("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there. Along a shape: the letters follow the inside of the edge of a shape you select, such as an oval"); }
                 ui.end_row();
                 if t.flow == Flow::Straight {
                     crate::toolmgr::rlabel(ui, lw, "Width");
@@ -619,10 +655,24 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     }).response.tip("Sets the height so the longest line is exactly this wide");
                     ui.end_row();
                 }
-                if t.flow == Flow::Arc {
+                if t.flow == Flow::Shape {
+                    crate::toolmgr::rlabel(ui, lw, "Shape");
+                    ui.horizontal(|ui| {
+                        let b = ui.add_enabled(pick_shape.is_some(), egui::Button::new("Use the selected shape")).on_hover_text("Select one closed shape in the drawing (an oval, a rounded rectangle, any outline), then press: the text follows the inside of its edge. It is taken as it is now: if the shape changes, press again");
+                        if b.clicked() { if let Some(p) = &pick_shape { t.path = p.clone(); } }
+                        ui.weak(if t.path.len() >= 3 { "set" } else { "none yet" });
+                    });
+                    ui.end_row();
+                    crate::toolmgr::rlabel(ui, lw, "Distance");
+                    ui.horizontal(|ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.gap, 0.0, 1000.0, 0.5, 2, ""); ui.weak(format!("{}, from the edge to the letters", crate::widgets::len_unit(ui))); });
+                    ui.end_row();
+                }
+                if t.flow == Flow::Arc || t.flow == Flow::Shape {
+                    if t.flow == Flow::Arc {
                     crate::toolmgr::rlabel(ui, lw, "Radius");
                     ui.horizontal(|ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak(format!("{}, of the baseline", crate::widgets::len_unit(ui))); });
                     ui.end_row();
+                    }
                     crate::toolmgr::rlabel(ui, lw, "Position");
                     ui.horizontal(|ui| {
                         crate::widgets::num(ui, [60.0, 24.0], &mut t.arc_deg, -360.0, 720.0, 1.0, 1, "");
@@ -640,6 +690,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
         let p0 = t.pos.unwrap_or([zx, zy]);
         let sum_pos = format!("X {} · Y {} · {}°", crate::panels::fmt_num(p0[0] - zx), crate::panels::fmt_num(p0[1] - zy), crate::panels::fmt_num(t.angle));
+        if t.flow != Flow::Shape {
         section(ui, &mut t.sections, "position", "Position", &sum_pos, |ui| {
             grid("text_position").show(ui, |ui| {
                 crate::toolmgr::rlabel(ui, lw, "Start");
@@ -661,6 +712,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             });
         });
+        }
         let sum_shadow = if t.shadow == [0.0, 0.0] { "none".to_string() } else { format!("X {} · Y {}", crate::widgets::fmt_len(ui, t.shadow[0]), crate::widgets::fmt_len(ui, t.shadow[1])) };
         section(ui, &mut t.sections, "shadow", "Shadow", &sum_shadow, |ui| {
             grid("text_shadow").show(ui, |ui| {
@@ -925,5 +977,71 @@ mod tests {
         a.text.refresh();
         let w_off = { let b = shapes::bbox_many(a.text.preview.iter()).unwrap(); b[2] - b[0] };
         assert!(w_on < w_off, "kerning tightens the text: {w_on} vs {w_off}");
+    }
+
+    /// An app with an oval (200 x 120 mm) on a 220 x 140 stock, selected, and the text tool along a shape.
+    fn oval_app() -> App {
+        let mut a = App::new(None);
+        a.project.data.stock.w = 220.0;
+        a.project.data.stock.h = 140.0;
+        a.project.data.loops = vec![shapes::new_ellipse([10.0, 10.0], [210.0, 130.0], 0)];
+        a.sel = [0].into_iter().collect();
+        a.text.sel = a.text.fonts.iter().position(|f| f.label == "Hack").unwrap();
+        a.text.content = "OVAL SIGN".into();
+        a.text.size = 12.0;
+        a.text.flow = Flow::Shape;
+        a.text.gap = 8.0;
+        a.text.path = a.project.data.loops[0].pts.chunks_exact(2).map(|p| [p[0] as f64 / shapes::S, p[1] as f64 / shapes::S]).collect();
+        a
+    }
+
+    #[test]
+    fn text_along_a_shape_follows_it_and_stays_editable() {
+        let mut a = oval_app();
+        // the stock zero is not the lower left corner here: the letters must still not be moved by it
+        a.text.pos = Some([123.0, 45.0]);
+        place(&mut a);
+        let g = a.project.data.groups[0].clone();
+        let spec = g.text.as_ref().unwrap();
+        assert_eq!(spec.flow, Flow::Shape);
+        assert!((spec.radius - 8.0).abs() < 1e-9, "the distance from the edge is saved");
+        assert!(spec.path.len() > 50, "and the outline of the shape");
+        // at the top of the oval, centred, and clear of the edge
+        let b = bbox(&a, g.id);
+        assert!(b[1] > 80.0 && b[3] < 123.0, "{b:?}");
+        assert!(((b[0] + b[2]) / 2.0 - 110.0).abs() < 2.0, "{b:?}");
+        // editing it brings back the shape and the distance, and putting it again changes nothing
+        let before = bbox(&a, g.id);
+        a.edit_text(g.id);
+        a.text.fonts = a.text.fonts.clone();
+        assert!(begin_edit(&mut a, g.id));
+        assert_eq!(a.text.flow, Flow::Shape);
+        assert!((a.text.gap - 8.0).abs() < 1e-9);
+        assert!(a.text.path.len() > 50);
+        place(&mut a);
+        let after = bbox(&a, g.id);
+        for k in 0..4 { assert!((before[k] - after[k]).abs() < 0.05, "{before:?} {after:?}"); }
+    }
+
+    #[test]
+    fn text_along_a_shape_reports_a_missing_shape_and_text_that_is_too_long() {
+        let mut a = oval_app();
+        a.text.path.clear();
+        a.text.refresh();
+        assert!(a.text.err.is_some() && a.text.preview.is_empty());
+        let mut a = oval_app();
+        a.text.content = "A VERY LONG LINE OF TEXT THAT CANNOT POSSIBLY GO ROUND THIS OVAL AT THIS SIZE, NOT EVEN ONCE OVER".into();
+        a.text.refresh();
+        assert!(a.text.err.as_deref().is_some_and(|e| e.contains("long")), "{:?}", a.text.err);
+    }
+
+    #[test]
+    fn the_bottom_of_the_shape_reads_left_to_right_facing_the_middle() {
+        let mut a = oval_app();
+        a.text.arc_deg = 270.0;
+        a.text.arc_in = true;
+        a.text.refresh();
+        let b = shapes::bbox_many(a.text.preview.iter()).unwrap();
+        assert!(b[3] < 60.0 && ((b[0] + b[2]) / 2.0 - 110.0).abs() < 2.0, "{b:?}");
     }
 }

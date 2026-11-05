@@ -458,7 +458,9 @@ impl App {
 
 pub fn fmt_time(min: f64) -> String {
     let s = (min * 60.0).round() as u64;
-    format!("{}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
+    // with units, so that "1:09:08" is never mistaken for minutes and seconds
+    let (h, m, sec) = (s / 3600, (s / 60) % 60, s % 60);
+    if h > 0 { format!("{h} h {m:02} min {sec:02} s") } else if m > 0 { format!("{m} min {sec:02} s") } else { format!("{sec} s") }
 }
 
 #[cfg(test)]

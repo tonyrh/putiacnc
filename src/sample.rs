@@ -84,7 +84,7 @@ Before cutting for real
         let gid = d.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         for l in &mut letters { shapes::translate(l, cx, cy); l.grp = Some(gid); }
         let font = crate::linetext::fonts().into_iter().find(|f| f.0 == "futural").map(|f| f.1.to_string()).unwrap_or_default();
-        let spec = TextSpec { content: text.into(), font, size, spacing: style.spacing_mm, word_spacing: 0.0, kerning: false, align: Align::Center, flow: style.flow, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0] };
+        let spec = TextSpec { content: text.into(), font, size, spacing: style.spacing_mm, word_spacing: 0.0, kerning: false, align: Align::Center, flow: style.flow, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0], path: vec![] };
         d.groups.push(ShapeGroup { id: gid, name: format!("Text: {text}"), locked: false, text: Some(spec) });
         d.loops.extend(letters);
     }

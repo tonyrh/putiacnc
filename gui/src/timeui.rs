@@ -30,7 +30,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             ui.add_space(8.0);
             let sum: f64 = t.ops.iter().map(|o| o.total()).sum::<f64>() + t.waits;
             let widest = t.ops.iter().map(|o| o.total()).fold(t.waits, f64::max).max(1e-9);
-            let (name_w, bar_w, time_w, pct_w) = (190.0_f32, 150.0_f32, 62.0_f32, 40.0_f32);
+            let (name_w, bar_w, time_w, pct_w) = (190.0_f32, 130.0_f32, 118.0_f32, 40.0_f32);
             let weak = ui.visuals().weak_text_color();
             let pct = |v: f64| if sum > 0.0 { let p = v / sum * 100.0; if p > 0.0 && p < 1.0 { "<1%".to_string() } else { format!("{:.0}%", p) } } else { String::new() };
             egui::Grid::new("time_grid").num_columns(4).spacing([10.0, 7.0]).show(ui, |ui| {

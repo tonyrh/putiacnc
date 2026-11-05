@@ -52,7 +52,7 @@ fn main() {
     for l in &mut t { l.grp = Some(1); }
     d.groups.push(ShapeGroup { id: 1, name: "Text: PutiaCNC".into(), locked: false, text: Some(TextSpec {
         content: "PutiaCNC".into(), font: label.clone(), size, spacing: size / 20.0, word_spacing: 0.0, kerning: true, align: text::Align::Center,
-        flow: text::Flow::Straight, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0] }) });
+        flow: text::Flow::Straight, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0], path: vec![] }) });
     d.loops.append(&mut t);
     for [x, y] in [[x0 + inset, y0 + inset], [x1 - inset, y0 + inset], [x0 + inset, y1 - inset], [x1 - inset, y1 - inset]] { d.loops.push(shapes::new_circle([x, y], 3.175 / 2.0, 3)); }
     std::fs::write(out, save_project(&f).unwrap()).unwrap();
