@@ -10,12 +10,20 @@ pub struct CleanTool { pub open: bool, pub join: bool, pub dups: bool, pub tiny:
 impl Default for CleanTool { fn default() -> Self { CleanTool { open: false, join: true, dups: true, tiny: true, tol: 0.05, msg: String::new() } } }
 
 impl App {
+    /// The shapes cleaning works on: the selection, or the whole drawing when nothing is selected, without the shapes of a locked layer
+    /// or locked drawing and without those on a hidden layer (what cannot be seen is not tidied).
+    pub fn clean_scope(&self) -> std::collections::BTreeSet<usize> {
+        let all: Vec<usize> = if self.sel.is_empty() { (0..self.project.data.loops.len()).collect() } else { self.sel.iter().copied().collect() };
+        all.into_iter().filter(|&i| i < self.project.data.loops.len() && !self.loop_locked(i) && !self.loop_hidden(i)).collect()
+    }
+
     /// Cleans the selection (or the whole drawing when nothing is selected).
     pub fn clean_drawing(&mut self) -> String {
         let t = &self.clean;
         let o = Options { join: t.join, duplicates: t.dups, tiny: t.tiny, tol: t.tol.max(1e-4) };
-        let scope = if self.sel.is_empty() { None } else { Some(self.sel.clone()) };
-        let (res, removed, rep) = cleanup::clean(&self.project.data.loops, scope.as_ref(), o);
+        let scope = self.clean_scope();
+        if scope.is_empty() { return "Nothing to clean up: the shapes are locked or hidden.".into(); }
+        let (res, removed, rep) = cleanup::clean(&self.project.data.loops, Some(&scope), o);
         let changed = !removed.is_empty() || res.len() != self.project.data.loops.len() || rep.closed > 0 || rep.joined > 0
             || res.iter().zip(&self.project.data.loops).any(|(a, b)| a.pts != b.pts || a.c != b.c);
         if !changed { return "Nothing to clean up.".into(); }
@@ -41,7 +49,7 @@ impl App {
 
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.clean.open { return; }
-    let scope: Vec<&putiacnc_core::model::LoopData> = if app.sel.is_empty() { app.project.data.loops.iter().collect() } else { app.sel.iter().filter_map(|&i| app.project.data.loops.get(i)).collect() };
+    let scope: Vec<&putiacnc_core::model::LoopData> = app.clean_scope().into_iter().filter_map(|i| app.project.data.loops.get(i)).collect();
     let owned: Vec<putiacnc_core::model::LoopData> = scope.into_iter().cloned().collect();
     let open = cleanup::open_count(&owned);
     let ends = cleanup::loose_ends(&owned, app.clean.tol);

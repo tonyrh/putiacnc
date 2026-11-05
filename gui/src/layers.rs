@@ -159,4 +159,25 @@ mod tests {
         a.project.data.loops.insert(0, shapes::new_rect([0.0, 0.0], [5.0, 5.0], 0.0, 0));
         assert!(a.run_tool("corners", |a| a.corner_selection(CornerKind::Fillet, 2.0)));
     }
+
+    #[test]
+    fn clean_up_leaves_locked_and_hidden_shapes_alone() {
+        let mut a = app();
+        // two identical shapes: a duplicate to remove, on the first layer; a third copy on a locked layer
+        a.project.data.loops = vec![shapes::new_rect([10.0, 10.0], [30.0, 30.0], 0.0, 0), shapes::new_rect([10.0, 10.0], [30.0, 30.0], 0.0, 0), shapes::new_rect([10.0, 10.0], [30.0, 30.0], 0.0, 0)];
+        let b = a.project.data.add_layer("Box");
+        a.project.data.loops[2].lay = Some(b);
+        a.project.data.layer_mut(b).unwrap().locked = true;
+        a.sel.clear();
+        a.clean.dups = true;
+        a.clean_drawing();
+        assert_eq!(a.project.data.loops.len(), 2, "one duplicate went, the locked copy stays");
+        assert_eq!(a.project.data.loops.iter().filter(|l| l.lay == Some(b)).count(), 1);
+        // a hidden layer is left alone too
+        a.project.data.layer_mut(b).unwrap().locked = false;
+        a.project.data.layer_mut(b).unwrap().hidden = true;
+        let n = a.project.data.loops.len();
+        a.clean_drawing();
+        assert_eq!(a.project.data.loops.len(), n);
+    }
 }
