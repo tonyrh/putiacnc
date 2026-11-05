@@ -305,6 +305,8 @@ const TAB_SHIFT: &str = "tab_trap_last_shift";
 const TAB_SPIN: &str = "tab_trap_spin";
 
 const KEYBOARD_FOCUS: &str = "keyboard_focus";
+/// (frame, the open dialog's start stop, whether the focus is inside it): the last dialog drawn, for `tab_hook`.
+const OPEN_DIALOG: &str = "open_dialog_stop";
 
 /// Call before every frame (`eframe::App::raw_input_hook`): remembers which way Tab was pressed and sends the key a wrap asked for.
 pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
@@ -318,6 +320,19 @@ pub fn tab_hook(ctx: &egui::Context, raw: &mut egui::RawInput) {
         if let egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } = e {
             let s = modifiers.shift;
             ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_SHIFT), s));
+        }
+    }
+    // Tab with nothing focused (a click on the drawing leaves it so), or with the focus outside the open dialog, goes to the dialog's
+    // first control rather than to the panels behind it: it takes the Tab key out of this frame and has the next one send it again
+    let now = ctx.frame_nr();
+    if let Some((stamp, start, inside)) = ctx.data(|d| d.get_temp::<(u64, egui::Id, bool)>(egui::Id::new(OPEN_DIALOG))) {
+        let tab = raw.events.iter().position(|e| matches!(e, egui::Event::Key { key: egui::Key::Tab, pressed: true, .. }));
+        if let (Some(i), true, false) = (tab, now <= stamp + 2, inside) {
+            if let egui::Event::Key { modifiers, .. } = raw.events.remove(i) {
+                ctx.memory_mut(|m| m.request_focus(start));
+                ctx.data_mut(|d| d.insert_temp(egui::Id::new(TAB_PENDING), modifiers.shift));
+                ctx.request_repaint();
+            }
         }
     }
     if let Some(shift) = ctx.data_mut(|d| d.remove_temp::<bool>(egui::Id::new(TAB_PENDING))) {
@@ -372,6 +387,12 @@ pub fn trapped<R>(f: impl FnOnce(&mut Ui) -> R) -> impl FnOnce(&mut Ui) -> R {
         let start = tab_stop(ui, a, at);
         let r = f(ui);
         let end = tab_stop(ui, b, Pos2::new(at.x, ui.min_rect().max.y));
+        {
+            let ctx = ui.ctx();
+            let inside = ctx.memory(|m| m.focused()).and_then(|id| ctx.read_response(id)).is_some_and(|r| r.layer_id == ui.layer_id());
+            let now = ctx.frame_nr();
+            ctx.data_mut(|d| d.insert_temp(egui::Id::new(OPEN_DIALOG), (now, a, inside)));
+        }
         if start.gained_focus() || end.gained_focus() { tab_wrap(ui.ctx(), a, b); }
         r
     }

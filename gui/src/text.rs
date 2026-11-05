@@ -1056,4 +1056,40 @@ mod tests {
         let mut ln = a.project.data.loops[0].clone(); ln.c = 0; ln.pts = vec![0, 0, 10000, 10000]; a.project.data.loops.push(ln);
         assert!(shape_path(&a.project.data, 1).is_none(), "an open line has no inside");
     }
+
+    /// Tab and Shift+Tab, pressed over and over in the open Text window, never leave it.
+    #[test]
+    fn tab_stays_inside_the_text_window() {
+        for flow in [Flow::Straight, Flow::Shape] {
+            let mut a = oval_app();
+            a.text.flow = flow;
+            a.mode = Mode::Text;
+            a.text.open = true;
+            a.text.focus = true;
+            let ctx = egui::Context::default();
+            let mut t = 0.0;
+            let mut run = |a: &mut App, shift: bool, tab: bool| {
+                t += 0.1;
+                let mods = if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
+                let events = if tab { vec![egui::Event::Key { key: egui::Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: mods }] } else { vec![] };
+                let mut input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1500.0, 900.0))), time: Some(t), events, modifiers: mods, ..Default::default() };
+                crate::csd::tab_hook(&ctx, &mut input);
+                let _ = ctx.run(input, |ctx| a.ui_frame(ctx));
+            };
+            for _ in 0..3 { run(&mut a, false, false); }
+            // a click on the drawing leaves nothing focused: Tab must then go into the window, not to the panels behind it
+            if let Some(id) = ctx.memory(|m| m.focused()) { ctx.memory_mut(|m| m.surrender_focus(id)); }
+            run(&mut a, false, false);
+            assert!(ctx.memory(|m| m.focused()).is_none());
+            let layer = |ctx: &egui::Context| ctx.memory(|m| m.focused()).and_then(|id| ctx.read_response(id)).map(|r| r.layer_id);
+            let text_layer = egui::LayerId::new(egui::Order::Middle, egui::Id::new("Text"));
+            for shift in [false, true] {
+                for n in 0..80 {
+                    run(&mut a, shift, true);
+                    run(&mut a, shift, false);
+                    if let Some(l) = layer(&ctx) { assert_eq!(l.order, text_layer.order, "{flow:?} shift={shift} step {n}: focus left the window for {l:?}"); }
+                }
+            }
+        }
+    }
 }
