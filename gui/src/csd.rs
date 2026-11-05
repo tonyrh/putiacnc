@@ -475,7 +475,7 @@ mod trap_tests {
             let mut input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))), time: Some(time), events, ..Default::default() };
             tab_hook(&ctx, &mut input);
             let mut off = 0.0;
-            ctx.run(input, |ctx| {
+            let _ = ctx.run(input, |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ids.clear();
                     let o = egui::ScrollArea::vertical().max_height(100.0).auto_shrink([false, false]).show_following(ui, |ui| {
