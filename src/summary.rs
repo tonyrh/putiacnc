@@ -141,6 +141,12 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
         if !air.is_empty() { rows.push(row("Air cut", format!("Operation{} {} run{} 10 mm above the stock: nothing is cut.", if air.len() == 1 { "" } else { "s" }, air.join(", "), if air.len() == 1 { "s" } else { "" }), true)); }
     }
 
+    // shapes on a hidden layer are cut all the same: say so, so a layer hidden to tidy the drawing is not forgotten
+    if !piece && data.layers.iter().any(|l| l.hidden) {
+        let ops: Vec<String> = data.ops.iter().enumerate().filter(|(_, o)| o.p.kind != "relief" && data.loops.iter().any(|l| l.op == o.id && data.shape_hidden(l))).map(|(i, _)| (i + 1).to_string()).collect();
+        if !ops.is_empty() { rows.push(row("Hidden layers", format!("Operation{} {} cut{} shapes on a hidden layer: hiding a layer only hides it from the drawing.", if ops.len() == 1 { "" } else { "s" }, ops.join(", "), if ops.len() == 1 { "s" } else { "" }), true)); }
+    }
+
     let warns = out.notes.iter().filter(|n| n.starts_with("⚠ ")).count();
     if warns > 0 { rows.push(row("Warnings", format!("{} warning{}: see the Notes tab.", warns, if warns == 1 { "" } else { "s" }), true)); }
     rows

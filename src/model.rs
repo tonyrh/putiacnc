@@ -43,6 +43,65 @@ pub struct ProjectData {
     #[serde(default)] pub oid: i64,
     /// Operations (by id) left out of the 3D preview; the G-code still has them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")] pub hidden_ops: Vec<i64>,
+    /// Layers of the drawing. The first layer (id 0) always exists even when it is not in the list; the list holds
+    /// it once it has been renamed, hidden, locked or recoloured. A hidden layer is only hidden from the drawing:
+    /// operations still cut its shapes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")] pub layers: Vec<Layer>,
+    /// The layer new shapes go on.
+    #[serde(default, skip_serializing_if = "is_zero_i64")] pub active_layer: i64,
+}
+
+/// A layer of the drawing: a name, a colour, and whether it is shown and whether its shapes can be changed.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Layer {
+    pub id: i64,
+    pub name: String,
+    /// "#rrggbb"; empty = the drawing's usual colours.
+    #[serde(default, skip_serializing_if = "String::is_empty")] pub color: String,
+    #[serde(default, skip_serializing_if = "is_false")] pub hidden: bool,
+    #[serde(default, skip_serializing_if = "is_false")] pub locked: bool,
+}
+
+impl Layer {
+    /// The layer's colour as red, green and blue, if it has a valid one.
+    pub fn rgb(&self) -> Option<[u8; 3]> {
+        let h = self.color.strip_prefix('#')?;
+        if h.len() != 6 || !h.is_ascii() { return None; }
+        let v = u32::from_str_radix(h, 16).ok()?;
+        Some([(v >> 16) as u8, (v >> 8) as u8, v as u8])
+    }
+}
+
+fn is_zero_i64(v: &i64) -> bool { *v == 0 }
+
+impl ProjectData {
+    /// Every layer, the first one included, in order.
+    pub fn all_layers(&self) -> Vec<Layer> {
+        let mut v = self.layers.clone();
+        if !v.iter().any(|l| l.id == 0) { v.insert(0, Layer { id: 0, name: "Layer 1".into(), color: String::new(), hidden: false, locked: false }); }
+        v
+    }
+    /// The layer a shape is on: a number that is no longer in the list counts as the first layer.
+    pub fn layer_of(&self, l: &LoopData) -> i64 {
+        let id = l.lay.unwrap_or(0);
+        if id == 0 || self.layers.iter().any(|x| x.id == id) { id } else { 0 }
+    }
+    pub fn layer_hidden(&self, id: i64) -> bool { self.layers.iter().any(|l| l.id == id && l.hidden) }
+    pub fn layer_locked(&self, id: i64) -> bool { self.layers.iter().any(|l| l.id == id && l.locked) }
+    pub fn shape_hidden(&self, l: &LoopData) -> bool { !self.layers.is_empty() && self.layer_hidden(self.layer_of(l)) }
+    pub fn shape_locked(&self, l: &LoopData) -> bool { !self.layers.is_empty() && self.layer_locked(self.layer_of(l)) }
+    /// The layer to change, put in the list first if it is the first layer and not there yet.
+    pub fn layer_mut(&mut self, id: i64) -> Option<&mut Layer> {
+        if id == 0 && !self.layers.iter().any(|l| l.id == 0) { let first = self.all_layers().remove(0); self.layers.insert(0, first); }
+        self.layers.iter_mut().find(|l| l.id == id)
+    }
+    /// A new layer called `name`, returned by id.
+    pub fn add_layer(&mut self, name: &str) -> i64 {
+        if !self.layers.iter().any(|l| l.id == 0) { let first = self.all_layers().remove(0); self.layers.insert(0, first); }
+        let id = self.layers.iter().map(|l| l.id).max().unwrap_or(0) + 1;
+        self.layers.push(Layer { id, name: name.to_string(), color: String::new(), hidden: false, locked: false });
+        id
+    }
 }
 
 /// A rectangle on the table, in mm from the stock's lower-left corner, standing `height` mm above the stock top.
@@ -472,6 +531,8 @@ pub struct LoopData {
     #[serde(default, skip_serializing_if = "Option::is_none")] pub grp: Option<i64>,
     /// The group the user made with Edit > Group: shapes with the same number are selected, moved, scaled and turned together.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub ug: Option<i64>,
+    /// The layer this shape is on (`ProjectData::layers`); none = the first layer.
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub lay: Option<i64>,
     /// How the fingers of this shape were cut, so they can be cut again when the stock thickness changes.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub fj: Option<FingerSpec>,
     /// Flat list: X0, Y0, X1, Y1, ... in 1/1000 mm.

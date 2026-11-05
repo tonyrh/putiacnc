@@ -240,6 +240,7 @@ impl App {
             shapes::translate(&mut l, ox, oy);
             l.op = op;
             l.grp = Some(gid);
+            l.lay = self.new_shape_layer();
             self.project.data.loops.push(l);
         }
         self.sel = (start..self.project.data.loops.len()).collect();

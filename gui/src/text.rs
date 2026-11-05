@@ -290,6 +290,7 @@ pub fn place(app: &mut App) {
         let gid = app.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
         app.project.data.groups.push(putiacnc_core::model::ShapeGroup { id: gid, name, locked: false, text: Some(spec) });
         for l in &mut loops { l.op = op; l.grp = Some(gid); }
+        app.stamp_layer(&mut loops);
         let start = app.project.data.loops.len();
         app.project.data.loops.extend(loops);
         app.sel = (start..app.project.data.loops.len()).collect();

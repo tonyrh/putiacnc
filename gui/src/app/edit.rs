@@ -273,16 +273,13 @@ impl App {
         if open > 0 { Some(format!("{open} open shape{} left out.", if open == 1 { " was" } else { "s were" })) } else { None }
     }
 
-    /// True when a selected shape belongs to a locked imported drawing.
-    pub fn sel_locked(&self) -> bool {
-        let d = &self.project.data;
-        self.sel.iter().filter_map(|&i| d.loops.get(i)).filter_map(|l| l.grp).any(|g| d.groups.iter().any(|x| x.id == g && x.locked))
-    }
+    /// True when a selected shape belongs to a locked imported drawing or is on a locked layer.
+    pub fn sel_locked(&self) -> bool { self.sel.iter().any(|&i| self.loop_locked(i)) }
 
-    /// True when this shape belongs to a locked imported drawing.
+    /// True when this shape belongs to a locked imported drawing or is on a locked layer.
     pub fn loop_locked(&self, i: usize) -> bool {
         let d = &self.project.data;
-        d.loops.get(i).and_then(|l| l.grp).is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.locked))
+        d.loops.get(i).is_some_and(|l| d.shape_locked(l) || l.grp.is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.locked)))
     }
 
     pub fn nudge(&mut self, dx: f64, dy: f64) {
@@ -293,8 +290,26 @@ impl App {
         self.touch();
     }
 
-    pub fn add_loop(&mut self, l: putiacnc_core::model::LoopData) {
+    /// The layer a new shape goes on (none = the first layer).
+    pub fn new_shape_layer(&self) -> Option<i64> {
+        let d = &self.project.data;
+        (d.active_layer != 0 && d.layers.iter().any(|l| l.id == d.active_layer)).then_some(d.active_layer)
+    }
+    pub fn stamp_layer(&self, ls: &mut [putiacnc_core::model::LoopData]) {
+        let lay = self.new_shape_layer();
+        for l in ls { l.lay = lay; }
+    }
+    /// A shape on a hidden layer: not drawn, not picked, not in a selection box.
+    pub fn loop_hidden(&self, i: usize) -> bool { let d = &self.project.data; d.loops.get(i).is_some_and(|l| d.shape_hidden(l)) }
+    /// The shape under a point of the drawing, hidden layers left out.
+    pub fn pick_shape(&self, p: [f64; 2], tol: f64) -> Option<usize> {
+        let d = &self.project.data;
+        shapes::pick_where(&d.loops, p, tol, |l| !d.shape_hidden(l))
+    }
+
+    pub fn add_loop(&mut self, mut l: putiacnc_core::model::LoopData) {
         self.hist.record(&self.project.data);
+        l.lay = self.new_shape_layer();
         self.project.data.loops.push(l);
         self.sel.clear();
         // drawing a shape hands control back to the select tool

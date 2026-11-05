@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Pen, Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, Check, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Minus, Persp, Ortho, Offset, Array }
+pub enum Icon { Pen, Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, Check, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Lock, Minus, Persp, Ortho, Offset, Array }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -186,6 +186,12 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
             painter.circle_stroke(p(0.0, 0.0), 2.6 * s, st);
             if matches!(icon, Icon::EyeOff) { line(vec![p(-8.0, 9.0), p(8.0, -9.0)]); }
         }
+        Icon::Lock => {
+            // a padlock: the body and the shackle
+            painter.rect_stroke(egui::Rect::from_two_pos(p(-6.0, -1.0), p(6.0, 8.0)), 1.5, st);
+            let arc: Vec<Pos2> = (0..=8).map(|k| { let a = std::f32::consts::PI * k as f32 / 8.0; p(4.0 * a.cos(), -1.0 - 5.5 * a.sin()) }).collect();
+            line(arc);
+        }
         Icon::Fold => {
             line(vec![p(-6.0, -8.0), p(0.0, -2.5), p(6.0, -8.0)]);
             line(vec![p(-6.0, 8.0), p(0.0, 2.5), p(6.0, 8.0)]);
@@ -241,6 +247,11 @@ fn button_impl(ui: &mut Ui, icon: Icon, size: f32, selected: bool, enabled: bool
 }
 
 /// Tool-palette sized (36 px) icon button; undo/redo use a slightly smaller one.
+/// A small button that stays pressed while `on`.
+pub fn small_toggle_button(ui: &mut Ui, icon: Icon, on: bool, tip: &str) -> egui::Response {
+    button_impl(ui, icon, 26.0, on, true, tip)
+}
+
 pub fn icon_button(ui: &mut Ui, icon: Icon, selected: bool, enabled: bool, tip: &str) -> egui::Response {
     let size = if matches!(icon, Icon::Undo | Icon::Redo) { 30.0 } else { 36.0 };
     button_impl(ui, icon, size, selected, enabled, tip)

@@ -230,6 +230,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     let mut mach_pick: Option<String> = None;
     let mut open_machines = false;
     let mut group_act: Option<(Option<i64>, GroupAct)> = None;
+    let mut layer_pick: Option<i64> = None;
     // plug moved onto or off a separate piece: (pocket id, plug id, the piece)
     let mut piece_act: Option<(i64, i64, Option<putiacnc_core::model::PlugPiece>)> = None;
     // the buttons that add operations stay put above the list; only the list scrolls
@@ -1147,6 +1148,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
 
         }
         if !ops {
+        crate::layers::section(ui, d, sel, &mut changed, &mut layer_pick);
         imports_section(ui, d, sel, &mut group_act, &mut changed);
         }
     });
@@ -1155,6 +1157,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         putiacnc_core::shapes::put_plug_on_piece(&mut app.project.data, pocket, plug, pc);
         app.sel.clear();
         app.touch();
+    }
+    if let Some(id) = layer_pick {
+        let d = &app.project.data;
+        app.sel = d.loops.iter().enumerate().filter(|(_, l)| d.layer_of(l) == id && !d.shape_hidden(l)).map(|(i, _)| i).collect();
     }
     if let Some((g, act)) = group_act {
         match (g, act) {

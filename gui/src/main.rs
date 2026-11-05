@@ -23,6 +23,7 @@ mod surface;
 mod csd;
 mod dynin;
 mod icons;
+mod layers;
 mod machmgr;
 mod offset;
 mod osnap;

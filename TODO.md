@@ -32,7 +32,8 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [x] Rest machining for 3D relief: a smaller ball nose (the Detail row of the Finishing step) finishes only what the finishing ball could not reach. V-carve does not need it (one bit cuts every width).
 - [ ] Check the setup assistant and the quick tour on macOS and Windows (only tested on Linux so far).
 - [x] Grouping (Edit > Group, Ctrl+G; Ungroup, Ctrl+Shift+G): done. Groups are flat (grouping a group with something else merges them); a copy of a group is a group of its own.
-- [ ] Maybe later: layers (name, colour, eye, lock; hidden layers still get cut, as in Aspire) and dimension lines (linear, radius, diameter, angle; display only, attached to their points). Left out for now: operations already group shapes by what is cut.
+- [x] Layers (name, colour, eye, lock; hidden layers still get cut, as in Aspire): done. Still to do: DXF and SVG layers by name on import (a layer for each layer of the file), and a marker in the operations list for an operation that cuts hidden shapes (the summary says it now).
+- [ ] Maybe later: dimension lines (linear, radius, diameter, angle; display only, attached to their points). Left out for now: operations already group shapes by what is cut.
 - [x] Text: automatic kerning (font `kern` / `GPOS` pairs), letter / word spacing in % (done); fit to width done.
 - [ ] Text: manual kerning handles on the canvas.
 - [x] Text along an arc at any angle (done).

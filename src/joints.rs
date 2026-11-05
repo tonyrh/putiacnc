@@ -113,7 +113,7 @@ pub fn reliefs(loops: &[&LoopData], tool_dia: f64, cut: Cut, op: i64, style: Rel
     let caps: Vec<Path> = caps.into_iter().collect();
     let res = clip::boolean(if cut == Cut::Inside { BoolKind::Union } else { BoolKind::Difference }, &region, &caps);
     let out: Vec<LoopData> = res.into_iter().filter(|p| p.len() >= 3).map(|p| LoopData {
-        c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect(),
+        c: 1, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, lay: None, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect(),
     }).collect();
     if out.is_empty() { None } else { Some((out, count)) }
 }

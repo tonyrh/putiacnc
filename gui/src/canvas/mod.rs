@@ -60,7 +60,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
     if undo { app.do_undo(); }
     if redo || redo2 { app.do_redo(); }
     if ctx.input(|i| i.key_pressed(Key::F1)) { app.shortcuts_open = !app.shortcuts_open; }
-    if all { app.sel = (0..app.project.data.loops.len()).collect(); }
+    if all { app.sel = (0..app.project.data.loops.len()).filter(|&i| !app.loop_hidden(i)).collect(); }
     if dup { app.duplicate_selection(); }
     if ungroup { app.ungroup_selection(); } else if group { app.group_selection(); }
 
@@ -348,14 +348,14 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     let r = [start[0].min(end[0]), start[1].min(end[1]), start[0].max(end[0]), start[1].max(end[1])];
                     if !shift { app.sel.clear(); }
                     for (i, l) in app.project.data.loops.iter().enumerate() {
-                        if shapes::inside_box(l, r) { app.sel.insert(i); }
+                        if shapes::inside_box(l, r) && !app.project.data.shape_hidden(l) && !app.project.data.shape_locked(l) { app.sel.insert(i); }
                     }
                     app.expand_text_selection();
                 }
                 app.drag = Drag::None;
             }
             if resp.double_clicked_by(prim) {
-                if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) {
+                if let Some(h) = hover_w.and_then(|w| app.pick_shape(w, tol)) {
                     // placed text opens in the Text window; everything else in the node editor
                     let text = app.project.data.loops[h].grp.filter(|g| app.project.data.groups.iter().any(|x| x.id == *g && x.text.is_some()));
                     match text { Some(g) => { app.sel = app.text_siblings(h).into_iter().collect(); app.edit_text(g); } None => enter_node_edit(app, h) }
@@ -363,7 +363,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             }
             if resp.clicked_by(prim) && !resp.double_clicked() {
                 if let Some(w) = hover_w {
-                    let hit = shapes::pick(&app.project.data.loops, w, tol);
+                    let hit = app.pick_shape(w, tol);
                     match hit {
                         Some(h) => {
                             if shift {
@@ -389,9 +389,9 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         Some(Mode::Node) => {
             // nothing is being edited yet: clicking a shape starts editing its points
             if resp.clicked_by(prim) {
-                if let Some(h) = hover_w.and_then(|w| shapes::pick(&app.project.data.loops, w, tol)) { enter_node_edit(app, h); }
+                if let Some(h) = hover_w.and_then(|w| app.pick_shape(w, tol)) { enter_node_edit(app, h); }
             }
-            if hover_w.is_some_and(|w| shapes::pick(&app.project.data.loops, w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
+            if hover_w.is_some_and(|w| app.pick_shape(w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
         }
         Some(Mode::Trim) => {
             if resp.clicked_by(prim) {
@@ -417,6 +417,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                         let v = ring_from_drag(app, *start, app.snap(cur), shift, op);
                         if !v.is_empty() {
                             app.hist.record(&app.project.data);
+                            let mut v = v;
+                            app.stamp_layer(&mut v);
                             app.project.data.loops.extend(v);
                             app.sel.clear();
                             app.touch();
@@ -430,7 +432,9 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     let p = app.snap(w);
                     let op = 0;
                     app.hist.record(&app.project.data);
-                    app.project.data.loops.push(shapes::new_point(p, op));
+                    let mut pt = [shapes::new_point(p, op)];
+                    app.stamp_layer(&mut pt);
+                    app.project.data.loops.extend(pt);
                     app.sel.clear();
                     app.touch();
                 }
@@ -628,9 +632,11 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
 
     let act_idx = d.ops.iter().position(|o| o.id == d.act);
     for (i, l) in d.loops.iter().enumerate() {
+        if d.shape_hidden(l) { continue; }
         let opi = d.ops.iter().position(|o| o.id == l.op);
         let selected = app.sel.contains(&i);
-        let col = if selected { th.shape_selected() } else { opi.map(|k| op_color(k, dark)).unwrap_or(th.shape_idle()) };
+        let layer_col = if opi.is_none() { d.layers.iter().find(|x| x.id == d.layer_of(l)).and_then(|x| x.rgb()).map(|c| Color32::from_rgb(c[0], c[1], c[2])) } else { None };
+        let col = if selected { th.shape_selected() } else { opi.map(|k| op_color(k, dark)).or(layer_col).unwrap_or(th.shape_idle()) };
         // a shape that a tool's preview replaces, or the text being edited while its preview shows, is drawn faded and thin: the preview stands out
         let faded = app.dimmed_by_preview(i);
         let col = if faded { col.gamma_multiply(0.3) } else { col };
@@ -652,6 +658,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     // that lie close together (the letters of a text, a hole in its outline) share a single badge; huge drawings get none
     if app.show_badges && d.loops.len() <= 600 {
         let boxes: Vec<Option<(usize, Rect)>> = d.loops.iter().map(|l| {
+            if d.shape_hidden(l) { return None; }
             let k = d.ops.iter().position(|o| o.id == l.op)?;
             let b = shapes::bbox(l)?;
             Some((k, Rect::from_two_pos(to_s([b[0], b[1]]), to_s([b[2], b[3]]))))

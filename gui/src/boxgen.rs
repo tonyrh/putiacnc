@@ -39,6 +39,7 @@ impl App {
         if made.is_empty() { return Some("Nothing to add.".into()); }
         self.hist.record(&self.project.data);
         let start = self.project.data.loops.len();
+        self.stamp_layer(&mut made);
         self.project.data.loops.extend(made);
         self.sel = (start..self.project.data.loops.len()).collect();
         let mut note = format!("{} plates added{}", panels.len(), if dogs > 0 { format!(", with {dogs} {}", if matches!(dogbone, Some((_, Relief::TBone))) { "T-bones" } else { "dogbones" }) } else { String::new() });

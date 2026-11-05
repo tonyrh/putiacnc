@@ -132,7 +132,7 @@ pub(super) fn node_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::
                     app.node_sel.clear();
                     app.node_sel.insert(k);
                     app.touch();
-                } else if let Some(h) = shapes::pick(&app.project.data.loops, w, tol).filter(|&h| h != li) {
+                } else if let Some(h) = app.pick_shape(w, tol).filter(|&h| h != li) {
                     enter_node_edit(app, h); // clicking another shape edits that one instead
                 } else if !shift { app.node_sel.clear(); }
             }

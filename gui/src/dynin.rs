@@ -119,6 +119,8 @@ pub fn preview(app: &App, hover: [f64; 2], zero: (f64, f64)) -> Option<Vec<Vec<[
 fn add_points(app: &mut App, v: Vec<putiacnc_core::model::LoopData>) {
     if v.is_empty() { return; }
     app.hist.record(&app.project.data);
+    let mut v = v;
+    app.stamp_layer(&mut v);
     app.project.data.loops.extend(v);
     app.sel.clear();
     app.touch();

@@ -10,7 +10,7 @@ fn to_i(v: f64) -> i64 { (v * S).round() as i64 }
 
 fn loop_from(pts: &[[f64; 2]], closed: bool, op: i64) -> LoopData {
     LoopData {
-        c: closed as u8, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None,
+        c: closed as u8, op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, lay: None, fj: None,
         pts: pts.iter().flat_map(|p| [to_i(p[0]), to_i(p[1])]).collect(),
     }
 }
@@ -352,15 +352,18 @@ pub fn point_in_loop(l: &LoopData, p: [f64; 2]) -> bool {
 
 /// Index of the loop under `p`: nearest outline within `tol` mm, otherwise the smallest closed
 /// shape that contains the point.
-pub fn pick(loops: &[LoopData], p: [f64; 2], tol: f64) -> Option<usize> {
+pub fn pick(loops: &[LoopData], p: [f64; 2], tol: f64) -> Option<usize> { pick_where(loops, p, tol, |_| true) }
+
+/// Like [`pick`], among the shapes `ok` accepts.
+pub fn pick_where(loops: &[LoopData], p: [f64; 2], tol: f64, ok: impl Fn(&LoopData) -> bool) -> Option<usize> {
     let mut best: Option<(usize, f64)> = None;
-    for (i, l) in loops.iter().enumerate() {
+    for (i, l) in loops.iter().enumerate().filter(|(_, l)| ok(l)) {
         let d = dist_to_loop(l, p);
         if d <= tol && best.is_none_or(|(_, bd)| d < bd) { best = Some((i, d)); }
     }
     if let Some((i, _)) = best { return Some(i); }
     let mut inner: Option<(usize, f64)> = None;
-    for (i, l) in loops.iter().enumerate() {
+    for (i, l) in loops.iter().enumerate().filter(|(_, l)| ok(l)) {
         if point_in_loop(l, p) {
             let b = bbox(l).unwrap();
             let area = (b[2] - b[0]) * (b[3] - b[1]);
@@ -518,7 +521,7 @@ pub fn offset_loop(l: &LoopData, delta_mm: f64) -> Vec<LoopData> {
     let region = crate::clip::simplify_even_odd(&[l.path()]);
     let out = crate::clip::offset(&region, delta_mm * S, S * 0.01);
     crate::clip::thin(&out, S * 0.02).into_iter().map(|p| {
-        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
+        LoopData { c: 1, op: l.op, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, lay: l.lay, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }
     }).collect()
 }
 
@@ -550,7 +553,7 @@ pub fn combine(shapes: &[&LoopData], op: BoolOp, swap: bool) -> Vec<LoopData> {
         }
     };
     let opid = list[0].op;
-    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
+    out.into_iter().filter(|p| p.len() > 2).map(|p| LoopData { c: 1, op: opid, rc: None, cr: None, el: None, pt: None, grp: None, ug: None, lay: list[0].lay, fj: None, pts: p.iter().flat_map(|q| [q[0], q[1]]).collect() }).collect()
 }
 
 /// Anchors a point on shape `li` as a tab (position relative to the shape's bounding box).
@@ -671,7 +674,7 @@ pub fn blank_project() -> ProjectFile {
         data: ProjectData {
             stock: Stock { w: 200.0, h: 150.0, t: 12.0, mat: "wood".into(), cut: String::new(), zr: "ll".into(), zm: "top".into(), zh: 0.0 },
             job: Job { safe: 5.0, air: false, numbered: false, post: String::new(), wcs: 0 },
-            machine: None, ops: vec![], tools: seed_tools(), loops: vec![], groups: vec![], clamps: vec![], relief: None, gcode: String::new(), notes: String::new(), act: 0, oid: 0, hidden_ops: vec![],
+            machine: None, ops: vec![], tools: seed_tools(), loops: vec![], groups: vec![], clamps: vec![], relief: None, gcode: String::new(), notes: String::new(), act: 0, oid: 0, hidden_ops: vec![], layers: vec![], active_layer: 0,
         },
     }
 }
