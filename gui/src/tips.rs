@@ -323,6 +323,14 @@ fn the_machines_window_with_the_holder_on_shows_its_rows_too() {
 }
 
 #[test]
+fn the_export_window_shows_help_on_the_work_coordinates_label_and_drop_down() {
+    let mut a = project();
+    a.export_open = true;
+    let r = check_scene("export", &mut a, true);
+    assert!(r.0 >= 1, "only {} pairs found", r.0);
+}
+
+#[test]
 fn the_tool_window_shows_help_on_labels_and_fields() {
     let mut a = project();
     a.tools_open = true;

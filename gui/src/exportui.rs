@@ -30,14 +30,16 @@ pub fn file_list(app: &App, mode: Split, name: &str) -> Vec<(String, f64)> {
 /// The work coordinate system the program runs in (G54 to G59): a drop-down for the export window and the top of the G-code tab, both
 /// changing the same setting of the job. The program starts with that word, so the machine uses the zero that was set there.
 pub fn wcs_pick(ui: &mut egui::Ui, app: &mut App) {
+    const TIP: &str = "The work coordinate system the program runs in: the one where you set the zero on the machine (G54 is the first, G55 the second, and so on). The G-code starts with it, so a job whose zero is in G55 cannot run in G54 by mistake. PutiaCNC does not set the zero: do that on the machine or in your sender (for G55, `G10 L20 P2 X0 Y0 Z0` at the point the stock's zero corner sits).";
     let (n, cur) = (app.project.data.job.wcs_count(), app.project.data.job.wcs_name());
     let mut pick: Option<usize> = None;
     ui.horizontal(|ui| {
-        ui.label("Work coordinates");
+        let label = ui.add(egui::Label::new("Work coordinates").sense(egui::Sense::hover()));
+        crate::widgets::wait_for_field(ui.ctx(), &label, "Work coordinates");
         let r = egui::ComboBox::from_id_source("wcs_pick").width(70.0).selected_text(cur).show_ui(ui, |ui| {
             for (i, name) in putiacnc_core::model::WCS.iter().enumerate().take(n) { if ui.selectable_label(*name == cur, *name).clicked() { pick = Some(i); } }
         });
-        r.response.on_hover_text("The work coordinate system the program runs in: the one where you set the zero on the machine (G54 is the first). The G-code starts with it, so a job made for G55 cannot run in G54 by mistake.");
+        { use crate::widgets::Tip; r.response.tip(TIP); }
     });
     if let Some(i) = pick.filter(|&i| i != app.project.data.job.wcs as usize) {
         app.hist.record(&app.project.data);
