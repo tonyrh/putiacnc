@@ -230,19 +230,6 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     };
     let mut mach_pick: Option<String> = None;
     let mut open_machines = false;
-    // toolpath warnings per operation (of the main job, not of plug pieces): shown as a sign on the operation's card
-    let mut open_checks = false;
-    let op_warn: Vec<Vec<(bool, String)>> = {
-        let n = app.project.data.ops.len();
-        let mut v: Vec<Vec<(bool, String)>> = vec![Vec::new(); n];
-        if app.output.is_some() && app.checks_ver == app.out_ver {
-            for (i, f) in app.checks.iter().enumerate() {
-                if app.check_parts.get(i).is_some_and(|&p| p > 0) { continue; }
-                if let Some(k) = f.op.filter(|&k| k < n) { v[k].push((f.kind.about_clamps(), format!("{}: {}", f.kind.title(), f.msg))); }
-            }
-        }
-        v
-    };
     let mut group_act: Option<(Option<i64>, GroupAct)> = None;
     let mut layer_pick: Option<i64> = None;
     // plug moved onto or off a separate piece: (pocket id, plug id, the piece)
@@ -402,8 +389,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 paint_icon(ui.painter(), kind_icon, egui::pos2(rect.min.x + 42.0, rect.center().y), ink, 0.6);
                 let btn_w = if in3d { 4.0 * 26.0 + 3.0 * 2.0 } else { 3.0 * 26.0 + 2.0 * 2.0 };
                 // what room the two lines have between the icon and the buttons; a longer one ends in an ellipsis
-                let warns = op_warn.get(i).filter(|w| !w.is_empty());
-                let room = (rect.width() - 60.0 - btn_w - 12.0 - if warns.is_some() { 24.0 } else { 0.0 }).max(20.0);
+                let room = (rect.width() - 60.0 - btn_w - 12.0).max(20.0);
                 let fit = |s: String, font: &egui::FontId, c: Color32| {
                     let mut chars: Vec<char> = s.chars().collect();
                     let mut g = ui.painter().layout_no_wrap(s, font.clone(), c);
@@ -417,28 +403,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let g1 = fit(text, &body, col);
                 let g2 = fit(sub, &small, sub_col);
                 let top = rect.center().y - (g1.size().y + g2.size().y) / 2.0;
-                let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - btn_w - 8.0 - if warns.is_some() { 24.0 } else { 0.0 }, rect.max.y)));
+                let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - btn_w - 8.0, rect.max.y)));
                 let h1 = g1.size().y;
                 clip.galley(egui::pos2(rect.min.x + 60.0, top), g1, col);
                 clip.galley(egui::pos2(rect.min.x + 60.0, top + h1), g2, sub_col);
                 if chev.clicked() { if folded { collapsed.remove(&id); } else { collapsed.insert(id); } }
                 else if resp.clicked() { *sel = d.loops.iter().enumerate().filter(|(_, l)| l.op == id).map(|(k, _)| k).collect(); }
-                // a sign when the toolpath of this operation has warnings: hover for what they are, click for the list
-                if let Some(w) = warns {
-                    let bad = w.iter().any(|x| x.0);
-                    let level = if bad { crate::app::Level::Error } else { crate::app::Level::Warning };
-                    let at = egui::pos2(rect.max.x - btn_w - 6.0 - 14.0, rect.center().y);
-                    let hit = egui::Rect::from_center_size(at, egui::vec2(22.0, 26.0));
-                    let r = ui.interact(hit, ui.id().with(("op_warn", id)), egui::Sense::click());
-                    // a white rim round the sign keeps it readable on every card colour
-                    let rim = Color32::WHITE;
-                    if bad { ui.painter().circle_filled(at, 10.2, rim); }
-                    else { ui.painter().add(egui::Shape::convex_polygon(vec![at + egui::vec2(0.0, -11.2), at + egui::vec2(11.6, 8.6), at + egui::vec2(-11.6, 8.6)], rim, egui::Stroke::new(1.6_f32, rim))); }
-                    crate::msg::paint_sign(ui.painter(), at, level, crate::msg::colour(level, false));
-                    let mut tip = w.iter().take(4).map(|x| x.1.clone()).collect::<Vec<_>>().join("\n\n");
-                    if w.len() > 4 { tip += &format!("\n\n…and {} more", w.len() - 4); }
-                    if r.on_hover_text(format!("{tip}\n\nClick for the list of warnings")).clicked() { open_checks = true; }
-                }
                 // up / down / delete sit inside the row, on its right
                 let brect = egui::Rect::from_min_size(egui::pos2(rect.max.x - btn_w - 6.0, rect.center().y - 13.0), egui::vec2(btn_w, 26.0));
                 ui.allocate_ui_at_rect(brect, |ui| {
@@ -1225,7 +1195,6 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     }
     if open_tools { app.tools_open = true; }
     if open_machines { app.machines_open = true; }
-    if open_checks { app.checks_open = true; app.check_sel = None; }
     if let Some(id) = mach_pick { app.set_machine(&id); }
 
     if changed || name_changed {
