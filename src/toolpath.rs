@@ -1711,19 +1711,27 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             }
             let mut cur = region.clone();
             let mut d = 0.0;
+            // parts of the shape that die out between a ring and the next (a thin stroke, a narrow arm) would be left with a ridge up to the
+            // step wide along their middle: carve their middle with finer steps. Each ring's check only needs that ring and the next, so the
+            // checks are collected here and run side by side afterwards; their results go in front of the ring they belong to, as before.
+            let mut checks: Vec<(usize, Vec<Path>, Vec<Path>, f64, f64)> = Vec::new();
             for _ in 1..3000 {
                 let step = sv.min(dmax - d);
                 if step < 1e-6 { break; }
                 let next = off_raw(&cur, -step * S);
                 let q = clean_paths(&next);
                 if q.is_empty() { break; }
-                // parts of the shape that die out between this ring and the next (a thin stroke, a narrow arm) would be left with a
-                // ridge up to the step wide along their middle: carve their middle with finer steps
-                for (p, z) in lost_parts(&cur, &next, step, d, &geo, zmax, dmax) { vr.push((p, z)); }
+                checks.push((vr.len(), cur.clone(), next.clone(), step, d));
                 cur = next;
                 d += step;
                 let z = -geo.rise(d).min(zmax);
                 for p in q { vr.push((p, z)); }
+            }
+            {
+                use rayon::prelude::*;
+                let found: Vec<Vec<(Path, f64)>> = checks.par_iter().map(|(_, c, n, st, dd)| lost_parts(c, n, *st, *dd, &geo, zmax, dmax)).collect();
+                // from the back, so the insert positions of the earlier rings stay right
+                for ((at, ..), parts) in checks.iter().zip(found).rev() { vr.splice(*at..*at, parts); }
             }
             // the last full step overshoots the centre line: finish with smaller steps so that narrow parts
             // are carved right to their middle, not left with a ridge

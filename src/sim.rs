@@ -125,15 +125,28 @@ impl Sim {
         let (r, ext) = (*r, *r + wall);
         if r <= 0.0 { return; }
         let bottom = -self.t as f32;
+        // the cutter only lowers cells where its surface is below the stock top: past the first table entry that reaches z = 0 (and with
+        // no wall ramp above the stock) nothing changes, so the sweep is cut down to that radius (a shallow V-carve ring needs a few mm, not the whole cone)
+        let step = self.cell / 2.0;
+        let ext = if z + r0 >= 0.0 {
+            let k = tab.partition_point(|&h| z + (h as f64) < 0.0);
+            ext.min((k as f64 + 1.0) * step)
+        } else { ext };
         let (x0, x1, y0, y1) = (a[0].min(b[0]) - ext, a[0].max(b[0]) + ext, a[1].min(b[1]) - ext, a[1].max(b[1]) + ext);
+        let (sx0, sx1, sy0, sy1) = (a[0].min(b[0]), a[0].max(b[0]), a[1].min(b[1]), a[1].max(b[1]));
         let (ix0, ix1) = (((x0 / self.cell).floor().max(0.0)) as usize, ((x1 / self.cell).ceil().max(0.0) as usize).min(self.nx - 1));
         let (iy0, iy1) = (((y0 / self.cell).floor().max(0.0)) as usize, ((y1 / self.cell).ceil().max(0.0) as usize).min(self.ny - 1));
         let (ux, uy) = (b[0] - a[0], b[1] - a[1]);
         let l2 = ux * ux + uy * uy;
-        let step = self.cell / 2.0;
         for iy in iy0..=iy1 {
             let py = iy as f64 * self.cell;
-            for ix in ix0..=ix1 {
+            // the cells of this row that can be within `ext` of the stretch
+            let dyc = if py < sy0 { sy0 - py } else if py > sy1 { py - sy1 } else { 0.0 };
+            if dyc > ext { continue; }
+            let half = (ext * ext - dyc * dyc).sqrt();
+            let rx0 = (((sx0 - half) / self.cell).floor().max(0.0) as usize).max(ix0);
+            let rx1 = (((sx1 + half) / self.cell).ceil().max(0.0) as usize).min(ix1);
+            for ix in rx0..=rx1 {
                 let px = ix as f64 * self.cell;
                 let t = if l2 > 0.0 { (((px - a[0]) * ux + (py - a[1]) * uy) / l2).clamp(0.0, 1.0) } else { 0.0 };
                 let rho = (px - a[0] - ux * t).hypot(py - a[1] - uy * t);
@@ -281,6 +294,31 @@ mod tests {
         s.advance(&out.moves, out.moves.len());
         s.advance(&out.moves, 0);
         assert!(s.z.iter().all(|&v| v == 0.0));
+    }
+
+    #[test]
+    fn the_level_sweep_equals_stamping_the_cutter_all_along_the_stretch() {
+        // a 90 degree V-bit: a shallow cut only reaches a few mm from the stretch (the sweep is cut down to that), a deep one the whole cone
+        let mut d = shapes::blank_project().data;
+        d.stock.w = 60.0; d.stock.h = 40.0; d.stock.t = 30.0;
+        let mut v = d.tools.iter().find(|t| t.shape == "vbit").unwrap().clone();
+        v.id = "v".into(); v.angle = 90.0; v.dia = 20.0;
+        d.tools.push(v);
+        let mut p = shapes::default_op_params("v");
+        p.kind = "vcarve".into(); p.depth = 5.0;
+        d.ops.push(crate::model::Operation { id: 1, p });
+        d.oid = 2; d.act = 1;
+        for z in [-0.4, -3.0, -9.5, -14.0] {
+            let mut a = Sim::new(&d, 60_000);
+            let mut b = Sim::new(&d, 60_000);
+            let (p0, p1) = ([10.0, 12.0], [42.0, 25.0]);
+            a.stamp_level(0, p0, p1, z);
+            let n = 3000;
+            for i in 0..=n { let f = i as f64 / n as f64; b.stamp(0, p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, z); }
+            let worst = a.z.iter().zip(&b.z).map(|(x, y)| (x - y).abs()).fold(0.0_f32, f32::max);
+            assert!(worst < 0.02, "z {z}: the sweep differs from stamping by {worst}");
+            assert!(a.z.iter().any(|&x| x < 0.0), "z {z}: something is cut");
+        }
     }
 
     #[test]
