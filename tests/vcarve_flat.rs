@@ -77,6 +77,6 @@ fn the_middle_of_a_thin_arm_that_dies_out_between_two_rings_is_carved_to_its_bot
     s.advance(&out.moves, out.moves.len());
     let h = |x: f64, y: f64| s.at((x / s.cell).round() as usize, (y / s.cell).round() as usize) as f64;
     // along the middle of the bar, away from the stem: 5 mm (it used to stop 0.3 mm short)
-    let worst = (0..8).map(|i| h(24.0 + i as f64 * 2.5, 55.0)).fold(f64::MIN, f64::max);
+    let worst = [27.0, 29.5, 32.0, 34.5, 55.5, 58.0, 60.5, 63.0].iter().map(|&x| h(x, 55.0)).fold(f64::MIN, f64::max);
     assert!(worst < -4.9, "the middle of the bar is only {worst:.2} deep");
 }
