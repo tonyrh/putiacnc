@@ -261,6 +261,27 @@ impl Em {
 }
 
 // ---------- geometry helpers ----------
+/// The parts of `cur` (a V-carve ring region at offset `d`) that are gone from `next` (the region `step` further in): thin parts of the shape that
+/// died out between the two rings. Their middle is carved with finer steps, as rings at the depth that goes with their distance from the edge
+/// (never deeper than the true distance, so it cannot cut too far). Parts too small for a 0.04 mm step are left to the V-bit's own width.
+fn lost_parts(cur: &[Path], next: &[Path], step: f64, d: f64, geo: &ToolGeo, zmax: f64, dmax: f64) -> Vec<(Path, f64)> {
+    let grown = if next.is_empty() { Vec::new() } else { off_raw(next, step * S) };
+    let mut c = clip::boolean(clip::BoolKind::Difference, &clip::simplify_even_odd(cur), &grown);
+    let mut out = Vec::new();
+    let (mut s, mut st) = (0.0, step / 2.0);
+    for _ in 0..40 {
+        if st < 0.04 || d + s + st > dmax { break; }
+        let n = off_raw(&c, -st * S);
+        let q = clean_paths(&n);
+        if q.is_empty() { st /= 2.0; continue; }
+        c = n;
+        s += st;
+        let z = -geo.rise(d + s).min(zmax);
+        for p in q { out.push((p, z)); }
+    }
+    out
+}
+
 /// Offset without cleaning. Repeated offsets feed this uncleaned result into the next step, which keeps
 /// cleaning error from adding up and avoids Clipper's very slow case of one huge inward offset that collapses a shape.
 fn off_raw(region: &[Path], d: f64) -> Vec<Path> { clip::offset(region, d, S * 0.01) }
@@ -1696,6 +1717,9 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 let next = off_raw(&cur, -step * S);
                 let q = clean_paths(&next);
                 if q.is_empty() { break; }
+                // parts of the shape that die out between this ring and the next (a thin stroke, a narrow arm) would be left with a
+                // ridge up to the step wide along their middle: carve their middle with finer steps
+                for (p, z) in lost_parts(&cur, &next, step, d, &geo, zmax, dmax) { vr.push((p, z)); }
                 cur = next;
                 d += step;
                 let z = -geo.rise(d).min(zmax);

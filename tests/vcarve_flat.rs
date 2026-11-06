@@ -64,3 +64,19 @@ fn a_shape_too_narrow_for_the_flat_floor_is_carved_by_the_v_bit_alone() {
     assert!(!out.moves.iter().any(|m| m.alt), "nothing for the flat end mill");
     assert!(out.notes.iter().any(|n| n.contains("flat")), "{:?}", out.notes);
 }
+
+#[test]
+fn the_middle_of_a_thin_arm_that_dies_out_between_two_rings_is_carved_to_its_bottom() {
+    // a T: its bar is 10 mm wide, so its middle is 5 mm deep for a 90 degree bit, but the bar's ring vanishes between two 0.3 mm steps
+    let mut d = project(None, false);
+    d.ops[0].p.depth = 10.0;
+    let t = [[20.0, 50.0], [70.0, 50.0], [70.0, 60.0], [50.0, 60.0], [50.0, 80.0], [40.0, 80.0], [40.0, 60.0], [20.0, 60.0]];
+    d.loops[0] = shapes::new_poly(&t, true, 1).unwrap();
+    let out = generate(&d, Units::Metric).unwrap();
+    let mut s = Sim::new(&d, 1_000_000);
+    s.advance(&out.moves, out.moves.len());
+    let h = |x: f64, y: f64| s.at((x / s.cell).round() as usize, (y / s.cell).round() as usize) as f64;
+    // along the middle of the bar, away from the stem: 5 mm (it used to stop 0.3 mm short)
+    let worst = (0..8).map(|i| h(24.0 + i as f64 * 2.5, 55.0)).fold(f64::MIN, f64::max);
+    assert!(worst < -4.9, "the middle of the bar is only {worst:.2} deep");
+}
