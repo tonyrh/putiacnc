@@ -430,8 +430,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     let at = egui::pos2(rect.max.x - btn_w - 6.0 - 14.0, rect.center().y);
                     let hit = egui::Rect::from_center_size(at, egui::vec2(22.0, 26.0));
                     let r = ui.interact(hit, ui.id().with(("op_warn", id)), egui::Sense::click());
-                    // a white disc keeps the sign readable on every card colour
-                    ui.painter().circle_filled(at, 12.0, Color32::WHITE.gamma_multiply(if r.hovered() { 0.95 } else { 0.85 }));
+                    // a white rim round the sign keeps it readable on every card colour
+                    let rim = Color32::WHITE;
+                    if bad { ui.painter().circle_filled(at, 10.2, rim); }
+                    else { ui.painter().add(egui::Shape::convex_polygon(vec![at + egui::vec2(0.0, -11.2), at + egui::vec2(11.6, 8.6), at + egui::vec2(-11.6, 8.6)], rim, egui::Stroke::new(1.6_f32, rim))); }
                     crate::msg::paint_sign(ui.painter(), at, level, crate::msg::colour(level, false));
                     let mut tip = w.iter().take(4).map(|x| x.1.clone()).collect::<Vec<_>>().join("\n\n");
                     if w.len() > 4 { tip += &format!("\n\n…and {} more", w.len() - 4); }
