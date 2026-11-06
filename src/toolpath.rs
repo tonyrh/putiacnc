@@ -1624,6 +1624,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
 
         let mut jobs: Vec<Job> = Vec::new();
         let mut vr: Vec<(Path, f64)> = Vec::new();
+        let mut flat_clear: Option<(Tool, Vec<Path>, OpCtx, Vec<Job>, Vec<f64>)> = None;
         let mut by_pass = false;
         let mut holes: Vec<[f64; 2]> = Vec::new();
         // the walls cut to size in a last pass (when the depth passes left some stock on them)
@@ -1652,17 +1653,51 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             }
         } else if kind == "vcarve" {
             if !(geo.cone || matches!(geo.shape, ShapeKind::Ball | ShapeKind::Arc)) { return Err(format!("Operation {}: V-carve needs a V-bit, engraving, tapered, ball nose or arc profile tool (choose one in Manage…)", k + 1)); }
-            let zmax = depth.min(geo.z_full);
+            let mut zmax = depth.min(geo.z_full);
             if depth > geo.z_full + 1e-6 { notes.push(format!("{}V-carve depth limited to {} {} (the tool diameter is reached).", pre, num(fl(zmax)), un)); }
             let sv = (dia * so / 100.0 * 0.25).min(0.3).max(0.05);
+            // a flat floor: the V-bit carves only the sloped band down to the flat depth, and a flat end mill clears the floor inside it
+            let mut dmax = f64::INFINITY;
+            if let Some(fd) = o.p.flat.filter(|v| *v > 1e-6) {
+                if fd < zmax - 1e-9 { zmax = fd; }
+                else if fd > zmax + 1e-9 { notes.push(format!("{}the flat depth ({} {}) is deeper than the V-carve depth, so it is {} {}.", pre, num(fl(fd)), un, num(fl(zmax)), un)); }
+                if let Some(id) = o.p.tool2.as_deref() {
+                    match data.tools.iter().find(|t| t.id == id) {
+                        None => notes.push(format!("{}the flat end mill is not in the tool list: the V-bit clears the floor.", pre)),
+                        Some(rt) if rt.shape != "flat" || !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) =>
+                            notes.push(format!("{}\"Clear with\" needs a flat end mill with its values set: the V-bit clears the floor.", pre)),
+                        Some(rt) => {
+                            // how far in from the edge the V-bit's wall reaches the flat depth: from there inwards the floor is flat
+                            let (mut lo, mut hi) = (0.0_f64, geo.r);
+                            for _ in 0..50 { let mid = (lo + hi) / 2.0; if geo.rise(mid) < zmax { lo = mid } else { hi = mid } }
+                            let df = hi;
+                            let area = off_raw(&region, -df * S);
+                            let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(rt.pd).min(rt.pd);
+                            let nz = (zmax / pd - 1e-9).ceil().clamp(1.0, 5000.0) as usize;
+                            let zs: Vec<f64> = (0..nz).map(|i| -(zmax / nz as f64) * (i as f64 + 1.0)).collect();
+                            let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: ctx.ramp, rev: o.p.dir != "conv", helix: None, adapt: false, z0: ctx.z0, sz: ctx.sz, zs: zs.clone(),
+                                tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0 };
+                            let fj = if area.is_empty() { Vec::new() } else { mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0) };
+                            if fj.is_empty() {
+                                notes.push(format!("{}the flat floor is too narrow for the {} {} end mill (or there is none): the V-bit carves it all.", pre, num(fl(rt.dia)), un));
+                            } else {
+                                dmax = df;
+                                flat_clear = Some((rt.clone(), area, rctx, fj, zs));
+                            }
+                        }
+                    }
+                }
+            }
             let mut cur = region.clone();
             let mut d = 0.0;
             for _ in 1..3000 {
-                let next = off_raw(&cur, -sv * S);
+                let step = sv.min(dmax - d);
+                if step < 1e-6 { break; }
+                let next = off_raw(&cur, -step * S);
                 let q = clean_paths(&next);
                 if q.is_empty() { break; }
                 cur = next;
-                d += sv;
+                d += step;
                 let z = -geo.rise(d).min(zmax);
                 for p in q { vr.push((p, z)); }
             }
@@ -1670,6 +1705,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             // are carved right to their middle, not left with a ridge
             let mut step = sv;
             for _ in 0..40 {
+                if d >= dmax - 1e-6 { break; }
                 step /= 2.0;
                 if step < 0.01 { break; }
                 let next = off_raw(&cur, -step * S);
@@ -1680,6 +1716,11 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 let z = -geo.rise(d).min(zmax);
                 for p in q { vr.push((p, z)); }
                 step *= 2.0; // it fitted: try the same step again
+            }
+            if flat_clear.is_some() && d < dmax - 1e-3 {
+                // the shape ran out before the flat depth was reached: the V-bit has done it all
+                flat_clear = None;
+                notes.push(format!("{}the shape is narrower than the flat floor needs, so the V-bit carves it all and the flat end mill is not used.", pre));
             }
         } else if geo.cone && kind != "online" {
             by_pass = true;
@@ -1765,6 +1806,16 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 for q in pts.drain(..) { e.go("G1", Some(q[0]), Some(q[1]), Some(z0 + z), feed); }
             }
             e.go("G0", None, None, Some(sz), 0.0);
+            // then the flat floor with the flat end mill, down to the flat depth
+            if let Some((rt, area, rctx, mut fj, zs)) = flat_clear.take() {
+                let (ku, un2) = (e.ku, if e.imp { "in" } else { "mm" });
+                let dia_txt = num(to_fixed(rt.dia / ku, 4));
+                select_tool(&mut e, &mut ts, mach, &rt, sz, &dia_txt, un2);
+                e.g.push(format!("(Operation {}: V-carve, flat floor, tool {} {})", k + 1, dia_txt, un2));
+                e.alt = true;
+                run_jobs(&mut e, &rctx, &mut fj, &area, &zs, &[]);
+                e.alt = false;
+            }
         } else if by_pass {
             for &z in &zs {
                 let mut jb = mk_jobs(&ctx, &region, &closed, &open, geo.r_at(-z));

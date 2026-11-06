@@ -1135,4 +1135,32 @@ mod tests {
         }
         assert!(seen.len() > 10, "Tab should visit the fields of the panels: {}", seen.len());
     }
+
+    /// Writes the V-carve flat floor sample project (run it by hand: `cargo test --release make_vcarve_flat_sample -- --ignored`).
+    #[test]
+    #[ignore]
+    fn make_vcarve_flat_sample() {
+        let mut a = App::new(None);
+        a.project.data.stock.w = 200.0;
+        a.project.data.stock.h = 90.0;
+        a.project.data.stock.t = 18.0;
+        a.text.sel = a.text.fonts.iter().position(|f| f.label == "Hack").unwrap();
+        a.text.content = "WOOD".into();
+        a.text.size = 45.0;
+        a.text.flow = Flow::Straight;
+        a.text.pos = Some([18.0, 22.0]);
+        a.text.refresh();
+        place(&mut a);
+        let d = &mut a.project.data;
+        let v = d.tools.iter().find(|t| t.shape == "vbit" && t.angle == 90.0).unwrap().id.clone();
+        let flat = d.tools.iter().find(|t| t.shape == "flat" && (t.dia - 1.0).abs() < 0.01).unwrap().id.clone();
+        let mut p = putiacnc_core::shapes::default_op_params(&v);
+        p.kind = "vcarve".into(); p.depth = 3.0; p.flat = Some(1.0); p.tool2 = Some(flat);
+        d.ops.clear();
+        d.ops.push(putiacnc_core::model::Operation { id: 1, p });
+        d.oid = 2; d.act = 1;
+        for l in d.loops.iter_mut() { l.op = 1; }
+        let f = putiacnc_core::ProjectFile { app: "putia-cnc".into(), v: 2, name: "V-carve flat floor".into(), data: d.clone() };
+        std::fs::write("/mnt/user-data/outputs/vcarve-flat-floor.project.json", serde_json::to_string(&f).unwrap()).unwrap();
+    }
 }

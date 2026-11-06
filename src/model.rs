@@ -377,6 +377,9 @@ pub struct OpParams {
     /// Manually placed holding tabs. `Some` = manual placement, `None` = evenly spaced tabs (`tabN`).
     /// Each tab is anchored to a shape, so it follows when the shape is moved or resized.
     #[serde(default, rename = "tabPts", skip_serializing_if = "Option::is_none")] pub tab_pts: Option<Vec<TabPt>>,
+    /// V-carve: the depth of a flat floor. The V-bit carves only the sloped band along the edges down to it, and the flat end mill in `tool2`
+    /// clears the floor inside at that depth (without `tool2` this is just a cap on the depth).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub flat: Option<f64>,
     /// Second tool of an inlay operation: the flat end mill that clears the pocket floor or cuts the plug out.
     #[serde(default, rename = "tool2", skip_serializing_if = "Option::is_none")] pub tool2: Option<String>,
     /// Inlay plug: how much smaller the plug is than the pocket, measured sideways, in mm (the glue gap).

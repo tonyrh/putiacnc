@@ -461,7 +461,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let bf = egui::TextStyle::Body.resolve(ui.style());
                 let tw_of = |ui: &Ui, s: &str| ui.fonts(|f| f.layout_no_wrap(s.to_string(), bf.clone(), Color32::WHITE).size().x);
                 // 2 x 2 grid: Type | Cut  /  Tool | Depth
-                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle")).max(tw_of(ui, "Stepover")).max(tw_of(ui, "Pen down")).max(tw_of(ui, "Corners"));
+                let l1 = tw_of(ui, "Type").max(tw_of(ui, "Tool")).max(tw_of(ui, "Depth")).max(tw_of(ui, "Rough")).max(tw_of(ui, "Finish")).max(tw_of(ui, "Spindle")).max(tw_of(ui, "Stepover")).max(tw_of(ui, "Pen down")).max(tw_of(ui, "Corners")).max(if p.kind == "vcarve" { tw_of(ui, "Flat depth").max(tw_of(ui, "Clear with")) } else { 0.0 });
                 let l3 = tw_of(ui, "Cut").max(tw_of(ui, "Pass"));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
                 let cw = tw_of(ui, "Conventional") + 44.0;
@@ -764,19 +764,19 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.add_space(2.0);
                         ui.weak(if p.hatch.is_some() { "Open lines are drawn as they are. The lines of the fill are joined into a zigzag." } else { "Draws every outline once (an edge two shapes share too). Set Z0 on the surface of the paper." });
                     }
-                    if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" {
+                    if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" || p.kind == "vcarve" {
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
                             // the same width as the Tool selector above, so the two dropdowns line up (the room for "Ramp in" is kept in both)
                             let ramp_w = tw_of(ui, "Ramp in") + 30.0;
                             let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
-                            rlabel(ui, l1, if p.kind == "relief" { "Rough" } else { "Flat" });
+                            rlabel(ui, l1, match p.kind.as_str() { "relief" => "Rough", "vcarve" => "Clear with", _ => "Flat" });
                             let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                             let cur = elide(ui, &cur, tool_w - 30.0);
                             let (r2, pk2) = crate::toolpick::picker(ui, ("optool2", id), tool_w, cur, p.tool2.as_deref(), &job_tools, &tools, |t| t.shape == "flat");
                             match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.tool2 = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
-                            r2.tip(match p.kind.as_str() { "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
+                            r2.tip(match p.kind.as_str() { "vcarve" => "Flat end mill that clears the floor inside the V-carved edges, at the flat depth. Leave it empty and the V-bit does the floor too", "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
                             if p.kind == "plug" || p.kind == "inlay" {
                                 let rest = ui.available_width() - ramp_w;
                                 if rest > 0.0 { ui.add_space(rest); }
@@ -897,6 +897,20 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         });
                     });
                     }
+                }
+                if p.kind == "vcarve" {
+                    // the flat floor: the V-bit carves the sloped edges down to this depth, the flat end mill clears the floor inside
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        rlabel(ui, l1, "Flat depth").tip("How deep the flat floor is. Below it nothing is cut; the V-bit's edges slope down to it");
+                        let mut v = p.flat.unwrap_or(p.depth).min(p.depth);
+                        let r = dl_w(ui, if crate::widgets::inches(ui) { 56.0 } else { 42.0 }, &mut v, 0.01, 1000.0, "");
+                        if r { p.flat = Some(v); changed = true; }
+                        ui.weak(crate::widgets::len_unit(ui));
+                        if p.flat.is_some() && reset_button(ui, "Back to the full depth") { p.flat = None; changed = true; }
+                        if p.tool2.is_none() { ui.weak("no flat end mill: the V-bit cuts the floor too"); }
+                    });
                 }
                 if p.depth > stock_t + 1e-6 && p.kind != "draw" {
                     ui.add_space(2.0);
