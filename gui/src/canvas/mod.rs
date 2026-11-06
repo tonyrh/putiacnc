@@ -968,6 +968,23 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
             painter.circle_stroke(to_s(p), 7.0, Stroke::new(2.0_f32, col));
         }
     }
+    // Clean up's Simplify preview: red dots on the points that would go, green on the ones that stay
+    if app.clean.open && app.clean.simplify {
+        let scope = app.simplify_scope();
+        let total: usize = scope.iter().map(|&i| app.project.data.loops[i].pts.len() / 2).sum();
+        if total <= 60_000 {
+            let mut after = app.project.data.loops.clone();
+            putiacnc_core::cleanup::simplify(&mut after, &scope, app.clean.simp_tol.max(1e-4));
+            for &i in &scope {
+                let kept: std::collections::HashSet<(i64, i64)> = after[i].pts.chunks(2).map(|c| (c[0], c[1])).collect();
+                for c in app.project.data.loops[i].pts.chunks(2) {
+                    let q = to_s([c[0] as f64 / 1000.0, c[1] as f64 / 1000.0]);
+                    if kept.contains(&(c[0], c[1])) { painter.circle_filled(q, 3.0, Color32::from_rgb(40, 160, 90)); }
+                    else { painter.circle_filled(q, 2.0, Color32::from_rgb(220, 50, 47)); }
+                }
+            }
+        }
+    }
     // the snap marker: what the pointer (or the dragged shape) is locked onto
     let marker = match &app.drag {
         Drag::Move { .. } => app.snap_hit.get(),

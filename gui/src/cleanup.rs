@@ -100,7 +100,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             let mut copy: Vec<putiacnc_core::model::LoopData> = app.project.data.loops.clone();
             let total: usize = app.simplify_scope().iter().map(|&i| copy[i].pts.len() / 2).sum();
             let gone = cleanup::simplify(&mut copy, &app.simplify_scope(), app.clean.simp_tol.max(1e-4));
-            ui.indent("simp_note", |ui| { ui.weak(format!("{} of {} points would stay.", total - gone, total)); });
+            ui.indent("simp_note", |ui| { ui.weak(format!("{} of {} points would stay (green on the drawing; red ones go).", total - gone, total)); });
         }
         crate::widgets::check(ui, &mut app.show_open_ends, "Show loose ends on the drawing").tip("Red rings: nothing meets this end. Amber rings: another end is within the tolerance");
         ui.add_space(8.0);
