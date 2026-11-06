@@ -313,9 +313,19 @@ impl App {
         false
     }
 
+    /// A number that stands for the current warnings (what they are and where), so "Export anyway" is asked once for the same ones.
+    pub fn checks_key(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for (i, f) in self.checks.iter().enumerate() { (f.kind, f.op, f.count, &f.msg, self.check_parts.get(i)).hash(&mut h); }
+        h.finish()
+    }
+
     pub fn export_gcode_dialog(&mut self) {
         self.finish_generation();
         if self.output.is_none() { self.say(crate::app::Level::Warning, "Nothing to export: there is no G-code yet.".into()); return; }
+        // warnings about the toolpath that the person has not seen the export through yet: ask first (only then)
+        if self.checks_ver == self.out_ver && !self.checks.is_empty() && self.checks_key() != self.export_ack { self.export_warn_open = true; return; }
         if self.can_split() { self.export_open = true; } else { self.export_split = putiacnc_core::split::Split::One; self.choose_export_file(); }
     }
 

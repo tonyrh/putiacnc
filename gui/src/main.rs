@@ -274,6 +274,7 @@ impl App {
         setup::window(ctx, self);
         tour::window(ctx, self);
         checkui::window(ctx, self);
+        checkui::export_gate(ctx, self);
         timeui::window(ctx, self);
         exportui::window(ctx, self);
         combine::dialog(ctx, self);

@@ -141,3 +141,91 @@ pub fn warn_line(ui: &mut egui::Ui, col: Color32, text: &str) -> egui::Response 
         ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, text)).color(col)).wrap(true))
     }).inner
 }
+
+/// "Before you export": the warnings about the toolpath, asked once (only while there are some). Export anyway goes on to the export
+/// window and remembers these warnings; Review opens the list; Cancel goes back.
+pub fn export_gate(ctx: &egui::Context, app: &mut App) {
+    if !app.export_warn_open { return; }
+    let (mut close, mut review, mut go) = (false, false, false);
+    egui::Window::new("Before you export").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+        .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Before you export", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
+        ui.set_width(480.0);
+        if crate::csd::dialog_header(ui, "Before you export", true) { close = true; }
+        ui.add_space(8.0);
+        let n = app.checks.len();
+        ui.add(egui::Label::new(if n == 1 { "The toolpath has a warning:".to_string() } else { format!("The toolpath has {n} warnings:") }).wrap(true));
+        ui.add_space(6.0);
+        for f in app.checks.iter().take(4) {
+            ui.horizontal_top(|ui| {
+                crate::msg::sign(ui, if f.kind.about_clamps() { crate::app::Level::Error } else { crate::app::Level::Warning });
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(f.kind.title()).strong());
+                    ui.add(egui::Label::new(egui::RichText::new(crate::widgets::localize(ui, &f.msg)).weak()).wrap(true));
+                });
+            });
+            ui.add_space(4.0);
+        }
+        if n > 4 { ui.weak(format!("…and {} more", n - 4)); }
+        ui.add_space(6.0);
+        ui.add(egui::Label::new(egui::RichText::new("The G-code can still be written. You will not be asked again until the warnings change.").weak()).wrap(true));
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.add(egui::Button::new("Export anyway").fill(ui.visuals().selection.bg_fill)).clicked() { go = true; }
+                if ui.button("Review warnings").clicked() { review = true; }
+                if ui.button("Cancel").clicked() { close = true; }
+            });
+        });
+        ui.add_space(4.0);
+    }));
+    if go { app.export_ack = app.checks_key(); app.export_warn_open = false; app.export_gcode_dialog(); }
+    else if review { app.export_warn_open = false; app.checks_open = true; app.check_sel = None; }
+    else if close || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.export_warn_open = false; }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use putiacnc_core::checks::{Finding, Kind};
+
+    fn app() -> App {
+        let mut a = App::new(None);
+        a.open(&format!("{}/../tests/data/outside_holes.project.json", env!("CARGO_MANIFEST_DIR")));
+        a.start_generation();
+        a.finish_generation();
+        assert!(a.output.is_some(), "{:?}", a.error);
+        a
+    }
+
+    fn finding(op: usize, msg: &str) -> Finding {
+        Finding { kind: Kind::OutOfArea, op: Some(op), mv: Some(0), at: [0.0; 3], count: 1, msg: msg.into(), clamps: vec![] }
+    }
+
+    #[test]
+    fn exporting_asks_only_while_there_are_warnings_and_only_once_for_the_same_ones() {
+        let mut a = app();
+        // nothing found: straight to the file chooser or the split window, never the question
+        a.checks.clear(); a.checks_ver = a.out_ver;
+        a.export_gcode_dialog();
+        assert!(!a.export_warn_open);
+        a.export_open = false;
+        // a warning: the question comes first and nothing is exported yet
+        a.checks = vec![finding(0, "Goes past the edge of the machine.")]; a.check_parts = vec![0]; a.checks_ver = a.out_ver;
+        a.export_gcode_dialog();
+        assert!(a.export_warn_open && !a.export_open);
+        // "Export anyway": remembered, and the same warning does not ask again
+        a.export_ack = a.checks_key(); a.export_warn_open = false;
+        a.export_gcode_dialog();
+        assert!(!a.export_warn_open);
+        a.export_open = false;
+        // a different warning asks again
+        a.checks = vec![finding(0, "Goes past the edge of the machine."), finding(0, "Another one.")]; a.check_parts = vec![0, 0];
+        a.export_gcode_dialog();
+        assert!(a.export_warn_open);
+        // warnings from an older toolpath do not count
+        a.export_warn_open = false;
+        a.checks_ver = a.out_ver.wrapping_sub(1);
+        a.export_gcode_dialog();
+        assert!(!a.export_warn_open);
+    }
+}
