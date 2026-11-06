@@ -92,6 +92,23 @@ impl App {
         }
     }
 
+    /// The generator's own warnings ("⚠ ..." notes: depth beyond the stock, shapes beyond the stock, a stock larger than the machine, limits
+    /// held to) join the toolpath warnings, so there is one list. A note that says what a toolpath check already says is left out.
+    pub fn add_setting_warnings(&mut self) {
+        let Some(out) = &self.output else { return };
+        let notes: Vec<String> = out.notes.iter().filter_map(|n| n.strip_prefix("⚠ ")).map(|n| n.to_string()).collect();
+        for n in notes {
+            // "Op 3: ..." names the operation
+            let op = n.strip_prefix("Op ").and_then(|r| r.split(':').next()).and_then(|k| k.trim().parse::<usize>().ok()).and_then(|k| k.checked_sub(1));
+            let same_as_check = n.contains("depth exceeds stock thickness")
+                && self.checks.iter().zip(&self.check_parts).any(|(f, &p)| p == 0 && matches!(f.kind, putiacnc_core::checks::Kind::Spoilboard | putiacnc_core::checks::Kind::TooDeep) && f.op == op);
+            if same_as_check { continue; }
+            let msg = match n.split_once(": ") { Some((a, rest)) if op.is_some() && a.starts_with("Op ") => format!("Operation {}: {}", a.trim_start_matches("Op "), rest), _ => n.clone() };
+            self.checks.push(putiacnc_core::checks::Finding { kind: putiacnc_core::checks::Kind::Setting, op, mv: None, at: [0.0; 3], count: 1, msg, clamps: vec![] });
+            self.check_parts.push(0);
+        }
+    }
+
     /// Pick up finished warnings; true while they are still being worked out.
     pub fn poll_checks(&mut self) -> bool {
         let Some(rx) = &self.checks_rx else { return false };
@@ -106,6 +123,7 @@ impl App {
                     self.check_parts = f.iter().map(|(p, _)| *p).collect();
                     self.checks = f.into_iter().map(|(_, x)| x).collect();
                     self.checks_ver = v;
+                    self.add_setting_warnings();
                 }
                 self.checks_rx = None;
                 // testing aid: press "Show in 3D" on this warning

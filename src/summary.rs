@@ -147,8 +147,6 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
         if !ops.is_empty() { rows.push(row("Hidden layers", format!("Operation{} {} cut{} shapes on a hidden layer: hiding a layer only hides it from the drawing.", if ops.len() == 1 { "" } else { "s" }, ops.join(", "), if ops.len() == 1 { "s" } else { "" }), true)); }
     }
 
-    let warns = out.notes.iter().filter(|n| n.starts_with("⚠ ")).count();
-    if warns > 0 { rows.push(row("Warnings", format!("{} warning{}: see the Notes tab.", warns, if warns == 1 { "" } else { "s" }), true)); }
     rows
 }
 

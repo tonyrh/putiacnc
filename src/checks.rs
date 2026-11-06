@@ -46,7 +46,7 @@ fn region_of(data: &ProjectData, op: usize) -> Vec<Path> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Kind { TooDeep, Spoilboard, OutOfArea, ZTravel, RapidCut, Shank, Clamp, Holder, TooSmall, Overcut }
+pub enum Kind { TooDeep, Spoilboard, OutOfArea, ZTravel, RapidCut, Shank, Clamp, Holder, TooSmall, Overcut, Setting }
 
 impl Kind {
     /// The findings that name clamps (`Finding::clamps`): the cutter or the holder runs into one.
@@ -63,6 +63,7 @@ impl Kind {
             Kind::Holder => "Tool holder hits a clamp",
             Kind::TooSmall => "Shape smaller than the tool",
             Kind::Overcut => "Tool cuts past the design",
+            Kind::Setting => "Check the settings",
         }
     }
 }

@@ -228,4 +228,30 @@ mod tests {
         a.export_gcode_dialog();
         assert!(!a.export_warn_open);
     }
+
+    fn settled(a: &mut App) {
+        a.start_generation();
+        a.finish_generation();
+        for _ in 0..600 { if !a.poll_checks() { break; } std::thread::sleep(std::time::Duration::from_millis(50)); }
+    }
+
+    #[test]
+    fn the_generators_warnings_join_the_list_and_a_repeat_of_a_check_is_left_out() {
+        let mut a = app();
+        let stock_t = a.project.data.stock.t;
+        a.project.data.ops[0].p.depth = stock_t + 4.0;
+        settled(&mut a);
+        let out = a.output.clone().unwrap();
+        assert!(out.notes.iter().any(|n| n.starts_with("⚠ ") && n.contains("depth exceeds stock thickness")), "the generator says it: {:?}", out.notes);
+        let deep: Vec<_> = a.checks.iter().filter(|f| f.op == Some(0) && matches!(f.kind, Kind::Spoilboard | Kind::TooDeep)).collect();
+        assert_eq!(deep.len(), 1, "the toolpath check says it once: {:?}", a.checks.iter().map(|f| (f.kind, &f.msg)).collect::<Vec<_>>());
+        assert!(!a.checks.iter().any(|f| f.kind == Kind::Setting && f.msg.contains("depth exceeds")), "no second warning for the same thing");
+        // a generator warning with no check of its own is in the list: shapes beyond the stock
+        a.project.data.ops[0].p.depth = 3.0;
+        a.project.data.stock.w = 20.0;
+        settled(&mut a);
+        let s = a.checks.iter().find(|f| f.kind == Kind::Setting).expect("the shapes beyond the stock are in the list");
+        assert!(s.msg.contains("beyond the stock"), "{}", s.msg);
+        assert!(a.check_parts.len() == a.checks.len());
+    }
 }

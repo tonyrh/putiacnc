@@ -85,8 +85,7 @@ pub(super) fn combo_w(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(
 
 pub fn right_panel(ui: &mut Ui, app: &mut App) {
     let theme = app.theme;
-    let n_warn = app.output.as_ref().map_or(0, |o| o.notes.iter().filter(|n| n.starts_with("⚠ ")).count());
-    crate::view3d::tabs_badged(ui, &theme, &mut app.tab, &[(RightTab::Ops, "Operations", 0), (RightTab::Gcode, "G-code", 0), (RightTab::Info, "Notes", n_warn)]);
+    crate::view3d::tabs_badged(ui, &theme, &mut app.tab, &[(RightTab::Ops, "Operations", 0), (RightTab::Gcode, "G-code", 0), (RightTab::Info, "Notes", 0)]);
     ui.separator();
     if app.tab == RightTab::Ops { ops_panel(ui, app); return; }
     if app.tab == RightTab::Info { notes_panel(ui, app); return; }
@@ -196,9 +195,9 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
 }
 
 /// The Notes tab: the project's own notes (always editable, saved with the project) and, below, what the
-/// toolpath generator wants the user to know.
+/// toolpath generator wants the user to know (its warnings are in the warnings bar and list, not here).
 pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
-    let warnings: Vec<String> = app.output.as_ref().map(|o| o.notes.clone()).unwrap_or_default();
+    let warnings: Vec<String> = app.output.as_ref().map(|o| o.notes.iter().filter(|n| !n.starts_with("⚠ ")).cloned().collect()).unwrap_or_default();
     let reserve = if warnings.is_empty() { 0.0 } else { 40.0 + 20.0 * warnings.len().min(6) as f32 };
     ui.label("Project notes");
     let row_h = ui.text_style_height(&egui::TextStyle::Body);
@@ -214,12 +213,8 @@ pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
     }
     if !warnings.is_empty() {
         ui.add_space(8.0);
-        ui.label(egui::RichText::new("Warnings").strong());
-        // every note under "Warnings" is a warning, with or without the sign in its text
-        for n in &warnings {
-            let text = n.strip_prefix("⚠ ").unwrap_or(n);
-            crate::msg::line(ui, Level::Warning, text);
-        }
+        ui.label(egui::RichText::new("About this toolpath").strong());
+        for n in &warnings { crate::msg::line(ui, Level::Info, n); }
     }
 }
 
