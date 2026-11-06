@@ -181,6 +181,33 @@ mod tests {
         assert_eq!(a.project.data.loops.len(), n);
     }
 
+    #[test]
+    fn simplify_in_clean_up_drops_points_of_a_noisy_outline_and_undo_restores_them() {
+        let mut a = app();
+        // a closed outline: a 40 x 20 rectangle with extra points along the sides, plus a plain rectangle
+        let mut noisy = shapes::new_rect([0.0, 0.0], [40.0, 20.0], 0.0, 0);
+        noisy.pt = None; noisy.rc = None;
+        let mut pts = Vec::new();
+        for i in 0..40 { pts.push([i as f64, 0.0]); }
+        for j in 0..20 { pts.push([40.0, j as f64]); }
+        for i in 0..40 { pts.push([40.0 - i as f64, 20.0]); }
+        for j in 0..20 { pts.push([0.0, 20.0 - j as f64]); }
+        noisy.pts = pts.iter().flat_map(|p| [(p[0] * 1000.0) as i64, (p[1] * 1000.0) as i64]).collect();
+        let rect = shapes::new_rect([100.0, 0.0], [120.0, 20.0], 0.0, 0);
+        let before = a.project.data.loops.clone();
+        a.project.data.loops = vec![noisy, rect];
+        a.sel.clear();
+        a.clean.dups = false; a.clean.join = false; a.clean.tiny = false;
+        a.clean.simplify = true; a.clean.simp_tol = 0.02;
+        let msg = a.clean_drawing();
+        assert!(msg.to_lowercase().contains("simplified"), "{msg}");
+        assert_eq!(a.project.data.loops[0].pts.len() / 2, 4, "the noisy outline is down to its corners");
+        assert_eq!(a.project.data.loops[1].pts.len() / 2, 4);
+        a.do_undo();
+        assert_eq!(a.project.data.loops[0].pts.len() / 2, 120, "undo brings the points back");
+        let _ = before;
+    }
+
     fn dxf_two_layers() -> Vec<u8> {
         let circle = |layer: &str, x: f64| format!("0\nCIRCLE\n8\n{layer}\n10\n{x}\n20\n10\n40\n3\n");
         format!("0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n0\nLAYER\n2\nCut\n70\n0\n62\n1\n0\nLAYER\n2\nGuide\n70\n1\n62\n5\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n{}{}{}0\nENDSEC\n0\nEOF\n", circle("Cut", 10.0), circle("Guide", 30.0), circle("Cut", 50.0)).into_bytes()

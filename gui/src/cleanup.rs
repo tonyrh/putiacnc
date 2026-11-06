@@ -5,9 +5,9 @@ use eframe::egui;
 use putiacnc_core::cleanup::{self, Options};
 use putiacnc_core::shapes;
 
-pub struct CleanTool { pub open: bool, pub join: bool, pub dups: bool, pub tiny: bool, pub tol: f64, pub msg: String }
+pub struct CleanTool { pub open: bool, pub join: bool, pub dups: bool, pub tiny: bool, pub tol: f64, pub simplify: bool, pub simp_tol: f64, pub msg: String }
 
-impl Default for CleanTool { fn default() -> Self { CleanTool { open: false, join: true, dups: true, tiny: true, tol: 0.05, msg: String::new() } } }
+impl Default for CleanTool { fn default() -> Self { CleanTool { open: false, join: true, dups: true, tiny: true, tol: 0.05, simplify: false, simp_tol: 0.02, msg: String::new() } } }
 
 impl App {
     /// The shapes cleaning works on: the selection, or the whole drawing when nothing is selected, without the shapes of a locked layer
@@ -17,14 +17,23 @@ impl App {
         all.into_iter().filter(|&i| i < self.project.data.loops.len() && !self.loop_locked(i) && !self.loop_hidden(i)).collect()
     }
 
+    /// The shapes Simplify may change: the cleaning scope without the letters of placed text (they stay as the font draws them).
+    pub fn simplify_scope(&self) -> std::collections::BTreeSet<usize> {
+        let d = &self.project.data;
+        self.clean_scope().into_iter().filter(|&i| !d.loops[i].grp.is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.text.is_some()))).collect()
+    }
+
     /// Cleans the selection (or the whole drawing when nothing is selected).
     pub fn clean_drawing(&mut self) -> String {
         let t = &self.clean;
         let o = Options { join: t.join, duplicates: t.dups, tiny: t.tiny, tol: t.tol.max(1e-4) };
         let scope = self.clean_scope();
         if scope.is_empty() { return "Nothing to clean up: the shapes are locked or hidden.".into(); }
-        let (res, removed, rep) = cleanup::clean(&self.project.data.loops, Some(&scope), o);
-        let changed = !removed.is_empty() || res.len() != self.project.data.loops.len() || rep.closed > 0 || rep.joined > 0
+        // simplify first, while the shapes still have their numbers; joining then works on the simplified outlines
+        let mut base = self.project.data.loops.clone();
+        let simplified = if t.simplify { cleanup::simplify(&mut base, &self.simplify_scope(), t.simp_tol.max(1e-4)) } else { 0 };
+        let (res, removed, rep) = cleanup::clean(&base, Some(&scope), o);
+        let changed = simplified > 0 || !removed.is_empty() || res.len() != self.project.data.loops.len() || rep.closed > 0 || rep.joined > 0
             || res.iter().zip(&self.project.data.loops).any(|(a, b)| a.pts != b.pts || a.c != b.c);
         if !changed { return "Nothing to clean up.".into(); }
         self.hist.record(&self.project.data);
@@ -39,6 +48,7 @@ impl App {
         if rep.closed > 0 { parts.push(format!("closed {} outline{}", rep.closed, if rep.closed == 1 { "" } else { "s" })); }
         if rep.duplicates > 0 { parts.push(format!("removed {} duplicate{}", rep.duplicates, if rep.duplicates == 1 { "" } else { "s" })); }
         if rep.tiny > 0 { parts.push(format!("removed {} empty shape{}", rep.tiny, if rep.tiny == 1 { "" } else { "s" })); }
+        if simplified > 0 { parts.push(format!("simplified outlines ({} point{} removed)", simplified, if simplified == 1 { "" } else { "s" })); }
         let mut m = parts.join(", ");
         if let Some(c) = m.get_mut(0..1) { c.make_ascii_uppercase(); }
         m.push('.');
@@ -66,11 +76,17 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if open == 0 { ui.label("No open contours."); }
         else { crate::msg::line(ui, crate::app::Level::Warning, &format!("{open} open contour{}, {} loose end{} ({joinable} can be joined at this tolerance).", if open == 1 { "" } else { "s" }, ends.len(), if ends.len() == 1 { "" } else { "s" })); }
         ui.add_space(6.0);
-        let lw = crate::panels::tw(ui, "Gap tolerance");
+        let lw = crate::panels::tw(ui, "Gap tolerance").max(crate::panels::tw(ui, "Simplify tolerance"));
         egui::Grid::new("clean_grid").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, lw, "Gap tolerance");
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(&mut app.clean.tol).clamp_range(0.001..=5.0).speed(0.005).max_decimals(3));
+                ui.weak("mm");
+            });
+            ui.end_row();
+            crate::toolmgr::rlabel(ui, lw, "Simplify tolerance").tip("The most an outline may move when Simplify drops points");
+            ui.horizontal(|ui| {
+                ui.add_enabled(app.clean.simplify, egui::DragValue::new(&mut app.clean.simp_tol).clamp_range(0.001..=2.0).speed(0.002).max_decimals(3));
                 ui.weak("mm");
             });
             ui.end_row();
@@ -79,6 +95,13 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         crate::widgets::check(ui, &mut app.clean.join, "Join pieces whose ends meet").tip("Lines and curves drawn as separate pieces become one outline; a ring of pieces closes into a shape");
         crate::widgets::check(ui, &mut app.clean.dups, "Remove duplicate shapes").tip("The same outline drawn twice would be cut twice");
         crate::widgets::check(ui, &mut app.clean.tiny, "Remove empty and tiny shapes").tip("Shapes with no length, repeated points");
+        crate::widgets::check(ui, &mut app.clean.simplify, "Simplify outlines").tip("Drops the points that do not change the outline by more than the tolerance: fewer points in imported or traced drawings, a shorter G-code. Corners stay; rectangles, circles and placed text are left alone");
+        if app.clean.simplify {
+            let mut copy: Vec<putiacnc_core::model::LoopData> = app.project.data.loops.clone();
+            let total: usize = app.simplify_scope().iter().map(|&i| copy[i].pts.len() / 2).sum();
+            let gone = cleanup::simplify(&mut copy, &app.simplify_scope(), app.clean.simp_tol.max(1e-4));
+            ui.indent("simp_note", |ui| { ui.weak(format!("{} of {} points would stay.", total - gone, total)); });
+        }
         crate::widgets::check(ui, &mut app.show_open_ends, "Show loose ends on the drawing").tip("Red rings: nothing meets this end. Amber rings: another end is within the tolerance");
         ui.add_space(8.0);
         ui.horizontal(|ui| {

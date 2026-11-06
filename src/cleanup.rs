@@ -48,6 +48,61 @@ pub fn loose_ends(loops: &[LoopData], tol: f64) -> Vec<(usize, bool, P, bool)> {
 /// Number of open contours among `loops`.
 pub fn open_count(loops: &[LoopData]) -> usize { loops.iter().filter(|l| is_open_path(l)).count() }
 
+/// Simplify: drops the points of the plain outlines in `scope` that a straight line between their neighbours would stay within `tol` mm of
+/// (Douglas-Peucker). The ends of an open path and every corner that matters stay where they are. Returns how many points were removed.
+/// Rectangles, circles, ellipses and drill points are left alone.
+pub fn simplify(loops: &mut [LoopData], scope: &std::collections::BTreeSet<usize>, tol: f64) -> usize {
+    let mut removed = 0;
+    for &i in scope {
+        let Some(l) = loops.get_mut(i) else { continue };
+        let n = l.pts.len() / 2;
+        let closed = l.closed();
+        if !plain(l) || n < if closed { 4 } else { 3 } { continue; }
+        let v = pts(l);
+        let keep = thin(&v, closed, tol);
+        let k = keep.iter().filter(|&&b| b).count();
+        if k < n && k >= if closed { 3 } else { 2 } {
+            l.pts = v.iter().zip(&keep).filter(|(_, &b)| b).flat_map(|(p, _)| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect();
+            removed += n - k;
+        }
+    }
+    removed
+}
+
+/// Which points of a polyline stay, so that no dropped point is more than `tol` from the line that replaces it.
+fn thin(v: &[P], closed: bool, tol: f64) -> Vec<bool> {
+    let n = v.len();
+    let mut keep = vec![false; n];
+    let seg = |a: usize, b: usize, keep: &mut Vec<bool>| {
+        // iterative, so a long outline cannot overflow the stack
+        let mut stack = vec![(a, b)];
+        while let Some((a, b)) = stack.pop() {
+            if b <= a + 1 { continue; }
+            let (pa, pb) = (v[a % n], v[b % n]);
+            let (dx, dy) = (pb[0] - pa[0], pb[1] - pa[1]);
+            let l = dx.hypot(dy);
+            let mut worst = (0.0_f64, 0usize);
+            for i in a + 1..b {
+                let q = v[i % n];
+                let d = if l < 1e-12 { dist(pa, q) } else { ((q[0] - pa[0]) * dy - (q[1] - pa[1]) * dx).abs() / l };
+                if d > worst.0 { worst = (d, i); }
+            }
+            if worst.0 > tol { keep[worst.1 % n] = true; stack.push((a, worst.1)); stack.push((worst.1, b)); }
+        }
+    };
+    if closed {
+        // split the ring at point 0 and the point farthest from it, and thin both halves
+        let far = (1..n).max_by(|&a, &b| dist(v[0], v[a]).total_cmp(&dist(v[0], v[b]))).unwrap_or(1);
+        keep[0] = true; keep[far] = true;
+        seg(0, far, &mut keep);
+        seg(far, n, &mut keep);
+    } else {
+        keep[0] = true; keep[n - 1] = true;
+        seg(0, n - 1, &mut keep);
+    }
+    keep
+}
+
 fn key(l: &LoopData) -> Vec<i64> {
     let n = l.pts.len() / 2;
     let p: Vec<[i64; 2]> = l.pts.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
@@ -209,6 +264,28 @@ pub fn clean(loops: &[LoopData], scope: Option<&std::collections::BTreeSet<usize
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn simplify_drops_points_on_straight_runs_but_keeps_corners_and_ends() {
+        use std::collections::BTreeSet;
+        // a closed square with five extra points on each side, and an open wiggle
+        let mut sq: Vec<crate::model::LoopData> = vec![crate::shapes::new_rect([0.0, 0.0], [1.0, 1.0], 0.0, 0)];
+        sq[0].rc = None; sq[0].c = 1;
+        let side = |a: [f64; 2], b: [f64; 2]| (0..10).map(move |i| { let f = i as f64 / 10.0; [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f] });
+        let ring: Vec<[f64; 2]> = side([0.0, 0.0], [40.0, 0.0]).chain(side([40.0, 0.0], [40.0, 40.0])).chain(side([40.0, 40.0], [0.0, 40.0])).chain(side([0.0, 40.0], [0.0, 0.0])).collect();
+        sq[0].pts = ring.iter().flat_map(|q| [(q[0] * 1000.0) as i64, (q[1] * 1000.0) as i64]).collect();
+        let n = super::simplify(&mut sq, &BTreeSet::from([0]), 0.01);
+        assert_eq!(n, 36, "only the four corners stay");
+        assert_eq!(sq[0].pts.len(), 8);
+        // an open line keeps its ends, a gentle bend inside the tolerance goes
+        let mut line = vec![crate::shapes::new_poly(&[[0.0, 0.0], [5.0, 0.004], [10.0, 0.0], [10.0, 10.0]], false, 0).unwrap()];
+        let n = super::simplify(&mut line, &BTreeSet::from([0]), 0.01);
+        assert_eq!(n, 1);
+        assert_eq!((line[0].pts[0], line[0].pts[1], line[0].pts[line[0].pts.len() - 2], line[0].pts[line[0].pts.len() - 1]), (0, 0, 10000, 10000));
+        // a rectangle is left as it is
+        let mut r = vec![crate::shapes::new_rect([0.0, 0.0], [10.0, 5.0], 0.0, 0)];
+        assert_eq!(super::simplify(&mut r, &BTreeSet::from([0]), 1.0), 0);
+    }
+
     use super::*;
     use crate::shapes::{new_poly, new_rect};
 
