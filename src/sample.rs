@@ -91,14 +91,59 @@ Before cutting for real
     Ok(())
 }
 
+/// The oval sign (`examples/projects/oval-sign.project.json`): an oval plate with its name V-carved in the middle, a line along the top and one along
+/// the bottom of the oval, an engraved border and four holding tabs. The lettering is stored as outlines, so it needs no fonts. The stock and the
+/// drawing keep their size (about 260 x 170 mm), so the machine's work area has to take them; the tools are the user's own: a V-bit for the name, an
+/// engraving bit (or the narrowest V-bit) for the small lines and the border, a flat end mill for the cut-out.
+pub fn fill_oval(d: &mut ProjectData) -> Result<(), String> {
+    let f = crate::load_project(include_str!("../examples/projects/oval-sign.project.json"))?;
+    let src = f.data;
+    let (mx, my, mz) = d.machine.as_ref().map(|m| (m.x, m.y, m.z)).unwrap_or((300.0, 200.0, 60.0));
+    if mx < src.stock.w || my < src.stock.h { return Err(format!("The oval sign needs a work area of at least {:.0} x {:.0} mm.", src.stock.w, src.stock.h)); }
+    let flat = pick_flat(&d.tools).ok_or("There is no flat end mill in the tool list.")?.clone();
+    // the name: the V-bit nearest 60 degrees; the fine work: an engraving bit, else the sharpest V-bit
+    let vbit = d.tools.iter().filter(|t| t.shape == "vbit").min_by(|a, b| (a.angle - 60.0).abs().total_cmp(&(b.angle - 60.0).abs())).cloned();
+    let fine = d.tools.iter().find(|t| t.shape == "engrave").or_else(|| d.tools.iter().filter(|t| t.shape == "vbit").min_by(|a, b| a.angle.total_cmp(&b.angle))).cloned();
+    let (vbit, fine) = match (vbit, fine) { (Some(v), Some(f)) => (v, f), (Some(v), None) => (v.clone(), v), (None, Some(f)) => (f.clone(), f), (None, None) => return Err("There is no V-bit or engraving bit in the tool list.".into()) };
+    d.stock.w = src.stock.w; d.stock.h = src.stock.h;
+    d.stock.t = src.stock.t.min((mz * 0.5).floor()).max(3.0);
+    d.ops = src.ops; d.loops = src.loops; d.groups = src.groups;
+    for o in d.ops.iter_mut() {
+        let t = match o.id { 1 => &vbit, 4 => &flat, _ => &fine };
+        o.p.tool = t.id.clone();
+        if o.id == 4 { o.p.depth = d.stock.t; o.p.pass_depth = Some((d.stock.t / 5.0).max(0.5)); }
+    }
+    d.oid = 4; d.act = 4;
+    d.notes = format!("SAMPLE OVAL SIGN
+An oval plate on a piece of stock {w:.0} x {h:.0} x {t:.0} mm. The lettering is stored as outlines, so it looks the same on every computer.
+
+Operations
+1. V-carve: \"PutiaCNC\" in the middle, with the {v}.
+2. V-carve: \"toolpath studio\" along the top of the oval and \"free open source software\" along the bottom, with the {f}.
+3. On the line: a fine border engraved inside the edge of the oval, with the {f}.
+4. Profile (outside): cuts the oval out with the {c}, leaving 4 small holding tabs.
+
+Look around
+- The 3D preview shows the stock being cut; use the Play button at the bottom.
+- The two lines of small text follow the oval: select one and press \"Edit text\" in the Text card of the left panel to change the words (the font it was made with may be missing from your computer: then pick another).
+- Change the depth of the V-carve and see how wide the letters become.
+
+Before cutting for real
+- Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
+- Tick \"Air cut (run without cutting)\" in each operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
+        w = d.stock.w, h = d.stock.h, t = d.stock.t, v = vbit.name, f = fine.name, c = flat.name);
+    Ok(())
+}
+
 /// Which sample to make.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Kind { NamePlate, Box, Relief }
+pub enum Kind { NamePlate, Box, Relief, Oval }
 
-impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box", Kind::Relief => "Sample 3D relief" } } }
+impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box", Kind::Relief => "Sample 3D relief", Kind::Oval => "Sample oval sign" } } }
 
 pub fn fill_kind(d: &mut ProjectData, inches: bool, kind: Kind) -> Result<(), String> {
-    match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches), Kind::Relief => fill_relief(d, inches) }
+    match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches), Kind::Relief => fill_relief(d, inches), Kind::Oval => fill_oval(d) }
 }
 
 /// A six-petal rosette as a height map: the 3D relief sample needs no model file. Cells run from the bottom row up; 65535 is the top.
@@ -365,6 +410,27 @@ mod tests {
         d.tools.retain(|t| t.shape != "ball");
         fill_relief(&mut d, false).unwrap();
         assert!(d.tools.iter().any(|t| t.shape == "ball") && d.notes.contains("were not in your tool list"));
+    }
+
+    #[test]
+    fn the_oval_sign_fits_a_big_enough_machine_and_cuts() {
+        let mut d = project(300.0, 200.0, 60.0, false);
+        fill_oval(&mut d).unwrap();
+        assert_eq!(d.ops.len(), 4);
+        for o in &d.ops { assert!(d.tools.iter().any(|t| t.id == o.p.tool), "op {} has a tool of the project", o.id); }
+        let v = d.tools.iter().find(|t| t.id == d.ops[0].p.tool).unwrap();
+        assert_eq!(v.shape, "vbit");
+        assert!(d.ops[3].p.tabs && d.ops[3].p.depth <= d.stock.t + 1e-9 && d.notes.contains("SAMPLE OVAL SIGN"));
+        let o = generate(&d, Units::Metric).unwrap();
+        assert!(o.moves.iter().any(|m| m.cut));
+        assert!(!o.notes.iter().any(|n| n.starts_with('⚠')), "{:?}", o.notes);
+        // a work area smaller than the sign is turned down, with its size in the message
+        let mut small = project(180.0, 100.0, 45.0, false);
+        assert!(fill_oval(&mut small).unwrap_err().contains("260"));
+        // with no V-bit or engraving bit there is nothing to carve the name with
+        let mut flat_only = project(300.0, 200.0, 60.0, false);
+        flat_only.tools.retain(|t| t.shape == "flat");
+        assert!(fill_oval(&mut flat_only).is_err());
     }
 
     #[test]

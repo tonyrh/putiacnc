@@ -89,6 +89,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 if ui.button("Name plate").on_hover_text("A plate with a recess and engraved lettering, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::NamePlate)); ui.close_menu(); }
                 if ui.button("Finger-joint box").on_hover_text("The five plates of a small box with finger joints, laid out on your stock; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Box)); ui.close_menu(); }
                 if ui.button("3D relief").on_hover_text("A six-petal rosette carved with roughing, finishing and detail tools, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Relief)); ui.close_menu(); }
+                if ui.button("Oval sign").on_hover_text("An oval plate with its name V-carved in the middle, text following the oval, a fine border and four holding tabs; needs a work area of about 260 x 170 mm; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Oval)); ui.close_menu(); }
             });
         });
         ui.menu_button("View", |ui| {
