@@ -24,7 +24,12 @@ pub struct Imported {
 
 pub fn import(data: &[u8]) -> Result<Imported, String> {
     let mut opt = usvg::Options::default();
-    opt.fontdb_mut().load_system_fonts();
+    // Reading every installed font takes a while (seconds on a machine with thousands of them), and only text needs
+    // them: load them when the file has text, and once per run.
+    if data.windows(5).any(|w| w == b"<text") {
+        static FONTS: std::sync::OnceLock<std::sync::Arc<usvg::fontdb::Database>> = std::sync::OnceLock::new();
+        opt.fontdb = FONTS.get_or_init(|| { let mut db = usvg::fontdb::Database::new(); db.load_system_fonts(); std::sync::Arc::new(db) }).clone();
+    }
     let tree = usvg::Tree::from_data(data, &opt).map_err(|e| format!("Could not read SVG: {e}"))?;
     let h_px = tree.size().height() as f64;
     let mut ctx = Ctx { h_px, loops: vec![], images: 0, named: inkscape_layers(data), layers: vec![], cur: None };

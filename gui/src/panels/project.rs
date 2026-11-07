@@ -910,6 +910,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.weak(crate::widgets::len_unit(ui));
                         if p.flat.is_some() && reset_button(ui, "Back to the full depth") { p.flat = None; changed = true; }
                         if p.tool2.is_none() { ui.weak("no flat end mill: the V-bit cuts the floor too"); }
+                        else if p.flat.is_none() { ui.weak("set a flat depth: the end mill only cuts the floor below it"); }
                     });
                 }
                 if p.depth > stock_t + 1e-6 && p.kind != "draw" {
