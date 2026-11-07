@@ -433,6 +433,19 @@ mod tests {
         assert!(fill_oval(&mut flat_only).is_err());
     }
 
+    /// A warning note starts with the warning sign (the program's panels tell warnings from information by it), also with the operation's name.
+    #[test]
+    fn warning_notes_start_with_the_sign() {
+        let mut d = project(300.0, 200.0, 60.0, false);
+        fill(&mut d, false).unwrap();
+        d.machine.as_mut().unwrap().rpm_max = Some(8000.0);
+        d.ops[0].p.custom = Some(crate::model::CustomFeeds { rpm: Some(20000.0), feed: None, plunge: None, so: None });
+        let o = generate(&d, Units::Metric).unwrap();
+        let held: Vec<&String> = o.notes.iter().filter(|n| n.contains("Custom feeds and speeds")).collect();
+        assert!(!held.is_empty(), "{:?}", o.notes);
+        for n in o.notes.iter().filter(|n| n.contains('⚠')) { assert!(n.starts_with("⚠ "), "{n}"); }
+    }
+
     #[test]
     fn no_cutter_is_an_error() {
         let mut d = project(300.0, 200.0, 60.0, false);

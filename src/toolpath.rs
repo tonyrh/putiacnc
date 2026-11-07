@@ -1396,7 +1396,7 @@ fn custom_tool(cf: &CustomFeeds, tool: &Tool, machine: &Machine, notes: &mut Vec
     let what = machine.hold_text(&asked);
     if !what.is_empty() {
         let who = if which.is_empty() { String::new() } else { format!(" ({which})") };
-        notes.push(format!("{}⚠ Custom feeds and speeds{} held to the machine's limits: {}.", pre, who, what));
+        notes.push(format!("⚠ {}Custom feeds and speeds{} held to the machine's limits: {}.", pre, who, what)); // the sign first, like every warning note
     }
     machine.hold(&asked)
 }
