@@ -1,6 +1,7 @@
 name: Screenshots
 
-# Builds the app on Linux, macOS and Windows, opens an example project and photographs the screen.
+# Builds the app on Linux and macOS, opens the README's example sign and photographs the screen:
+# a 2D picture (dark, millimetres) and a 3D picture (light, inches as fractions) on each system.
 # Start it by hand from the Actions tab; the pictures are kept as the "screenshots-*" artifacts.
 on:
   workflow_dispatch:
@@ -13,7 +14,6 @@ jobs:
         include:
           - { os: ubuntu-24.04, name: linux }
           - { os: macos-15, name: macos }
-          - { os: windows-latest, name: windows }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -31,52 +31,40 @@ jobs:
       - name: Build
         run: cargo build --release -p putiacnc-gui
 
-      - name: Software OpenGL (Windows runners have no graphics card)
-        if: runner.os == 'Windows'
-        env:
-          MESA: "26.0.3"
-        run: |
-          curl -fL --retry 3 -o mesa.7z "https://github.com/pal1000/mesa-dist-win/releases/download/$MESA/mesa3d-$MESA-release-msvc.7z"
-          7z x mesa.7z -omesa -y > /dev/null
-          ls mesa/x64
-          # next to the exe, these replace the system's OpenGL 1.1 with Mesa's software renderer
-          for f in opengl32.dll libgallium_wgl.dll libglapi.dll; do [ -f "mesa/x64/$f" ] && cp "mesa/x64/$f" target/release/ || true; done
-          ls target/release/*.dll
-
       - name: Take the screenshots
         run: |
           mkdir shots
           BIN=target/release/putiacnc
           [ "$RUNNER_OS" = "Windows" ] && BIN=target/release/putiacnc.exe
-          PROJ="$PWD/tests/data/outside_holes.project.json"
+          MM="$PWD/docs/screenshot-projects/sign-mm.project.json"
+          IN="$PWD/docs/screenshot-projects/sign-in.project.json"
+          export PUTIACNC_CONFIG_DIR="$RUNNER_TEMP/cfg" PUTIACNC_SKIP_SETUP=1 PUTIACNC_WIN=1876x1077 PUTIACNC_HIDE=machine
 
           capture() {  # $1 = file name
             case "$RUNNER_OS" in
               Linux) import -window root "shots/$1" ;;
               macOS) screencapture -x "shots/$1" ;;
-              Windows) powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; \$b=[System.Windows.Forms.SystemInformation]::VirtualScreen; \$bmp=New-Object System.Drawing.Bitmap \$b.Width,\$b.Height; \$g=[System.Drawing.Graphics]::FromImage(\$bmp); \$g.CopyFromScreen(\$b.Left,\$b.Top,0,0,\$bmp.Size); \$bmp.Save('shots/$1')" ;;
             esac
           }
 
-          shoot() {  # $1 = file name, rest = environment settings
-            local out=$1; shift
-            env "$@" "$BIN" "$PROJ" > "shots/log-$out.txt" 2>&1 &
+          shoot() {  # $1 = file name, $2 = project, rest = environment settings
+            local out=$1 proj=$2; shift 2
+            env "$@" "$BIN" "$proj" > "shots/log-$out.txt" 2>&1 &
             local pid=$!
-            sleep 12
+            sleep 20
             capture "$out" || echo "capture failed"
             kill $pid 2>/dev/null || true
             sleep 2
           }
 
           if [ "$RUNNER_OS" = "Linux" ]; then
-            Xvfb :99 -screen 0 1600x1000x24 &
+            Xvfb :99 -screen 0 1920x1080x24 &
             export DISPLAY=:99
             sleep 2
           fi
 
-          shoot "${{ matrix.name }}-2d.png" PUTIACNC_SELECT_ALL=1
-          shoot "${{ matrix.name }}-3d.png" PUTIACNC_VIEW=3d PUTIACNC_PLAY=0.6
-          shoot "${{ matrix.name }}-tools.png" PUTIACNC_SHOW_TOOLS=1
+          shoot "${{ matrix.name }}-2d.png" "$MM" PUTIACNC_THEME=dark PUTIACNC_OP=1 PUTIACNC_HIDE=machine,toolpaths
+          shoot "${{ matrix.name }}-3d.png" "$IN" PUTIACNC_THEME=light PUTIACNC_OP=2 PUTIACNC_VIEW=3d PUTIACNC_PLAY=1.0 PUTIACNC_FRACTIONS=1
           ls -la shots
 
       - uses: actions/upload-artifact@v6
