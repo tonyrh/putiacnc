@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 
 pub const HIDDEN_TIP: &str = "Hides this layer from the drawing. Operations still cut its shapes: the eye changes what you see, never what is cut.";
 
-/// Shapes on each layer, by layer id.
-pub fn count(d: &ProjectData, id: i64) -> usize { d.loops.iter().filter(|l| d.layer_of(l) == id).count() }
+/// What is on a layer, by layer id: a line of text or a group counts once.
+pub fn count(d: &ProjectData, id: i64) -> usize { ProjectData::object_count(d.loops.iter().filter(|l| d.layer_of(l) == id)) }
 
 /// The layer section. `pick` is set to a layer whose shapes the user asked to select.
 pub fn section(ui: &mut Ui, d: &mut ProjectData, sel: &BTreeSet<usize>, changed: &mut bool, pick: &mut Option<i64>) {

@@ -1138,6 +1138,28 @@ mod tests {
 
     /// Writes the V-carve flat floor sample project (run it by hand: `cargo test --release make_vcarve_flat_sample -- --ignored`).
     #[test]
+    fn a_line_of_text_is_one_thing_in_the_counts_not_one_per_outline() {
+        use putiacnc_core::model::ProjectData;
+        let mut a = App::new(None);
+        a.text.content = "WOOD".into();
+        a.text.flow = Flow::Straight;
+        a.text.pos = Some([18.0, 22.0]);
+        place(&mut a);
+        let outlines = a.project.data.loops.len();
+        assert!(outlines >= 7, "W, two O and a D make {outlines} outlines");
+        let lay = a.project.data.layer_of(&a.project.data.loops[0]);
+        assert_eq!(crate::layers::count(&a.project.data, lay), 1, "the layer holds one line of text");
+        assert_eq!(ProjectData::object_count(&a.project.data.loops), 1);
+        // a plain shape next to it counts as one more, and so does a group the person makes
+        let mut r = putiacnc_core::shapes::new_rect([0.0, 0.0], [10.0, 10.0], 0.0, 0);
+        r.lay = None;
+        a.project.data.loops.push(r);
+        assert_eq!(ProjectData::object_count(&a.project.data.loops), 2);
+        let sel: std::collections::BTreeSet<usize> = (0..outlines).collect();
+        assert_eq!(ProjectData::object_count(sel.iter().filter_map(|&i| a.project.data.loops.get(i))), 1, "selecting the text is one thing selected");
+    }
+
+    #[test]
     #[ignore]
     fn make_vcarve_flat_sample() {
         let mut a = App::new(None);

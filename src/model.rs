@@ -75,6 +75,15 @@ impl Layer {
 fn is_zero_i64(v: &i64) -> bool { *v == 0 }
 
 impl ProjectData {
+    /// How many things the person sees in these shapes: a group (placed text, or Ctrl+G) is one, whatever number of outlines it is made of
+    /// (the letters of "WOOD" are 7 outlines but one line of text).
+    pub fn object_count<'a>(loops: impl IntoIterator<Item = &'a LoopData>) -> usize {
+        let mut groups = std::collections::BTreeSet::new();
+        let mut single = 0;
+        for l in loops { match l.grp { Some(g) => { groups.insert(g); } None => single += 1 } }
+        single + groups.len()
+    }
+
     /// Every layer, the first one included, in order.
     pub fn all_layers(&self) -> Vec<Layer> {
         let mut v = self.layers.clone();

@@ -109,7 +109,12 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
             None => { ui.label(crate::widgets::localize(ui, &app.gen_error.clone().unwrap_or_else(|| "No G-code".into()))); }
         }
         ui.separator();
-        ui.label(format!("{} shapes, {} selected", app.project.data.loops.len(), app.sel.len()));
+        {
+            use putiacnc_core::model::ProjectData;
+            let d = &app.project.data;
+            let n = ProjectData::object_count(&d.loops);
+            ui.label(format!("{} shape{}, {} selected", n, if n == 1 { "" } else { "s" }, ProjectData::object_count(app.sel.iter().filter_map(|&i| d.loops.get(i)))));
+        }
         if let Some(msg) = app.note.take() { let now = ui.input(|i| i.time); ui.ctx().data_mut(|x| x.insert_temp(egui::Id::new("status_note"), (msg, now))); }
         let note: Option<(String, f64)> = ui.ctx().data(|x| x.get_temp(egui::Id::new("status_note")));
         if let Some((msg, t0)) = note {

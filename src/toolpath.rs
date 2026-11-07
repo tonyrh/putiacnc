@@ -1688,6 +1688,9 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                         Some(rt) if rt.shape != "flat" || !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) =>
                             notes.push(format!("{}\"Clear with\" needs a flat end mill with its values set: the V-bit clears the floor.", pre)),
                         Some(rt) => {
+                            // this operation's own values for the flat end mill (the V-bit's are `custom`)
+                            let rt_own;
+                            let rt = match &o.p.custom2 { Some(cf) => { rt_own = custom_tool(cf, rt, &machine, &mut notes, &pre, "flat end mill"); &rt_own } None => rt };
                             // how far in from the edge the V-bit's wall reaches the flat depth: from there inwards the floor is flat
                             let (mut lo, mut hi) = (0.0_f64, geo.r);
                             for _ in 0..50 { let mid = (lo + hi) / 2.0; if geo.rise(mid) < zmax { lo = mid } else { hi = mid } }

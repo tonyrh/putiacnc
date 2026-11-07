@@ -105,3 +105,24 @@ fn the_flat_end_mill_is_listed_as_a_tool_of_the_operation() {
     let plain = project(Some(2.0), false);
     assert_eq!(split::groups(&plain, split::Split::PerTool).len(), 1);
 }
+
+#[test]
+fn custom_feeds_go_to_the_tool_they_were_set_for() {
+    use putiacnc_core::model::CustomFeeds;
+    let mut d = project(Some(2.0), true);
+    let base = generate(&d, Units::Metric).unwrap();
+    let feeds = |o: &putiacnc_core::Output, alt: bool| -> Vec<f64> { let mut v: Vec<f64> = o.moves.iter().filter(|m| m.cut && m.alt == alt && m.to[2] == m.from[2]).map(|m| (m.feed * 10.0).round() / 10.0).collect(); v.sort_by(|a, b| a.total_cmp(b)); v.dedup(); v };
+    let (v0, f0) = (feeds(&base, false), feeds(&base, true));
+    // the flat end mill's own feed: the V-bit's moves stay as they were
+    d.ops[0].p.custom2 = Some(CustomFeeds { feed: Some(123.0), ..Default::default() });
+    let o = generate(&d, Units::Metric).unwrap();
+    assert_eq!(feeds(&o, false), v0, "the V-bit is not changed by the flat end mill's values");
+    assert_ne!(feeds(&o, true), f0);
+    assert!(feeds(&o, true).iter().all(|&f| (f - 123.0).abs() < 0.2), "{:?}", feeds(&o, true));
+    // the V-bit's own feed: the flat end mill's moves stay as they were
+    d.ops[0].p.custom2 = None;
+    d.ops[0].p.custom = Some(CustomFeeds { feed: Some(321.0), ..Default::default() });
+    let o = generate(&d, Units::Metric).unwrap();
+    assert_eq!(feeds(&o, true), f0, "the flat end mill is not changed by the V-bit's values");
+    assert!(feeds(&o, false).iter().all(|&f| (f - 321.0).abs() < 0.2), "{:?}", feeds(&o, false));
+}

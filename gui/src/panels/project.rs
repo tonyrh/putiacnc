@@ -346,11 +346,11 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         ui.data_mut(|x| x.insert_temp(hi_key, hi_ids.clone()));
         for i in 0..d.ops.len() {
             let o = &d.ops[i];
-            let n = d.loops.iter().filter(|l| l.op == o.id).count();
+            let n = putiacnc_core::model::ProjectData::object_count(d.loops.iter().filter(|l| l.op == o.id));
             let tool = d.tools.iter().find(|t| t.id == o.p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "no tool".into());
             let text = format!("{}. {}", i + 1, label_of(KINDS, &o.p.kind));
             // shapes on a hidden layer are still cut: the subtitle says how many of them are hidden
-            let nh = d.loops.iter().filter(|l| l.op == o.id && d.shape_hidden(l)).count();
+            let nh = putiacnc_core::model::ProjectData::object_count(d.loops.iter().filter(|l| l.op == o.id && d.shape_hidden(l)));
             let hid = if nh == 0 { String::new() } else if nh == n { ", hidden".to_string() } else { format!(", {nh} hidden") };
             let sub = if o.p.kind == "relief" { tool.clone() } else { format!("{} · {} shape{}{}", tool, n, if n == 1 { "" } else { "s" }, hid) };
             let id = o.id;
@@ -1042,9 +1042,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         });
                     }
                 }
-                // this operation's own spindle speed, feeds and stepover: one block for the tool, and for an inlay one for each of its two tools
+                // this operation's own spindle speed, feeds and stepover: one block for the tool, and for an inlay (or a V-carve with a flat floor) one for each of its two tools
                 if p.kind != "relief" && p.kind != "draw" {
-                    let two = matches!(p.kind.as_str(), "inlay" | "plug");
+                    let two = matches!(p.kind.as_str(), "inlay" | "plug") || p.flat_mill().is_some();
                     let mut on = p.custom.is_some() || p.custom2.is_some();
                     if ui.horizontal(|ui| { ui.add_space(6.0); crate::widgets::check(ui, &mut on, "Custom feeds and speeds").tip("Use other spindle speed, feeds and stepover than the tool's for this operation only. Values you leave alone keep following the tool.").changed() }).inner {
                         p.custom = if on { Some(putiacnc_core::model::CustomFeeds::default()) } else { None };
@@ -1117,6 +1117,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     let ang = if putiacnc_core::toollib::has_angle(&t.shape) { format!(" {}°", t.angle) } else { String::new() };
                     ui.weak(format!("{}{} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} · step {}% · {}/pass",
                         putiacnc_core::toollib::shape_label(&t.shape), ang, putiacnc_core::toollib::fmt_dia(t.dia, &t.sys, true), t.flutes, if t.flutes == 1 { "" } else { "s" }, t.rpm, crate::widgets::fmt_speed(ui, t.feed), crate::widgets::fmt_speed(ui, t.plunge), t.so, crate::widgets::fmt_len(ui, t.pd)));
+                    // the flat end mill that clears the floor of a V-carve has its own values
+                    if let Some(f0) = p.flat_mill().and_then(|id| tools.iter().find(|t| t.id == id)) {
+                        let asked = match &p.custom2 { Some(cf) => cf.apply(f0), None => f0.clone() };
+                        let f = match &machine_now { Some(m) => m.hold(&asked), None => asked };
+                        ui.weak(format!("Floor: {} · Ø{} · {} flute{} · {} rpm · feed {} · plunge {} · step {}% · {}/pass",
+                            putiacnc_core::toollib::shape_label(&f.shape), putiacnc_core::toollib::fmt_dia(f.dia, &f.sys, true), f.flutes, if f.flutes == 1 { "" } else { "s" }, f.rpm, crate::widgets::fmt_speed(ui, f.feed), crate::widgets::fmt_speed(ui, f.plunge), f.so, crate::widgets::fmt_len(ui, f.pd)));
+                    }
                     if !warn.is_empty() {
                         let col = crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode);
                         crate::checkui::warn_line(ui, col, &format!("Held to the machine's limits: {warn}."))
