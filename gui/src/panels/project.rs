@@ -775,7 +775,11 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
                             let cur = elide(ui, &cur, tool_w - 30.0);
                             let (r2, pk2) = crate::toolpick::picker(ui, ("optool2", id), tool_w, cur, p.tool2.as_deref(), &job_tools, &tools, |t| t.shape == "flat");
-                            match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.tool2 = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
+                            match pk2 { Some(crate::toolpick::Picked::Tool(t)) => {
+                                // a V-carve given a clearing tool gets its flat floor at half the depth right away, so choosing the tool does something
+                                if p.kind == "vcarve" && p.flat.is_none() { p.flat = Some(p.depth / 2.0); }
+                                p.tool2 = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
+                            if p.kind == "vcarve" && p.tool2.is_some() && reset_button(ui, "No clearing tool: the V-bit cuts the floor too") { p.tool2 = None; p.flat = None; changed = true; }
                             r2.tip(match p.kind.as_str() { "vcarve" => "Flat end mill that clears the floor inside the V-carved edges, at the flat depth. Leave it empty and the V-bit does the floor too", "inlay" => "Flat end mill that clears the pocket floor", "relief" => "Flat end mill that removes the bulk before the finishing pass (leave empty to finish only)", _ => "Flat end mill that cuts the plug out of the stock" });
                             if p.kind == "plug" || p.kind == "inlay" {
                                 let rest = ui.available_width() - ramp_w;

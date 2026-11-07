@@ -294,3 +294,56 @@ fn tool_windows_have_the_agreed_buttons() {
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+/// The operation cards, every kind of operation with its options switched on, must not push text out of the right panel: a row that cannot wrap
+/// (a hint next to a field) used to widen the card past the panel and cut off the text below it.
+#[test]
+fn operation_cards_do_not_run_out_of_the_panel() {
+    let mut problems = vec![];
+    for kind in ["outside", "inside", "online", "pocket", "vcarve", "drill", "inlay", "plug", "relief", "draw"] {
+        // 0: plain, 1: every option on, 2: a flat depth with no end mill (an older project; its hint line is the longest text)
+        for state in 0..3 {
+            let (busy, legacy) = (state == 1, state == 2);
+            if legacy && kind != "vcarve" { continue; }
+            for inches in [false, true] {
+                for (sw, sh) in [(1500.0_f32, 1000.0_f32), (1354.0, 640.0)] {
+                    let mut a = project();
+                    a.disp_in = inches;
+                    a.frac_in = inches;
+                    {
+                        let d = &mut a.project.data;
+                        let id = |shape: &str| d.tools.iter().find(|t| t.shape == shape).map(|t| t.id.clone());
+                        let (flat, vbit, ball) = (id("flat"), id("vbit"), id("ball"));
+                        let o = &mut d.ops[0];
+                        o.p.kind = kind.into();
+                        o.p.tool = match kind { "vcarve" => vbit.clone(), "relief" => ball.clone(), _ => flat.clone() }.unwrap_or_default();
+                        if busy {
+                            o.p.tabs = true; o.p.helix = true; o.p.adaptive = true; o.p.air = true; o.p.pause = Some(String::new());
+                            o.p.lead = Some(2.0); o.p.w_leave = Some(0.3); o.p.flat = Some(1.0);
+                            o.p.tool2 = flat.clone(); o.p.rest = flat.clone();
+                            o.p.custom = Some(putiacnc_core::model::CustomFeeds { rpm: Some(9000.0), feed: Some(700.0), plunge: Some(200.0), so: Some(30.0) });
+                            o.p.custom2 = o.p.custom.clone();
+                        } else if legacy { o.p.flat = Some(1.0); } else if kind == "vcarve" || kind == "inlay" || kind == "plug" { o.p.tool2 = flat.clone(); }
+                    }
+                    a.touch();
+                    let _ = crate::fuzz::settle(&mut a);
+                    let ctx = egui::Context::default();
+                    let mut last = None;
+                    for i in 0..8 {
+                        let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(sw, sh))), time: Some(0.1 * (i + 1) as f64), ..Default::default() };
+                        last = Some(ctx.run(input, |ctx| a.ui_frame(ctx)));
+                    }
+                    let out = last.unwrap();
+                    for t in texts(&out.shapes) {
+                        if t.text.trim().is_empty() || t.rect.min.x < sw - 470.0 || t.rect.min.y < 70.0 || t.rect.min.y > sh - 40.0 { continue; }
+                        if t.rect.max.x > t.clip.max.x + 0.75 || t.rect.max.x > sw - 6.0 {
+                            problems.push(format!("{kind}{} ({}, {sw}x{sh}): \"{}\" runs out of the panel ({:.0} > {:.0})", if busy { " with every option" } else if legacy { " with a flat depth and no end mill" } else { "" }, if inches { "in" } else { "mm" }, t.text.chars().take(50).collect::<String>(), t.rect.max.x, t.clip.max.x.min(sw - 6.0)));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    problems.sort(); problems.dedup();
+    assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
+}
