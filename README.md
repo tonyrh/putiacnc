@@ -32,25 +32,27 @@ The workspace has two crates:
 ### Features
 
 **Drawing**
-- Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font or in a built-in single-line font for pen drawing (text stays editable).
+- Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font or in a built-in single-line font for pen drawing (text stays editable, and can follow an arc or the inside edge of a closed shape).
+- Layers, each with a name, colour, eye and lock.
 - Import SVG, DXF, bitmaps (traced into outlines or centre lines), and STL / OBJ models for 3D relief.
-- Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), align, array, nest on the stock, rotate, clean up broken outlines.
+- Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), align, array, nest on the stock, rotate, clean up broken outlines (join loose ends, remove duplicates, and simplify outlines with too many points, with a live preview).
 
 **Operations**
 - Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
 - Rest machining: a smaller flat cutter clears only the corners and narrow parts the pocket's main cutter could not reach. A smaller ball nose does the same for the detail of a 3D relief.
 - Finishing pass: leave a little stock on the walls of a profile or pocket and cut them to size in a last pass. For a 3D relief the finishing lines can run along X, along Y or both.
 - Helical entry for pockets and profiles, and adaptive clearing for pockets (a light stepover and rounded inner rings). Nest on the stock packs the selected parts by their outlines, turned as you allow, clear of the clamps. The time estimate can use the machine's acceleration.
+- V-carve can leave a flat floor at a depth you choose and clear it with a flat end mill, each tool with its own feeds and speeds.
 - Surface the stock or the spoilboard with a wide cutter (Generate → Surface the stock).
 - Flat, bull, ball, V-bit, engraving, tapered ball and arc profile bits, shown with their real shape in the 3D preview.
 
 **Preview and checks**
 - A 2D canvas and a simulated 3D view of the machined stock, with a view cube and a play bar that replays the job.
-- Toolpath warnings run in the background: too deep for the cutter, cutting into the table, outside the machine area, rapids through material, shank rubbing, clamps (keep-out zones you can drag), and cuts that stray from your drawing. The G-code is always written; the warnings only inform.
+- Toolpath warnings run in the background: too deep for the cutter, cutting into the table, outside the machine area, rapids through material, shank rubbing, clamps (keep-out zones you can drag), and cuts that stray from your drawing. All warnings, including the generator's own notes on your settings, are in one list. The G-code is always written; the warnings only inform, but exporting with warnings you have not seen asks first.
 
 **Tools and machines**
 - Tool libraries with imperial and metric bits, a chip-load estimate, search, and ready-made libraries (CMT, Amana, Bosch, Freud, Whiteside, Diablo, generic, and pens and markers for plotting) in `libraries/`.
-- Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files.
+- Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, work coordinate system (G54 to G59), units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files.
 
 **Everything else**
 - A setup assistant on first run, a quick tour and three sample projects (Generate → Sample projects); a printable setup sheet (File → Setup sheet) with the stock, tools in order, operations and a checklist.
