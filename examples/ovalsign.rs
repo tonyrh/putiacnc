@@ -1,4 +1,5 @@
 //! Builds the "Oval sign" sample: an oval plate with its name V-carved in the middle, a line above and below, a fine border line,
+#![allow(clippy::too_many_arguments)]
 //! and the oval cut out with four holding tabs.
 //! Usage: cargo run --release --example ovalsign -- <out.json> <main font file> <main font name> <small font file> <small font name>
 use putiacnc_core::model::{Operation, ShapeGroup, TextSpec};
