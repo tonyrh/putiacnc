@@ -282,6 +282,29 @@ fn lost_parts(cur: &[Path], next: &[Path], step: f64, d: f64, geo: &ToolGeo, zma
     out
 }
 
+/// The part of a flat floor that the flat end mill cannot reach: the corners it is too round for and the parts narrower than it is.
+/// (The floor minus the floor opened by the cutter's radius.) Slivers a few hundredths of a millimetre wide are rounding noise, not floor.
+fn floor_left(area: &[Path], r: f64) -> Vec<Path> {
+    let reach = off_raw(&off_raw(area, -r * S), r * S);
+    clip::boolean(clip::BoolKind::Difference, &clip::simplify_even_odd(area), &reach).into_iter().filter(|p| clip::area(p).abs() > 0.02 * S * S).collect()
+}
+
+/// V-bit rings that clear a flat piece of floor with the tip at the floor's depth `z`: the outline, then outlines stepping inwards, with
+/// finer steps for the last bit so a narrow piece is carved right along its middle. The cone only cuts above its tip, so it never
+/// goes below the floor.
+fn floor_rings(piece: &[Path], step: f64, z: f64) -> Vec<(Path, f64)> {
+    let mut out: Vec<(Path, f64)> = clean_paths(piece).into_iter().map(|p| (p, z)).collect();
+    let (mut cur, mut st) = (piece.to_vec(), step);
+    for _ in 0..4000 {
+        let next = off_raw(&cur, -st * S);
+        let q = clean_paths(&next);
+        if q.is_empty() { st /= 2.0; if st < 0.02 { break; } continue; }
+        cur = next;
+        out.extend(q.into_iter().map(|p| (p, z)));
+    }
+    out
+}
+
 /// Offset without cleaning. Repeated offsets feed this uncleaned result into the next step, which keeps
 /// cleaning error from adding up and avoids Clipper's very slow case of one huge inward offset that collapses a shape.
 fn off_raw(region: &[Path], d: f64) -> Vec<Path> { clip::offset(region, d, S * 0.01) }
@@ -1679,6 +1702,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let sv = (dia * so / 100.0 * 0.25).min(0.3).max(0.05);
             // a flat floor: the V-bit carves only the sloped band down to the flat depth, and a flat end mill clears the floor inside it
             let mut dmax = f64::INFINITY;
+            let mut left: Vec<Path> = Vec::new();
             if let Some(fd) = o.p.flat.filter(|v| *v > 1e-6) {
                 if fd < zmax - 1e-9 { zmax = fd; }
                 else if fd > zmax + 1e-9 { notes.push(format!("{}the flat depth ({} {}) is deeper than the V-carve depth, so it is {} {}.", pre, num(fl(fd)), un, num(fl(zmax)), un)); }
@@ -1706,6 +1730,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                                 notes.push(format!("{}the flat floor is too narrow for the {} {} end mill (or there is none): the V-bit carves it all.", pre, num(fl(rt.dia)), un));
                             } else {
                                 dmax = df;
+                                left = floor_left(&area, rt.dia / 2.0);
                                 flat_clear = Some((rt.clone(), area, rctx, fj, zs));
                             }
                         }
@@ -1751,6 +1776,11 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 let z = -geo.rise(d).min(zmax);
                 for p in q { vr.push((p, z)); }
                 step *= 2.0; // it fitted: try the same step again
+            }
+            // the corners and narrow parts of the floor that the end mill cannot get into: the V-bit clears them, tip at the floor's depth
+            if flat_clear.is_some() && d >= dmax - 1e-3 && !left.is_empty() {
+                vr.extend(floor_rings(&left, sv, -zmax));
+                notes.push(format!("{}the V-bit clears the corners and narrow parts of the floor that the flat end mill is too big for.", pre));
             }
             if flat_clear.is_some() && d < dmax - 1e-3 {
                 // the shape ran out before the flat depth was reached: the V-bit has done it all
@@ -1940,6 +1970,21 @@ mod to_fixed_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn the_floor_the_end_mill_cannot_reach_is_its_square_corners_and_narrow_parts() {
+        let sq = |w: f64, h: f64| -> Path { vec![[0, 0], [(w * S) as i64, 0], [(w * S) as i64, (h * S) as i64], [0, (h * S) as i64]].into_iter().map(|p| [p[0], p[1]]).collect() };
+        // a 10 mm square floor, a 3 mm end mill: only the four corners are out of its reach (r² (1 - π/4) each)
+        let left = floor_left(&[sq(10.0, 10.0)], 1.5);
+        let a: f64 = left.iter().map(|p| clip::area(p).abs()).sum::<f64>() / (S * S);
+        assert!((a - 4.0 * 1.5 * 1.5 * (1.0 - std::f64::consts::FRAC_PI_4)).abs() < 0.1, "{a}");
+        // a 2 mm wide strip is too narrow for it: all of it is left for the V-bit
+        let left = floor_left(&[sq(20.0, 2.0)], 1.5);
+        let a: f64 = left.iter().map(|p| clip::area(p).abs()).sum::<f64>() / (S * S);
+        assert!((a - 40.0).abs() < 0.5, "{a}");
+        // the V-bit's rings for it stay inside the piece, at the floor's depth
+        let rings = floor_rings(&left, 0.3, -2.5);
+        assert!(!rings.is_empty() && rings.iter().all(|(_, z)| *z == -2.5));
+    }
     #[test]
     fn to_fixed_matches_javascript() {
         assert_eq!(to_fixed(0.0625, 3), 0.063); // exact tie rounds up, like JS
