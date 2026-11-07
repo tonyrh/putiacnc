@@ -240,23 +240,31 @@ pub fn fill_box(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     // the plates are cut right through: 6 mm (1/4 in) material, or thinner on a machine with little travel
     d.stock.t = floor_to((mz * 0.4).min(if inches { 6.35 } else { 6.0 }), small).max(small * 2.0);
     let t = d.stock.t;
-    let margin = 3.0_f64.max(flat.dia);
-    let gap = 6.0_f64.max(flat.dia * 2.0);
+    // room round every plate for the cutter, the dogbone reliefs of the finger notches, and a strip of waste that is wide enough to hold:
+    // with less, two cuts side by side leave a sliver that breaks away and the holding tabs have nothing to hold to
+    // On a small stock the largest box that fits with this room is tiny; below the point where the box would have to shrink a lot, the room
+    // is cut down to the least that still leaves a strip between two plates (the old spacing).
+    let spacings = [(8.0_f64.max(flat.dia * 2.5), 12.0_f64.max(flat.dia * 4.0)), (3.0_f64.max(flat.dia), 6.0_f64.max(flat.dia * 2.0))];
     // the largest box whose plates, laid out in rows, fit on the stock
-    let (mut w, mut dd, mut h) = (80.0, 60.0, 40.0);
-    let fit = loop {
-        let spec = BoxSpec { w, d: dd, h, t, finger: t * 2.0, clearance: 0.05, lid: false, div_w: 0, div_d: 0 };
-        let made = box_panels(spec).map(|panels| { let pos = layout(&panels, gap, d.stock.w - 2.0 * margin); (panels, pos) });
-        if let Ok((panels, pos)) = made {
-            let top = panels.iter().zip(&pos).map(|(p, o)| o[1] + p.h).fold(0.0, f64::max);
-            let right = panels.iter().zip(&pos).map(|(p, o)| o[0] + p.w).fold(0.0, f64::max);
-            if top <= d.stock.h - 2.0 * margin && right <= d.stock.w - 2.0 * margin { break (spec, panels, pos); }
+    let mut found = None;
+    'spacing: for (si, &(margin, gap)) in spacings.iter().enumerate() {
+        let (mut w, mut dd, mut h) = (80.0, 60.0, 40.0);
+        loop {
+            let spec = BoxSpec { w, d: dd, h, t, finger: t * 2.0, clearance: 0.05, lid: false, div_w: 0, div_d: 0 };
+            let made = box_panels(spec).map(|panels| { let pos = layout(&panels, gap, d.stock.w - 2.0 * margin); (panels, pos) });
+            if let Ok((panels, pos)) = made {
+                let top = panels.iter().zip(&pos).map(|(p, o)| o[1] + p.h).fold(0.0, f64::max);
+                let right = panels.iter().zip(&pos).map(|(p, o)| o[0] + p.w).fold(0.0, f64::max);
+                if top <= d.stock.h - 2.0 * margin && right <= d.stock.w - 2.0 * margin { found = Some((spec, panels, pos, margin)); break 'spacing; }
+            }
+            // too big for the stock (or too small for the fingers): a little smaller, down to the smallest box that still has fingers
+            if w <= t * 5.0 || dd <= t * 5.0 || h <= t * 3.0 { break; }
+            // with the roomy spacing, a box under 40 mm wide is not worth it: try the tight one
+            if si == 0 && w < 40.0 { break; }
+            w = (w * 0.9).floor(); dd = (dd * 0.9).floor(); h = (h * 0.9).floor();
         }
-        // too big for the stock (or too small for the fingers): a little smaller, down to the smallest box that still has fingers
-        if w <= t * 5.0 || dd <= t * 5.0 || h <= t * 3.0 { return Err("The stock is too small for the sample box.".into()); }
-        w = (w * 0.9).floor(); dd = (dd * 0.9).floor(); h = (h * 0.9).floor();
-    };
-    let (spec, panels, pos) = fit;
+    }
+    let Some((spec, panels, pos, margin)) = found else { return Err("The stock is too small for the sample box.".into()) };
     d.ops.clear(); d.loops.clear(); d.groups.clear();
     let mut p = shapes::default_op_params(&flat.id);
     p.kind = "outside".into(); p.depth = t; p.tabs = true;
@@ -379,6 +387,25 @@ mod tests {
             let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}: {e}"));
             assert!(o.lines.len() > 100);
             assert!(!o.notes.iter().any(|n| n.starts_with('⚠')), "{x}x{y}: {:?}", o.notes);
+        }
+    }
+
+    /// The plates of the box are far enough apart for a strip of waste between two cuts, and for the holding tabs to have something to hold to
+    /// (with the plates 6 mm apart the strip was a sliver, and the tabs did nothing).
+    #[test]
+    fn box_plates_keep_a_strip_of_stock_between_them() {
+        let mut d = project(300.0, 200.0, 60.0, false);
+        fill_box(&mut d, false).unwrap();
+        let dia = d.tools.iter().find(|t| t.id == d.ops[0].p.tool).unwrap().dia;
+        let boxes: Vec<[f64; 4]> = d.loops.iter().filter_map(|l| shapes::bbox_many(std::iter::once(l))).collect();
+        assert!(boxes.len() >= 5);
+        for (i, a) in boxes.iter().enumerate() {
+            for b in &boxes[i + 1..] {
+                let (gx, gy) = ((b[0] - a[2]).max(a[0] - b[2]), (b[1] - a[3]).max(a[1] - b[3]));
+                assert!(gx.max(gy) >= dia * 3.0, "two plates are only {:.1} mm apart", gx.max(gy));
+            }
+            // and from the edge of the stock
+            assert!(a[0] >= dia * 2.0 && a[1] >= dia * 2.0 && a[2] <= d.stock.w - dia * 2.0 && a[3] <= d.stock.h - dia * 2.0);
         }
     }
 

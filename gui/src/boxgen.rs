@@ -18,7 +18,10 @@ impl App {
         let d = &self.project.data;
         let origin = shapes::bbox_many(d.loops.iter()).map(|bx| [bx[2] + 10.0, bx[1]]).unwrap_or([0.0, 0.0]);
         let max_w = if d.stock.w > 0.0 { d.stock.w.max(b.w.max(b.d) + 1.0) } else { 600.0 };
-        let pos = joints::layout(&panels, 6.0, max_w);
+        // room for the cutter, the dogbone reliefs and a strip of stock between two plates: with the plates 6 mm apart two cuts side by side
+        // left a sliver, and the holding tabs had nothing to hold to
+        let gap = 12.0_f64.max(dogbone.map_or(0.0, |(dia, _)| dia * 4.0));
+        let pos = joints::layout(&panels, gap, max_w);
         let mut made = Vec::new();
         let mut dogs = 0;
         for (p, o) in panels.iter().zip(&pos) {
