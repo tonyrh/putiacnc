@@ -80,3 +80,28 @@ fn the_middle_of_a_thin_arm_that_dies_out_between_two_rings_is_carved_to_its_bot
     let worst = [27.0, 29.5, 32.0, 34.5, 55.5, 58.0, 60.5, 63.0].iter().map(|&x| h(x, 55.0)).fold(f64::MIN, f64::max);
     assert!(worst < -4.9, "the middle of the bar is only {worst:.2} deep");
 }
+
+#[test]
+fn the_flat_end_mill_is_listed_as_a_tool_of_the_operation() {
+    use putiacnc_core::{setupsheet, split, summary};
+    let mut d = project(Some(2.0), true);
+    d.machine = Some(putiacnc_core::model::Machine::default());
+    let flat_name = d.tools.iter().find(|t| Some(&t.id) == d.ops[0].p.tool2.as_ref()).unwrap().name.clone();
+    // the setup sheet lists both tools, in the order they are used
+    let parts = putiacnc_core::pieces::generate_parts(&d, Units::Metric).unwrap();
+    let html = setupsheet::html(&d, &parts, Units::Metric, &setupsheet::SheetInfo { version: "0".into() }, "t");
+    assert!(html.contains("90 deg V-bit") && html.contains(&flat_name), "the sheet names both tools");
+    let first = html.find("90 deg V-bit").unwrap();
+    assert!(html.find(&flat_name).unwrap() > first, "the V-bit first");
+    // so does the summary at the top of the G-code
+    let out = generate(&d, Units::Metric).unwrap();
+    let tools = summary::describe(&d, &out, Units::Metric, false).into_iter().find(|r| r.label == "Tools").unwrap().text;
+    assert!(tools.contains("90 deg V-bit") && tools.contains(&flat_name) && tools.contains("pauses 1 time"), "{tools}");
+    // and a file per tool does not cut the operation in two
+    d.ops.push(putiacnc_core::model::Operation { id: 2, p: d.ops[0].p.clone() });
+    d.loops.push(shapes::new_rect([20.0, 20.0], [80.0, 60.0], 0.0, 2));
+    assert_eq!(split::groups(&d, split::Split::PerTool).len(), 2, "each flat-floor V-carve is a file of its own");
+    // without "Clear with" nothing changes: one tool
+    let plain = project(Some(2.0), false);
+    assert_eq!(split::groups(&plain, split::Split::PerTool).len(), 1);
+}

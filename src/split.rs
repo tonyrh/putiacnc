@@ -41,9 +41,9 @@ pub struct SplitFile {
     pub out: Output,
 }
 
-/// An operation that takes two tools in one go (an inlay clears with a flat mill and cuts with a V-bit, a relief roughs and finishes):
+/// An operation that takes two tools in one go (an inlay clears with a flat mill and cuts with a V-bit, a relief roughs and finishes, a V-carve with a flat depth clears the floor with a flat mill):
 /// it cannot be cut in two, so it stands as a file of its own whatever the split.
-fn two_tools(o: &crate::model::Operation) -> bool { o.p.tool2.is_some() && matches!(o.p.kind.as_str(), "inlay" | "plug" | "relief") }
+fn two_tools(o: &crate::model::Operation) -> bool { (o.p.tool2.is_some() && matches!(o.p.kind.as_str(), "inlay" | "plug" | "relief")) || o.p.flat_mill().is_some() }
 
 /// The operations (positions in the project's list) that go in each file, in order. Only operations that cut something count: those with
 /// shapes (or a relief), without the plugs that have a piece of their own. `Split::One` is one group.

@@ -348,6 +348,8 @@ pub struct Operation { pub id: i64, pub p: OpParams }
 impl OpParams {
     /// The operation's second tool: the flat end mill of an inlay or relief (`tool2`), or the cleanup cutter of a pocket (`rest`).
     pub fn second_tool(&self) -> Option<&str> { if self.kind == "pocket" { self.rest.as_deref() } else { self.tool2.as_deref() } }
+    /// The flat end mill of a V-carve with a flat depth ("Clear with"): it cuts the floor, so it is a second tool of the operation.
+    pub fn flat_mill(&self) -> Option<&str> { if self.kind == "vcarve" && self.flat.is_some_and(|f| f > 1e-6) { self.tool2.as_deref() } else { None } }
     /// The operation's third tool: the small ball nose that finishes the detail of a relief (`rest`).
     pub fn detail_tool(&self) -> Option<&str> { if self.kind == "relief" { self.rest.as_deref() } else { None } }
 }
