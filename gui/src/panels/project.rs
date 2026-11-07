@@ -898,7 +898,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     });
                     }
                 }
-                if p.kind == "vcarve" {
+                // the flat floor belongs to the "Clear with" end mill: without one there is nothing to set (an old project that has a flat depth keeps showing it)
+                if p.kind == "vcarve" && (p.tool2.as_deref().is_some_and(|t| !t.is_empty()) || p.flat.is_some()) {
                     // the flat floor: the V-bit carves the sloped edges down to this depth, the flat end mill clears the floor inside
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
@@ -911,7 +912,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if p.flat.is_some() && reset_button(ui, "Back to the full depth") { p.flat = None; changed = true; }
                     });
                     // on a line of its own, so it wraps instead of running out of the card
-                    if p.tool2.is_none() { ui.weak("No flat end mill: the V-bit cuts the floor too."); }
+                    if p.tool2.is_none() { ui.weak("No flat end mill is chosen under \"Clear with\": the V-bit cuts the floor too."); }
                     else if p.flat.is_none() { ui.weak("Set a flat depth: the end mill only cuts the floor below it."); }
                 }
                 if p.depth > stock_t + 1e-6 && p.kind != "draw" {
