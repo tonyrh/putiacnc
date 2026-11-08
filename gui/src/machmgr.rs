@@ -141,7 +141,9 @@ pub fn machine_manager(ctx: &egui::Context, app: &mut App) {
 fn body(ui: &mut Ui, app: &mut App) {
     if app.machines.get(&app.mach_sel).is_none() { app.mach_sel = app.project.data.machine.as_ref().map(|m| m.id.clone()).unwrap_or_else(|| app.machines.def.clone()); }
     // the list and the form each scroll on their own, as tall as the window leaves room for (the footer takes the rest)
-    let h = (ui.available_height() - 100.0).clamp(120.0, (ui.ctx().screen_rect().height() - 240.0).max(160.0));
+    // the paste box takes room too: counted here, or the window grows with it, which leaves more room, which grows the list... and it flickers
+    let extra = if app.grbl_paste.is_some() { 190.0 } else { 0.0 };
+    let h = (ui.available_height() - 100.0 - extra).clamp(120.0, (ui.ctx().screen_rect().height() - 240.0 - extra).max(160.0));
     ui.horizontal_top(|ui| {
         ui.allocate_ui_with_layout(egui::vec2(260.0, h), Layout::top_down(Align::LEFT), |ui| list(ui, app, h));
         let (sep, _) = ui.allocate_exact_size(egui::vec2(8.0, h), Sense::hover());
