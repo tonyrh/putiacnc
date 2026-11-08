@@ -3,7 +3,6 @@
 use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use crate::app::App;
-use crate::icons::{icon_button, Icon};
 use crate::toolmgr::{config_dir, rlabel};
 use eframe::egui::{self, Align, Color32, Layout, Sense, Ui};
 use putiacnc_core::machines::Machines;
@@ -214,48 +213,58 @@ fn footer(ui: &mut Ui, app: &mut App) {
             }
             if ui.button("Cancel").clicked() { app.confirm_mach_del = false; }
         } else {
-            if icon_button(ui, Icon::Add, false, true, "New machine").clicked() {
-                let id = app.machines.add(None, false);
-                app.mach_sel = id;
-                app.machine_edited();
-            }
-            if icon_button(ui, Icon::Copy, false, true, "Duplicate machine").clicked() {
-                let sel = app.mach_sel.clone();
-                let id = app.machines.add(Some(&sel), true);
-                app.mach_sel = id;
-                app.machine_edited();
-            }
-            ui.menu_button("From catalogue", |ui| {
+            ui.menu_button("+ New machine", |ui| {
                 ui.style_mut().wrap = Some(false);
-                ui.set_min_width(180.0);
-                for maker in putiacnc_core::setup::makers() {
-                    ui.menu_button(maker, |ui| {
-                        ui.style_mut().wrap = Some(false);
-                        for c in putiacnc_core::setup::catalog().iter().filter(|c| c.maker == maker) {
-                            if ui.button(&c.model).on_hover_text(format!("{} × {} × {} mm", c.x, c.y, c.z)).clicked() {
-                                let mut ms = c.setup();
-                                ms.inches = app.imperial;
-                                let m = ms.into_machine();
-                                app.mach_sel = m.id.clone();
-                                app.machines.push_unique(m);
-                                app.machine_edited();
-                                ui.close_menu();
-                            }
-                        }
-                    });
+                ui.set_min_width(200.0);
+                if ui.button("Blank machine").clicked() {
+                    let id = app.machines.add(None, false);
+                    app.mach_sel = id;
+                    app.machine_edited();
+                    ui.close_menu();
                 }
-            }).response.on_hover_text("Add a ready-made machine with the maker's published figures");
-            if icon_button(ui, Icon::Import, false, true, "Import a machine from a file").clicked() {
-                app.spawn_dialog(crate::app::DlgKind::MachImport, || rfd::FileDialog::new().add_filter("Machine", &["json"]).pick_file());
-            }
-            if ui.button("Paste $$").on_hover_text("Make a machine from the settings a Grbl controller prints for $$: travel, top speeds, accelerations, spindle range").clicked() {
-                app.grbl_paste = if app.grbl_paste.is_some() { None } else { Some(String::new()) };
-            }
-            if icon_button(ui, Icon::Export, false, true, "Export this machine to a file").clicked() {
+                let sel_name = app.machines.resolve(&app.mach_sel).name.clone();
+                if ui.button(format!("Copy of \"{sel_name}\"")).clicked() {
+                    let sel = app.mach_sel.clone();
+                    let id = app.machines.add(Some(&sel), true);
+                    app.mach_sel = id;
+                    app.machine_edited();
+                    ui.close_menu();
+                }
+                ui.menu_button("From the catalogue", |ui| {
+                    ui.style_mut().wrap = Some(false);
+                    ui.set_min_width(180.0);
+                    for maker in putiacnc_core::setup::makers() {
+                        ui.menu_button(maker, |ui| {
+                            ui.style_mut().wrap = Some(false);
+                            for c in putiacnc_core::setup::catalog().iter().filter(|c| c.maker == maker) {
+                                if ui.button(&c.model).on_hover_text(format!("{} × {} × {} mm", c.x, c.y, c.z)).clicked() {
+                                    let mut ms = c.setup();
+                                    ms.inches = app.imperial;
+                                    let m = ms.into_machine();
+                                    app.mach_sel = m.id.clone();
+                                    app.machines.push_unique(m);
+                                    app.machine_edited();
+                                    ui.close_menu();
+                                }
+                            }
+                        });
+                    }
+                }).response.on_hover_text("A ready-made machine with the maker's published figures");
+                if ui.button("From a file…").on_hover_text("A machine exported from PutiaCNC").clicked() {
+                    app.spawn_dialog(crate::app::DlgKind::MachImport, || rfd::FileDialog::new().add_filter("Machine", &["json"]).pick_file());
+                    ui.close_menu();
+                }
+                if ui.button("From a Grbl $$ dump…").on_hover_text("Paste the settings a Grbl controller prints for $$: travel, top speeds, accelerations, spindle range").clicked() {
+                    app.grbl_paste = Some(String::new());
+                    ui.close_menu();
+                }
+            });
+            ui.add_space(12.0);
+            if ui.button("Export").on_hover_text("Save this machine to a file").clicked() {
                 let fname = format!("{}-machine.json", app.machines.resolve(&app.mach_sel).name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect::<String>());
                 app.spawn_dialog(crate::app::DlgKind::MachExport, move || rfd::FileDialog::new().add_filter("Machine", &["json"]).set_file_name(fname).save_file());
             }
-            if icon_button(ui, Icon::Trash, false, true, "Delete machine").clicked() {
+            if ui.button("Delete").on_hover_text("Delete this machine").clicked() {
                 if app.machines.list.len() < 2 { app.mach_msg = "Keep at least one machine.".into(); } else { app.confirm_mach_del = true; }
             }
         }
