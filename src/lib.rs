@@ -11,6 +11,7 @@ pub mod summary;
 pub mod verify;
 pub mod cleanup;
 pub mod clip;
+pub mod grblsettings;
 pub mod machines;
 pub mod model;
 pub mod motion;

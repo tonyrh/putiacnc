@@ -155,10 +155,36 @@ fn body(ui: &mut Ui, app: &mut App) {
     let (ln, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), Sense::hover());
     ui.painter().line_segment([ln.left_center(), ln.right_center()], ui.visuals().widgets.noninteractive.bg_stroke);
     ui.add_space(8.0);
+    paste_panel(ui, app);
     footer(ui, app);
     ui.add_space(8.0);
     let used = app.project.data.machine.as_ref().map(|p| p.id == app.mach_sel).unwrap_or(false);
     ui.weak(if !app.mach_msg.is_empty() { app.mach_msg.as_str() } else if used { "Used by the current project. Machines are saved automatically." } else { "Machines are saved automatically." });
+}
+
+/// The box for pasting a Grbl `$$` dump, with the button that turns it into a machine.
+fn paste_panel(ui: &mut Ui, app: &mut App) {
+    let Some(text) = app.grbl_paste.as_mut() else { return };
+    ui.label("Paste what Grbl prints for $$ (send $$ from any sender, copy the lines):");
+    egui::ScrollArea::vertical().id_source("grblpaste").max_height(110.0).show(ui, |ui| {
+        ui.add(egui::TextEdit::multiline(text).desired_rows(5).desired_width(f32::INFINITY).font(egui::TextStyle::Monospace).hint_text("$110=3000.000\n$111=3000.000\n$130=300.000 ..."));
+    });
+    let dump = text.clone();
+    ui.horizontal(|ui| {
+        if ui.add_enabled(!dump.trim().is_empty(), egui::Button::new("Make machine")).clicked() {
+            match putiacnc_core::grblsettings::machine_from_dump(&dump) {
+                Ok(m) => {
+                    app.mach_sel = app.machines.push_unique(m);
+                    app.mach_msg = "Machine made from the $$ settings. Give it a name and check the values.".into();
+                    app.grbl_paste = None;
+                    app.machine_edited();
+                }
+                Err(e) => app.mach_msg = e,
+            }
+        }
+        if ui.button("Cancel").clicked() { app.grbl_paste = None; }
+    });
+    ui.add_space(6.0);
 }
 
 fn footer(ui: &mut Ui, app: &mut App) {
@@ -219,6 +245,9 @@ fn footer(ui: &mut Ui, app: &mut App) {
             }).response.on_hover_text("Add a ready-made machine with the maker's published figures");
             if icon_button(ui, Icon::Import, false, true, "Import a machine from a file").clicked() {
                 app.spawn_dialog(crate::app::DlgKind::MachImport, || rfd::FileDialog::new().add_filter("Machine", &["json"]).pick_file());
+            }
+            if ui.button("Paste $$").on_hover_text("Make a machine from the settings a Grbl controller prints for $$: travel, top speeds, accelerations, spindle range").clicked() {
+                app.grbl_paste = if app.grbl_paste.is_some() { None } else { Some(String::new()) };
             }
             if icon_button(ui, Icon::Export, false, true, "Export this machine to a file").clicked() {
                 let fname = format!("{}-machine.json", app.machines.resolve(&app.mach_sel).name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect::<String>());
