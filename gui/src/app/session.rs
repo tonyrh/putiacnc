@@ -18,7 +18,7 @@ impl App {
             Ok(()) => {
                 self.project.name = kind.title().into();
                 self.view_tab = crate::view3d::ViewTab::Split;
-                self.tab = RightTab::Info; // the Notes explain the sample
+                self.tab = if std::env::var_os("PUTIACNC_TAB_GCODE").is_some() { RightTab::Gcode } else { RightTab::Info }; // the Notes explain the sample
                 self.sel.clear();
                 self.gen_pending = true;
                 self.fit_pending = true;

@@ -146,9 +146,21 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                         });
                     }
                 });
+                // what the generator chose or skipped, apart from the summary above (its warnings are in the warnings list)
+                let infos: Vec<&String> = o.notes.iter().filter(|n| !n.starts_with("⚠ ")).collect();
+                if !infos.is_empty() {
+                    ui.add_space(4.0);
+                    ui.separator();
+                    ui.add_space(2.0);
+                    egui::CollapsingHeader::new(egui::RichText::new("Notes on the toolpath").strong()).id_source("gcode_notes").default_open(true).show(ui, |ui| {
+                        for n in infos { crate::msg::line(ui, Level::Info, n); }
+                    });
+                }
                 });
                 ui.add_space(2.0);
                 ui.separator();
+                ui.label(egui::RichText::new(format!("G-code ({} lines)", o.lines.len())).strong());
+                ui.add_space(2.0);
             }
             // Copy / Export sit at the bottom; the G-code takes the rest of the height
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
@@ -194,14 +206,12 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     }
 }
 
-/// The Notes tab: the project's own notes (always editable, saved with the project) and, below, what the
-/// toolpath generator wants the user to know (its warnings are in the warnings bar and list, not here).
+/// The Notes tab: the project's own notes (always editable, saved with the project). What the toolpath generator
+/// has to say is in the G-code tab, under "Notes on the toolpath".
 pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
-    let warnings: Vec<String> = app.output.as_ref().map(|o| o.notes.iter().filter(|n| !n.starts_with("⚠ ")).cloned().collect()).unwrap_or_default();
-    let reserve = if warnings.is_empty() { 0.0 } else { 40.0 + 20.0 * warnings.len().min(6) as f32 };
     ui.label("Project notes");
     let row_h = ui.text_style_height(&egui::TextStyle::Body);
-    let rows = (((ui.available_height() - reserve - 12.0) / row_h).floor() as usize).max(4);
+    let rows = (((ui.available_height() - 12.0) / row_h).floor() as usize).max(4);
     let before = app.project.data.clone();
     let mut notes = std::mem::take(&mut app.project.data.notes);
     let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text("Material, fixtures, jobs to remember…"));
@@ -210,11 +220,6 @@ pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
         // one undo step per editing session; while the field has focus, Ctrl+Z undoes the typing itself
         if !app.hist.open { app.hist.push(before); app.hist.open = true; }
         app.modified = true;
-    }
-    if !warnings.is_empty() {
-        ui.add_space(8.0);
-        ui.label(egui::RichText::new("About this toolpath").strong());
-        for n in &warnings { crate::msg::line(ui, Level::Info, n); }
     }
 }
 
