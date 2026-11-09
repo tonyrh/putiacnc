@@ -65,7 +65,9 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
                         let r = ui.add(egui::TextEdit::singleline(&mut name).desired_width(w));
                         if !r.has_focus() && !r.gained_focus() { r.request_focus(); }
                         if r.changed() { if let Some(x) = d.layer_mut(l.id) { x.name = name; *changed = true; } }
-                        if r.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Escape)) { ui.data_mut(|d| d.remove::<i64>(edit_id)); }
+                        // a click anywhere else ends the rename (a plain click does not take the focus away by itself)
+                        let away = ui.input(|i| i.pointer.any_pressed() && i.pointer.interact_pos().is_some_and(|p| !r.rect.contains(p)));
+                        if r.lost_focus() || away || ui.input(|i| i.key_pressed(egui::Key::Escape)) { ui.data_mut(|d| d.remove::<i64>(edit_id)); }
                     } else {
                         let r = ui.allocate_response(egui::vec2(w, ui.spacing().interact_size.y), egui::Sense::click());
                         if r.hovered() { ui.painter().rect_filled(r.rect, 3.0, ui.visuals().widgets.hovered.weak_bg_fill); }
