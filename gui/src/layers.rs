@@ -25,7 +25,7 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
     ui.horizontal(|ui| {
         ui.heading("Layers");
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if small_icon_button(ui, Icon::Add, true, "Add a layer; new shapes go on the layer marked with the dot").clicked() {
+            if small_icon_button(ui, Icon::Add, true, "Add a layer; new shapes go on the layer highlighted").clicked() {
                 let n = d.layers.len().max(1) + 1;
                 let id = d.add_layer(&format!("Layer {n}"));
                 d.active_layer = id;
@@ -37,25 +37,33 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
     let mut remove: Option<i64> = None;
     for l in &all {
         let n = count(d, l.id);
-        ui.horizontal(|ui| {
-            if ui.radio(d.active_layer == l.id, "").on_hover_text("New shapes go on this layer").clicked() && d.active_layer != l.id { d.active_layer = l.id; *changed = true; }
-            if small_toggle_button(ui, if l.hidden { Icon::EyeOff } else { Icon::Eye }, l.hidden, if l.hidden { "Show this layer" } else { HIDDEN_TIP }).clicked() {
-                if let Some(x) = d.layer_mut(l.id) { x.hidden = !l.hidden; *changed = true; }
-            }
-            if small_toggle_button(ui, Icon::Lock, l.locked, if l.locked { "Unlock this layer" } else { "Lock this layer: its shapes cannot be moved or changed" }).clicked() {
-                if let Some(x) = d.layer_mut(l.id) { x.locked = !l.locked; *changed = true; }
-            }
-            let mut c = l.rgb().unwrap_or([0x80, 0x80, 0x80]);
-            if ui.color_edit_button_srgb(&mut c).on_hover_text("The colour of this layer's shapes while they are not in an operation").changed() {
-                if let Some(x) = d.layer_mut(l.id) { x.color = putiacnc_core::model::hex_rgb(c); *changed = true; }
-            }
-            let mut name = l.name.clone();
-            let w = (ui.available_width() - 62.0).max(40.0);
-            if ui.add(egui::TextEdit::singleline(&mut name).desired_width(w)).on_hover_text("The name of the layer").changed() {
-                if let Some(x) = d.layer_mut(l.id) { x.name = name; *changed = true; }
-            }
-            if ui.add(egui::Button::new(n.to_string()).small().frame(false)).on_hover_text("Select the shapes on this layer").clicked() { *pick = Some(l.id); }
-            if l.id != 0 && small_icon_button(ui, Icon::Trash, true, "Delete the layer; its shapes move to the first layer").clicked() { remove = Some(l.id); }
+        let active = d.active_layer == l.id;
+        // the layer new shapes go on has a tinted row; clicking a name makes a layer the active one
+        let fill = if active { ui.visuals().selection.bg_fill.gamma_multiply(0.5) } else { egui::Color32::TRANSPARENT };
+        egui::Frame::none().fill(fill).rounding(4.0).inner_margin(egui::Margin::symmetric(3.0, 2.0)).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let mut c = l.rgb().unwrap_or([0x80, 0x80, 0x80]);
+                if ui.color_edit_button_srgb(&mut c).on_hover_text("The colour of this layer's shapes while they are not in an operation").changed() {
+                    if let Some(x) = d.layer_mut(l.id) { x.color = putiacnc_core::model::hex_rgb(c); *changed = true; }
+                }
+                // right side, in the order eye, lock, delete (laid out from the right)
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if small_icon_button(ui, Icon::Trash, l.id != 0, if l.id != 0 { "Delete the layer; its shapes move to the first layer" } else { "The first layer cannot be deleted" }).clicked() && l.id != 0 { remove = Some(l.id); }
+                    if small_toggle_button(ui, Icon::Lock, l.locked, if l.locked { "Unlock this layer" } else { "Lock this layer: its shapes cannot be moved or changed" }).clicked() {
+                        if let Some(x) = d.layer_mut(l.id) { x.locked = !l.locked; *changed = true; }
+                    }
+                    if small_toggle_button(ui, if l.hidden { Icon::EyeOff } else { Icon::Eye }, l.hidden, if l.hidden { "Show this layer" } else { HIDDEN_TIP }).clicked() {
+                        if let Some(x) = d.layer_mut(l.id) { x.hidden = !l.hidden; *changed = true; }
+                    }
+                    if ui.add(egui::Button::new(n.to_string()).small().frame(false)).on_hover_text("Select the shapes on this layer").clicked() { *pick = Some(l.id); }
+                    let mut name = l.name.clone();
+                    let w = ui.available_width().max(40.0);
+                    let r = ui.add(egui::TextEdit::singleline(&mut name).desired_width(w));
+                    if r.changed() { if let Some(x) = d.layer_mut(l.id) { x.name = name; *changed = true; } }
+                    if (r.clicked() || r.gained_focus()) && d.active_layer != l.id { d.active_layer = l.id; *changed = true; }
+                    r.on_hover_text(if active { "The name of the layer. New shapes go on this layer." } else { "The name of the layer. Click it to put new shapes on this layer." });
+                });
+            });
         });
     }
     if let Some(id) = remove {
