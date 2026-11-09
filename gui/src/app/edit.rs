@@ -116,7 +116,7 @@ impl App {
 
     /// Closes the windows of the tools that work on the selection.
     pub fn close_tool_windows(&mut self) {
-        self.align_open = false; self.combine_open = false; self.array.open = false; self.nest.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false; self.fingers.open = false; self.boxgen.open = false; self.surface.open = false; self.surface.spec = None;
+        self.align_open = false; self.combine_open = false; self.array.open = false; self.nest.open = false; self.offset_open = false; self.corners.open = false; self.clean.open = false; self.fingers.open = false; self.boxgen.open = false; self.surface.open = false; self.reliefgen.open = false; self.surface.spec = None;
     }
 
     /// Shows `msg` in the banner at the given level.
@@ -155,6 +155,7 @@ impl App {
             ToolWin::Fingers => self.fingers.open,
             ToolWin::Box => self.boxgen.open,
             ToolWin::Surface => self.surface.open,
+            ToolWin::Relief => self.reliefgen.open,
         }
     }
 
@@ -165,7 +166,7 @@ impl App {
 
     /// Safety net for any way of opening a tool window: when more than one is open, the one opened last stays.
     pub fn one_tool_window(&mut self) {
-        const ALL: [ToolWin; 10] = [ToolWin::Align, ToolWin::Offset, ToolWin::Array, ToolWin::Nest, ToolWin::Corners, ToolWin::Combine, ToolWin::Clean, ToolWin::Fingers, ToolWin::Box, ToolWin::Surface];
+        const ALL: [ToolWin; 11] = [ToolWin::Align, ToolWin::Offset, ToolWin::Array, ToolWin::Nest, ToolWin::Corners, ToolWin::Combine, ToolWin::Clean, ToolWin::Fingers, ToolWin::Box, ToolWin::Surface, ToolWin::Relief];
         let open: Vec<ToolWin> = ALL.into_iter().filter(|w| self.tool_window_open(*w)).collect();
         if open.len() > 1 {
             let newest = open.iter().copied().find(|w| !self.tool_wins_seen.contains(w)).unwrap_or(open[open.len() - 1]);
@@ -190,6 +191,7 @@ impl App {
             ToolWin::Fingers => self.fingers.open = true,
             ToolWin::Box => self.boxgen.open = true,
             ToolWin::Surface => self.surface.open = true,
+            ToolWin::Relief => self.reliefgen.open = true,
         }
     }
 

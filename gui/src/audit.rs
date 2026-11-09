@@ -157,6 +157,7 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
         ("array circle", |a| { all_sel(a); a.array.open = true; a.array.circular = true; }),
         ("box", |a| a.boxgen.open = true),
         ("surface", |a| a.surface.open = true),
+        ("relief from shapes", |a| { all_sel(a); a.reliefgen.open = true; }),
         ("surface spoilboard", |a| { a.surface.open = true; a.surface.spoil = true; }),
         ("box dogbones", |a| { a.boxgen.open = true; a.boxgen.dogbone = true; }),
         ("combine", |a| { all_sel(a); a.combine_open = true; }),

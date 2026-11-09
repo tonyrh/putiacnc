@@ -18,6 +18,7 @@ pub mod motion;
 pub mod nest;
 pub mod pieces;
 pub mod relief;
+pub mod reliefshapes;
 pub mod replay;
 pub mod shapes;
 pub mod sim;

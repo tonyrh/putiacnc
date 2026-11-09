@@ -77,6 +77,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Nest on the stock…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Nest); }
             if item(ui, "Fillet and chamfer…", "", app.selection_has_corners()) { app.open_tool_window(ToolWin::Corners); }
             if item(ui, "Combine shapes…", "", app.sel.len() >= 2) { app.open_tool_window(ToolWin::Combine); }
+            if item(ui, "Relief from shapes…", "", app.closed_selection() > 0) { app.open_tool_window(ToolWin::Relief); }
             if item(ui, "Finger joint…", "", app.selection_has_rect()) { app.open_tool_window(ToolWin::Fingers); }
             if item(ui, "Clean up drawing…", "", !app.project.data.loops.is_empty()) { app.open_tool_window(ToolWin::Clean); }
         });

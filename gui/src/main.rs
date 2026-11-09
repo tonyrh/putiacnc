@@ -20,6 +20,7 @@ mod boxgen;
 mod corners;
 mod fingers;
 mod surface;
+mod reliefgen;
 mod csd;
 mod dynin;
 mod icons;
@@ -283,6 +284,7 @@ impl App {
         corners::dialog(ctx, self);
         fingers::dialog(ctx, self);
         surface::dialog(ctx, self);
+        reliefgen::dialog(ctx, self);
         boxgen::dialog(ctx, self);
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
