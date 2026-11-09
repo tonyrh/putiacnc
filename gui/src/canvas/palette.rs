@@ -153,7 +153,7 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
     let (zact, _) = crate::zoomcard::show(ctx, "zoomcard2d", egui::Order::Middle, Pos2::new(rect.right() - 10.0, card_y), zoom_frac);
     if zact.is_some() { app.zoom_act = zact; }
     tool_options_bar(ctx, app, rect);
-    if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { node_bar(ctx, app, rect); } else { selection_bar(ctx, app, rect); }
+    if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { /* the Edit points window */ } else { selection_bar(ctx, app, rect); }
     // hint line
     let hint = if app.node_edit.is_some() { "Drag a point \u{b7} click an edge to add one \u{b7} Del removes" } else if app.tab_edit.is_some() { "Click an outline to add a tab \u{b7} right-click removes one" } else { match app.mode {
         Mode::Select if app.selected_text().is_some() => "Double-click: edit the text \u{b7} drag to move \u{b7} Right-drag: pan",

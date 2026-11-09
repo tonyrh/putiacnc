@@ -18,6 +18,7 @@ mod cleanup;
 mod combine;
 mod boxgen;
 mod corners;
+mod editpoints;
 mod fingers;
 mod surface;
 mod reliefgen;
@@ -281,6 +282,7 @@ impl App {
         combine::dialog(ctx, self);
         array::dialog(ctx, self);
         nest::dialog(ctx, self);
+        editpoints::dialog(ctx, self);
         corners::dialog(ctx, self);
         fingers::dialog(ctx, self);
         surface::dialog(ctx, self);

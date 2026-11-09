@@ -133,40 +133,66 @@ impl App {
     }
 }
 
+/// Where the window starts: under the option bars, or, while points are being edited, under the Edit points window.
+fn fillet_base(ctx: &egui::Context, app: &App, node: bool) -> egui::Pos2 {
+    let a = crate::csd::anchor(app);
+    if !node { return a; }
+    let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::new("Edit points"));
+    match ctx.memory(|m| m.area_rect(layer.id)) { Some(r) => egui::pos2(a.x, r.bottom() + 8.0), None => egui::pos2(a.x, a.y + 160.0) }
+}
+
 pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if !app.corners.open { app.ghost.clear_if("corners"); if app.tool_note.as_ref().is_some_and(|(k, _)| *k == "corners") { app.tool_note = None; } return; }
+    // while the points of a shape are being edited the window works on the selected points, not on whole shapes
+    let node = app.node_edit.is_some_and(|i| i < app.project.data.loops.len());
+    if node { app.corners.dog = false; }
     {
         let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
         let size = app.corners.size;
         let (dog, outside, tbone) = (app.corners.dog, app.corners.outside, app.corners.tbone);
         let dia = cutter_dia(app.corners.auto, app.sel_cutter_dia(), app.corners.dia);
-        app.preview("corners", &[app.corners.chamfer as u64, crate::preview::bits(size), dog as u64, crate::preview::bits(dia), outside as u64, tbone as u64],
-            move |a| if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) });
+        let pk = if node { crate::editpoints::points_key(app) } else { 0 };
+        app.preview("corners", &[app.corners.chamfer as u64, crate::preview::bits(size), dog as u64, crate::preview::bits(dia), outside as u64, tbone as u64, node as u64, pk],
+            move |a| if node { a.corner_points(kind, size) } else if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) });
     }
     let pnote = app.ghost.note_of("corners").filter(|_| !app.sel.is_empty()).map(String::from);
     let n = app.sel.len();
-    let has = app.selection_has_corners() || (app.corners.dog && app.sel.iter().any(|&i| app.project.data.loops.get(i).is_some_and(|l| l.closed())));
+    let has = if node {
+        let kind = if app.corners.chamfer { CornerKind::Chamfer } else { CornerKind::Fillet };
+        app.node_edit.and_then(|i| app.project.data.loops.get(i)).is_some_and(|l| shapes::round_corners_at(l, kind, app.corners.size, Some(&app.node_sel)).is_some())
+    } else {
+        app.selection_has_corners() || (app.corners.dog && app.sel.iter().any(|&i| app.project.data.loops.get(i).is_some_and(|l| l.closed())))
+    };
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Fillet and chamfer").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
-        .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
+        .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", fillet_base(ctx, app, node))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
         if crate::csd::dialog_header_help(ui, "Fillet and chamfer", true, |ui| {
             ui.label("Smooth curves, circles and ellipses are left alone.");
             ui.add_space(4.0);
             ui.label("A chamfer is measured as a distance along each edge from the corner.");
             ui.add_space(4.0);
+            ui.label("While you are editing the points of a shape, it rounds or bevels only the corners you selected.");
+            ui.add_space(4.0);
             ui.label("A dogbone is a small round notch in each inside corner, as wide as the cutter, so a square corner can fit.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
+        let k = app.node_sel.len();
+        ui.label(if node { if k == 0 { "Select points first: click one, Shift-click or drag a box for several.".to_string() } else { format!("{k} point{} selected.", if k == 1 { "" } else { "s" }) } }
+                 else if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
         let lw = ["Corner", "Distance", "Radius", "Cutter", "Relief"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("corner_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, lw, "Corner");
             ui.horizontal(|ui| {
                 let cur = if app.corners.dog { 2 } else { app.corners.chamfer as usize };
+                if node {
+                    let (c, _) = crate::zoomcard::seg2(ui, ["Fillet", "Chamfer"], ["Round the corners", "Cut the corners off with a straight bevel"], app.corners.chamfer as usize);
+                    if let Some(i) = c { app.corners.chamfer = i == 1; }
+                } else {
                 let (c, _) = crate::zoomcard::seg3(ui, ["Fillet", "Chamfer", "Dogbone"], ["Round the corners", "Cut the corners off with a straight bevel", "Cut a small round relief into each inside corner so a square part fits a pocket the round cutter made"], cur);
                 if let Some(i) = c { app.corners.dog = i == 2; if i < 2 { app.corners.chamfer = i == 1; } }
+                }
             });
             ui.end_row();
             if app.corners.dog {
@@ -212,7 +238,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let (dog, outside, tbone) = (app.corners.dog, app.corners.outside, app.corners.tbone);
         let dia = cutter_dia(app.corners.auto, app.sel_cutter_dia(), app.corners.dia);
         app.ghost.clear();
-        app.run_tool("corners", |a| if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) });
+        if node {
+            if app.run_tool("corners", move |a| a.corner_points(kind, size)) { app.node_sel.clear(); }
+        } else {
+            app.run_tool("corners", |a| if dog { a.dogbone_selection(dia, outside, tbone) } else { a.corner_selection(kind, size) });
+        }
     }
     if close { app.corners.open = false; }
 }

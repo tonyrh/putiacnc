@@ -163,6 +163,8 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
         ("combine", |a| { all_sel(a); a.combine_open = true; }),
         ("clean up", |a| a.clean.open = true),
         ("fillet", |a| { all_sel(a); a.corners.open = true; }),
+        ("edit points", |a| { a.sel = [0].into_iter().collect(); a.mode = crate::app::Mode::Node; a.node_edit = Some(0); a.node_sel = [0, 1].into_iter().collect(); }),
+        ("fillet on points", |a| { a.sel = [0].into_iter().collect(); a.mode = crate::app::Mode::Node; a.node_edit = Some(0); a.node_sel = [0, 1].into_iter().collect(); a.corners.open = true; }),
         ("export", |a| a.export_open = true),
         ("fingers", |a| { all_sel(a); a.fingers.open = true; }),
         ("machines", |a| a.machines_open = true),
@@ -267,7 +269,7 @@ fn long_names_do_not_run_out_of_the_panels() {
 fn tool_windows_have_the_agreed_buttons() {
     let rule: &[(&str, &[&str])] = &[
         ("box", &["OK", "Cancel"]), ("surface", &["OK", "Cancel"]), ("surface spoilboard", &["OK", "Cancel"]), ("fingers", &["OK", "Cancel"]), ("combine", &["OK", "Cancel"]),
-        ("offset", &["Apply", "Close"]), ("array", &["Apply", "Close"]), ("fillet", &["Apply", "Close"]),
+        ("offset", &["Apply", "Close"]), ("array", &["Apply", "Close"]), ("fillet", &["Apply", "Close"]), ("edit points", &["Apply", "Close"]), ("fillet on points", &["Apply", "Close"]),
     ];
     let mut problems = vec![];
     for (name, setup) in dialogs() {

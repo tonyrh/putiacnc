@@ -29,7 +29,6 @@ pub(super) fn enter_node_edit(app: &mut App, li: usize) {
     app.node_edit = Some(li);
     app.node_sel.clear();
     app.node_drag = NodeDrag::None;
-    app.node_msg.clear();
     app.tab_edit = None;
     app.sel.clear();
     app.sel.insert(li);
@@ -144,72 +143,6 @@ pub(super) fn node_interaction(ctx: &egui::Context, app: &mut App, resp: &egui::
             else if app.project.data.loops[li].clone().pts.len() >= 4 && shapes::dist_to_loop(&app.project.data.loops[li], w) <= tol { ctx.set_cursor_icon(egui::CursorIcon::Crosshair); }
         }
     }
-}
-
-/// Small bar shown while a shape's points are being edited.
-pub(super) fn node_bar(ctx: &egui::Context, app: &mut App, rect: Rect) {
-    let Some(li) = app.node_edit else { return };
-    let Some(l) = app.project.data.loops.get(li) else { return };
-    let n = l.pts.len() / 2;
-    let plain = l.rc.is_none() && l.cr.is_none() && l.el.is_none();
-    let (mut done, mut simplify, mut corner) = (false, false, false);
-    let mut tol = app.node_tol;
-    let (mut cham, mut csize, nsel) = (app.corners.chamfer, app.corners.size, app.node_sel.len());
-    let _bar = egui::Area::new(egui::Id::new("nodebar")).order(egui::Order::Middle).fixed_pos(rect.min + Vec2::new(10.0, 66.0 + app.palette_extra)).show(ctx, |ui| {
-        egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(10.0, 6.0)).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(format!("Editing points · {n} point{}", if n == 1 { "" } else { "s" }));
-                ui.add_space(6.0);
-                ui.label("Simplify within");
-                crate::widgets::len(ui, [64.0, 24.0], &mut tol, 0.01, 5.0, 0.01, 2, ""); ui.weak(crate::widgets::len_unit(ui));
-                if ui.button("Simplify").on_hover_text("Remove points that hardly change the shape").clicked() { simplify = true; }
-                ui.add_space(6.0);
-                if crate::icons::icon_text_button(ui, Icon::Check, "Done", "Stop editing points (Esc)", None).clicked() { done = true; }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Corners");
-                ui.add_space(4.0);
-                let (c, _) = crate::zoomcard::seg2(ui, ["Fillet", "Chamfer"], ["Round the selected corners", "Bevel the selected corners"], cham as usize);
-                if let Some(i) = c { cham = i == 1; }
-                ui.add_space(4.0);
-                crate::widgets::len(ui, [64.0, 24.0], &mut csize, 0.01, 1000.0, 0.25, 2, "");
-                ui.weak(crate::widgets::len_unit(ui));
-                ui.add_space(4.0);
-                if ui.add_enabled(nsel > 0, egui::Button::new(if nsel > 0 { format!("Apply to {nsel} selected") } else { "Apply to selected".to_string() })).on_hover_text("Click a point (Shift-click or drag a box for several), then round or bevel just those corners").clicked() { corner = true; }
-            });
-            if !plain { ui.weak("Changing a point turns this rectangle or ellipse into a plain polygon."); }
-            if !app.node_msg.is_empty() { ui.weak(app.node_msg.as_str()); }
-        });
-    });
-    app.bars_bottom = app.bars_bottom.max(_bar.response.rect.bottom());
-    app.node_tol = tol;
-    app.corners.chamfer = cham;
-    app.corners.size = csize;
-    if corner {
-        let kind = if cham { shapes::CornerKind::Chamfer } else { shapes::CornerKind::Fillet };
-        match shapes::round_corners_at(&app.project.data.loops[li], kind, csize, Some(&app.node_sel)) {
-            Some((r, n, lim)) => {
-                app.hist.record(&app.project.data);
-                app.project.data.loops[li] = r;
-                app.node_sel.clear();
-                app.touch();
-                app.node_msg = format!("{} {n} corner{}{}.", if cham { "Chamfered" } else { "Rounded" }, if n == 1 { "" } else { "s" }, if lim > 0 { format!(" ({lim} too tight, made as large as fits)") } else { String::new() });
-            }
-            None => app.node_msg = "The selected points are not sharp corners.".into(),
-        }
-    }
-    if simplify {
-        let mut probe = app.project.data.loops[li].clone();
-        let (before, after) = shapes::simplify(&mut probe, tol);
-        if after < before {
-            app.hist.record(&app.project.data);
-            app.project.data.loops[li] = probe;
-            app.node_sel.clear();
-            app.touch();
-            app.node_msg = format!("Simplified: {before} → {after} points.");
-        } else { app.node_msg = "Nothing to simplify at this tolerance.".into(); }
-    }
-    if done { app.node_edit = None; app.mode = Mode::Select; }
 }
 
 #[cfg(test)]
