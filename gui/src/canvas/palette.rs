@@ -174,3 +174,48 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
         ui.add(egui::Label::new(egui::RichText::new(hint).weak()).truncate(true));
     });
 }
+
+/// The right-click menu of the selection: the commands used most while shapes are selected, the same names as in the menus.
+/// Commands that do not apply are left out, not greyed.
+pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
+    let Some(pos) = app.ctx_menu else { return };
+    if app.sel.is_empty() || app.mode != Mode::Select { app.ctx_menu = None; return; }
+    use crate::app::ToolWin;
+    let locked = app.sel_locked();
+    let mut close = false;
+    let area = egui::Area::new(egui::Id::new("selection_menu")).order(egui::Order::Foreground).fixed_pos(pos).show(ctx, |ui| {
+        egui::Frame::menu(ui.style()).show(ui, |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(190.0);
+            // plain rows like the menu bar's menus: no frame, the whole row is the button
+            { let w = &mut ui.style_mut().visuals.widgets; w.inactive.weak_bg_fill = egui::Color32::TRANSPARENT; w.inactive.bg_stroke = egui::Stroke::NONE; }
+            ui.set_width(ui.min_rect().width().max(190.0));
+            ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+            let row = |ui: &mut Ui, label: &str, key: &str| ui.add(egui::Button::new(label).shortcut_text(key)).clicked();
+            if row(ui, "Duplicate", "Ctrl+D") { app.duplicate_selection(); close = true; }
+            if row(ui, "Delete", "Del") { app.delete_selection(); close = true; }
+            if putiacnc_core::selection::can_group(&app.project.data, &app.sel) && row(ui, "Group", "Ctrl+G") { app.group_selection(); close = true; }
+            if app.sel_in_group() && row(ui, "Ungroup", "Ctrl+Shift+G") { app.ungroup_selection(); close = true; }
+            ui.separator();
+            if !locked {
+                ui.menu_button("Mirror  ▸", |ui| {
+                    if ui.button("Left to right").clicked() { app.mirror_selection(true); close = true; ui.close_menu(); }
+                    if ui.button("Top to bottom").clicked() { app.mirror_selection(false); close = true; ui.close_menu(); }
+                });
+                if row(ui, "Align…", "") { app.open_tool_window(ToolWin::Align); close = true; }
+            }
+            if row(ui, "Array and copy…", "") { app.open_tool_window(ToolWin::Array); close = true; }
+            ui.separator();
+            if row(ui, "Offset…", "") { app.open_tool_window(ToolWin::Offset); close = true; }
+            if app.selection_has_corners() && row(ui, "Fillet and chamfer…", "") { app.open_tool_window(ToolWin::Corners); close = true; }
+            if app.sel.len() >= 2 && row(ui, "Combine shapes…", "") { app.open_tool_window(ToolWin::Combine); close = true; }
+            if app.sel.len() == 1 || app.closed_selection() > 0 { ui.separator(); }
+            if app.sel.len() == 1 && row(ui, "Edit points", "N") { app.choose_tool(Mode::Node); close = true; }
+            if app.closed_selection() > 0 && row(ui, "Relief from shapes…", "") { app.open_tool_window(ToolWin::Relief); close = true; }
+            });
+        });
+    });
+    // a click anywhere else, or Esc, closes it
+    let outside = ctx.input(|i| i.pointer.any_pressed()) && ctx.input(|i| i.pointer.interact_pos()).is_some_and(|p| !area.response.rect.contains(p) && p != pos);
+    if close || outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.ctx_menu = None; }
+}

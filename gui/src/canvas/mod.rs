@@ -227,7 +227,15 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     if let Some(op_id) = editing_tabs { tab_interaction(&ctx, app, &resp, &view, op_id, hover_w); }
     if let Some(li) = editing_nodes { node_interaction(&ctx, app, &resp, &view, li, hover_w, pointer_w, tol); }
     // a right-click (not a right-drag, which pans) is Esc; the line tool and tab placement have their own use of it, handled where they are
-    if resp.clicked_by(PointerButton::Secondary) && editing_tabs.is_none() && app.mode != Mode::Line { app.esc_request = true; }
+    // in the Select tool a right-click on a shape opens the menu of the selection (selecting the shape first if it is not selected)
+    let on_shape = if resp.clicked_by(PointerButton::Secondary) && app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() && matches!(app.drag, Drag::None) {
+        hover_w.and_then(|w| app.pick_shape(w, tol))
+    } else { None };
+    if let Some(h) = on_shape {
+        if !app.sel.contains(&h) { app.sel = app.text_siblings(h).into_iter().collect(); }
+        app.ctx_menu = resp.interact_pointer_pos();
+    } else if resp.clicked_by(PointerButton::Secondary) && editing_tabs.is_none() && app.mode != Mode::Line { app.ctx_menu = None; app.esc_request = true; }
+    selection_menu(&ctx, app);
     match interaction_mode {
         None => {}
         Some(Mode::Select) => {
