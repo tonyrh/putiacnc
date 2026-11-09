@@ -461,6 +461,22 @@ pub fn trapped<R>(f: impl FnOnce(&mut Ui) -> R) -> impl FnOnce(&mut Ui) -> R {
     }
 }
 
+/// Keeps Tab and Shift+Tab inside one card of a panel (an operation card): call `card_begin` before drawing it and `card_end` after.
+/// The same two stops as a dialog's, without the dialog's own handling (the panel stays reachable with the mouse and the other panels
+/// with Tab from outside). A card with nothing to focus must not get stops: Tab would bounce between them.
+pub struct CardTrap { a: egui::Id, b: egui::Id, start: egui::Response }
+pub fn card_begin(ui: &mut Ui, key: impl std::hash::Hash) -> CardTrap {
+    let base = ui.id().with(("card_trap", key));
+    let (a, b) = (base.with("start"), base.with("end"));
+    let at = ui.next_widget_position();
+    CardTrap { a, b, start: tab_stop(ui, a, at) }
+}
+pub fn card_end(ui: &mut Ui, t: CardTrap) {
+    let at = ui.next_widget_position();
+    let end = tab_stop(ui, t.b, at);
+    if t.start.gained_focus() || end.gained_focus() { tab_wrap(ui.ctx(), t.a, t.b); }
+}
+
 fn tab_stop(ui: &mut Ui, id: egui::Id, at: Pos2) -> egui::Response {
     ui.interact(Rect::from_min_size(at, egui::Vec2::ZERO), id, Sense { click: false, drag: false, focusable: true })
 }
@@ -517,6 +533,44 @@ mod trap_tests {
             for _ in 0..6 { self.frame(vec![], m); }
         }
         fn at(&self) -> Option<usize> { self.ids.iter().position(|i| self.ctx.memory(|m| m.has_focus(*i))) }
+    }
+
+    #[test]
+    fn tab_stays_inside_a_card_both_ways() {
+        let ctx = egui::Context::default();
+        let mut time = 0.0;
+        let mut ids: Vec<egui::Id> = vec![];
+        let mut frame = |ids: &mut Vec<egui::Id>, focus: Option<usize>, tab: Option<bool>| {
+            time += 0.1;
+            let m = if tab == Some(true) { Modifiers::SHIFT } else { Modifiers::NONE };
+            let events = if tab.is_some() { vec![Event::Key { key: Key::Tab, physical_key: None, pressed: true, repeat: false, modifiers: m }] } else { vec![] };
+            let mut input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(500.0, 400.0))), time: Some(time), events, modifiers: m, ..Default::default() };
+            tab_hook(&ctx, &mut input);
+            let prev = ids.clone();
+            ctx.run(input, |ctx| {
+                ids.clear();
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    for card in 0..2 {
+                        let t = card_begin(ui, card);
+                        for n in 0..2 { let r = ui.button(format!("c{card}b{n}")); ids.push(r.id); }
+                        card_end(ui, t);
+                    }
+                });
+                if let Some(f) = focus { if let Some(id) = prev.get(f) { ctx.memory_mut(|m| m.request_focus(*id)); } }
+            });
+        };
+        let at = |ids: &Vec<egui::Id>| ids.iter().position(|i| ctx.memory(|m| m.has_focus(*i)));
+        frame(&mut ids, None, None);
+        frame(&mut ids, Some(0), None);
+        frame(&mut ids, None, None);
+        assert_eq!(at(&ids), Some(0));
+        let mut press = |ids: &mut Vec<egui::Id>, shift: bool| { frame(ids, None, Some(shift)); for _ in 0..8 { frame(ids, None, None); } };
+        press(&mut ids, false);
+        assert_eq!(at(&ids), Some(1), "Tab goes to the next control of the card");
+        press(&mut ids, false);
+        assert_eq!(at(&ids), Some(0), "Tab at the end of the card wraps to its first control, not into the next card");
+        press(&mut ids, true);
+        assert_eq!(at(&ids), Some(1), "Shift+Tab at the start wraps to the last control of the card");
     }
 
     #[test]

@@ -357,6 +357,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             let o_kind = o.p.kind.clone();
             let n_ops = d.ops.len();
             let sy = ui.spacing().item_spacing.y;
+            // Tab goes round inside the card it is in (a folded card has little to visit, so it takes no part)
+            let trap = (!collapsed.contains(&id)).then(|| crate::csd::card_begin(ui, id));
             let card_hdr: (egui::Rect, bool, Color32);
             {
                 let kind_icon = match o_kind.as_str() { "pocket" => Icon::Pocket, "vcarve" => Icon::VCarve, "drill" => Icon::Drill, "inlay" | "plug" => Icon::Inlay, "draw" => Icon::Pen, _ => Icon::Profile };
@@ -1148,6 +1150,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 below.rect_stroke(card.shrink(0.75), egui::Rounding { nw: 0.0, ne: 0.0, sw: 5.25, se: 5.25 }, egui::Stroke::new(1.5_f32, card_col));
                 if card_hdr.1 { ui.painter().rect_stroke(card.shrink(1.0), 5.0, egui::Stroke::new(2.0_f32, ui.visuals().text_color())); }
             }
+            if let Some(t) = trap { crate::csd::card_end(ui, t); }
             ui.spacing_mut().item_spacing.y = sy;
         }
             ui.add_space(6.0);
