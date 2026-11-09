@@ -245,12 +245,12 @@ pub fn fill_shaped_relief(d: &mut ProjectData, inches: bool) -> Result<(), Strin
     let (flat, ball) = { let o = &d.ops[0].p; let name = |id: &str| d.tools.iter().find(|t| t.id == id).map(|t| t.name.clone()).unwrap_or_default(); (name(o.tool2.as_deref().unwrap_or("")), name(&o.tool)) };
     let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
     d.notes = format!("SAMPLE RELIEF FROM SHAPES
-A cushion {s} square and {h} high with a round groove and a button in the middle, carved into a piece of stock {sw} x {sh} x {st}. The 3D model was not imported: it was made from the three shapes on the 2D design tab (a rounded square, a circle inside it and a smaller circle inside that) with Modify > Relief from shapes.
+A cushion {s} square and {h} high with a round groove and a button in the middle, carved into a piece of stock {sw} x {sh} x {st}. The 3D model was not imported: it was made from the three shapes on the 2D design tab (a rounded square, a circle inside it and a smaller circle inside that) with Generate > Relief from shapes.
 
 How the shapes became a relief
 - A shape inside another one is a hole in it, as in a pocket: the circle is a groove in the cushion, and the smallest circle, inside the hole, is a button standing in it.
 - The profile is Dome: each shape is round over its whole width, highest along its middle. Flat, Rounded and Slope give other looks.
-- The relief is fixed once made. To change it, select the three shapes and use Modify > Relief from shapes again: it replaces this one.
+- The relief is fixed once made. To change it, select the three shapes and use Generate > Relief from shapes again: it replaces this one.
 
 Operations
 1. Roughing: the {flat} takes most of the material away in layers, leaving a little for the finishing.
@@ -258,7 +258,7 @@ Operations
 
 Look around
 - The 3D preview shows the stock being cut as the preview plays; use the Play button at the bottom.
-- Select the shapes, open Modify > Relief from shapes, pick Rounded or Flat and compare the 3D preview.
+- Select the shapes, open Generate > Relief from shapes, pick Rounded or Flat and compare the 3D preview.
 
 Before cutting for real
 - Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.

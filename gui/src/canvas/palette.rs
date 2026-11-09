@@ -100,7 +100,7 @@ pub(super) fn palette_group(ui: &mut Ui, app: &mut App, g: usize, fillet: bool) 
         if icon_button(ui, Icon::Combine, app.combine_open, app.sel.len() >= 2, "Combine the selected shapes: union, subtract, intersect, exclude").clicked() { app.toggle_tool_window(crate::app::ToolWin::Combine); }
         crate::align::button(ui, app);
         // only offered when the selection has a corner to round (not for circles and ellipses)
-        if fillet && icon_button(ui, Icon::Fillet, app.corners.open, true, "Round or bevel the corners of the selected shapes: fillet and chamfer").clicked() { app.toggle_tool_window(crate::app::ToolWin::Corners); }
+        if icon_button(ui, Icon::Fillet, app.corners.open, fillet, "Round or bevel the corners of the selected shapes: fillet and chamfer (select a shape with corners)").clicked() { app.toggle_tool_window(crate::app::ToolWin::Corners); }
         if icon_button(ui, Icon::Offset, app.offset_open, !app.sel.is_empty(), "Offset: a copy of the selection grown or shrunk by a distance").clicked() { app.toggle_tool_window(crate::app::ToolWin::Offset); }
         if icon_button(ui, Icon::Array, app.array.open, !app.sel.is_empty(), "Array and copy: rows and columns, a circle of copies, or a spacing along a line").clicked() { app.toggle_tool_window(crate::app::ToolWin::Array); }
     }
@@ -122,7 +122,7 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
           // groups: Select and Edit points | the drawing tools | modify the selection | undo and redo. A row breaks only between groups.
           let avail = ui.available_width();
           let fillet = app.selection_has_corners();
-          let n_mod = if fillet { 5.0 } else { 4.0 };
+          let n_mod = 5.0;
           let widths = [2.0 * 36.0 + 2.0, 7.0 * 36.0 + 12.0, n_mod * 36.0 + (n_mod - 1.0) * 2.0, 2.0 * 30.0 + 2.0];
           let mut rows: Vec<Vec<usize>> = vec![vec![]];
           let mut used = 0.0_f32;

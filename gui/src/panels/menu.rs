@@ -7,6 +7,11 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
         let r = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut));
         if r.clicked() { ui.close_menu(); true } else { false }
     }
+    // a menu row that says why it is greyed out
+    fn item_why(ui: &mut Ui, label: &str, shortcut: &str, enabled: bool, why: &str) -> bool {
+        let r = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut)).on_disabled_hover_text(why);
+        if r.clicked() { ui.close_menu(); true } else { false }
+    }
     egui::menu::bar(ui, |ui| {
         // roomier, rounded menu buttons like a GNOME header bar (menu::bar sets tight defaults)
         {
@@ -67,24 +72,52 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Group", "Ctrl+G", can_group) { app.group_selection(); }
             if item(ui, "Ungroup", "Ctrl+Shift+G", app.sel_in_group()) { app.ungroup_selection(); }
         });
+        ui.menu_button("Draw", |ui| {
+            ui.style_mut().wrap = Some(false);
+            ui.set_min_width(200.0);
+            use crate::app::Mode;
+            for (m, label, key) in [(Mode::Select, "Select / move", "V"), (Mode::Node, "Edit points", "N")] {
+                if item(ui, label, key, true) { app.choose_tool(m); }
+            }
+            ui.separator();
+            for (m, label, key) in [(Mode::Line, "Line / polyline", "L"), (Mode::Rect, "Rectangle", "R"), (Mode::Ellipse, "Ellipse / circle", "E"), (Mode::Polygon, "Polygon / star", "P"), (Mode::Point, "Drill point, bolt circle, grid", "D"), (Mode::Text, "Text", "T")] {
+                if item(ui, label, key, true) { app.choose_tool(m); }
+            }
+            ui.separator();
+            if item(ui, "Trim / extend", "X", true) { app.choose_tool(Mode::Trim); }
+        });
         ui.menu_button("Modify", |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
-            if item(ui, "Offset…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Offset); }
-            if item(ui, "Array and copy…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Array); }
-            if item(ui, "Mirror left to right", "", !app.sel.is_empty() && !app.sel_locked()) { app.mirror_selection(true); }
-            if item(ui, "Mirror top to bottom", "", !app.sel.is_empty() && !app.sel_locked()) { app.mirror_selection(false); }
-            if item(ui, "Nest on the stock…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Nest); }
-            if item(ui, "Fillet and chamfer…", "", app.selection_has_corners()) { app.open_tool_window(ToolWin::Corners); }
-            if item(ui, "Combine shapes…", "", app.sel.len() >= 2) { app.open_tool_window(ToolWin::Combine); }
-            if item(ui, "Relief from shapes…", "", app.closed_selection() > 0) { app.open_tool_window(ToolWin::Relief); }
-            if item(ui, "Finger joint…", "", app.selection_has_rect()) { app.open_tool_window(ToolWin::Fingers); }
-            if item(ui, "Clean up drawing…", "", !app.project.data.loops.is_empty()) { app.open_tool_window(ToolWin::Clean); }
+            let some = !app.sel.is_empty();
+            let free = some && !app.sel_locked();
+            let pick = "Select a shape first";
+            // move and copy
+            ui.add_enabled_ui(free, |ui| {
+                ui.menu_button("Mirror", |ui| {
+                    ui.style_mut().wrap = Some(false);
+                    if item(ui, "Left to right", "", true) { app.mirror_selection(true); }
+                    if item(ui, "Top to bottom", "", true) { app.mirror_selection(false); }
+                }).response.on_disabled_hover_text(if some { "This drawing is locked" } else { pick });
+            });
+            if item_why(ui, "Align…", "", free, if some { "This drawing is locked" } else { pick }) { app.open_tool_window(ToolWin::Align); }
+            if item_why(ui, "Array and copy…", "", some, pick) { app.open_tool_window(ToolWin::Array); }
+            if item_why(ui, "Nest on the stock…", "", some, pick) { app.open_tool_window(ToolWin::Nest); }
+            ui.separator();
+            // reshape
+            if item_why(ui, "Offset…", "", some, pick) { app.open_tool_window(ToolWin::Offset); }
+            if item_why(ui, "Fillet and chamfer…", "", app.selection_has_corners(), "Select a shape with corners (not a circle or an ellipse)") { app.open_tool_window(ToolWin::Corners); }
+            if item_why(ui, "Combine shapes…", "", app.sel.len() >= 2, "Select two or more shapes") { app.open_tool_window(ToolWin::Combine); }
+            ui.separator();
+            // joinery and tidy-up
+            if item_why(ui, "Finger joint…", "", app.selection_has_rect(), "Select a rectangle") { app.open_tool_window(ToolWin::Fingers); }
+            if item_why(ui, "Clean up drawing…", "", !app.project.data.loops.is_empty(), "The drawing is empty") { app.open_tool_window(ToolWin::Clean); }
         });
         ui.menu_button("Generate", |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if item(ui, "Box with finger joints…", "", true) { app.open_tool_window(ToolWin::Box); }
+            if item_why(ui, "Relief from shapes…", "", app.closed_selection() > 0, "Select one or more closed shapes") { app.open_tool_window(ToolWin::Relief); }
             if item(ui, "Surface the stock…", "", true) { app.open_tool_window(ToolWin::Surface); }
             ui.separator();
             ui.menu_button("Sample projects", |ui| {
@@ -92,7 +125,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 if ui.button("Name plate").on_hover_text("A plate with a recess and engraved lettering, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::NamePlate)); ui.close_menu(); }
                 if ui.button("Finger-joint box").on_hover_text("The five plates of a small box with finger joints, laid out on your stock; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Box)); ui.close_menu(); }
                 if ui.button("3D relief").on_hover_text("A six-petal rosette carved with roughing, finishing and detail tools, made to fit your machine and tools; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Relief)); ui.close_menu(); }
-                if ui.button("Relief from shapes").on_hover_text("A cushion with a groove and a button, made from three closed shapes with Modify > Relief from shapes and carved as a 3D relief; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::ShapedRelief)); ui.close_menu(); }
+                if ui.button("Relief from shapes").on_hover_text("A cushion with a groove and a button, made from three closed shapes with Generate > Relief from shapes and carved as a 3D relief; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::ShapedRelief)); ui.close_menu(); }
                 if ui.button("Oval sign").on_hover_text("An oval plate with its name V-carved in the middle, text following the oval, a fine border and four holding tabs; needs a work area of about 260 x 170 mm; the Notes tab explains it").clicked() { app.request(Action::Sample(putiacnc_core::sample::Kind::Oval)); ui.close_menu(); }
             });
         });

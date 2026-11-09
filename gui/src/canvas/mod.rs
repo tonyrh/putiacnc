@@ -151,6 +151,11 @@ pub(super) fn zoom_centre(app: &mut App, rect: Rect, f: f32) {
     app.scale = s; app.offset = o; app.view_touched = true;
 }
 
+impl App {
+    /// Pick a drawing tool, as the palette buttons and the Draw menu do.
+    pub fn choose_tool(&mut self, m: Mode) { set_mode(self, m); }
+}
+
 pub fn canvas(ui: &mut Ui, app: &mut App) {
     let ctx = ui.ctx().clone();
     let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
