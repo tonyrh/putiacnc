@@ -4,7 +4,6 @@
 use crate::icons::{small_icon_button, small_toggle_button, Icon};
 use eframe::egui::{self, Ui};
 use putiacnc_core::model::ProjectData;
-use std::collections::BTreeSet;
 
 pub const HIDDEN_TIP: &str = "Hides this layer from the drawing. Operations still cut its shapes: the eye changes what you see, never what is cut.";
 
@@ -21,7 +20,7 @@ impl crate::app::App {
 }
 
 /// The layer section. `pick` is set to a layer whose shapes the user asked to select.
-pub fn section(ui: &mut Ui, d: &mut ProjectData, sel: &BTreeSet<usize>, changed: &mut bool, pick: &mut Option<i64>) {
+pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut Option<i64>) {
     ui.separator();
     ui.horizontal(|ui| {
         ui.heading("Layers");
@@ -64,19 +63,6 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, sel: &BTreeSet<usize>, changed:
         d.layers.retain(|x| x.id != id);
         if d.active_layer == id { d.active_layer = 0; }
         *changed = true;
-    }
-    if all.len() > 1 && sel.iter().any(|&i| i < d.loops.len()) {
-        ui.horizontal(|ui| {
-            ui.label("Move selection to");
-            let mut to: Option<i64> = None;
-            egui::ComboBox::from_id_source("layer_move").selected_text("…").show_ui(ui, |ui| {
-                for l in &all { if ui.selectable_label(false, &l.name).clicked() { to = Some(l.id); } }
-            });
-            if let Some(id) = to {
-                for &i in sel { if let Some(l) = d.loops.get_mut(i) { l.lay = (id != 0).then_some(id); } }
-                *changed = true;
-            }
-        });
     }
     if d.layers.iter().any(|l| l.hidden) { ui.add(egui::Label::new(egui::RichText::new("A hidden layer is still cut by the operations that use its shapes.").weak().small()).wrap(true)); }
 }

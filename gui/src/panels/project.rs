@@ -1183,7 +1183,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
 
         }
         if !ops {
-        crate::layers::section(ui, d, sel, &mut changed, &mut layer_pick);
+        crate::layers::section(ui, d, &mut changed, &mut layer_pick);
         imports_section(ui, d, sel, &mut group_act, &mut changed);
         }
     });
