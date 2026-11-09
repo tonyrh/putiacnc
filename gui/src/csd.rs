@@ -547,7 +547,7 @@ mod trap_tests {
             let mut input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(500.0, 400.0))), time: Some(time), events, modifiers: m, ..Default::default() };
             tab_hook(&ctx, &mut input);
             let prev = ids.clone();
-            ctx.run(input, |ctx| {
+            let _ = ctx.run(input, |ctx| {
                 ids.clear();
                 egui::CentralPanel::default().show(ctx, |ui| {
                     for card in 0..2 {
