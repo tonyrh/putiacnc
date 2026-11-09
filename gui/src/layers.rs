@@ -11,6 +11,15 @@ pub const HIDDEN_TIP: &str = "Hides this layer from the drawing. Operations stil
 /// What is on a layer, by layer id: a line of text or a group counts once.
 pub fn count(d: &ProjectData, id: i64) -> usize { ProjectData::object_count(d.loops.iter().filter(|l| d.layer_of(l) == id)) }
 
+impl crate::app::App {
+    /// Puts the selected shapes on a layer (one undo step).
+    pub fn move_selection_to_layer(&mut self, id: i64) {
+        self.hist.record(&self.project.data);
+        for &i in &self.sel { if let Some(l) = self.project.data.loops.get_mut(i) { l.lay = (id != 0).then_some(id); } }
+        self.touch();
+    }
+}
+
 /// The layer section. `pick` is set to a layer whose shapes the user asked to select.
 pub fn section(ui: &mut Ui, d: &mut ProjectData, sel: &BTreeSet<usize>, changed: &mut bool, pick: &mut Option<i64>) {
     ui.separator();
@@ -99,6 +108,18 @@ mod tests {
         assert!(a.sel_locked(), "a shape on a locked layer stays where it is");
         a.sel = [0].into_iter().collect();
         assert!(!a.sel_locked());
+    }
+
+    #[test]
+    fn the_selection_moves_to_a_layer_and_back_with_undo() {
+        let mut a = app();
+        let id = a.project.data.add_layer("Two");
+        a.sel = [1].into_iter().collect();
+        a.move_selection_to_layer(id);
+        assert_eq!(a.project.data.layer_of(&a.project.data.loops[1]), id);
+        assert_ne!(a.project.data.layer_of(&a.project.data.loops[0]), id);
+        a.do_undo();
+        assert_ne!(a.project.data.layer_of(&a.project.data.loops[1]), id);
     }
 
     #[test]

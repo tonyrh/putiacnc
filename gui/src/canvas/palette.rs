@@ -177,6 +177,35 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
 
 /// The right-click menu of the selection: the commands used most while shapes are selected, the same names as in the menus.
 /// Commands that do not apply are left out, not greyed.
+/// A row that opens a small menu of choices at its right (a drawn arrow marks it: the glyph is not in the font); returns the choice clicked.
+fn submenu(ctx: &egui::Context, ui: &mut Ui, key: &str, label: &str, items: &[&str]) -> Option<usize> {
+    let m = ui.add(egui::Button::new(label));
+    let (r, c) = (m.rect, ui.visuals().widgets.inactive.fg_stroke.color);
+    let (x, y) = (r.right() - 10.0, r.center().y);
+    ui.painter().add(egui::Shape::convex_polygon(vec![Pos2::new(x - 3.0, y - 4.0), Pos2::new(x - 3.0, y + 4.0), Pos2::new(x + 2.5, y)], c, Stroke::NONE));
+    let sub_id = egui::Id::new(("sub_open", key));
+    let mut open = ctx.data(|d| d.get_temp::<bool>(sub_id)).unwrap_or(false) || m.hovered() || m.clicked();
+    let mut chosen = None;
+    if open {
+        let w = items.iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max) + 28.0;
+        let sub = egui::Area::new(egui::Id::new(("sub_area", key))).order(egui::Order::Foreground).fixed_pos(Pos2::new(r.right() - 2.0, r.top() - 6.0)).show(ctx, |ui| {
+            egui::Frame::menu(ui.style()).show(ui, |ui| {
+                ui.style_mut().wrap = Some(false);
+                { let w = &mut ui.style_mut().visuals.widgets; w.inactive.weak_bg_fill = egui::Color32::TRANSPARENT; w.inactive.bg_stroke = egui::Stroke::NONE; }
+                // a justified column takes all the width it is offered: give it just enough
+                ui.set_width(w.max(100.0));
+                ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                    for (i, t) in items.iter().enumerate() { if ui.button(*t).clicked() { chosen = Some(i); } }
+                });
+            });
+        });
+        let at = ctx.input(|i| i.pointer.hover_pos());
+        open = at.is_some_and(|p| r.expand(1.0).contains(p) || sub.response.rect.expand(2.0).contains(p));
+    }
+    ctx.data_mut(|d| d.insert_temp(sub_id, open));
+    chosen
+}
+
 pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
     let Some(pos) = app.ctx_menu else { return };
     if app.sel.is_empty() || app.mode != Mode::Select { app.ctx_menu = None; return; }
@@ -198,30 +227,17 @@ pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
             if app.sel_in_group() && row(ui, "Ungroup", "Ctrl+Shift+G") { app.ungroup_selection(); close = true; }
             ui.separator();
             if !locked {
-                // Mirror opens a second small menu at the right of its row (a drawn arrow marks it: the glyph is not in the font)
-                let m = ui.add(egui::Button::new("Mirror"));
-                let (r, c) = (m.rect, ui.visuals().widgets.inactive.fg_stroke.color);
-                let (x, y) = (r.right() - 10.0, r.center().y);
-                ui.painter().add(egui::Shape::convex_polygon(vec![Pos2::new(x - 3.0, y - 4.0), Pos2::new(x - 3.0, y + 4.0), Pos2::new(x + 2.5, y)], c, Stroke::NONE));
-                let sub_id = egui::Id::new("mirror_sub");
-                let mut open = ctx.data(|d| d.get_temp::<bool>(sub_id)).unwrap_or(false) || m.hovered() || m.clicked();
-                if open {
-                    let sub = egui::Area::new(egui::Id::new("mirror_sub_area")).order(egui::Order::Foreground).fixed_pos(Pos2::new(r.right() - 2.0, r.top() - 6.0)).show(ctx, |ui| {
-                        egui::Frame::menu(ui.style()).show(ui, |ui| {
-                            ui.style_mut().wrap = Some(false);
-                            { let w = &mut ui.style_mut().visuals.widgets; w.inactive.weak_bg_fill = egui::Color32::TRANSPARENT; w.inactive.bg_stroke = egui::Stroke::NONE; }
-                            // a justified column takes all the width it is offered: give it just enough for the two rows
-                            ui.set_width(140.0);
-                            ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-                                if ui.button("Left to right").clicked() { app.mirror_selection(true); close = true; }
-                                if ui.button("Top to bottom").clicked() { app.mirror_selection(false); close = true; }
-                            });
-                        });
-                    });
-                    let at = ctx.input(|i| i.pointer.hover_pos());
-                    open = at.is_some_and(|p| r.expand(1.0).contains(p) || sub.response.rect.expand(2.0).contains(p));
+                match submenu(ctx, ui, "mirror", "Mirror", &["Left to right", "Top to bottom"]) {
+                    Some(0) => { app.mirror_selection(true); close = true; }
+                    Some(1) => { app.mirror_selection(false); close = true; }
+                    _ => {}
                 }
-                ctx.data_mut(|d| d.insert_temp(sub_id, open));
+                // with more than one layer: move the selection to one of them
+                let layers: Vec<(i64, String)> = app.project.data.all_layers().iter().map(|l| (l.id, l.name.clone())).collect();
+                if layers.len() > 1 {
+                    let names: Vec<&str> = layers.iter().map(|(_, n)| n.as_str()).collect();
+                    if let Some(k) = submenu(ctx, ui, "layer", "Move to layer", &names) { app.move_selection_to_layer(layers[k].0); close = true; }
+                }
                 if row(ui, "Align…", "") { app.open_tool_window(ToolWin::Align); close = true; }
             }
             if row(ui, "Array and copy…", "") { app.open_tool_window(ToolWin::Array); close = true; }
@@ -236,7 +252,7 @@ pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
         });
     });
     // a click anywhere else, or Esc, closes it
-    let sub_rect = ctx.memory(|m| m.area_rect(egui::Id::new("mirror_sub_area")));
+    let sub_rect = ["mirror", "layer"].iter().filter_map(|k| ctx.memory(|m| m.area_rect(egui::Id::new(("sub_area", *k))))).reduce(|a, b| a.union(b));
     let outside = ctx.input(|i| i.pointer.any_pressed()) && ctx.input(|i| i.pointer.interact_pos()).is_some_and(|p| !area.response.rect.contains(p) && !sub_rect.is_some_and(|r| r.contains(p)) && p != pos);
     if close || outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.ctx_menu = None; }
 }
