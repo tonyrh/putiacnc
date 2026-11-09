@@ -138,12 +138,12 @@ Before cutting for real
 
 /// Which sample to make.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Kind { NamePlate, Box, Relief, Oval }
+pub enum Kind { NamePlate, Box, Relief, ShapedRelief, Oval }
 
-impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box", Kind::Relief => "Sample 3D relief", Kind::Oval => "Sample oval sign" } } }
+impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box", Kind::Relief => "Sample 3D relief", Kind::ShapedRelief => "Sample relief from shapes", Kind::Oval => "Sample oval sign" } } }
 
 pub fn fill_kind(d: &mut ProjectData, inches: bool, kind: Kind) -> Result<(), String> {
-    match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches), Kind::Relief => fill_relief(d, inches), Kind::Oval => fill_oval(d) }
+    match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches), Kind::Relief => fill_relief(d, inches), Kind::ShapedRelief => fill_shaped_relief(d, inches), Kind::Oval => fill_oval(d) }
 }
 
 /// A six-petal rosette as a height map: the 3D relief sample needs no model file. Cells run from the bottom row up; 65535 is the top.
@@ -224,6 +224,47 @@ Before cutting for real
 - Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
         s = u(s), h = u(zmax), sw = u(d.stock.w), sh = u(d.stock.h), st = u(d.stock.t), flat = flat.name, ball = ball.name, steps = steps,
         added = if added { "- The ball nose bits of this sample (1/8 and 1/4 inch) were not in your tool list, so they were added to this project: check their feeds and speeds against your own bits.\n" } else { "" });
+    Ok(())
+}
+
+/// A cushion with a ring-shaped groove and a button in the middle, built from three closed shapes with "Relief from shapes" (Dome profile):
+/// the shapes stay in the project, so the relief can be made again with another profile or height.
+pub fn fill_shaped_relief(d: &mut ProjectData, inches: bool) -> Result<(), String> {
+    // the stock, the tools and the operation are those of the rosette sample
+    fill_relief(d, inches)?;
+    let (rx, ry, (s, _)) = { let r = d.relief.as_ref().ok_or("no relief")?; (r.x, r.y, r.size()) };
+    let zmax = d.relief.as_ref().map_or(3.0, |r| r.zmax);
+    let c = [rx + s / 2.0, ry + s / 2.0];
+    d.loops.clear(); d.groups.clear();
+    d.loops.push(shapes::new_rect([rx, ry], [rx + s, ry + s], s * 0.18, 0));
+    d.loops.push(shapes::new_circle(c, s * 0.27, 0));
+    d.loops.push(shapes::new_circle(c, s * 0.12, 0));
+    let refs: Vec<&crate::model::LoopData> = d.loops.iter().collect();
+    let rel = crate::reliefshapes::from_shapes(&refs, &crate::reliefshapes::Params { height: zmax, profile: crate::reliefshapes::Profile::Dome, edge: 2.0, margin: 0.0 }, "Shapes")?;
+    d.relief = Some(rel);
+    let (flat, ball) = { let o = &d.ops[0].p; let name = |id: &str| d.tools.iter().find(|t| t.id == id).map(|t| t.name.clone()).unwrap_or_default(); (name(o.tool2.as_deref().unwrap_or("")), name(&o.tool)) };
+    let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
+    d.notes = format!("SAMPLE RELIEF FROM SHAPES
+A cushion {s} square and {h} high with a round groove and a button in the middle, carved into a piece of stock {sw} x {sh} x {st}. The 3D model was not imported: it was made from the three shapes on the 2D design tab (a rounded square, a circle inside it and a smaller circle inside that) with Modify > Relief from shapes.
+
+How the shapes became a relief
+- A shape inside another one is a hole in it, as in a pocket: the circle is a groove in the cushion, and the smallest circle, inside the hole, is a button standing in it.
+- The profile is Dome: each shape is round over its whole width, highest along its middle. Flat, Rounded and Slope give other looks.
+- The relief is fixed once made. To change it, select the three shapes and use Modify > Relief from shapes again: it replaces this one.
+
+Operations
+1. Roughing: the {flat} takes most of the material away in layers, leaving a little for the finishing.
+2. Finishing: the {ball} follows the surface line by line.
+
+Look around
+- The 3D preview shows the stock being cut as the preview plays; use the Play button at the bottom.
+- Select the shapes, open Modify > Relief from shapes, pick Rounded or Flat and compare the 3D preview.
+
+Before cutting for real
+- Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
+- Tick \"Air cut (run without cutting)\" in the operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
+        s = u(s), h = u(zmax), sw = u(d.stock.w), sh = u(d.stock.h), st = u(d.stock.t), flat = flat, ball = ball);
     Ok(())
 }
 
@@ -370,6 +411,28 @@ mod tests {
                 assert!(low >= -d.stock.t - 1e-6, "mask {mask}: below the bottom of the stock ({low})");
                 assert!(o.lines.len() >= normal.lines.len() - 5, "mask {mask}: the program lost moves");
             }
+        }
+    }
+
+    /// The relief-from-shapes sample fits every machine, keeps its shapes and makes clean G-code.
+    #[test]
+    fn shaped_relief_sample_fits_every_machine() {
+        for (x, y, z, inch) in [(180.0, 100.0, 45.0, false), (300.0, 200.0, 60.0, false), (800.0, 1200.0, 150.0, false), (300.0, 200.0, 60.0, true)] {
+            let mut d = project(x, y, z, inch);
+            fill_shaped_relief(&mut d, inch).unwrap_or_else(|e| panic!("{x}x{y}: {e}"));
+            assert_eq!(d.loops.len(), 3);
+            let r = d.relief.as_ref().unwrap();
+            assert_eq!(r.name, "Shapes");
+            let (w, h) = r.size();
+            assert!(r.x >= 0.0 && r.y >= 0.0 && r.x + w <= d.stock.w + 1e-6 && r.y + h <= d.stock.h + 1e-6, "{x}x{y}: the relief leaves the stock");
+            assert!(d.notes.contains("RELIEF FROM SHAPES") && d.ops.len() == 1 && d.ops[0].p.kind == "relief");
+            // the middle of the button is the top of the model, the groove is lower
+            let hm = r.heights();
+            let at = |fx: f64, fy: f64| hm[((fy * r.ny as f64) as usize).min(r.ny - 1) * r.nx + ((fx * r.nx as f64) as usize).min(r.nx - 1)];
+            assert!(at(0.5, 0.5) > 0.9 && at(0.5 + 0.2 * 0.6, 0.5) < 0.1, "button {} groove {}", at(0.5, 0.5), at(0.62, 0.5));
+            let o = generate(&d, if inch { Units::Imperial } else { Units::Metric }).unwrap_or_else(|e| panic!("{x}x{y}: {e}"));
+            assert!(o.lines.len() > 100);
+            assert!(!o.notes.iter().any(|n| n.starts_with('⚠')), "{x}x{y}: {:?}", o.notes);
         }
     }
 
