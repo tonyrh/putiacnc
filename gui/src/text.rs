@@ -1124,8 +1124,13 @@ mod tests {
         for shift in [false, true] {
             for n in 0..60 {
                 run(&mut a, true, shift, vec![]);
-                // a skip over a stop the keys may not visit takes a frame each
-                for _ in 0..200 { run(&mut a, false, false, vec![]); }
+                // a skip over a stop the keys may not visit takes a frame each: go on until the focus has stayed put for a few frames
+                let (mut last, mut still) = (None, 0);
+                for _ in 0..200 {
+                    run(&mut a, false, false, vec![]);
+                    let now = ctx.memory(|m| m.focused());
+                    if now == last { still += 1; if still >= 4 { break; } } else { still = 0; last = now; }
+                }
                 if let Some(r) = ctx.memory(|m| m.focused()).and_then(|id| ctx.read_response(id)) {
                     let x = r.interact_rect.center().x;
                     assert!(!(398.0..=1500.0 - 444.0).contains(&x), "shift={shift} step {n}: Tab reached something outside the side panels at {:?} {:?}", r.interact_rect, r.layer_id);
