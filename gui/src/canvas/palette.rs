@@ -198,10 +198,28 @@ pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
             if app.sel_in_group() && row(ui, "Ungroup", "Ctrl+Shift+G") { app.ungroup_selection(); close = true; }
             ui.separator();
             if !locked {
-                ui.menu_button("Mirror  ▸", |ui| {
-                    if ui.button("Left to right").clicked() { app.mirror_selection(true); close = true; ui.close_menu(); }
-                    if ui.button("Top to bottom").clicked() { app.mirror_selection(false); close = true; ui.close_menu(); }
-                });
+                // Mirror opens a second small menu at the right of its row (a drawn arrow marks it: the glyph is not in the font)
+                let m = ui.add(egui::Button::new("Mirror"));
+                let (r, c) = (m.rect, ui.visuals().widgets.inactive.fg_stroke.color);
+                let (x, y) = (r.right() - 10.0, r.center().y);
+                ui.painter().add(egui::Shape::convex_polygon(vec![Pos2::new(x - 3.0, y - 4.0), Pos2::new(x - 3.0, y + 4.0), Pos2::new(x + 2.5, y)], c, Stroke::NONE));
+                let sub_id = egui::Id::new("mirror_sub");
+                let mut open = ctx.data(|d| d.get_temp::<bool>(sub_id)).unwrap_or(false) || m.hovered() || m.clicked();
+                if open {
+                    let sub = egui::Area::new(egui::Id::new("mirror_sub_area")).order(egui::Order::Foreground).fixed_pos(Pos2::new(r.right() - 2.0, r.top() - 6.0)).show(ctx, |ui| {
+                        egui::Frame::menu(ui.style()).show(ui, |ui| {
+                            ui.style_mut().wrap = Some(false);
+                            { let w = &mut ui.style_mut().visuals.widgets; w.inactive.weak_bg_fill = egui::Color32::TRANSPARENT; w.inactive.bg_stroke = egui::Stroke::NONE; }
+                            ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                                if ui.button("Left to right").clicked() { app.mirror_selection(true); close = true; }
+                                if ui.button("Top to bottom").clicked() { app.mirror_selection(false); close = true; }
+                            });
+                        });
+                    });
+                    let at = ctx.input(|i| i.pointer.hover_pos());
+                    open = at.is_some_and(|p| r.expand(1.0).contains(p) || sub.response.rect.expand(2.0).contains(p));
+                }
+                ctx.data_mut(|d| d.insert_temp(sub_id, open));
                 if row(ui, "Align…", "") { app.open_tool_window(ToolWin::Align); close = true; }
             }
             if row(ui, "Array and copy…", "") { app.open_tool_window(ToolWin::Array); close = true; }
@@ -216,6 +234,7 @@ pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
         });
     });
     // a click anywhere else, or Esc, closes it
-    let outside = ctx.input(|i| i.pointer.any_pressed()) && ctx.input(|i| i.pointer.interact_pos()).is_some_and(|p| !area.response.rect.contains(p) && p != pos);
+    let sub_rect = ctx.memory(|m| m.area_rect(egui::Id::new("mirror_sub_area")));
+    let outside = ctx.input(|i| i.pointer.any_pressed()) && ctx.input(|i| i.pointer.interact_pos()).is_some_and(|p| !area.response.rect.contains(p) && !sub_rect.is_some_and(|r| r.contains(p)) && p != pos);
     if close || outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) { app.ctx_menu = None; }
 }
