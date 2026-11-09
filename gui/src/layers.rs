@@ -70,7 +70,6 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
                         if r.lost_focus() || away || ui.input(|i| i.key_pressed(egui::Key::Escape)) { ui.data_mut(|d| d.remove::<i64>(edit_id)); }
                     } else {
                         let r = ui.allocate_response(egui::vec2(w, ui.spacing().interact_size.y), egui::Sense::click());
-                        if r.hovered() { ui.painter().rect_filled(r.rect, 3.0, ui.visuals().widgets.hovered.weak_bg_fill); }
                         let col = ui.visuals().text_color();
                         let font = egui::TextStyle::Body.resolve(ui.style());
                         let galley = ui.painter().layout(l.name.clone(), font, col, w - 8.0);
