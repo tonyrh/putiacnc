@@ -600,6 +600,22 @@ pub fn rotate_selection(loops: &mut [LoopData], ops: &mut [Operation], sel: &std
     }
 }
 
+/// Mirror the shapes in `sel` about the centre of their joint bounding box: `left_right` flips them left to right (about a vertical
+/// line), otherwise top to bottom. Manual tabs go with their shapes (`tabs0` comes from `tab_positions`, taken before the mirror).
+/// Returns false when the selection has nothing to mirror.
+pub fn mirror_selection(loops: &mut [LoopData], ops: &mut [Operation], sel: &std::collections::BTreeSet<usize>, left_right: bool, tabs0: &[(usize, usize, [f64; 2])]) -> bool {
+    let Some(b) = bbox_many(sel.iter().filter_map(|&i| loops.get(i))) else { return false };
+    let c = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0];
+    for &i in sel { if let Some(l) = loops.get_mut(i) { if left_right { mirror_x(l, c[0]) } else { mirror_y(l, c[1]) } } }
+    for &(oi, ti, p) in tabs0 {
+        let q = if left_right { [2.0 * c[0] - p[0], p[1]] } else { [p[0], 2.0 * c[1] - p[1]] };
+        if let Some(t) = ops.get_mut(oi).and_then(|o| o.p.tab_pts.as_mut()).and_then(|v| v.get_mut(ti)) {
+            if let Some(a) = tab_anchor(loops, t.l, q) { *t = a; }
+        }
+    }
+    true
+}
+
 /// Makes every reference inside a project point at something that exists: a shape of an operation that is gone belongs to none, hidden
 /// and active operations that are gone are forgotten, and tabs on shapes that are gone are dropped. Undo and redo can bring back a step
 /// that was made when an operation still existed (Edit > Redo of a drawing step after the operation was removed), so it runs after them.
@@ -805,6 +821,23 @@ pub fn put_plug_on_piece(d: &mut ProjectData, pocket_id: i64, plug_id: i64, piec
 mod tests {
     use super::*;
     use crate::{generate, load_project, save_project, Units};
+
+    #[test]
+    fn mirroring_a_selection_flips_it_about_its_own_centre() {
+        let mut loops = vec![new_rect([10.0, 20.0], [30.0, 40.0], 0.0, 0), new_rect([50.0, 20.0], [60.0, 25.0], 0.0, 0)];
+        let sel: std::collections::BTreeSet<usize> = [0, 1].into_iter().collect();
+        let mut ops: Vec<Operation> = vec![];
+        assert!(mirror_selection(&mut loops, &mut ops, &sel, true, &[]));
+        // the pair spans x 10 to 60, so the left rectangle (10..30) lands on 40..60 and the right one (50..60) on 10..20; y stays
+        let b0 = bbox(&loops[0]).unwrap();
+        let b1 = bbox(&loops[1]).unwrap();
+        assert!((b0[0] - 40.0).abs() < 1e-6 && (b0[2] - 60.0).abs() < 1e-6 && (b0[1] - 20.0).abs() < 1e-6 && (b0[3] - 40.0).abs() < 1e-6, "{b0:?}");
+        assert!((b1[0] - 10.0).abs() < 1e-6 && (b1[2] - 20.0).abs() < 1e-6, "{b1:?}");
+        assert!(mirror_selection(&mut loops, &mut ops, &sel, false, &[]));
+        let b0 = bbox(&loops[0]).unwrap();
+        assert!((b0[1] - 20.0).abs() < 1e-6 && (b0[3] - 40.0).abs() < 1e-6, "the pair spans y 20 to 40, so a top-bottom mirror keeps this one in place: {b0:?}");
+        assert!(!mirror_selection(&mut loops, &mut ops, &std::collections::BTreeSet::new(), true, &[]));
+    }
 
     #[test]
     fn mirror_y_flips_top_to_bottom() {

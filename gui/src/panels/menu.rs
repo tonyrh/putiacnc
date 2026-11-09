@@ -72,6 +72,8 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.set_min_width(200.0);
             if item(ui, "Offset…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Offset); }
             if item(ui, "Array and copy…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Array); }
+            if item(ui, "Mirror left to right", "", !app.sel.is_empty() && !app.sel_locked()) { app.mirror_selection(true); }
+            if item(ui, "Mirror top to bottom", "", !app.sel.is_empty() && !app.sel_locked()) { app.mirror_selection(false); }
             if item(ui, "Nest on the stock…", "", !app.sel.is_empty()) { app.open_tool_window(ToolWin::Nest); }
             if item(ui, "Fillet and chamfer…", "", app.selection_has_corners()) { app.open_tool_window(ToolWin::Corners); }
             if item(ui, "Combine shapes…", "", app.sel.len() >= 2) { app.open_tool_window(ToolWin::Combine); }

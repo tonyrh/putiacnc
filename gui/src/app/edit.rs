@@ -297,6 +297,17 @@ impl App {
         d.loops.get(i).is_some_and(|l| d.shape_locked(l) || l.grp.is_some_and(|g| d.groups.iter().any(|x| x.id == g && x.locked)))
     }
 
+    /// Mirrors the selection about its own centre, left to right or top to bottom (Modify menu).
+    pub fn mirror_selection(&mut self, left_right: bool) {
+        if self.sel.is_empty() || self.sel_locked() { return; }
+        self.rotate_mode = false;
+        self.hist.record(&self.project.data);
+        let sel = self.sel.clone();
+        let d = &mut self.project.data;
+        let tabs0 = shapes::tab_positions(&d.loops, &d.ops, &sel);
+        if shapes::mirror_selection(&mut d.loops, &mut d.ops, &sel, left_right, &tabs0) { self.touch(); }
+    }
+
     pub fn nudge(&mut self, dx: f64, dy: f64) {
         if self.sel.is_empty() || self.sel_locked() { return; }
         self.rotate_mode = false;
