@@ -250,3 +250,23 @@ fn the_finishing_lines_can_run_along_y_or_both_ways() {
     }
     assert_eq!(worst.len(), 3);
 }
+
+#[test]
+fn the_finishing_lines_clean_the_floor_as_far_out_as_the_roughing_cut() {
+    // a flat roughing cutter reaches further out than a small ball's lines unless they are extended: without it a ledge (the roughing's
+    // leave, 0.3 mm above the finished floor) stays as a flat strip around the model
+    let d = project(true);
+    let out = generate(&d, Units::Metric).unwrap();
+    let mut s = Sim::new(&d, 160_000);
+    s.advance(&out.moves, out.moves.len());
+    let at = |x: f64, y: f64| s.at((x / s.cell) as usize, (y / s.cell) as usize);
+    let leave_level = -6.0 + 0.3;
+    // along the four lines through the middle of the model, from outside in: the longest flat run at the leave level
+    for (label, line) in [("left", (0..200).map(|k| at(k as f64 * 0.1, 20.0)).collect::<Vec<_>>()), ("right", (0..200).map(|k| at(40.0 - k as f64 * 0.1, 20.0)).collect()),
+                          ("front", (0..200).map(|k| at(20.0, k as f64 * 0.1)).collect()), ("back", (0..200).map(|k| at(20.0, 40.0 - k as f64 * 0.1)).collect())] {
+        let (mut run, mut longest) = (0, 0);
+        for z in &line { if (z - leave_level).abs() < 0.02 { run += 1; longest = longest.max(run); } else { run = 0; } }
+        assert!(longest <= 3, "{label}: a strip of {longest} cells at the roughing's leave level");
+        assert!(line.iter().any(|&z| z < -5.9), "{label}: the pocket reaches the base");
+    }
+}

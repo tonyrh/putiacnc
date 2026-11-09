@@ -1218,12 +1218,20 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
 
     // 1. roughing with the second tool
     let mut layers = 0usize;
+    // how far out from the model the roughing cutter's edge reaches (mm): the finishing lines must reach as far, or a ledge is left around the pocket
+    let mut rough_reach = 0.0f64;
     if let Some(rt) = rough {
         if !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) { return Err(format!("Operation {}: check the roughing tool's values", k + 1)); }
         let rg = ToolGeo::new(rt);
         let kc = ((rt.dia / 6.0 / g).round() as usize).max(1);
         // the plan reaches as far out as the cutter, plus the extra width of its footprint, so a cell at its edge is not blocked by the model's rim
         let margin = (((rt.dia / 2.0 + 0.2 + 0.7 * kc as f64 * g) / g).ceil() as usize).min(f.pad);
+        // no further out than the finishing tool cleans (its edge at the end of its lines), so the roughing does not cut more than is finished
+        let margin = if o.p.f_off { margin } else {
+            let allowed = (tool.dia + 0.2 - rt.dia / 2.0).max(0.0) + 0.2 + 0.7 * kc as f64 * g;
+            margin.min((allowed / g).ceil() as usize)
+        };
+        rough_reach = margin as f64 * g + rt.dia / 2.0;
         let rp = Rough::new(&f, kc, rt.dia / 2.0, leave as f32, |rho| rg.rise(rho), margin);
         let range = -(rp.min_t as f64);
         if range > 1e-6 {
@@ -1300,7 +1308,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         let fso = o.p.f_so.filter(|v| *v > 0.0).unwrap_or(tool.so);
         let step = ((tool.dia * fso / 100.0 / g).round() as usize).max(1);
         if step as f64 * g > tool.dia * fso / 100.0 * 1.6 { notes.push(format!("{}the model's resolution ({} {}) limits the finishing line spacing; re-import it finer for a smoother surface.", pre, fnum(g), un)); }
-        let margin = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).min(f.pad);
+        let margin = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).max(((rough_reach - (2.0 * (tool.dia / 2.0) * leave - leave * leave).max(0.0).sqrt().min(tool.dia / 2.0)) / g).ceil().max(0.0) as usize).min(f.pad);
         // the lines along X, along Y (the surface turned, and the lines turned back), or both, X first
         let dir = o.p.f_dir.as_deref().unwrap_or("x");
         let mut sets: Vec<Vec<Vec<[f64; 3]>>> = Vec::new();
