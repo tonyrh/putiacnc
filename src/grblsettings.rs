@@ -77,4 +77,13 @@ mod tests {
         assert_eq!(m.x, 500.0);
         assert!(m.rate.is_none() && m.accel.is_none());
     }
+
+    #[test]
+    fn a_real_vasto_dump_with_descriptions_reads() {
+        let d = "$11=0.010 (Junction deviation, mm)\n$30=10000 (Maximum spindle speed, rpm)\n$31=0 (Minimum spindle speed, rpm)\n$110=1500.000 (X-axis maximum rate, mm/min)\n$111=1500.000 (Y-axis maximum rate, mm/min)\n$112=600.000 (Z-axis maximum rate, mm/min)\n$120=300.000 (X-axis acceleration, mm/sec^2)\n$121=300.000 (Y-axis acceleration, mm/sec^2)\n$122=100.000 (Z-axis acceleration, mm/sec^2)\n$130=410.000 (X-axis maximum travel, mm)\n$131=420.000 (Y-axis maximum travel, mm)\n$132=90.000 (Z-axis maximum travel, mm)\n";
+        let m = machine_from_dump(d).unwrap();
+        assert_eq!((m.x, m.y, m.z), (410.0, 420.0, 90.0));
+        assert_eq!((m.rapid, m.rpm_max, m.rpm_min), (1500.0, Some(10000.0), None));
+        assert_eq!((m.accel, m.accel_z, m.rate_z), (Some(300.0), Some(100.0), Some(600.0)));
+    }
 }

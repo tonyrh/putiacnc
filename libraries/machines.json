@@ -49,6 +49,21 @@
   },
   {
    "maker": "FoxAlien",
+   "model": "Vasto (400 x 400, 1st gen)",
+   "x": 410,
+   "y": 420,
+   "z": 90,
+   "rapid": 1500,
+   "rpm_max": 10000,
+   "rigid": "light",
+   "source": "https://github.com/tonyrh/putiacnc/issues/1#issuecomment-6737524186",
+   "note": "From an owner's own $$ listing (GRBL 1.1h): travel $130-$132, top speeds $110-$112 (1500 / 1500 / 600 mm/min), acceleration $120-$122 (300 / 300 / 100 mm/s2), spindle $30 = 10000 rpm (the stock 400 W spindle can reach 11000).",
+   "post": "",
+   "accel": 300,
+   "accel_source": "https://github.com/tonyrh/putiacnc/issues/1#issuecomment-6737524186"
+  },
+  {
+   "maker": "FoxAlien",
    "model": "XE Pro",
    "x": 400,
    "y": 400,
