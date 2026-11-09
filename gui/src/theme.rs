@@ -58,9 +58,17 @@ fn load_font(name: &str) -> Option<Vec<u8>> {
     std::fs::read(file).ok()
 }
 
+/// egui's bundled fonts, with Hack added as the last choice for the text too: the arrows (\u{2192}), the inch mark and the triangles are in
+/// Hack and in no other bundled font, so without it they come out as an empty box wherever the system font lacks them.
+pub fn default_fonts() -> FontDefinitions {
+    let mut fonts = FontDefinitions::default();
+    if let Some(p) = fonts.families.get_mut(&FontFamily::Proportional) { if !p.iter().any(|n| n == "Hack") { p.push("Hack".into()); } }
+    fonts
+}
+
 /// Use the desktop's UI and monospace fonts, keeping egui's bundled fonts as a glyph fallback.
 pub fn apply_fonts(ctx: &egui::Context) {
-    let mut fonts = FontDefinitions::default();
+    let mut fonts = default_fonts();
     let (ui_name, _) = parse_font(&gsetting("font-name").unwrap_or_else(|| "Cantarell 11".into()));
     let (mono_name, _) = parse_font(&gsetting("monospace-font-name").unwrap_or_else(|| "Monospace 11".into()));
     if let Some(bytes) = load_font(&ui_name) {
@@ -179,4 +187,37 @@ pub fn apply_style(ctx: &egui::Context, t: &Theme) {
     // scrollbars get their own lane beside the content instead of floating over it
     s.spacing.scroll = egui::style::ScrollStyle { bar_width: 6.0, handle_min_length: 28.0, bar_inner_margin: 3.0, bar_outer_margin: 0.0, ..egui::style::ScrollStyle::solid() };
     ctx.set_style(s);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every symbol the windows and menus write (arrows, triangles, quotes, the inch mark ...) can be drawn from the bundled fonts alone, so
+    /// it shows on a desktop whose own font lacks it too (the right-click menu once showed an empty box for a triangle).
+    #[test]
+    fn every_symbol_in_the_interface_can_be_drawn() {
+        let ctx = egui::Context::default();
+        ctx.set_fonts(default_fonts());
+        let _ = ctx.run(Default::default(), |_| {});
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut missing = std::collections::BTreeSet::new();
+        let mut stack = vec![root];
+        while let Some(dir) = stack.pop() {
+            for e in std::fs::read_dir(dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() { stack.push(p); continue; }
+                if p.extension().and_then(|x| x.to_str()) != Some("rs") { continue; }
+                let text = std::fs::read_to_string(&p).unwrap();
+                let mut chars: Vec<char> = text.chars().filter(|c| (*c as u32) >= 0x2000).collect();
+                for part in text.split("\\u{").skip(1) {
+                    if let Some(h) = part.split('}').next() { if let Some(c) = u32::from_str_radix(h, 16).ok().and_then(char::from_u32) { chars.push(c); } }
+                }
+                for c in chars {
+                    if (c as u32) >= 0x2000 && !ctx.fonts(|f| f.has_glyphs(&egui::FontId::proportional(14.0), &c.to_string())) { missing.insert((c, p.file_name().unwrap().to_string_lossy().into_owned())); }
+                }
+            }
+        }
+        assert!(missing.is_empty(), "symbols no bundled font can draw: {missing:?}");
+    }
 }
