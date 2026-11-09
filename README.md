@@ -35,13 +35,14 @@ The workspace has two crates:
 - Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font or in a built-in single-line font for pen drawing (text stays editable, and can follow an arc or the inside edge of a closed shape).
 - Layers, each with a name, colour, eye and lock.
 - Import SVG, DXF, bitmaps (traced into outlines or centre lines), and STL / OBJ models for 3D relief.
-- Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), align, array, nest on the stock, rotate, clean up broken outlines (join loose ends, remove duplicates, and simplify outlines with too many points, with a live preview).
+- Build a 3D relief from your own shapes (Modify → Relief from shapes): closed shapes get a height and a flat, rounded, dome or slope profile, and a shape inside another one is a hole in it. No model file needed.
+- Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), mirror (left to right or top to bottom), align, array, nest on the stock, rotate, clean up broken outlines (join loose ends, remove duplicates, and simplify outlines with too many points, with a live preview).
 
 **Operations**
 - Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
 - Rest machining: a smaller flat cutter clears only the corners and narrow parts the pocket's main cutter could not reach. A smaller ball nose does the same for the detail of a 3D relief.
 - Finishing pass: leave a little stock on the walls of a profile or pocket and cut them to size in a last pass. For a 3D relief the finishing lines can run along X, along Y or both.
-- Helical entry for pockets and profiles, and adaptive clearing for pockets (a light stepover and rounded inner rings). Nest on the stock packs the selected parts by their outlines, turned as you allow, clear of the clamps. The time estimate can use the machine's acceleration.
+- Helical entry for pockets and profiles, and adaptive clearing for pockets (a light stepover and rounded inner rings). Nest on the stock packs the selected parts by their outlines, turned as you allow, clear of the clamps. The time estimate can use the machine's acceleration. Tab and Shift+Tab stay inside the operation card you are in.
 - V-carve can leave a flat floor at a depth you choose and clear it with a flat end mill, each tool with its own feeds and speeds.
 - Surface the stock or the spoilboard with a wide cutter (Generate → Surface the stock).
 - Flat, bull, ball, V-bit, engraving, tapered ball and arc profile bits, shown with their real shape in the 3D preview.
@@ -52,10 +53,10 @@ The workspace has two crates:
 
 **Tools and machines**
 - Tool libraries with imperial and metric bits, a chip-load estimate, search, and ready-made libraries (CMT, Amana, Bosch, Freud, Whiteside, Diablo, generic, and pens and markers for plotting) in `libraries/`.
-- Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, work coordinate system (G54 to G59), units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files.
+- Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, acceleration and top speeds, work coordinate system (G54 to G59), units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files, start from a catalogue entry for your machine, or paste the output of Grbl's `$$` command to fill in the travel, speeds and accelerations.
 
 **Everything else**
-- A setup assistant on first run, a quick tour and three sample projects (Generate → Sample projects); a printable setup sheet (File → Setup sheet) with the stock, tools in order, operations and a checklist.
+- A setup assistant on first run, a quick tour and five sample projects (Generate → Sample projects: name plate, finger-joint box, 3D relief, relief from shapes, oval sign); a printable setup sheet (File → Setup sheet) with the stock, tools in order, operations and a checklist.
 - G-code tab with a time estimate, optional inches and line numbers; project notes; keyboard shortcuts (F1); light and dark themes; check for updates (only when you ask); window and panel layout remembered between sessions.
 
 Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report (version, system and kernel, desktop session, CPU and memory, window scale, graphics driver, config folder; no user or computer name).
@@ -119,6 +120,8 @@ It turns a project into G-code (GRBL, Mach3 or LinuxCNC); its output is pinned b
 | `src/bitmap.rs` | Bitmap import: threshold, trace outlines and holes into closed shapes. |
 | `src/dxf.rs` | ASCII DXF import (lines, arcs, circles, polylines, splines, blocks). |
 | `src/relief.rs` | 3D relief: height field from images and STL / OBJ models, roughing, finishing and detail passes. |
+| `src/reliefshapes.rs` | Relief from shapes: closed shapes to a height map (flat, rounded, dome, slope profiles; holes by nesting). |
+| `src/grblsettings.rs` | Reads a Grbl `$$` dump into a machine profile. |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |
 | `tests/golden.rs` | Golden tests: snapshots of the generator's own output. |
