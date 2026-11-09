@@ -1136,7 +1136,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     if !warn.is_empty() {
                         let col = crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode);
                         crate::checkui::warn_line(ui, col, &format!("Held to the machine's limits: {warn}."))
-                            .tip("The G-code uses the limited values. Change the limits in Libraries → Machines, or the tool's values in the tool library.");
+                            .tip("The G-code uses the limited values. Change the limits in File → Machines, or the tool's values in the tool library.");
                     }
                 }
             });

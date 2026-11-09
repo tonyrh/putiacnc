@@ -582,7 +582,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     let col = crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode);
                     ui.add_space(4.0);
                     crate::checkui::warn_line(ui, col, &format!("\"{}\" holds this tool to {warn}.", m.name))
-                        .tip("The G-code uses the machine's limits, not the tool's values. Change them in Libraries → Machines.");
+                        .tip("The G-code uses the machine's limits, not the tool's values. Change them in File → Machines.");
                 }
             }
             ui.add_space(8.0);

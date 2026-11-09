@@ -91,7 +91,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
     if app.tab == RightTab::Info { notes_panel(ui, app); return; }
     if app.tab == RightTab::Gcode {
         let (d, n) = (app.project.data.job.dialect_name(), app.project.data.job.numbered);
-        ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, units, line numbers and safe Z are set per machine (Libraries → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
+        ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, units, line numbers and safe Z are set per machine (File → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
         ui.add_space(4.0);
         crate::exportui::wcs_pick(ui, app);
         ui.add_space(4.0);

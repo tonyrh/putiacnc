@@ -702,9 +702,9 @@ pub fn blank_project() -> ProjectFile {
 pub fn tool_missing(d: &ProjectData, kind: &str) -> Option<&'static str> {
     let pens = d.tools.iter().filter(|t| t.shape == "pen").count();
     if kind == "draw" {
-        if pens == 0 { return Some("There is no pen in the tool list. Add one in Manage tools, or switch to a library that has pens (Libraries menu)."); }
+        if pens == 0 { return Some("There is no pen in the tool list. Add one in Manage tools, or switch to a library that has pens (File → Tool library)."); }
     } else if pens == d.tools.len() {
-        return Some("The tool list has only pens, and a pen can only draw. Use Draw for it, or switch to a library with cutters (Libraries menu).");
+        return Some("The tool list has only pens, and a pen can only draw. Use Draw for it, or switch to a library with cutters (File → Tool library).");
     }
     None
 }

@@ -268,7 +268,7 @@ fn units_step(ui: &mut egui::Ui, w: &mut Wizard) {
     title(ui, if w.first { "Welcome" } else { "Set up another machine" });
     ui.add_space(4.0);
     sub(ui, if w.first {
-        "A minute of setup matches the work area, the feeds and the tool list to your machine. Everything can be changed later in Libraries \u{2192} Machines and Tool library."
+        "A minute of setup matches the work area, the feeds and the tool list to your machine. Everything can be changed later in the File menu (Machines and Tool library)."
     } else {
         "This adds a new machine and a new tool library. Your existing machines, libraries and projects are not touched."
     });

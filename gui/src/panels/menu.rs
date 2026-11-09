@@ -55,6 +55,9 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if item(ui, "Export G-code…", "Ctrl+E", app.output.is_some()) { app.export_gcode_dialog(); }
             if item(ui, "Setup sheet…", "", app.output.is_some()) { app.setup_sheet_dialog(); }
             ui.separator();
+            if item(ui, "Tool library…", "", true) { app.tools_open = true; }
+            if item(ui, "Machines…", "", true) { app.machines_open = true; }
+            ui.separator();
             if item(ui, "Quit", "Ctrl+Q", true) { app.request(Action::Quit); }
         });
         ui.menu_button("Edit", |ui| {
@@ -156,12 +159,6 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.separator();
             crate::widgets::check(ui, &mut app.show_left, "Project panel");
             crate::widgets::check(ui, &mut app.show_right, "Operations / G-code panel");
-        });
-        ui.menu_button("Libraries", |ui| {
-            ui.style_mut().wrap = Some(false);
-            ui.set_min_width(200.0);
-            if ui.button("Tool library…").clicked() { app.tools_open = true; ui.close_menu(); }
-            if ui.button("Machines…").clicked() { app.machines_open = true; ui.close_menu(); }
         });
         ui.menu_button("Help", |ui| {
             ui.style_mut().wrap = Some(false);
