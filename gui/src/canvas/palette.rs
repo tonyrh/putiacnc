@@ -210,6 +210,8 @@ pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
                         egui::Frame::menu(ui.style()).show(ui, |ui| {
                             ui.style_mut().wrap = Some(false);
                             { let w = &mut ui.style_mut().visuals.widgets; w.inactive.weak_bg_fill = egui::Color32::TRANSPARENT; w.inactive.bg_stroke = egui::Stroke::NONE; }
+                            // a justified column takes all the width it is offered: give it just enough for the two rows
+                            ui.set_width(140.0);
                             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
                                 if ui.button("Left to right").clicked() { app.mirror_selection(true); close = true; }
                                 if ui.button("Top to bottom").clicked() { app.mirror_selection(false); close = true; }
