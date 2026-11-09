@@ -56,12 +56,27 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
                         if let Some(x) = d.layer_mut(l.id) { x.hidden = !l.hidden; *changed = true; }
                     }
                     if ui.add(egui::Button::new(n.to_string()).small().frame(false)).on_hover_text("Select the shapes on this layer").clicked() { *pick = Some(l.id); }
-                    let mut name = l.name.clone();
+                    // the name is plain text: a click makes this the active layer, a double click renames it
                     let w = ui.available_width().max(40.0);
-                    let r = ui.add(egui::TextEdit::singleline(&mut name).desired_width(w));
-                    if r.changed() { if let Some(x) = d.layer_mut(l.id) { x.name = name; *changed = true; } }
-                    if (r.clicked() || r.gained_focus()) && d.active_layer != l.id { d.active_layer = l.id; *changed = true; }
-                    r.on_hover_text(if active { "The name of the layer. New shapes go on this layer." } else { "The name of the layer. Click it to put new shapes on this layer." });
+                    let edit_id = egui::Id::new("layer_rename");
+                    let editing = ui.data(|d| d.get_temp::<i64>(edit_id)) == Some(l.id);
+                    if editing {
+                        let mut name = l.name.clone();
+                        let r = ui.add(egui::TextEdit::singleline(&mut name).desired_width(w));
+                        if !r.has_focus() && !r.gained_focus() { r.request_focus(); }
+                        if r.changed() { if let Some(x) = d.layer_mut(l.id) { x.name = name; *changed = true; } }
+                        if r.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Escape)) { ui.data_mut(|d| d.remove::<i64>(edit_id)); }
+                    } else {
+                        let r = ui.allocate_response(egui::vec2(w, ui.spacing().interact_size.y), egui::Sense::click());
+                        if r.hovered() { ui.painter().rect_filled(r.rect, 3.0, ui.visuals().widgets.hovered.weak_bg_fill); }
+                        let col = ui.visuals().text_color();
+                        let font = egui::TextStyle::Body.resolve(ui.style());
+                        let galley = ui.painter().layout(l.name.clone(), font, col, w - 8.0);
+                        ui.painter().with_clip_rect(r.rect).galley(egui::pos2(r.rect.left() + 4.0, r.rect.center().y - galley.size().y / 2.0), galley, col);
+                        if r.clicked() && d.active_layer != l.id { d.active_layer = l.id; *changed = true; }
+                        if r.double_clicked() { ui.data_mut(|d| d.insert_temp(edit_id, l.id)); }
+                        r.on_hover_text(if active { "The name of the layer. New shapes go on this layer. Double-click to rename." } else { "Click to put new shapes on this layer. Double-click to rename." });
+                    }
                 });
             });
         });
