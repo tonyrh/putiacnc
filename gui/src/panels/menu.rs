@@ -77,7 +77,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
         });
         ui.menu_button("Draw", |ui| {
             ui.style_mut().wrap = Some(false);
-            ui.set_min_width(200.0);
+            ui.set_min_width(250.0);
             use crate::app::Mode;
             for (m, label, key) in [(Mode::Select, "Select / move", "V"), (Mode::Node, "Edit points", "N")] {
                 if item(ui, label, key, true) { app.choose_tool(m); }
