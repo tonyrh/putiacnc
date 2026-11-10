@@ -82,6 +82,10 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
     let mut other = false; // changed by something other than the hex field
     let wheel_id = id.with("wheel");
     let mut wheel = ui.data(|d| d.get_temp::<bool>(wheel_id)).unwrap_or(false);
+    // the two ways to choose, as a segmented control like the app's others
+    let pick = ui.vertical_centered(|ui| crate::zoomcard::seg2(ui, ["Palette", "Wheel"], ["The standard colours and yours", "Any colour, on a wheel"], wheel as usize).0).inner;
+    if let Some(i) = pick { wheel = i == 1; ui.data_mut(|d| d.insert_temp(wheel_id, wheel)); }
+    ui.add_space(6.0);
     if !wheel {
         other |= swatches(ui, &standard(), rgb, false);
         let cu = custom();
@@ -93,7 +97,7 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
     } else {
         let hid = id.with("hsva");
         let mut hsva = ui.data(|d| d.get_temp::<Hsva>(hid)).filter(|h| h.to_srgb() == *rgb).unwrap_or_else(|| Hsva::from_srgb(*rgb));
-        if wheel_widget(ui, id, &mut hsva) { *rgb = hsva.to_srgb(); other = true; }
+        if ui.vertical_centered(|ui| wheel_widget(ui, id, &mut hsva)).inner { *rgb = hsva.to_srgb(); other = true; }
         ui.data_mut(|d| d.insert_temp(hid, hsva));
     }
     ui.add_space(6.0);
@@ -103,6 +107,10 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
     let mut text = if focused { ui.data(|d| d.get_temp::<String>(tid)).unwrap_or_else(|| hex(*rgb)) } else { hex(*rgb) };
     let valid = parse_hex(&text).is_some();
     ui.horizontal(|ui| {
+        // centred: the row is the field, the preview and (on the wheel) the plus button
+        let sp = ui.spacing().item_spacing.x;
+        let row_w = 84.0 + sp + 24.0 + if wheel { sp + 24.0 } else { 0.0 };
+        ui.add_space(((ui.available_width() - row_w) / 2.0).max(0.0));
         let mut te = egui::TextEdit::singleline(&mut text).id(tid).desired_width(84.0).font(egui::TextStyle::Monospace);
         if !valid { te = te.text_color(ui.visuals().error_fg_color); }
         let r = ui.add(te).on_hover_text("The colour as #RRGGBB. Type or paste one here.");
@@ -110,13 +118,10 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
         if r.has_focus() || r.changed() { ui.data_mut(|d| d.insert_temp(tid, text.clone())); }
         let (rect, _) = ui.allocate_exact_size(Vec2::new(24.0, 18.0), Sense::hover());
         ui.painter().rect_filled(rect, 3.0, col32(*rgb));
-    });
-    ui.add_space(2.0);
-    ui.horizontal(|ui| {
-        if ui.button(if wheel { "Palette" } else { "Colour wheel…" }).on_hover_text(if wheel { "Back to the standard colours" } else { "Pick any colour on a wheel" }).clicked() { wheel = !wheel; ui.data_mut(|d| d.insert_temp(wheel_id, wheel)); }
+        // on the wheel, a "+" keeps the colour with the standard ones
         if wheel {
             let known = standard().contains(rgb) || custom().contains(rgb);
-            if ui.add_enabled(!known, egui::Button::new("+ Add to palette")).on_hover_text("Keep this colour with the standard ones").on_disabled_hover_text("This colour is already in the palette").clicked() { add_custom(*rgb); }
+            if ui.add_enabled(!known, egui::Button::new("+").min_size(Vec2::new(24.0, 18.0))).on_hover_text("Add this colour to the palette").on_disabled_hover_text("This colour is already in the palette").clicked() { add_custom(*rgb); }
         }
     });
     if other { ui.memory_mut(|m| m.surrender_focus(tid)); ui.data_mut(|d| d.remove::<String>(tid)); }
