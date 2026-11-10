@@ -58,6 +58,8 @@ pub struct Settings {
     pub model_orient_stl: Option<putiacnc_core::relief::Orient>,
     /// Tool list groups the user opened or closed: "<library id>|<unit>" and "<library id>|<unit>|<type>" -> open.
     pub tool_groups: std::collections::BTreeMap<String, bool>,
+    /// Colours the user added to the colour picker's palette ("#RRGGBB").
+    pub custom_colors: Vec<String>,
     pub recent: Vec<String>,
 }
 

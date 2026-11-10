@@ -513,7 +513,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = 8.0;
                         let mut rgb = t.ink_rgb().unwrap_or(DEFAULT_INK);
-                        if ui.color_edit_button_srgb(&mut rgb).on_hover_text("The colour of the ink: shown in the 3D preview and next to the pen in the lists. It does not change the G-code").changed() { t.color = Some(putiacnc_core::model::hex_rgb(rgb)); changed = true; }
+                        if crate::colorpick::button(ui, "ink", &mut rgb, "The colour of the ink: shown in the 3D preview and next to the pen in the lists. It does not change the G-code").changed() { t.color = Some(putiacnc_core::model::hex_rgb(rgb)); changed = true; }
                         if t.color.is_some() && crate::panels::reset_button(ui, "Back to the usual dark ink") { t.color = None; changed = true; }
                     });
                     side!(false);

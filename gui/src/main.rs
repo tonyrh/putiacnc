@@ -18,6 +18,7 @@ mod cleanup;
 mod combine;
 mod boxgen;
 mod corners;
+mod colorpick;
 mod editpoints;
 mod fingers;
 mod surface;

@@ -78,6 +78,7 @@ impl App {
             *self.tool_speed_slot() = i;
         }
         if let Some(v) = &p.export_split { self.export_split = putiacnc_core::split::Split::from_id(v); }
+        crate::colorpick::set_custom(&p.custom_colors);
         self.prefs_saved = p.clone();
         self.prefs = p;
     }
@@ -106,6 +107,7 @@ impl App {
         s.tool_speed_idx = Some(self.tool_speed_mm);
         s.tool_speed_idx_in = Some(self.tool_speed_in);
         s.export_split = Some(self.export_split.id().to_string());
+        s.custom_colors = crate::colorpick::custom_hex();
         if let Some(o) = self.trace.remember.clone() { s.trace = Some(o); }
         if let Some(o) = self.model3d.remember_obj { s.model_orient_obj = Some(o); }
         if let Some(o) = self.model3d.remember_stl { s.model_orient_stl = Some(o); }

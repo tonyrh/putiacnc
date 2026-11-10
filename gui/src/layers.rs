@@ -43,7 +43,7 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
         egui::Frame::none().fill(fill).rounding(4.0).inner_margin(egui::Margin::symmetric(3.0, 2.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 let mut c = l.rgb().unwrap_or([0x80, 0x80, 0x80]);
-                if ui.color_edit_button_srgb(&mut c).on_hover_text("The colour of this layer's shapes while they are not in an operation").changed() {
+                if crate::colorpick::button(ui, l.id, &mut c, "The colour of this layer's shapes while they are not in an operation").changed() {
                     if let Some(x) = d.layer_mut(l.id) { x.color = putiacnc_core::model::hex_rgb(c); *changed = true; }
                 }
                 // right side, in the order eye, lock, delete (laid out from the right)
