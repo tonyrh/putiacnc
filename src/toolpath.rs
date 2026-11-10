@@ -211,7 +211,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool, pw: Option<(usize, usize, bool)>,
-    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, helix_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64, rates: crate::motion::Rates, capped: usize,
+    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, helix_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64, rates: crate::motion::Rates, capped: usize, marlin: bool,
 }
 
 impl Em {
@@ -251,6 +251,16 @@ impl Em {
         if is_cut { self.tc += dt; }
         self.cur = [x, y, z];
     }
+    /// A stop for the operator. Marlin shows the text after M0 on its screen (it drops everything after a `;`), so it gets `M0 text`.
+    fn stop(&mut self, mach: bool, msg: &str) {
+        if self.marlin { self.g.push(marlin_stop(msg)); } else { self.g.push(stop_line(mach, msg)); }
+    }
+    /// The spindle starts at `rpm`: `M3 S`, or on a machine whose board has no spindle control, a stop that asks the operator to.
+    fn spindle_on(&mut self, rpm: f64) {
+        if self.marlin { self.g.push(marlin_stop(&format!("Start the spindle at {} rpm, then resume", num(rpm)))); } else { self.g.push(format!("M3 S{}", num(rpm))); }
+    }
+    /// The spindle stops: `M5`, or nothing here on a Marlin machine (the stop that follows says it, or `spindle_off_by_hand` does).
+    fn spindle_off(&mut self) { if !self.marlin { self.g.push("M5".into()); } }
     /// Wait for the spindle to come up to speed (nothing when the machine's wait is 0). Counted in the time estimate.
     fn spin_wait(&mut self) {
         if self.spin > 0.0 {
@@ -821,11 +831,30 @@ pub(crate) fn tool_label(name: &str) -> String {
 /// show a `;` comment instead, so GRBL gets `M0 ; message`; Mach3 has no `;` comments, so it gets `M0 (message)`.
 pub fn stop_line(mach: bool, msg: &str) -> String { if mach { format!("M0 ({msg})") } else { format!("M0 ; {msg}") } }
 
+/// A whole-line comment `(text)` written as `; text` (Marlin has no brackets for comments).
+fn marlin_comment(line: &str) -> String {
+    let t = line.trim();
+    match t.strip_prefix('(').and_then(|r| r.strip_suffix(')')) { Some(inner) => format!("; {}", inner.trim()), None => line.to_string() }
+}
+
+/// A stop for Marlin: `M0 text`, the text plain ASCII with no letter touching a number (a reader would take "Z0" for a move).
+pub fn marlin_stop(msg: &str) -> String {
+    let mut t = String::new();
+    let mut prev_alpha = false;
+    for c in msg.chars().filter(|c| c.is_ascii() && !c.is_ascii_control() && !matches!(c, ';' | '(' | ')')) {
+        if prev_alpha && (c.is_ascii_digit() || c == '.' || c == '-') { t.push(' '); }
+        prev_alpha = c.is_ascii_alphabetic();
+        t.push(c);
+    }
+    format!("M0 {}", t.trim())
+}
+
 /// The message of a line written by `stop_line` (either form), when it is one.
 pub fn stop_message(line: &str) -> Option<&str> {
     let line = line.trim_end();
     if let Some(m) = line.strip_prefix("M0 ; ") { return Some(m); }
-    line.strip_prefix("M0 (").map(|m| m.strip_suffix(')').unwrap_or(m))
+    if let Some(m) = line.strip_prefix("M0 (") { return Some(m.strip_suffix(')').unwrap_or(m)); }
+    line.strip_prefix("M0 ").filter(|m| !m.is_empty())
 }
 
 /// Which tool is in the spindle, and the Mach3 / LinuxCNC tool numbers (in order of first use).
@@ -845,17 +874,20 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
     match st.d {
         None => {
             if mach { e.g.push(m6); } else { e.g.push(format!("(Tool: {})", tname)); }
-            e.g.push(format!("M3 S{}", num(rpm))); e.spin_wait();
+            e.spindle_on(rpm); e.spin_wait();
         }
         Some(_) if st.t.as_deref() != Some(tool.id.as_str()) => {
             e.go("G0", None, None, Some(sz), 0.0);
-            e.g.push("M5".into());
+            e.spindle_off();
             if mach { e.g.push(m6); }
-            else { e.g.push(stop_line(false, &format!("Change tool to {} {}, then touch off Z0 and resume", dia_txt, un))); e.g.push(format!("(Tool: {})", tname)); }
-            e.g.push(format!("M3 S{}", num(rpm)));
+            else {
+                let m = if e.marlin { format!("Stop the spindle and change tool to {} {}, then touch off Z0 and resume", dia_txt, un) } else { format!("Change tool to {} {}, then touch off Z0 and resume", dia_txt, un) };
+                e.stop(false, &m); e.g.push(format!("(Tool: {})", tname));
+            }
+            e.spindle_on(rpm);
             e.spin_wait();
         }
-        Some(_) if st.r != Some(rpm) => { e.g.push(format!("M3 S{}", num(rpm))); e.spin_wait(); }
+        Some(_) if st.r != Some(rpm) => { e.spindle_on(rpm); e.spin_wait(); }
         _ => {}
     }
     st.d = Some(tool.dia); st.r = Some(rpm); st.t = Some(tool.id.clone()); e.lf = None;
@@ -929,9 +961,9 @@ fn select_pen(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64) {
         None => { if mach { e.g.push(m6); } else { e.g.push(format!("(Tool: {})", tname)); } }
         Some(t) if *t != tool.id => {
             e.go("G0", None, None, Some(sz), 0.0);
-            if st.spun { e.g.push("M5".into()); }
+            if st.spun { e.spindle_off(); }
             if mach { e.g.push(m6); }
-            else { e.g.push(stop_line(false, &format!("Change tool to the pen {}, then touch off Z0 on the paper and resume", tname))); e.g.push(format!("(Tool: {})", tname)); }
+            else { e.stop(false, &format!("Change tool to the pen {}, then touch off Z0 on the paper and resume", tname)); e.g.push(format!("(Tool: {})", tname)); }
         }
         _ => {}
     }
@@ -1141,8 +1173,10 @@ fn op_pause(e: &mut Em, ts: &mut ToolSt, o: &Operation, k: usize, mach: bool, sz
     if let Some(msg) = &o.p.pause {
         let msg: String = msg.replace(['″', '"'], "in").replace(['(', ')'], "-").chars().filter(|c| c.is_ascii() && !c.is_ascii_control()).collect::<String>().trim().chars().take(80).collect();
         e.go("G0", None, None, Some(sz), 0.0);
-        if ts.spun { e.g.push("M5".into()); }
-        e.g.push(stop_line(mach, &if msg.is_empty() { format!("Operation {} done: resume when ready", k + 1) } else { msg }));
+        if ts.spun { e.spindle_off(); }
+        let msg = if msg.is_empty() { format!("Operation {} done: resume when ready", k + 1) } else { msg };
+        let msg = if e.marlin && ts.spun { format!("Stop the spindle. {msg}") } else { msg };
+        e.stop(mach, &msg);
         ts.r = None;
         e.lf = None;
     }
@@ -1461,7 +1495,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, helix_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: machine.spin_up_s(), rates: machine.rates(), capped: 0 };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, helix_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: if data.job.marlin() { 0.0 } else { machine.spin_up_s() }, rates: machine.rates(), capped: 0, marlin: data.job.marlin() };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
@@ -1475,7 +1509,12 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     e.g.push(format!("(PutiaCNC - {})", data.job.dialect_name()));
     e.g.push(format!("(Stock {} x {} x {} {}; XY0 = {} of stock, Z0 = {})", num(fl(st.w)), num(fl(st.h)), num(fl(st.t)), un, zero_label(&st.zr),
         if st.zm == "top" { "top surface".to_string() } else { format!("stock bottom + {} {}", num(fl(st.zh)), un) }));
-    if mach {
+    if e.marlin {
+        // what Marlin knows: units and absolute moves. It has no work coordinate systems to pick, so the zero is where the operator sets it.
+        e.g.push(if imp { "G20 G90" } else { "G21 G90" }.into());
+        e.g.push("(Marlin: jog the tool to the zero of the job and set it there with G92 X0 Y0 Z0 before you run this file)".into());
+        e.g.push("(Spindle: by hand. The program stops to ask you to start and stop it)".into());
+    } else if mach {
         // metric or imperial, absolute, XY plane, feed per minute; cancel cutter compensation, tool length and canned cycles
         e.g.push(format!("{} G90 G17 G94", if imp { "G20" } else { "G21" }));
         e.g.push("G40 G49 G80".into());
@@ -1924,8 +1963,10 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         return Err(if why.is_empty() { format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" ")) }
             else { format!("No toolpath. {}", why.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" ")) });
     }
-    if ts.spun { e.g.push("M5".into()); }
-    e.g.push("G0 X0 Y0".into()); e.g.push(if mach { "M30" } else { "M2" }.into());
+    if ts.spun && e.marlin { e.stop(false, "Stop the spindle, then resume"); } else if ts.spun { e.g.push("M5".into()); }
+    e.g.push("G0 X0 Y0".into());
+    // Marlin has no end-of-program word (M30 would delete a file on its SD card)
+    if e.marlin { e.g.push("(End of program)".into()); } else { e.g.push(if mach { "M30" } else { "M2" }.into()); }
     let cut_len: f64 = e.moves.iter().filter(|m| m.cut).map(|m| ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2) + (m.to[2] - m.from[2]).powi(2)).sqrt()).sum();
     if machine.arcs == Some(true) {
         let (lines, n) = crate::arcs::fit_arcs(&e.g, e.dec(), ku);
@@ -1938,6 +1979,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         notes.push(format!("{}: {} start line{} and {} end line{} of your own G-code added; the time estimate does not include any moves in them.", machine.name,
             start_code.len(), if start_code.len() == 1 { "" } else { "s" }, end_code.len(), if end_code.len() == 1 { "" } else { "s" }));
     }
+    if e.marlin { e.g = e.g.into_iter().map(|l| marlin_comment(&l)).collect(); }
     if data.job.numbered { e.g = number_lines(e.g); }
     if e.capped > 0 { notes.push(format!("{} cutting move{} asked for more than the machine's top speed on an axis; the time estimate holds {} down to it, as the controller does.", e.capped, if e.capped == 1 { "" } else { "s" }, if e.capped == 1 { "it" } else { "them" })); }
     // last of all, the text itself is read back by a checker that shares nothing with the code above
@@ -2151,6 +2193,41 @@ mod tests {
         assert_eq!(o.moves.len(), grbl.moves.len());
         let j = serde_json::to_string(&d).unwrap();
         assert!(serde_json::from_str::<ProjectData>(&j).unwrap().job.mach());
+    }
+
+    #[test]
+    fn marlin_output_has_no_spindle_words_and_asks_the_operator() {
+        let mut d = drill_project(3.0, None);
+        let t2 = d.tools[1].id.clone();
+        let mut p = crate::shapes::default_op_params(&t2);
+        p.kind = "drill".into();
+        p.depth = 3.0;
+        d.ops.push(Operation { id: 2, p });
+        d.loops.push(crate::shapes::new_circle([80.0, 40.0], 1.0, 2));
+        let grbl = generate(&d, Units::Metric).unwrap();
+        d.job.post = "marlin".into();
+        let o = generate(&d, Units::Metric).unwrap();
+        assert!(o.lines[0].contains("Marlin"), "{}", o.lines[0]);
+        for bad in ["M3", "M5", "M2", "M30", "M6", "G54", "G17", "G94", "G4 "] { assert!(!o.lines.iter().any(|l| l.contains(bad)), "{bad} in {:?}", o.lines.iter().filter(|l| l.contains(bad)).collect::<Vec<_>>()); }
+        assert!(o.lines.iter().all(|l| l.starts_with("; ") || !(l.contains('(') || l.contains(')'))), "a bracket comment is left");
+        let stops: Vec<&String> = o.lines.iter().filter(|l| l.starts_with("M0 ")).collect();
+        assert!(stops.iter().any(|l| l.contains("Start the spindle at")), "{stops:?}");
+        assert!(stops.iter().any(|l| l.contains("Stop the spindle and change tool")), "{stops:?}");
+        assert!(stops.last().unwrap().contains("Stop the spindle"), "{stops:?}");
+        // a message is plain text with no letter touching a number
+        assert!(stops.iter().all(|l| !l.contains(';') && !l.contains("Z0") && l.is_ascii()), "{stops:?}");
+        // the same moves as GRBL, and the checker and the preview read it without complaint
+        assert_eq!(o.moves.len(), grbl.moves.len());
+        assert!(!o.notes.iter().any(|n| n.contains("spindle")), "{:?}", o.notes);
+        let r = crate::replay::replay(&o.lines, &d);
+        assert!(r.info.iter().any(|i| matches!(&i.kind, crate::replay::Kind::Stop(m) if m.starts_with("Start the spindle"))));
+        assert!(r.info.iter().any(|i| matches!(&i.kind, crate::replay::Kind::Tool(_))));
+        assert_eq!(d.job.wcs_count(), 1);
+        // numbered lines keep working
+        d.job.numbered = true;
+        let n = generate(&d, Units::Metric).unwrap();
+        assert!(n.lines.iter().all(|l| l.starts_with('N')));
+        assert!(serde_json::from_str::<ProjectData>(&serde_json::to_string(&d).unwrap()).unwrap().job.marlin());
     }
 
     #[test]

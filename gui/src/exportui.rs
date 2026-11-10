@@ -30,6 +30,7 @@ pub fn file_list(app: &App, mode: Split, name: &str) -> Vec<(String, f64)> {
 /// The work coordinate system the program runs in (G54 to G59): the drop-down at the top of the G-code tab, a setting of the job. The program starts with that word, so the machine uses the zero that was set there.
 pub fn wcs_pick(ui: &mut egui::Ui, app: &mut App) {
     const TIP: &str = "The work coordinate system the program runs in: the one where you set the zero on the machine (G54 is the first, G55 the second, and so on). The G-code starts with it, so a job whose zero is in G55 cannot run in G54 by mistake. PutiaCNC does not set the zero: do that on the machine or in your sender (for G55, `G10 L20 P2 X0 Y0 Z0` at the point the stock's zero corner sits).";
+    if app.project.data.job.marlin() { return; }
     let (n, cur) = (app.project.data.job.wcs_count(), app.project.data.job.wcs_name());
     let mut pick: Option<usize> = None;
     ui.horizontal(|ui| {

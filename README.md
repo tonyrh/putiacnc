@@ -5,7 +5,7 @@
 
 **Project page: <https://tonyrh.github.io/putiacnc/>**
 
-A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC output too), written in Rust. Draw or import shapes, assign operations
+A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC and Marlin output too), written in Rust. Draw or import shapes, assign operations
 (profile, pocket, V-carve, drill, inlay, 3D relief), preview the result in 2D and in a simulated 3D view of the machined
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
@@ -53,7 +53,7 @@ The workspace has two crates:
 
 **Tools and machines**
 - Tool libraries with imperial and metric bits, a chip-load estimate, search, and ready-made libraries (CMT, Amana, Bosch, Freud, Whiteside, Diablo, generic, and pens and markers for plotting) in `libraries/`.
-- Machine profiles: work area, GRBL or Mach3 / LinuxCNC dialect, acceleration and top speeds, work coordinate system (G54 to G59), units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files, start from a catalogue entry for your machine, or paste the output of Grbl's `$$` command to fill in the travel, speeds and accelerations.
+- Machine profiles: work area, GRBL, Mach3 / LinuxCNC or Marlin dialect, acceleration and top speeds, work coordinate system (G54 to G59), units, line numbers, G2/G3 arcs, safe Z, spindle and feed limits, and your own start and end G-code. Export and import them as files, start from a catalogue entry for your machine, or paste the output of Grbl's `$$` command to fill in the travel, speeds and accelerations.
 
 **Everything else**
 - A setup assistant on first run, a quick tour and five sample projects (Generate → Sample projects: name plate, finger-joint box, 3D relief, relief from shapes, oval sign); a printable setup sheet (File → Setup sheet) with the stock, tools in order, operations and a checklist.

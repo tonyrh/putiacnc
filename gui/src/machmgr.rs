@@ -421,11 +421,12 @@ fn form(ui: &mut Ui, app: &mut App) {
         rlabel(ui, lw, "G-code output for");
         let cur = putiacnc_core::model::dialect_name(m.post.as_deref().unwrap_or(""));
         // both dropdowns of this block share one width that holds the longest choice
-        let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", "Mach3 / LinuxCNC", "mm", "inches"]).max(fw);
+        let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", "Mach3 / LinuxCNC", "Marlin (no spindle control)", "mm", "inches"]).max(fw);
         egui::ComboBox::from_id_source("mach_post").width(gw).selected_text(cur).show_ui(ui, |ui| {
             for (id, name) in putiacnc_core::model::DIALECTS {
                 let tip = match id {
                     "mach" => "Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end",
+                    "marlin" => "Motion only: no M3 or M5 and no G54. The program stops (M0 with a message) for you to start and stop the spindle by hand, has no M2 or M30 at the end, and the zero is wherever you set it with G92",
                     "grblhal" | "fluidnc" => "Written like GRBL for now; the name is kept with the machine and shown in the G-code's first line",
                     _ => "Tool changes as M0 with a message, G54 in the header and M2 at the end",
                 };

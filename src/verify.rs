@@ -78,8 +78,10 @@ pub fn trace(lines: &[String]) -> Trace {
         let line_no = n + 1;
         // (the text of a comment may say anything, so only the part before one is looked at)
         let code = raw.split(['(', ';']).next().unwrap_or("");
-        if raw.contains("(Pen:") { pen = true; }
+        if raw.contains("(Pen:") || raw.contains("; Pen:") || raw.contains("Spindle: by hand") { pen = true; }
         if code.len() >= 3 && (code.contains("NaN") || code.contains("nan") || code.contains("inf") || code.contains("Inf")) { flag("nan", line_no); continue; }
+        // the text of a Marlin stop is for the operator, not code
+        let raw = raw.find("M0 ").map_or(raw.as_str(), |i| &raw[..i + 2]);
         let w = words(raw);
         let g: Vec<i64> = w.iter().filter(|x| x.0 == 'G').map(|x| x.1.round() as i64).collect();
         // relative moves are not followed: the rest of the program cannot be judged from here

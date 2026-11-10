@@ -210,18 +210,20 @@ pub const WCS: [&str; 9] = ["G54", "G55", "G56", "G57", "G58", "G59", "G59.1", "
 
 impl Job {
     /// How many systems this controller has: GRBL knows G54 to G59, Mach3 / LinuxCNC three more.
-    pub fn wcs_count(&self) -> usize { if self.mach() { 9 } else { 6 } }
+    pub fn wcs_count(&self) -> usize { if self.mach() { 9 } else if self.marlin() { 1 } else { 6 } }
     /// The G-code word of the chosen system (G54 when the choice is not one this controller has).
     pub fn wcs_name(&self) -> &'static str { let i = self.wcs as usize; if i < self.wcs_count() { WCS[i] } else { WCS[0] } }
 
+    /// True for Marlin on a machine whose board does not run the spindle: the program asks the operator to start and stop it.
+    pub fn marlin(&self) -> bool { self.post == "marlin" }
     /// True for the Mach3 / LinuxCNC dialect.
     pub fn mach(&self) -> bool { self.post == "mach" }
     /// The dialect as people name it, for the G-code's first comment and the G-code tab.
     pub fn dialect_name(&self) -> &'static str { dialect_name(&self.post) }
 }
 
-/// The controllers a machine can be set to: "" = GRBL, "grblhal", "fluidnc" (both write what GRBL gets today), "mach".
-pub const DIALECTS: [(&str, &str); 4] = [("", "GRBL"), ("grblhal", "grblHAL"), ("fluidnc", "FluidNC"), ("mach", "Mach3 / LinuxCNC")];
+/// The controllers a machine can be set to: "" = GRBL, "grblhal", "fluidnc" (both write what GRBL gets today), "mach", "marlin" (motion only: the operator runs the spindle by hand).
+pub const DIALECTS: [(&str, &str); 5] = [("", "GRBL"), ("grblhal", "grblHAL"), ("fluidnc", "FluidNC"), ("mach", "Mach3 / LinuxCNC"), ("marlin", "Marlin (no spindle control)")];
 
 pub fn dialect_name(post: &str) -> &'static str { DIALECTS.iter().find(|d| d.0 == post).map_or("GRBL", |d| d.1) }
 

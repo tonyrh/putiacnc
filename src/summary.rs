@@ -71,6 +71,11 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
         rows.push(row("Start", t + ".", false));
     }
 
+    // Marlin without spindle control: the operator runs it
+    if l.iter().any(|x| x.contains("Spindle: by hand")) {
+        rows.push(row("Spindle", "Not run by the program: it stops (M0) to ask you to start it at the speed shown, and again before a tool change and at the end to stop it. There is no work coordinate system: jog to the zero of the job and set it with G92 X0 Y0 Z0 first.".to_string(), true));
+    }
+
     // a pen plotter: nothing spins
     let plotter = l.iter().any(|x| x.starts_with("(Pen:")) && !l.iter().any(|x| x.starts_with("M3 "));
     if plotter {
