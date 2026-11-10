@@ -55,7 +55,9 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
                     if small_toggle_button(ui, if l.hidden { Icon::EyeOff } else { Icon::Eye }, l.hidden, if l.hidden { "Show this layer" } else { HIDDEN_TIP }).clicked() {
                         if let Some(x) = d.layer_mut(l.id) { x.hidden = !l.hidden; *changed = true; }
                     }
-                    if ui.add(egui::Button::new(n.to_string()).small().frame(false)).on_hover_text("Select the shapes on this layer").clicked() { *pick = Some(l.id); }
+                    // a framed pill, so it reads as a button; it is greyed when the layer has no shapes
+                    let pill = ui.add_enabled(n > 0, egui::Button::new(n.to_string()).small().min_size(egui::vec2(26.0, 18.0)).rounding(9.0));
+                    if pill.on_hover_text(if n == 1 { "1 shape on this layer. Click to select it." } else { "Shapes on this layer. Click to select them all." }).on_disabled_hover_text("No shapes on this layer").clicked() { *pick = Some(l.id); }
                     // the name is plain text: a click makes this the active layer, a double click renames it
                     let w = ui.available_width().max(40.0);
                     let edit_id = egui::Id::new("layer_rename");
