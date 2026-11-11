@@ -1010,13 +1010,26 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if p.kind == "pocket" {
                     ui.horizontal(|ui| {
                         ui.add_space(6.0);
-                        changed |= crate::widgets::check_if(ui, true, &mut p.adaptive, "Adaptive clearing")
-                            .tip("A light stepover and the corners of the inner rings rounded, so the tool meets about the same amount of material all along the path. Gentler on the tool and the machine, and it can cut at full flute depth with a larger pass depth. More rings, so more moves").changed();
+                        ui.label("Clearing");
+                        let cur = if p.adaptive { 1 } else if p.troch { 2 } else { 0 };
+                        let names = ["Rings", "Adaptive", "Trochoidal"];
+                        let tips = ["Rings from the wall inwards, a stepover apart", "A light stepover and the corners of the inner rings rounded, so the tool meets about the same amount of material all along the path. Gentler on the tool and the machine, and it can cut at full flute depth with a larger pass depth. More rings, so more moves", "The ring along the wall is cut as a string of small loops, so the tool is never buried in the full width of the slot. For narrow slots, hard material and small bits; the file has many short moves"];
+                        let mut pick = cur;
+                        egui::ComboBox::from_id_source(("clearing", id)).width(110.0).selected_text(names[cur]).show_ui(ui, |ui| {
+                            for (i, n) in names.iter().enumerate() { ui.selectable_value(&mut pick, i, *n).on_hover_text(tips[i]); }
+                        });
+                        if pick != cur { p.adaptive = pick == 1; p.troch = pick == 2; changed = true; }
                         if p.adaptive {
                             let mut a = p.adaptive_so.unwrap_or(12.0);
                             ui.add_space(10.0);
                             ui.label("Stepover");
                             if dl_w(ui, 42.0, &mut a, 2.0, 40.0, "%") { p.adaptive_so = Some(a); changed = true; }
+                        }
+                        if p.troch {
+                            let mut a = p.troch_so.unwrap_or(20.0);
+                            ui.add_space(10.0);
+                            ui.label("Step");
+                            if dl_w(ui, 56.0, &mut a, 3.0, 60.0, "%") { p.troch_so = Some(a); changed = true; }
                         }
                     });
                 }

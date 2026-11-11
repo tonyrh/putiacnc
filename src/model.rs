@@ -423,6 +423,10 @@ pub struct OpParams {
     /// meets about the same amount of material all along the path and can cut at full flute depth.
     #[serde(default, skip_serializing_if = "is_false")] pub adaptive: bool,
     #[serde(default, rename = "adaptiveSo", skip_serializing_if = "Option::is_none")] pub adaptive_so: Option<f64>,
+    /// Pocket: trochoidal clearing: the rings are cut as a string of small loops (`troch_so` % of the tool is how far each loop moves on, `None` = 20),
+    /// so the tool only ever meets a thin sliver of material.
+    #[serde(default, skip_serializing_if = "is_false")] pub troch: bool,
+    #[serde(default, rename = "trochSo", skip_serializing_if = "Option::is_none")] pub troch_so: Option<f64>,
     #[serde(default, rename = "wLeave", skip_serializing_if = "Option::is_none")] pub w_leave: Option<f64>,
     /// 3D relief finishing: the direction of the lines, "x" (default), "y", or "xy" (along X, then along Y over the same surface).
     #[serde(default, rename = "fDir", skip_serializing_if = "Option::is_none")] pub f_dir: Option<String>,
