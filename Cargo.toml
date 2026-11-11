@@ -18,10 +18,15 @@ ttf-parser = "0.25"
 visioncortex = { version = "0.9", default-features = false }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
 rayon = "1"
+sys-locale = "0.3"
 
 [[bin]]
 name = "putia-gcode"
 path = "src/bin/putia-gcode.rs"
+
+[[bin]]
+name = "putia-i18n"
+path = "src/bin/putia-i18n.rs"
 
 [profile.release]
 opt-level = 3

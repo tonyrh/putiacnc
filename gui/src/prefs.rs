@@ -18,6 +18,8 @@ pub struct Win {
 #[serde(default)]
 pub struct Settings {
     pub update_check: bool,
+    /// The language of the interface: "auto" (the system's), or a code such as "en" or "it".
+    pub language: Option<String>,
     /// The setup assistant was finished or skipped (absent in settings saved by older versions).
     pub setup_done: Option<bool>,
     pub window: Option<Win>,

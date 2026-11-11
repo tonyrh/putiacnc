@@ -1,4 +1,5 @@
 //! The menu bar.
+use putiacnc_core::i18n::tr;
 use super::*;
 use crate::app::ToolWin;
 
@@ -156,6 +157,19 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 if ui.radio(app.disp_in, "Inches").clicked() { app.disp_in = true; ui.close_menu(); }
                 ui.add_enabled_ui(app.disp_in, |ui| { crate::widgets::check(ui, &mut app.frac_in, "Fractions (3/16)").on_hover_text("Show inch values as fractions of an inch, to 1/64, where they are one"); });
             }).response.on_hover_text("How lengths are shown and typed. The G-code units are set by the machine.");
+            ui.menu_button(tr("Language"), |ui| {
+                ui.style_mut().wrap = Some(false);
+                let saved = crate::prefs::load().language.unwrap_or_else(|| "auto".into());
+                let mut pick: Option<String> = None;
+                if ui.radio(saved == "auto", tr("Automatic")).clicked() { pick = Some("auto".into()); }
+                for (code, name, _) in putiacnc_core::i18n::LANGUAGES { if ui.radio(saved == *code, *name).clicked() { pick = Some(code.to_string()); } }
+                if std::env::var_os("PUTIACNC_PSEUDO").is_some() && ui.radio(saved == putiacnc_core::i18n::PSEUDO, "Pseudo (test)").clicked() { pick = Some(putiacnc_core::i18n::PSEUDO.into()); }
+                if let Some(code) = pick {
+                    putiacnc_core::i18n::set_language(&code);
+                    crate::prefs::modify(|s| s.language = Some(code));
+                    ui.close_menu();
+                }
+            });
             ui.separator();
             crate::widgets::check(ui, &mut app.show_left, "Project panel");
             crate::widgets::check(ui, &mut app.show_right, "Operations / G-code panel");

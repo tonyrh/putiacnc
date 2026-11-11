@@ -2,6 +2,7 @@
 use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui;
+use putiacnc_core::i18n::{tr, tr_f, tr_n};
 use putiacnc_core::shapes;
 
 /// Most copies one array may make (a guard against typing a huge count).
@@ -40,21 +41,21 @@ impl Default for ArrayTool {
 impl App {
     /// Adds copies of the selected shapes, keeping the originals. Returns a message when nothing was made.
     pub fn array_selection(&mut self) -> Option<String> {
-        if self.sel.is_empty() { return Some("Select one or more shapes first.".into()); }
+        if self.sel.is_empty() { return Some(tr("Select one or more shapes first.").into()); }
         let a = &self.array;
         let src: Vec<usize> = self.sel.iter().copied().filter(|&i| i < self.project.data.loops.len()).collect();
-        let Some(b) = shapes::bbox_many(src.iter().map(|&i| &self.project.data.loops[i])) else { return Some("Nothing to copy.".into()) };
+        let Some(b) = shapes::bbox_many(src.iter().map(|&i| &self.project.data.loops[i])) else { return Some(tr("Nothing to copy.").into()) };
         // every copy as (shift or turn) of the whole selection
         enum Step { Shift(f64, f64), Turn(f64), Place(f64, f64, f64) }
         let mut steps: Vec<Step> = Vec::new();
         if a.along {
-            let Some(pi) = a.path.filter(|&i| i < self.project.data.loops.len()) else { return Some("Pick the path: click Pick path, then a shape in the drawing.".into()) };
+            let Some(pi) = a.path.filter(|&i| i < self.project.data.loops.len()) else { return Some(tr("Pick the path: click Pick path, then a shape in the drawing.").into()) };
             let pl = &self.project.data.loops[pi];
             let mut v = shapes::points(pl);
             if pl.closed() && v.len() > 2 { v.push(v[0]); }
             let lens: Vec<f64> = v.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).collect();
             let total: f64 = lens.iter().sum();
-            if v.len() < 2 || total < 1e-6 { return Some("That shape has no length to follow.".into()); }
+            if v.len() < 2 || total < 1e-6 { return Some(tr("That shape has no length to follow.").into()); }
             let n = (a.pcount.round() as i64).max(1) as usize;
             let closed = pl.closed() && v.len() > 3;
             let c0 = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0];
@@ -95,8 +96,8 @@ impl App {
             let (sx, sy) = (b[2] - b[0] + a.gap_x, b[3] - b[1] + a.gap_y);
             for r in 0..rows { for c in 0..cols { if r + c > 0 { steps.push(Step::Shift(c as f64 * sx, r as f64 * sy)); } } }
         }
-        if steps.is_empty() { return Some("Nothing to copy: use more than one column, row or copy.".into()); }
-        if steps.len() * src.len() > MAX_COPIES { return Some(format!("That would make {} shapes; the limit is {MAX_COPIES}.", steps.len() * src.len())); }
+        if steps.is_empty() { return Some(tr("Nothing to copy: use more than one column, row or copy.").into()); }
+        if steps.len() * src.len() > MAX_COPIES { return Some(tr_f("That would make {n} shapes; the limit is {max}.", &[("n", &(steps.len() * src.len())), ("max", &MAX_COPIES)])); }
         let (cx, cy) = (a.cx, a.cy);
         let c0 = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0];
         self.hist.record(&self.project.data);
@@ -139,18 +140,18 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Array and copy", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(376.0);
-        if crate::csd::dialog_header_help(ui, "Array and copy", true, |ui| {
-            ui.label("The gap is measured between the edges of neighbouring copies.");
+        if crate::csd::dialog_header_help(ui, tr("Array and copy"), true, |ui| {
+            ui.label(tr("The gap is measured between the edges of neighbouring copies."));
             ui.add_space(4.0);
-            ui.label("Along a path, click Pick path and then a shape in the drawing: the copies are spaced evenly along it, the first at its start and, on an open path, the last at its end. Turn the copies makes them follow the path's direction.");
+            ui.label(tr("Along a path, click Pick path and then a shape in the drawing: the copies are spaced evenly along it, the first at its start and, on an open path, the last at its end. Turn the copies makes them follow the path's direction."));
             ui.add_space(4.0);
-            ui.label("Around a circle, Copies includes the original. With 360° the copies are spaced evenly all the way round.");
+            ui.label(tr("Around a circle, Copies includes the original. With 360° the copies are spaced evenly all the way round."));
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
+        ui.label(if n == 0 { tr("Select one or more shapes first.").to_string() } else { tr_n(n as u64, "{n} shape selected.", "{n} shapes selected.") });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
-            let (c, _) = crate::zoomcard::seg3(ui, ["Grid", "Circle", "Path"], ["Rows and columns", "Around a centre point", "Along a line or curve"], if app.array.along { 2 } else { app.array.circular as usize });
+            let (c, _) = crate::zoomcard::seg3(ui, [tr("Grid"), tr("Circle"), tr("Path")], [tr("Rows and columns"), tr("Around a centre point"), tr("Along a line or curve")], if app.array.along { 2 } else { app.array.circular as usize });
             if let Some(i) = c { app.array.circular = i == 1; app.array.along = i == 2; if i != 2 { app.array.picking = false; } }
         });
         ui.add_space(6.0);
@@ -160,37 +161,37 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             else { crate::widgets::num(ui, [70.0, 24.0], v, lo, hi, if dec == 0 { 0.1 } else { 0.25 }, dec, ""); ui.weak(unit); }
         };
         // the same label columns in both modes, so the dialog does not change width when you switch
-        let l1 = ["Columns", "Gap X", "Copies", "Centre X"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
-        let l3 = ["Rows", "Gap Y", "Angle", "Centre Y"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let l1 = [tr("Columns"), tr("Gap X"), tr("Copies"), tr("Centre X")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let l3 = [tr("Rows"), tr("Gap Y"), tr("Angle"), tr("Centre Y")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("array_grid").num_columns(4).spacing([10.0, 8.0]).show(ui, |ui| {
             if a.along {
-                crate::toolmgr::rlabel(ui, l1, "Copies"); field(ui, &mut a.pcount, 1.0, 200.0, 0, "");
+                crate::toolmgr::rlabel(ui, l1, tr("Copies")); field(ui, &mut a.pcount, 1.0, 200.0, 0, "");
                 ui.horizontal(|ui| {
-                    let label = if a.picking { "Click a shape\u{2026}" } else { "Pick path" };
-                    if ui.add(egui::Button::new(label).selected(a.picking)).on_hover_text("Then click the line or curve the copies should follow").clicked() { a.picking = !a.picking; }
-                    ui.weak(match a.path { Some(i) if i < path_len => format!("shape {}", i + 1), _ => "none chosen".to_string() });
+                    let label = if a.picking { tr("Click a shape\u{2026}") } else { tr("Pick path") };
+                    if ui.add(egui::Button::new(label).selected(a.picking)).on_hover_text(tr("Then click the line or curve the copies should follow")).clicked() { a.picking = !a.picking; }
+                    ui.weak(match a.path { Some(i) if i < path_len => tr_f("shape {n}", &[("n", &(i + 1))]), _ => tr("none chosen").to_string() });
                 });
                 ui.end_row();
             } else if !a.circular {
-                crate::toolmgr::rlabel(ui, l1, "Columns"); field(ui, &mut a.cols, 1.0, 100.0, 0, ""); crate::toolmgr::rlabel(ui, l3, "Rows"); field(ui, &mut a.rows, 1.0, 100.0, 0, ""); ui.end_row();
-                crate::toolmgr::rlabel(ui, l1, "Gap X"); field(ui, &mut a.gap_x, -10000.0, 10000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, "Gap Y"); field(ui, &mut a.gap_y, -10000.0, 10000.0, 2, "mm"); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, tr("Columns")); field(ui, &mut a.cols, 1.0, 100.0, 0, ""); crate::toolmgr::rlabel(ui, l3, tr("Rows")); field(ui, &mut a.rows, 1.0, 100.0, 0, ""); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, tr("Gap X")); field(ui, &mut a.gap_x, -10000.0, 10000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, tr("Gap Y")); field(ui, &mut a.gap_y, -10000.0, 10000.0, 2, "mm"); ui.end_row();
             } else {
-                crate::toolmgr::rlabel(ui, l1, "Copies"); field(ui, &mut a.count, 2.0, 200.0, 0, ""); crate::toolmgr::rlabel(ui, l3, "Angle"); field(ui, &mut a.angle, -360.0, 360.0, 1, "°"); ui.end_row();
-                crate::toolmgr::rlabel(ui, l1, "Centre X"); field(ui, &mut a.cx, -100000.0, 100000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, "Centre Y"); field(ui, &mut a.cy, -100000.0, 100000.0, 2, "mm"); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, tr("Copies")); field(ui, &mut a.count, 2.0, 200.0, 0, ""); crate::toolmgr::rlabel(ui, l3, tr("Angle")); field(ui, &mut a.angle, -360.0, 360.0, 1, "°"); ui.end_row();
+                crate::toolmgr::rlabel(ui, l1, tr("Centre X")); field(ui, &mut a.cx, -100000.0, 100000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, tr("Centre Y")); field(ui, &mut a.cy, -100000.0, 100000.0, 2, "mm"); ui.end_row();
             }
         });
         if a.circular || a.along {
             ui.add_space(4.0);
-            crate::widgets::check(ui, &mut a.rotate, "Turn the copies").tip(if a.along { "Off: the copies keep their orientation. On: they turn to follow the direction of the path" } else { "Off: the copies keep their orientation and only move round the circle" });
+            crate::widgets::check(ui, &mut a.rotate, tr("Turn the copies")).tip(if a.along { tr("Off: the copies keep their orientation. On: they turn to follow the direction of the path") } else { tr("Off: the copies keep their orientation and only move round the circle") });
         }
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "array").map(|(_, m)| m);
         if let Some(n) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(n > 0, egui::Button::new("Apply")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }
-            if ui.button("Close").clicked() { close = true; }
+            if ui.add_enabled(n > 0, egui::Button::new(tr("Apply"))).on_hover_text(tr("Do it and keep the window open, to go again")).clicked() { apply = true; }
+            if ui.button(tr("Close")).clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                crate::widgets::check(ui, &mut app.preview_on, "Preview").tip("Show the result in the drawing while you change the values");
+                crate::widgets::check(ui, &mut app.preview_on, tr("Preview")).tip(tr("Show the result in the drawing while you change the values"));
             });
         });
         });

@@ -48,6 +48,7 @@ impl App {
     /// Takes the remembered settings from disk (called once at start).
     pub(super) fn apply_prefs(&mut self) {
         let p = crate::prefs::load();
+        putiacnc_core::i18n::set_language(&std::env::var("PUTIACNC_LANG").ok().or(p.language.clone()).unwrap_or_else(|| "auto".into()));
         if let Some(v) = p.show_left { self.show_left = v; }
         if let Some(v) = p.show_right { self.show_right = v; }
         match p.right_tab.as_deref() { Some("gcode") => self.tab = RightTab::Gcode, Some("notes") => self.tab = RightTab::Info, Some("ops") => self.tab = RightTab::Ops, _ => {} }
