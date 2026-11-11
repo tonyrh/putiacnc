@@ -211,7 +211,7 @@ impl ToolGeo {
 // ---------- emitter ----------
 struct Em {
     g: Vec<String>, cur: [f64; 3], lf: Option<f64>, time: f64, tc: f64, pn: usize, oi: usize, lap: bool, pw: Option<(usize, usize, bool)>,
-    moves: Vec<Move>, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, helix_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64, rates: crate::motion::Rates, capped: usize, marlin: bool,
+    moves: Vec<Move>, last_ring: Option<(f64, Vec<[f64; 2]>)>, link_ok: bool, lastg: usize, alt: bool, det: bool, marks: Vec<TabMark>, lead_skipped: usize, helix_skipped: usize, ox: f64, oy: f64, zt: f64, ku: f64, imp: bool, rap: f64, tsc: f64, spin: f64, rates: crate::motion::Rates, capped: usize, marlin: bool,
 }
 
 impl Em {
@@ -439,6 +439,31 @@ fn finish_pass(e: &mut Em, c: &OpCtx, fin: &mut [Job], region: &[Path], zs: &[f6
     run_jobs(e, c, fin, region, &fz, &guard);
 }
 
+/// The order in which one piece of a pocket's rings are cut: each ring right after the one next to it on the outside (its parent, the ring it
+/// starts beside), so the tool can step on to it at depth. A ring always comes after its parent, which is all the plunging into the
+/// parent's slot needs.
+fn ring_order(jobs: &[Job], group: &[usize], rev: bool) -> Vec<usize> {
+    let n = group.len();
+    let starts: Vec<[f64; 2]> = group.iter().map(|&i| entry(&jobs[i], rev)).collect();
+    let paths: Vec<Vec<[f64; 2]>> = group.iter().map(|&i| path_f(&jobs[i].p, false, true)).collect();
+    let near = |k: usize, from: [f64; 2]| if paths[k].len() > 1 { nearest_on_ring(&paths[k], from).2 } else { f64::INFINITY };
+    let mut parent: Vec<Option<usize>> = vec![None; n];
+    for j in 0..n {
+        let g = jobs[group[j]].gen;
+        let best = |cands: &mut dyn Iterator<Item = usize>| cands.map(|k| (k, near(k, starts[j]))).min_by(|a, b| a.1.total_cmp(&b.1)).map(|(k, _)| k);
+        parent[j] = best(&mut (0..j).filter(|&k| jobs[group[k]].gen + 1 == g)).or_else(|| best(&mut (0..j).filter(|&k| jobs[group[k]].gen < g)));
+    }
+    let mut kids: Vec<Vec<usize>> = vec![vec![]; n];
+    let mut order = Vec::with_capacity(n);
+    for j in 0..n { if let Some(k) = parent[j] { kids[k].push(j); } }
+    let mut stack: Vec<usize> = (0..n).rev().filter(|&j| parent[j].is_none()).collect();
+    while let Some(j) = stack.pop() {
+        order.push(group[j]);
+        for &k in kids[j].iter().rev() { stack.push(k); }
+    }
+    order
+}
+
 fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64], guard: &[Path]) {
     if c.kind == "pocket" {
         let groups = if jobs.len() > 1 {
@@ -450,12 +475,16 @@ fn run_jobs(e: &mut Em, c: &OpCtx, jobs: &mut [Job], region: &[Path], zs: &[f64]
         // the helical entry's room: inside the outermost rings, outside the rings around islands
         let g0: Vec<Path> = jobs.iter().filter(|j| j.gen == 0).map(|j| j.p.clone()).collect();
         let guard = &g0[..];
+        let orders: Vec<Vec<usize>> = groups.iter().map(|g| if g.len() > 1 && g.len() <= 2000 { ring_order(jobs, g, c.rev) } else { g.clone() }).collect();
         for &z in zs {
             let order: Vec<usize> = if groups.len() > 1 {
                 let gs: Vec<[f64; 2]> = groups.iter().map(|g| entry(&jobs[g[0]], c.rev)).collect();
                 nearest_order(&gs, [e.cur[0], e.cur[1]])
             } else { (0..groups.len()).collect() };
-            for gi in order { for &ji in &groups[gi] { cut(e, c, &mut jobs[ji], &[z], guard); } }
+            e.link_ok = true;
+            for gi in order { for &ji in &orders[gi] { cut(e, c, &mut jobs[ji], &[z], guard); } }
+            e.link_ok = false;
+            if e.last_ring.take().is_some() { e.go("G0", None, None, Some(c.sz), 0.0); }
         }
         return;
     }
@@ -713,6 +742,29 @@ fn start_mid_edge(pts: &[[f64; 2]]) -> Vec<[f64; 2]> {
     v
 }
 
+/// The point of a closed path (last point = first) nearest to `p`, with the number of the edge it lies on.
+fn nearest_on_ring(pts: &[[f64; 2]], p: [f64; 2]) -> ([f64; 2], usize, f64) {
+    let mut best = (pts[0], 0, f64::INFINITY);
+    for (i, w) in pts.windows(2).enumerate() {
+        let (dx, dy) = (w[1][0] - w[0][0], w[1][1] - w[0][1]);
+        let l2 = dx * dx + dy * dy;
+        let t = if l2 > 0.0 { (((p[0] - w[0][0]) * dx + (p[1] - w[0][1]) * dy) / l2).clamp(0.0, 1.0) } else { 0.0 };
+        let q = [w[0][0] + dx * t, w[0][1] + dy * t];
+        let d = dist2(p, q).sqrt();
+        if d < best.2 { best = (q, i, d); }
+    }
+    best
+}
+
+/// A closed path started at `q`, a point on its edge number `seg`.
+fn ring_from(pts: &[[f64; 2]], seg: usize, q: [f64; 2]) -> Vec<[f64; 2]> {
+    let n = pts.len() - 1;
+    let mut v = vec![q];
+    for k in 1..=n { v.push(pts[(seg + k) % n]); }
+    v.push(q);
+    v
+}
+
 fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     let mut pts = path_f(&job.p, c.rev, job.closed);
     let lead = if c.lead > 0.0 && job.closed && !job.pocket {
@@ -737,18 +789,45 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
         }
         _ => None,
     };
+    // a pocket ring that starts beside the ring just cut at this depth is reached by a feed move through the slot that ring left, at
+    // depth: no climb to the safe height, no new plunge. The ring then starts where the tool arrives, the nearest point of its path.
+    let mut linked = false;
+    if e.link_ok && job.pocket && job.gen > 0 && lead.is_none() && helix.is_none() && !c.tabs_on && zl.len() == 1 && pts.len() > 3 && (!c.ramp || c.so <= 45.0) {
+        if let Some((lz, lp)) = &e.last_ring {
+            let here = [e.cur[0], e.cur[1]];
+            let (q, seg, d) = nearest_on_ring(&pts, here);
+            let chip = c.dia * c.so / 100.0 * 1.25 + 0.05;
+            let n = ((d / 0.4).ceil() as usize).max(1);
+            let ok = *lz == zl[0] && (e.cur[2] - (c.z0 + zl[0])).abs() < 1e-9 && d <= 2.0 * chip
+                && (0..=n).all(|k| {
+                    let u = k as f64 / n as f64;
+                    let t = [here[0] + (q[0] - here[0]) * u, here[1] + (q[1] - here[1]) * u];
+                    (k == 0 || k == n || inside_eo(guard, t[0], t[1])) && nearest_on_ring(lp, t).2 <= chip
+                });
+            if ok {
+                pts = ring_from(&pts, seg, q);
+                e.pn = c.zs.iter().position(|&x| x == zl[0]).map(|i| i + 1).unwrap_or(0);
+                e.go("G1", Some(q[0]), Some(q[1]), None, c.feed);
+                linked = true;
+            }
+        }
+    }
     let a = lead.as_ref().map(|l| l.s).unwrap_or(pts[0]);
-    e.go("G0", None, None, Some(c.sz), 0.0);
-    e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+    if !linked {
+        e.go("G0", None, None, Some(c.sz), 0.0);
+        e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+    }
     e.pn = 0;
     // a pocket ring is cut one depth at a time: it ramps down from the depth before, through the air of the pass above it
     // With a stepover of 45 % of the tool or less (a margin under half), the start of an inner ring is inside the slot the ring outside it just cut (and
     // levelled), so only the rings next to the walls ramp; the others plunge there, through air, and cut flat.
     let inner_plunge = job.pocket && c.ramp && c.so <= 45.0;
     let mut pz = if job.pocket && c.ramp { zl.first().and_then(|z| c.zs.iter().position(|q| q == z)).and_then(|i| i.checked_sub(1)).map(|i| c.zs[i]).unwrap_or(0.0) } else { 0.0 };
-    e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
-    e.go("G1", None, None, Some(c.z0), c.plunge);
-    if pz < 0.0 { e.go("G1", None, None, Some(c.z0 + pz), c.plunge); }
+    if !linked {
+        e.go("G0", None, None, Some(c.z0 + 0.5), 0.0);
+        e.go("G1", None, None, Some(c.z0), c.plunge);
+        if pz < 0.0 { e.go("G1", None, None, Some(c.z0 + pz), c.plunge); }
+    }
     // whether the tool is at the end of an open line (so the next depth runs back along it)
     let mut at_end = false;
     for &z in zl {
@@ -797,7 +876,7 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
         } else {
             // an open line is cut back and forth: each depth starts where the last one ended, instead of cutting a line
             // straight back across the work from the end to the start of the path at the new depth
-            e.go("G1", None, None, Some(c.z0 + z), c.plunge);
+            if !linked { e.go("G1", None, None, Some(c.z0 + z), c.plunge); }
             if at_end { for q in pts.iter().rev() { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
             else { for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
             if !job.closed { at_end = !at_end; }
@@ -805,7 +884,9 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
         if let Some(l) = &lead { for q in &l.arc_out { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
         pz = z;
     }
-    e.go("G0", None, None, Some(c.sz), 0.0);
+    // inside a pocket the tool stays down for the next ring to link to (run_jobs lifts it when the rings are done)
+    if e.link_ok && job.pocket && zl.len() == 1 { e.last_ring = Some((zl[0], pts)); }
+    else { e.last_ring = None; e.go("G0", None, None, Some(c.sz), 0.0); }
 }
 
 pub(crate) fn zero_offsets(st: &Stock) -> (f64, f64) {
@@ -1495,7 +1576,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let sz_init = data.job.safe + if data.job.air { 10.0 } else { 0.0 };
     let (ox, oy) = zero_offsets(st);
     let zt = if st.zm == "top" { 0.0 } else { st.t - st.zh };
-    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, helix_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: if data.job.marlin() { 0.0 } else { machine.spin_up_s() }, rates: machine.rates(), capped: 0, marlin: data.job.marlin() };
+    let mut e = Em { g: vec![], cur: [ox, oy, sz_init], lf: None, time: 0.0, tc: 0.0, pn: 0, oi: 0, lap: false, pw: None, last_ring: None, link_ok: false, moves: vec![], lastg: 0, alt: false, det: false, marks: vec![], lead_skipped: 0, helix_skipped: 0, ox, oy, zt, ku, imp, rap: machine.rapid, tsc: machine.tsc, spin: if data.job.marlin() { 0.0 } else { machine.spin_up_s() }, rates: machine.rates(), capped: 0, marlin: data.job.marlin() };
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
