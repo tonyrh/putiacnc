@@ -335,6 +335,8 @@ struct OpCtx<'a> {
     tabs_on: bool, ztab: f64, tab_w: f64, tab_n: f64,
     /// Lead-in / lead-out arc radius in mm (0 = none).
     lead: f64,
+    /// Feed in tight corners, as a fraction of the normal feed (0 = no slowing).
+    slow: f64,
 }
 
 fn mk_jobs(c: &OpCtx, region: &[Path], closed: &[Path], open: &[Path], rm: f64) -> Vec<Job> {
@@ -765,6 +767,44 @@ fn ring_from(pts: &[[f64; 2]], seg: usize, q: [f64; 2]) -> Vec<[f64; 2]> {
     v
 }
 
+/// A run of cutting moves along `pts` at depth `z`. With the corner slowdown on, the moves just before and after a sharp turn go at a lower
+/// feed: the tool is buried deeper in the material there than along a straight edge.
+fn flat_run(e: &mut Em, c: &OpCtx, pts: &[[f64; 2]], closed: bool, z: f64) {
+    let Some(&first) = pts.first() else { return };
+    e.go("G1", Some(first[0]), Some(first[1]), Some(c.z0 + z), c.feed);
+    if c.slow <= 0.0 || pts.len() < 3 {
+        for q in &pts[1..] { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
+        return;
+    }
+    for (q, slow) in slow_moves(pts, closed, c.dia * 0.75) { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), if slow { (c.feed * c.slow).max(1.0) } else { c.feed }); }
+}
+
+/// The moves along a path after its first point, each flagged when it should be slow: those within `reach` of a turn sharper than 35 degrees.
+fn slow_moves(pts: &[[f64; 2]], closed: bool, reach: f64) -> Vec<([f64; 2], bool)> {
+    let n = pts.len();
+    let dir = |a: [f64; 2], b: [f64; 2]| { let (dx, dy) = (b[0] - a[0], b[1] - a[1]); let l = dx.hypot(dy); (dx, dy, l) };
+    let sharp = |i: usize| -> bool {
+        // the turn at vertex i, between the move into it and the move out of it
+        let (prev, next) = if closed && (i == 0 || i == n - 1) { (n - 2, 1) } else if i > 0 && i < n - 1 { (i - 1, i + 1) } else { return false };
+        let (ax, ay, al) = dir(pts[prev], pts[if closed && i == 0 { n - 1 } else { i }]);
+        let (bx, by, bl) = dir(pts[if closed && i == n - 1 { 0 } else { i }], pts[next]);
+        al > 1e-6 && bl > 1e-6 && (ax * bx + ay * by) / (al * bl) < 0.819
+    };
+    let mut out = Vec::new();
+    for s in 0..n - 1 {
+        let (a, b) = (pts[s], pts[s + 1]);
+        let (dx, dy, l) = dir(a, b);
+        if l < 1e-9 { continue; }
+        let at = |d: f64| [a[0] + dx * d / l, a[1] + dy * d / l];
+        let head = sharp(s) && s > 0 || (closed && s == 0 && sharp(0));
+        let tail = sharp(s + 1);
+        let (h, t) = (if head { reach.min(l / 2.0) } else { 0.0 }, if tail { reach.min(l / 2.0) } else { 0.0 });
+        if h > 0.0 { out.push((at(h), true)); }
+        if t > 0.0 { if l - t > h + 1e-9 { out.push((at(l - t), false)); } out.push((b, true)); } else { out.push((b, h > 0.0 && l <= h + 1e-9)); }
+    }
+    out
+}
+
 fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
     let mut pts = path_f(&job.p, c.rev, job.closed);
     let lead = if c.lead > 0.0 && job.closed && !job.pocket {
@@ -858,7 +898,7 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
                 let q = if k == sp { pts[0] } else { [h.c[0] + h.r * th.cos(), h.c[1] + h.r * th.sin()] };
                 e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed);
             }
-            for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
+            flat_run(e, c, &pts, job.closed, z);
         } else if c.ramp && lead.is_none() && job.closed && (!job.pocket || c.kind == "pocket") && pts.len() > 2 && (!inner_plunge || job.gen == 0) {
             let mut lc = vec![0.0];
             let mut t = 0.0;
@@ -870,15 +910,15 @@ fn cut(e: &mut Em, c: &OpCtx, job: &mut Job, zl: &[f64], guard: &[Path]) {
             // plunge into the slot of the ones outside, those must leave a flat floor at every depth
             if if job.pocket { inner_plunge || c.zs.last() == Some(&z) } else { zl.last() == Some(&z) } {
                 e.lap = true;
-                for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); }
+                flat_run(e, c, &pts, job.closed, z);
                 e.lap = false;
             }
         } else {
             // an open line is cut back and forth: each depth starts where the last one ended, instead of cutting a line
             // straight back across the work from the end to the start of the path at the new depth
             if !linked { e.go("G1", None, None, Some(c.z0 + z), c.plunge); }
-            if at_end { for q in pts.iter().rev() { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
-            else { for q in &pts { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
+            if at_end { let r: Vec<[f64; 2]> = pts.iter().rev().copied().collect(); flat_run(e, c, &r, false, z); }
+            else { flat_run(e, c, &pts, job.closed, z); }
             if !job.closed { at_end = !at_end; }
         }
         if let Some(l) = &lead { for q in &l.arc_out { e.go("G1", Some(q[0]), Some(q[1]), Some(c.z0 + z), c.feed); } }
@@ -991,7 +1031,7 @@ fn rest_pass(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let nz = (o.p.depth / pd - 1e-9).ceil().clamp(1.0, 5000.0) as usize;
     let zs: Vec<f64> = (0..nz).map(|i| -(o.p.depth / nz as f64) * (i as f64 + 1.0)).collect();
     let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: main.ramp, rev: main.rev, helix: None, adapt: false, z0: main.z0, sz: main.sz, zs: zs.clone(),
-        tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0 };
+        tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0, slow: 0.0 };
     let mut jobs = mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0);
     if jobs.is_empty() { notes.push(format!("{}rest machining: what is left is too narrow for the {} {} tool.", pre, num(to_fixed(rt.dia / ku, 4)), un)); return; }
     select_tool(e, ts, mach, rt, main.sz, &num(to_fixed(rt.dia / ku, 4)), un);
@@ -1675,7 +1715,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let so = if adapt { o.p.adaptive_so.filter(|v| *v > 0.0).unwrap_or(12.0).clamp(2.0, 40.0) } else { so };
         let mut ctx = OpCtx { kind, dia, so, adapt, plunge, feed, ramp: o.p.ramp, rev: false, helix: if o.p.helix && matches!(kind, "outside" | "inside" | "pocket") { Some((o.p.helix_d.filter(|v| *v > 0.0).unwrap_or(100.0).clamp(20.0, 400.0), o.p.helix_a.filter(|v| *v > 0.0).unwrap_or(3.0).clamp(0.5, 45.0))) } else { None }, z0, sz, zs: zs.clone(),
             tabs_on, ztab: -(depth - tab_h), tab_w: o.p.tab_w.unwrap_or(5.0), tab_n: o.p.tab_n.unwrap_or(4.0),
-            lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 } };
+            lead: if kind == "outside" || kind == "inside" { o.p.lead.filter(|r| *r > 0.0).unwrap_or(0.0) } else { 0.0 },
+            slow: if matches!(kind, "outside" | "inside" | "pocket") { o.p.cslow.filter(|p| *p > 0.0 && *p < 100.0).map_or(0.0, |p| p / 100.0) } else { 0.0 } };
 
         if kind == "inlay" || kind == "plug" {
             let female = kind == "inlay";
@@ -1706,7 +1747,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let mkzs = |d: f64| -> Vec<f64> { let n = ((d / fpd) - 1e-9).ceil().max(1.0) as usize; (0..n).map(|i| -(d / n as f64) * (i as f64 + 1.0)).collect() };
             let fctx = |kind: &'static str, zs: Vec<f64>, rev: bool| OpCtx {
                 kind, dia: ft.dia, so: ft.so, plunge: ft.plunge, feed: ft.feed, ramp: o.p.ramp, rev, helix: None, adapt: false, z0, sz, zs,
-                tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0,
+                tabs_on: false, ztab: 0.0, tab_w: 0.0, tab_n: 0.0, lead: 0.0, slow: 0.0,
             };
             let ring_rev = !conv;
             let fdia = num(fl(ft.dia));
@@ -1852,7 +1893,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                             let nz = (zmax / pd - 1e-9).ceil().clamp(1.0, 5000.0) as usize;
                             let zs: Vec<f64> = (0..nz).map(|i| -(zmax / nz as f64) * (i as f64 + 1.0)).collect();
                             let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: ctx.ramp, rev: o.p.dir != "conv", helix: None, adapt: false, z0: ctx.z0, sz: ctx.sz, zs: zs.clone(),
-                                tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0 };
+                                tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0, slow: 0.0 };
                             let fj = if area.is_empty() { Vec::new() } else { mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0) };
                             if fj.is_empty() {
                                 notes.push(format!("{}the flat floor is too narrow for the {} {} end mill (or there is none): the V-bit carves it all.", pre, num(fl(rt.dia)), un));

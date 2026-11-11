@@ -1020,6 +1020,21 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         }
                     });
                 }
+                if ["outside", "inside", "pocket"].contains(&p.kind.as_str()) {
+                    ui.horizontal(|ui| {
+                        let mut on = p.cslow.is_some();
+                        ui.add_space(6.0);
+                        if crate::widgets::check(ui, &mut on, "Slow down in tight corners").tip("Cuts at a lower feed just before and after a sharp corner, where the tool is buried deeper in the material than along a straight edge: less chatter, gentler on thin bits").changed() {
+                            p.cslow = if on { Some(60.0) } else { None };
+                            changed = true;
+                        }
+                        if let Some(v) = p.cslow.as_mut() {
+                            ui.add_space(10.0);
+                            ui.label("Feed");
+                            if dl_w(ui, 56.0, v, 10.0, 95.0, "%") { changed = true; }
+                        }
+                    });
+                }
                 if ["outside", "inside"].contains(&p.kind.as_str()) {
                     ui.horizontal(|ui| {
                         let mut on = p.lead.is_some();

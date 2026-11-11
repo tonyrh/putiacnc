@@ -384,6 +384,8 @@ pub struct OpParams {
     #[serde(default, rename = "passD", skip_serializing_if = "Option::is_none")] pub pass_depth: Option<f64>,
     /// Radius (mm) of the arc the tool uses to enter and leave a profile cut; `None` = plunge straight onto the line.
     #[serde(default, rename = "leadR", skip_serializing_if = "Option::is_none")] pub lead: Option<f64>,
+    /// Slow down in tight corners: the feed there as a percentage of the normal one (`None` = off).
+    #[serde(default, rename = "cornerSlow", skip_serializing_if = "Option::is_none")] pub cslow: Option<f64>,
     #[serde(default, rename = "tabN", skip_serializing_if = "Option::is_none")] pub tab_n: Option<f64>,
     #[serde(default, rename = "tabW", skip_serializing_if = "Option::is_none")] pub tab_w: Option<f64>,
     #[serde(default, rename = "tabH", skip_serializing_if = "Option::is_none")] pub tab_h: Option<f64>,
