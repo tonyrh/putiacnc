@@ -223,7 +223,12 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     if editing_tabs.is_some() { app.node_edit = None; }
     let editing_nodes = app.node_edit.filter(|&i| i < app.project.data.loops.len());
     if editing_nodes.is_none() { app.node_edit = None; app.node_drag = NodeDrag::None; }
-    let interaction_mode = if editing_tabs.is_some() || editing_nodes.is_some() { None } else { Some(app.mode) };
+    // the Array window is waiting for a click on the shape the copies should follow
+    let picking_path = app.array.open && app.array.picking;
+    if picking_path && resp.clicked_by(prim) {
+        if let Some(h) = hover_w.and_then(|w| app.pick_shape(w, tol)) { app.array.path = Some(h); app.array.picking = false; }
+    }
+    let interaction_mode = if editing_tabs.is_some() || editing_nodes.is_some() || picking_path { None } else { Some(app.mode) };
     if let Some(op_id) = editing_tabs { tab_interaction(&ctx, app, &resp, &view, op_id, hover_w); }
     if let Some(li) = editing_nodes { node_interaction(&ctx, app, &resp, &view, li, hover_w, pointer_w, tol); }
     // a right-click (not a right-drag, which pans) is Esc; the line tool and tab placement have their own use of it, handled where they are

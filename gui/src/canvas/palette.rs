@@ -168,6 +168,7 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
         Mode::Trim => if app.trim_extend { "Click near an open end to run it on to the next shape" } else { "Click the part to remove, up to the nearest crossings" },
     } };
     if app.trace.open || app.clean.open { return; } // a dialog covers that part of the canvas
+    let hint = if app.array.open && app.array.picking { "Click the line or curve the copies should follow" } else { hint };
     let hint = if app.dyn_in.is_some() { "Typing values: Enter confirms \u{b7} Tab next field \u{b7} Esc cancels" } else { hint };
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));

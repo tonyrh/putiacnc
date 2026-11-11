@@ -382,6 +382,7 @@ impl App {
         if std::env::var_os("PUTIACNC_SHOW_SHORTCUTS").is_some() { a.shortcuts_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ABOUT").is_some() { a.about_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ARRAY").is_some() { a.array.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
+        if let Ok(v) = std::env::var("PUTIACNC_ARRAY_PATH") { if let Ok(i) = v.parse() { a.array.along = true; a.array.path = Some(i); a.sel = [0].into_iter().collect(); } }
         if std::env::var_os("PUTIACNC_SHOW_CORNERS").is_some() { a.corners.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if let Ok(v) = std::env::var("PUTIACNC_SHOW_BOX") { a.boxgen.open = true; a.boxgen.dogbone = v == "dogbone"; }
         if std::env::var_os("PUTIACNC_SHOW_FINGERS").is_some() { a.fingers.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }

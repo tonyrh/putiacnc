@@ -1,4 +1,4 @@
-//! Array / copy dialog: repeat the selected shapes in a grid or around a circle.
+//! Array / copy dialog: repeat the selected shapes in a grid, around a circle or along a path.
 use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui;
@@ -10,6 +10,13 @@ const MAX_COPIES: usize = 500;
 pub struct ArrayTool {
     pub open: bool,
     pub circular: bool,
+    /// Third mode: copies placed along another shape.
+    pub along: bool,
+    /// The shape the copies follow, and whether the next canvas click chooses it.
+    pub path: Option<usize>,
+    pub picking: bool,
+    /// Copies along the path (the original not counted).
+    pub pcount: f64,
     pub cols: f64,
     pub rows: f64,
     /// Space between neighbouring copies (edge to edge), mm.
@@ -26,7 +33,7 @@ pub struct ArrayTool {
 
 impl Default for ArrayTool {
     fn default() -> Self {
-        ArrayTool { open: false, circular: false, cols: 3.0, rows: 1.0, gap_x: 5.0, gap_y: 5.0, count: 6.0, cx: 0.0, cy: 0.0, centre_set: false, angle: 360.0, rotate: true }
+        ArrayTool { open: false, circular: false, along: false, path: None, picking: false, pcount: 5.0, cols: 3.0, rows: 1.0, gap_x: 5.0, gap_y: 5.0, count: 6.0, cx: 0.0, cy: 0.0, centre_set: false, angle: 360.0, rotate: true }
     }
 }
 
@@ -38,9 +45,38 @@ impl App {
         let src: Vec<usize> = self.sel.iter().copied().filter(|&i| i < self.project.data.loops.len()).collect();
         let Some(b) = shapes::bbox_many(src.iter().map(|&i| &self.project.data.loops[i])) else { return Some("Nothing to copy.".into()) };
         // every copy as (shift or turn) of the whole selection
-        enum Step { Shift(f64, f64), Turn(f64) }
+        enum Step { Shift(f64, f64), Turn(f64), Place(f64, f64, f64) }
         let mut steps: Vec<Step> = Vec::new();
-        if a.circular {
+        if a.along {
+            let Some(pi) = a.path.filter(|&i| i < self.project.data.loops.len()) else { return Some("Pick the path: click Pick path, then a shape in the drawing.".into()) };
+            let pl = &self.project.data.loops[pi];
+            let mut v = shapes::points(pl);
+            if pl.closed() && v.len() > 2 { v.push(v[0]); }
+            let lens: Vec<f64> = v.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).collect();
+            let total: f64 = lens.iter().sum();
+            if v.len() < 2 || total < 1e-6 { return Some("That shape has no length to follow.".into()); }
+            let n = (a.pcount.round() as i64).max(1) as usize;
+            let closed = pl.closed() && v.len() > 3;
+            let c0 = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0];
+            // the point and the direction of travel at a distance along the path
+            let at = |d: f64| -> ([f64; 2], f64) {
+                let mut left = d;
+                for (k, w) in v.windows(2).enumerate() {
+                    if left <= lens[k] || k == lens.len() - 1 {
+                        let t = if lens[k] > 0.0 { (left / lens[k]).clamp(0.0, 1.0) } else { 0.0 };
+                        return ([w[0][0] + (w[1][0] - w[0][0]) * t, w[0][1] + (w[1][1] - w[0][1]) * t], (w[1][1] - w[0][1]).atan2(w[1][0] - w[0][0]).to_degrees());
+                    }
+                    left -= lens[k];
+                }
+                (v[0], 0.0)
+            };
+            let a0 = at(0.0).1;
+            for k in 0..n {
+                let d = if closed { total * k as f64 / n as f64 } else if n == 1 { 0.0 } else { total * k as f64 / (n - 1) as f64 };
+                let (p, ang) = at(d);
+                steps.push(Step::Place(p[0] - c0[0], p[1] - c0[1], if a.rotate { ang - a0 } else { 0.0 }));
+            }
+        } else if a.circular {
             let n = (a.count.round() as i64).max(2) as usize;
             let full = a.angle.abs() >= 359.999;
             let each = if full { a.angle / n as f64 } else { a.angle / (n - 1) as f64 };
@@ -62,6 +98,7 @@ impl App {
         if steps.is_empty() { return Some("Nothing to copy: use more than one column, row or copy.".into()); }
         if steps.len() * src.len() > MAX_COPIES { return Some(format!("That would make {} shapes; the limit is {MAX_COPIES}.", steps.len() * src.len())); }
         let (cx, cy) = (a.cx, a.cy);
+        let c0 = [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0];
         self.hist.record(&self.project.data);
         let first_new = self.project.data.loops.len();
         let mut gc = putiacnc_core::shapes::GroupCopies::new(&self.project.data.loops);
@@ -71,7 +108,8 @@ impl App {
             for &i in &src {
                 let mut l = self.project.data.loops[i].clone();
                 gc.apply(&mut l);
-                match st { Step::Shift(dx, dy) => shapes::translate(&mut l, *dx, *dy), Step::Turn(th) => shapes::rotate_about(&mut l, cx, cy, *th) }
+                match st { Step::Shift(dx, dy) => shapes::translate(&mut l, *dx, *dy), Step::Turn(th) => shapes::rotate_about(&mut l, cx, cy, *th),
+                    Step::Place(dx, dy, th) => { if th.abs() > 1e-9 { shapes::rotate_about(&mut l, c0[0], c0[1], *th); } shapes::translate(&mut l, *dx, *dy) } }
                 self.project.data.loops.push(l);
             }
             for (k, &i) in src.iter().enumerate() { shapes::tabs_copy(&mut self.project.data.ops, i, start + k); }
@@ -90,12 +128,13 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     }
     {
         let a = &app.array;
-        let params = [a.circular as u64, a.cols.to_bits(), a.rows.to_bits(), a.gap_x.to_bits(), a.gap_y.to_bits(), a.count.to_bits(), a.cx.to_bits(), a.cy.to_bits(), a.angle.to_bits(), a.rotate as u64];
+        let params = [a.circular as u64, a.along as u64, a.path.map_or(u64::MAX, |i| i as u64), a.pcount.to_bits(), a.cols.to_bits(), a.rows.to_bits(), a.gap_x.to_bits(), a.gap_y.to_bits(), a.count.to_bits(), a.cx.to_bits(), a.cy.to_bits(), a.angle.to_bits(), a.rotate as u64];
         app.preview("array", &params, |x| x.array_selection());
     }
     // the window already says what to select; the preview's own message would repeat it
     let pnote = app.ghost.note_of("array").filter(|_| !app.sel.is_empty()).map(String::from);
     let n = app.sel.len();
+    let path_len = app.project.data.loops.len();
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Array and copy", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
@@ -103,14 +142,16 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if crate::csd::dialog_header_help(ui, "Array and copy", true, |ui| {
             ui.label("The gap is measured between the edges of neighbouring copies.");
             ui.add_space(4.0);
+            ui.label("Along a path, click Pick path and then a shape in the drawing: the copies are spaced evenly along it, the first at its start and, on an open path, the last at its end. Turn the copies makes them follow the path's direction.");
+            ui.add_space(4.0);
             ui.label("Around a circle, Copies includes the original. With 360° the copies are spaced evenly all the way round.");
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
-            let (c, _) = crate::zoomcard::seg2(ui, ["Grid", "Circle"], ["Rows and columns", "Around a centre point"], app.array.circular as usize);
-            if let Some(i) = c { app.array.circular = i == 1; }
+            let (c, _) = crate::zoomcard::seg3(ui, ["Grid", "Circle", "Path"], ["Rows and columns", "Around a centre point", "Along a line or curve"], if app.array.along { 2 } else { app.array.circular as usize });
+            if let Some(i) = c { app.array.circular = i == 1; app.array.along = i == 2; if i != 2 { app.array.picking = false; } }
         });
         ui.add_space(6.0);
         let a = &mut app.array;
@@ -122,7 +163,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let l1 = ["Columns", "Gap X", "Copies", "Centre X"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         let l3 = ["Rows", "Gap Y", "Angle", "Centre Y"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("array_grid").num_columns(4).spacing([10.0, 8.0]).show(ui, |ui| {
-            if !a.circular {
+            if a.along {
+                crate::toolmgr::rlabel(ui, l1, "Copies"); field(ui, &mut a.pcount, 1.0, 200.0, 0, "");
+                ui.horizontal(|ui| {
+                    let label = if a.picking { "Click a shape\u{2026}" } else { "Pick path" };
+                    if ui.add(egui::Button::new(label).selected(a.picking)).on_hover_text("Then click the line or curve the copies should follow").clicked() { a.picking = !a.picking; }
+                    ui.weak(match a.path { Some(i) if i < path_len => format!("shape {}", i + 1), _ => "none chosen".to_string() });
+                });
+                ui.end_row();
+            } else if !a.circular {
                 crate::toolmgr::rlabel(ui, l1, "Columns"); field(ui, &mut a.cols, 1.0, 100.0, 0, ""); crate::toolmgr::rlabel(ui, l3, "Rows"); field(ui, &mut a.rows, 1.0, 100.0, 0, ""); ui.end_row();
                 crate::toolmgr::rlabel(ui, l1, "Gap X"); field(ui, &mut a.gap_x, -10000.0, 10000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, "Gap Y"); field(ui, &mut a.gap_y, -10000.0, 10000.0, 2, "mm"); ui.end_row();
             } else {
@@ -130,9 +179,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 crate::toolmgr::rlabel(ui, l1, "Centre X"); field(ui, &mut a.cx, -100000.0, 100000.0, 2, "mm"); crate::toolmgr::rlabel(ui, l3, "Centre Y"); field(ui, &mut a.cy, -100000.0, 100000.0, 2, "mm"); ui.end_row();
             }
         });
-        if a.circular {
+        if a.circular || a.along {
             ui.add_space(4.0);
-            crate::widgets::check(ui, &mut a.rotate, "Turn the copies").tip("Off: the copies keep their orientation and only move round the circle");
+            crate::widgets::check(ui, &mut a.rotate, "Turn the copies").tip(if a.along { "Off: the copies keep their orientation. On: they turn to follow the direction of the path" } else { "Off: the copies keep their orientation and only move round the circle" });
         }
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "array").map(|(_, m)| m);
         if let Some(n) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, n); }
@@ -147,7 +196,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         });
     }));
     if apply { app.ghost.clear(); app.run_tool("array", |a| a.array_selection()); }
-    if close { app.array.open = false; }
+    if close { app.array.open = false; app.array.picking = false; }
 }
 
 #[cfg(test)]
@@ -184,6 +233,28 @@ mod tests {
         // the copy 180 degrees round sits on the other side of the centre
         let b = shapes::bbox(&a.project.data.loops[2]).unwrap();
         assert!(((b[0] + b[2]) / 2.0 - 5.0).abs() < 1e-2 && ((b[1] + b[3]) / 2.0 - (-42.0)).abs() < 1e-2, "{b:?}");
+    }
+
+    #[test]
+    fn copies_follow_a_path_and_turn_with_it() {
+        let mut a = app_with_rect();
+        // an L-shaped open path: 100 along X, then 100 up
+        let l = shapes::new_poly(&[[0.0, 50.0], [100.0, 50.0], [100.0, 150.0]], false, 0).unwrap();
+        a.project.data.loops.push(l);
+        a.array.along = true; a.array.path = Some(1); a.array.pcount = 3.0; a.array.rotate = true;
+        assert!(a.array_selection().is_none());
+        assert_eq!(a.project.data.loops.len(), 5);
+        // the last copy sits at the path's end and has turned a quarter turn
+        let b = shapes::bbox(&a.project.data.loops[4]).unwrap();
+        assert!(((b[0] + b[2]) / 2.0 - 100.0).abs() < 1e-2 && ((b[1] + b[3]) / 2.0 - 150.0).abs() < 1e-2, "{b:?}");
+        assert!((b[2] - b[0] - 4.0).abs() < 1e-2 && (b[3] - b[1] - 10.0).abs() < 1e-2, "{b:?}");
+    }
+
+    #[test]
+    fn a_path_must_be_chosen() {
+        let mut a = app_with_rect();
+        a.array.along = true;
+        assert!(a.array_selection().unwrap().contains("Pick the path"));
     }
 
     #[test]
