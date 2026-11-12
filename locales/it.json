@@ -1157,7 +1157,7 @@
   "Depth is more than the stock thickness ({t} mm): the cutter would go through into the spoilboard.": "La profondità è maggiore dello spessore del materiale ({t} mm): l'utensile attraverserebbe il pezzo e finirebbe nel piano sacrificale.",
   "Holding tabs": "Ponticelli",
   "Placement": "Posizione",
-  "Automatic spaces the tabs evenly; manual lets you put each one where you want it": "Automatico distribuisce i ponticelli in modo uniforme; manuale ti lascia metterli dove vuoi",
+  "Automatic spaces the tabs evenly; manual lets you put each one where you want it": "Automatica distribuisce i ponticelli in modo uniforme; manuale ti lascia metterli dove vuoi",
   "Manual": "Manuale",
   "Starts from the evenly spaced tabs, which you can then move, add or remove": "Parte dai ponticelli distribuiti in modo uniforme, che poi puoi spostare, aggiungere o togliere",
   "Count": "Numero",
