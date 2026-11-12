@@ -645,7 +645,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     let (r2, pk2) = crate::toolpick::picker(ui, ("optooldetail", id), w, cur, p.rest.as_deref(), &job_tools, tools_ref, |t| t.shape == "ball" && t.dia < md - 1e-9);
                                     match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.rest = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
                                     r2.tip(tr("A smaller ball nose that finishes only the places the finishing tool could not reach: narrow grooves, fine points and inside corners (rest machining)"));
-                                    if p.rest.is_some() && ui.small_button(tr("Remove")).on_hover_text(tr("Finish everything with the tool above")).clicked() { p.rest = None; changed = true; }
+                                    if p.rest.is_some() && ui.button(tr("Remove")).on_hover_text(tr("Finish everything with the tool above")).clicked() { p.rest = None; changed = true; }
                                 });
                                 if let Some(dt) = p.rest.as_ref().and_then(|id| tools_ref.iter().find(|t| &t.id == id)) {
                                     ui.horizontal(|ui| {
@@ -698,7 +698,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let (r2, pk2) = crate::toolpick::picker(ui, ("optoolrest", id), tool_w, cur, p.rest.as_deref(), &job_tools, &tools, |t| t.shape == "flat" && t.dia < md - 1e-9);
                             match pk2 { Some(crate::toolpick::Picked::Tool(t)) => { p.rest = Some(t); changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
                             r2.tip(tr("A smaller flat end mill that clears the corners and narrow parts the tool above cannot reach, after it has cut the pocket (rest machining)"));
-                            if p.rest.is_some() && ui.small_button(tr("Remove")).on_hover_text(tr("Leave the corners as the main tool cuts them")).clicked() { p.rest = None; changed = true; }
+                            if p.rest.is_some() && ui.button(tr("Remove")).on_hover_text(tr("Leave the corners as the main tool cuts them")).clicked() { p.rest = None; changed = true; }
                         });
                     }
                     if matches!(p.kind.as_str(), "outside" | "inside" | "pocket") && tools.iter().find(|t| t.id == p.tool).is_some_and(|t| matches!(t.shape.as_str(), "flat" | "ball")) {
