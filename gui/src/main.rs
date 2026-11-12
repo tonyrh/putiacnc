@@ -328,7 +328,8 @@ const LEFT_W: f32 = 394.0;
 const RIGHT_W: f32 = 440.0;
 /// The panels' widths in the language in use (see `i18n::width_factor`).
 fn left_w() -> f32 { (LEFT_W * putiacnc_core::i18n::width_factor()).round() }
-fn right_w() -> f32 { (RIGHT_W * putiacnc_core::i18n::width_factor()).round() }
+// the right panel keeps its width in every language (the left one and the windows widen)
+fn right_w() -> f32 { RIGHT_W }
 /// Smallest canvas that still fits the bottom toolbar (view toggles left and right) and the floating palette.
 const MIN_CANVAS_W: f32 = 520.0;
 /// Smallest window: both panels plus the canvas.

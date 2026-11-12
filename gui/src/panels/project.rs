@@ -246,30 +246,50 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         // two rows: the plain operations with the collapse button at the right edge, then Inlay (it adds two operations)
         // an operation is made for the shapes that are selected, so the buttons wait for a selection
         let has_sel = sel.iter().any(|&k| k < d.loops.len());
-        ui.horizontal(|ui| {
-            for (kind, label, icon) in [("outside", tr("Profile"), Icon::Profile), ("pocket", tr("Pocket"), Icon::Pocket), ("vcarve", tr("V-carve"), Icon::VCarve), ("drill", tr("Drill"), Icon::Drill)] {
-                let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, icon, label, &tr_f("Add a {label} operation for the selected shapes", &[("label", &label)]), None)).inner;
-                if !has_sel { r.on_disabled_hover_text(tr("Select the shapes first")); } else if r.clicked() { add_kind = Some(kind); }
+        let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
+        let has_model = d.relief.is_some();
+        // the seven buttons: Profile, Pocket, V-carve, Drill, then Inlay, Draw, 3D relief
+        let labels = [tr("Profile"), tr("Pocket"), tr("V-carve"), tr("Drill"), tr("Inlay"), tr("Draw"), tr("3D relief")];
+        let mut button = |ui: &mut Ui, i: usize| {
+            let (icon, kind, enabled) = [(Icon::Profile, "outside", has_sel), (Icon::Pocket, "pocket", has_sel), (Icon::VCarve, "vcarve", has_sel), (Icon::Drill, "drill", has_sel), (Icon::Inlay, "inlay", has_sel), (Icon::Pen, "draw", has_sel), (Icon::Relief, "relief", has_model)][i];
+            let tip = match i {
+                4 => tr("Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)").to_string(),
+                5 => tr("Add a Draw operation: a pen follows the outlines of the selected shapes (for a plotter: choose a pen tool)").to_string(),
+                6 => tr("Carve the imported 3D model: roughing, then a finishing pass that follows the surface").to_string(),
+                _ => tr_f("Add a {label} operation for the selected shapes", &[("label", &labels[i])]),
+            };
+            let r = ui.add_enabled_ui(enabled, |ui| icon_text_button(ui, icon, labels[i], &tip, None)).inner;
+            if !enabled { r.on_disabled_hover_text(if i == 6 { tr("Import a 3D model first (File > Import 3D model)") } else { tr("Select the shapes first") }); } else if r.clicked() { add_kind = Some(kind); }
+        };
+        let mut fold = |ui: &mut Ui| {
+            let (icon, tip) = if all_folded { (Icon::Unfold, tr("Expand all operations")) } else { (Icon::Fold, tr("Collapse all operations")) };
+            if small_icon_button(ui, icon, true, tip).clicked() {
+                if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
             }
-            if !d.ops.is_empty() {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
-                    let (icon, tip) = if all_folded { (Icon::Unfold, tr("Expand all operations")) } else { (Icon::Fold, tr("Collapse all operations")) };
-                    if small_icon_button(ui, icon, true, tip).clicked() {
-                        if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
-                    }
+        };
+        // two groups, each on its own line (the plain operations with the collapse button at the right edge; then Inlay, Draw, 3D relief), but a group
+        // whose buttons are wider than the panel (a language with longer words) is split over as many lines as it needs: a button that does not fit
+        // would push the whole panel wider
+        let (pad, sp) = (ui.spacing().button_padding.x, ui.spacing().item_spacing.x);
+        let widths: Vec<f32> = labels.iter().map(|l| 2.0 * pad + 26.0 + super::tw(ui, l)).collect();
+        let avail = ui.available_width();
+        for (group, with_fold) in [(0..4, true), (4..7, false)] {
+            let reserve = if with_fold && !d.ops.is_empty() { 22.0 } else { 0.0 };
+            let mut lines: Vec<Vec<usize>> = vec![vec![]];
+            let mut used = reserve;
+            for i in group {
+                let w = widths[i] + sp;
+                if used + w > avail + 6.0 && !lines.last().unwrap().is_empty() { lines.push(vec![]); used = 0.0; }
+                used += w;
+                lines.last_mut().unwrap().push(i);
+            }
+            for (n, line) in lines.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    for &i in line { button(ui, i); }
+                    if n == 0 && with_fold && !d.ops.is_empty() { ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| fold(ui)); }
                 });
             }
-        });
-        ui.horizontal(|ui| {
-            let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Inlay, tr("Inlay"), tr("Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)"), None)).inner;
-            if !has_sel { r.on_disabled_hover_text(tr("Select the shapes first")); } else if r.clicked() { add_kind = Some("inlay"); }
-            let r = ui.add_enabled_ui(has_sel, |ui| icon_text_button(ui, Icon::Pen, tr("Draw"), tr("Add a Draw operation: a pen follows the outlines of the selected shapes (for a plotter: choose a pen tool)"), None)).inner;
-            if !has_sel { r.on_disabled_hover_text(tr("Select the shapes first")); } else if r.clicked() { add_kind = Some("draw"); }
-            let has_model = d.relief.is_some();
-            let r = ui.add_enabled_ui(has_model, |ui| icon_text_button(ui, Icon::Relief, tr("3D relief"), tr("Carve the imported 3D model: roughing, then a finishing pass that follows the surface"), None)).inner;
-            if !has_model { r.on_disabled_hover_text(tr("Import a 3D model first (File > Import 3D model)")); } else if r.clicked() { add_kind = Some("relief"); }
-        });
+        }
         ui.separator();
     }
     egui::ScrollArea::vertical().auto_shrink([false, false]).show_following(ui, |ui| {
@@ -468,7 +488,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let l3 = tw_of(ui, tr("Cut")).max(tw_of(ui, tr("Pass")));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
                 let cw = tw_of(ui, tr("Conventional")) + 44.0;
-                let lc = (ui.available_width() - l1 - l3 - cw - 3.0 * sp - 12.0).max(100.0);
+                let lc = (ui.available_width() - l1 - l3 - cw - 3.0 * sp - 22.0).max(100.0);
                 egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp, 10.0]).show(ui, |ui| {
                     rlabel(ui, l1, tr("Type"));
                     let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
@@ -476,7 +496,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     changed |= combo_w(ui, lc + 10.0, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { tr("Profile: cut outside, inside or on the line") } else { tr("Operation type") });
                     rlabel(ui, l3, tr("Cut"));
                     ui.add_enabled_ui(p.kind != "drill" && p.kind != "relief" && p.kind != "draw", |ui| {
-                        let (c, _) = combo_w2(ui, cw + 10.0, &format!("dir{id}"), &mut p.dir, DIRS, "", tr("Cut direction: climb or conventional"));
+                        let (c, _) = combo_w2(ui, cw + 2.0, &format!("dir{id}"), &mut p.dir, DIRS, "", tr("Cut direction: climb or conventional"));
                         changed |= c;
                     });
                     ui.end_row();
@@ -878,9 +898,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         // the row fills the panel: both fields share what the fixed parts leave over
                         let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, crate::widgets::len_unit(ui)), tw_of(ui, tr("Pass")), tw_of(ui, tr("00 passes")), 28.0);
                         // short fields; whatever width is left is shared out as gaps between the three groups
-                        let fw = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
-                        let fixed = l1 + w_pass + 2.0 * w_mm + 2.0 * fw + w_cnt + w_rst + 7.0 * sp;
-                        let gap = ((ui.available_width() - fixed) / 2.0).max(6.0);
+                        let fw0: f32 = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
+                        // in a language with longer words the fields give way a little, rather than the row pushing the card wider than the panel
+                        let rest = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * sp;
+                        let fw = fw0.min(((ui.available_width() - rest - 8.0) / 2.0).max(30.0));
+                        let fixed = rest + 2.0 * fw;
+                        let gap = ((ui.available_width() - fixed) / 2.0).max(4.0);
                         rlabel(ui, l1, tr("Depth"));
                         changed |= dl_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
                         ui.weak(crate::widgets::len_unit(ui));
