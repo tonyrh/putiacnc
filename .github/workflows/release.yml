@@ -20,7 +20,7 @@ jobs:
       - name: Build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev
+          sudo apt-get install -y zsync appstream libxkbcommon-dev libxkbcommon-x11-0 libxcb-xkb1 libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev
           curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
           # GitHub's runners have no FUSE, so appimagetool unpacks itself and runs from there
@@ -28,15 +28,32 @@ jobs:
           chmod +x appimagetool-run
       - name: Build the AppImage
         run: APPIMAGETOOL="$PWD/appimagetool-run" sh ./packaging/build-appimage.sh
+      - name: Check that the AppImage starts
+        run: |
+          # a window must open and stay: a missing library makes the program exit within seconds
+          sudo apt-get install -y xvfb
+          chmod +x putiacnc-*-x86_64.AppImage
+          export PUTIACNC_CONFIG_DIR="$(mktemp -d)" PUTIACNC_SKIP_SETUP=1 DISPLAY=:99
+          Xvfb :99 -screen 0 1280x800x24 &
+          sleep 2
+          ./putiacnc-*-x86_64.AppImage --appimage-extract-and-run &
+          pid=$!
+          sleep 12
+          kill -0 "$pid" || { echo "the AppImage exited early"; exit 1; }
+          kill "$pid"
       - uses: actions/upload-artifact@v6
         with:
           name: linux-appimage
-          path: PutiaCNC-*-x86_64.AppImage
+          path: |
+            putiacnc-*-x86_64.AppImage
+            putiacnc-*-x86_64.AppImage.zsync
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: PutiaCNC-*-x86_64.AppImage
+          files: |
+            putiacnc-*-x86_64.AppImage
+            putiacnc-*-x86_64.AppImage.zsync
 
   macos-dmg:
     runs-on: macos-15
