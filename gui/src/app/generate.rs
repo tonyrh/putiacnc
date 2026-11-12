@@ -31,7 +31,7 @@ impl App {
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                 // the worker stopped without an answer (a bug in the generator): say so instead of waiting for ever
                 self.gen_rx = None; self.gen_started = None;
-                self.apply_generated(Err("The toolpath could not be generated (internal error). Please report it with the project file.".into()), 0.0);
+                self.apply_generated(Err(putiacnc_core::i18n::tr("The toolpath could not be generated (internal error). Please report it with the project file.").into()), 0.0);
                 false
             }
         }
@@ -44,7 +44,7 @@ impl App {
             self.gen_started = None;
             match rx.recv() {
                 Ok((r, ms)) => self.apply_generated(r, ms),
-                Err(_) => self.apply_generated(Err("The toolpath could not be generated (internal error). Please report it with the project file.".into()), 0.0),
+                Err(_) => self.apply_generated(Err(putiacnc_core::i18n::tr("The toolpath could not be generated (internal error). Please report it with the project file.").into()), 0.0),
             }
         }
         if self.gen_pending { self.regenerate(); }

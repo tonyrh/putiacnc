@@ -37,7 +37,7 @@ pub fn fill(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     let r = (h * 0.2).min(10.0);
     let inset = (h * 0.15).max(flat.dia * 1.5);
     let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
-    d.notes = format!("SAMPLE NAME PLATE
+    d.notes = tr_f("SAMPLE NAME PLATE
 This project was made for your machine and tools: a plate of {pw} x {ph} on a piece of stock {sw} x {sh} x {st}.
 
 Operations
@@ -53,8 +53,7 @@ Look around
 Before cutting for real
 - Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
 - Tick \"Air cut (run without cutting)\" in each operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
-- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
-        pw = u(w), ph = u(h), sw = u(d.stock.w), sh = u(d.stock.h), st = u(d.stock.t));
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.", &[("pw", &u(w)), ("ph", &u(h)), ("sw", &u(d.stock.w)), ("sh", &u(d.stock.h)), ("st", &u(d.stock.t))]);
     // the operations: cut-out with tabs, a shallow recess, the lettering
     d.ops.clear(); d.loops.clear(); d.groups.clear();
     let op = |d: &mut ProjectData, id: i64, kind: &str, depth: f64, tool: &Tool, tabs: bool| {
@@ -115,8 +114,8 @@ pub fn fill_oval(d: &mut ProjectData) -> Result<(), String> {
         if o.id == 4 { o.p.depth = d.stock.t; o.p.pass_depth = Some((d.stock.t / 5.0).max(0.5)); }
     }
     d.oid = 4; d.act = 4;
-    d.notes = format!("SAMPLE OVAL SIGN
-An oval plate on a piece of stock {w:.0} x {h:.0} x {t:.0} mm. The lettering is stored as outlines, so it looks the same on every computer.
+    d.notes = tr_f("SAMPLE OVAL SIGN
+An oval plate on a piece of stock {w} x {h} x {t} mm. The lettering is stored as outlines, so it looks the same on every computer.
 
 Operations
 1. V-carve: \"PutiaCNC\" in the middle, with the {v}.
@@ -132,8 +131,7 @@ Look around
 Before cutting for real
 - Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
 - Tick \"Air cut (run without cutting)\" in each operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
-- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
-        w = d.stock.w, h = d.stock.h, t = d.stock.t, v = vbit.name, f = fine.name, c = flat.name);
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.", &[("w", &format!("{:.0}", d.stock.w)), ("h", &format!("{:.0}", d.stock.h)), ("t", &format!("{:.0}", d.stock.t)), ("v", &vbit.name), ("f", &fine.name), ("c", &flat.name)]);
     Ok(())
 }
 
@@ -141,7 +139,7 @@ Before cutting for real
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind { NamePlate, Box, Relief, ShapedRelief, Oval }
 
-impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => "Sample name plate", Kind::Box => "Sample finger-joint box", Kind::Relief => "Sample 3D relief", Kind::ShapedRelief => "Sample relief from shapes", Kind::Oval => "Sample oval sign" } } }
+impl Kind { pub fn title(self) -> &'static str { match self { Kind::NamePlate => tr("Sample name plate"), Kind::Box => tr("Sample finger-joint box"), Kind::Relief => tr("Sample 3D relief"), Kind::ShapedRelief => tr("Sample relief from shapes"), Kind::Oval => tr("Sample oval sign") } } }
 
 pub fn fill_kind(d: &mut ProjectData, inches: bool, kind: Kind) -> Result<(), String> {
     match kind { Kind::NamePlate => fill(d, inches), Kind::Box => fill_box(d, inches), Kind::Relief => fill_relief(d, inches), Kind::ShapedRelief => fill_shaped_relief(d, inches), Kind::Oval => fill_oval(d) }
@@ -203,10 +201,10 @@ pub fn fill_relief(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     d.ops.push(Operation { id: 1, p });
     d.oid = 1; d.act = 1;
     let steps = match &detail {
-        Some(t) => format!("3. Detail: the {} finishes only the places the {} could not reach (the dimple in the middle and the corners where the petals meet the floor).\n", t.name, ball.name),
-        None => "3. Detail: add a smaller ball nose in the Detail row of the Finishing step to finish the corners the big one cannot reach.\n".into(),
+        Some(t) => tr_f("3. Detail: the {detail} finishes only the places the {ball} could not reach (the dimple in the middle and the corners where the petals meet the floor).\n", &[("detail", &t.name), ("ball", &ball.name)]),
+        None => tr("3. Detail: add a smaller ball nose in the Detail row of the Finishing step to finish the corners the big one cannot reach.\n").into(),
     };
-    d.notes = format!("SAMPLE 3D RELIEF
+    d.notes = tr_f("SAMPLE 3D RELIEF
 A six-petal rosette, {s} square and {h} high, carved into a piece of stock {sw} x {sh} x {st}. The model is made by the program, so nothing has to be imported: your own STL or OBJ files work the same way (File menu, Import 3D model).
 
 Operations
@@ -222,9 +220,7 @@ Look around
 Before cutting for real
 {added}- Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
 - Tick \"Air cut (run without cutting)\" in the operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
-- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
-        s = u(s), h = u(zmax), sw = u(d.stock.w), sh = u(d.stock.h), st = u(d.stock.t), flat = flat.name, ball = ball.name, steps = steps,
-        added = if added { "- The ball nose bits of this sample (1/8 and 1/4 inch) were not in your tool list, so they were added to this project: check their feeds and speeds against your own bits.\n" } else { "" });
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.", &[("s", &u(s)), ("h", &u(zmax)), ("sw", &u(d.stock.w)), ("sh", &u(d.stock.h)), ("st", &u(d.stock.t)), ("flat", &flat.name), ("ball", &ball.name), ("steps", &steps), ("added", &if added { tr("- The ball nose bits of this sample (1/8 and 1/4 inch) were not in your tool list, so they were added to this project: check their feeds and speeds against your own bits.\n") } else { "" })]);
     Ok(())
 }
 
@@ -245,7 +241,7 @@ pub fn fill_shaped_relief(d: &mut ProjectData, inches: bool) -> Result<(), Strin
     d.relief = Some(rel);
     let (flat, ball) = { let o = &d.ops[0].p; let name = |id: &str| d.tools.iter().find(|t| t.id == id).map(|t| t.name.clone()).unwrap_or_default(); (name(o.tool2.as_deref().unwrap_or("")), name(&o.tool)) };
     let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
-    d.notes = format!("SAMPLE RELIEF FROM SHAPES
+    d.notes = tr_f("SAMPLE RELIEF FROM SHAPES
 A cushion {s} square and {h} high with a round groove and a button in the middle, carved into a piece of stock {sw} x {sh} x {st}. The 3D model was not imported: it was made from the three shapes on the 2D design tab (a rounded square, a circle inside it and a smaller circle inside that) with Generate > Relief from shapes.
 
 How the shapes became a relief
@@ -264,8 +260,7 @@ Look around
 Before cutting for real
 - Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
 - Tick \"Air cut (run without cutting)\" in the operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
-- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.",
-        s = u(s), h = u(zmax), sw = u(d.stock.w), sh = u(d.stock.h), st = u(d.stock.t), flat = flat, ball = ball);
+- Check the Estimated time and the warnings bar under the view tabs, then Export the G-code from the File menu.", &[("s", &u(s)), ("h", &u(zmax)), ("sw", &u(d.stock.w)), ("sh", &u(d.stock.h)), ("st", &u(d.stock.t)), ("flat", &flat), ("ball", &ball)]);
     Ok(())
 }
 
@@ -324,7 +319,7 @@ pub fn fill_box(d: &mut ProjectData, inches: bool) -> Result<(), String> {
         }
     }
     let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
-    d.notes = format!("SAMPLE FINGER-JOINT BOX
+    d.notes = tr_f("SAMPLE FINGER-JOINT BOX
 This project was made for your machine and tools: an open box {w} x {dd} x {h} outside, made of {t} material, cut from one piece of stock {sw} x {sh}.
 
 What is on the stock
@@ -341,8 +336,7 @@ Before cutting for real
 - The plates are cut from the thickness of the stock: measure your material, set the Thickness field in the Stock panel to it, and make the box again so the fingers fit. A fit that is too tight can be eased with Clearance.
 - Put a piece of scrap under the tool, set X0 Y0 at the lower-left corner and Z0 on the top of the stock.
 - Tick \"Air cut (run without cutting)\" in the operation for a first run: the tool then runs above the stock and nothing is cut. Untick it to cut.
-- After cutting, break the plates off their tabs, sand the tab marks and glue the box together.",
-        w = u(spec.w), dd = u(spec.d), h = u(spec.h), t = u(t), sw = u(d.stock.w), sh = u(d.stock.h));
+- After cutting, break the plates off their tabs, sand the tab marks and glue the box together.", &[("w", &u(spec.w)), ("dd", &u(spec.d)), ("h", &u(spec.h)), ("t", &u(t)), ("sw", &u(d.stock.w)), ("sh", &u(d.stock.h))]);
     Ok(())
 }
 

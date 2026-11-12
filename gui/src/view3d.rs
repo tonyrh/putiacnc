@@ -1,6 +1,6 @@
 //! 3D preview: the simulated stock (height field) seen through an orbit camera, the toolpath and a
 //! playback bar that replays the job move by move.
-use putiacnc_core::i18n::{tr};
+use putiacnc_core::i18n::{tr, tr_f};
 use crate::app::App;
 use eframe::egui::{self, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, Ui, Vec2};
 use eframe::glow::{self, HasContext};
@@ -245,7 +245,7 @@ pub fn tabs_badged<T: PartialEq + Copy>(ui: &mut Ui, theme: &crate::theme::Theme
             let galley = ui.painter().layout_no_wrap(label.to_string(), font, if sel { strong } else { weak });
             let badge_w = if *badge > 0 { 22.0 } else { 0.0 };
             let (rect, resp) = ui.allocate_exact_size(Vec2::new(galley.size().x + 28.0 + badge_w, 26.0), Sense::click());
-            let resp = if *badge > 0 { resp.on_hover_text(format!("{badge} warning{} in this tab", if *badge == 1 { "" } else { "s" })) } else { resp };
+            let resp = if *badge > 0 { resp.on_hover_text(putiacnc_core::i18n::tr_n(*badge as u64, "{n} warning in this tab", "{n} warnings in this tab")) } else { resp };
             if resp.hovered() && !sel { ui.painter().rect_filled(rect.shrink2(Vec2::new(0.0, 3.0)), 6.0, ui.visuals().widgets.hovered.weak_bg_fill); }
             let col = if sel || resp.hovered() { strong } else { weak };
             let gw = galley.size().x;
@@ -291,9 +291,9 @@ fn glyph_button(ui: &mut Ui, kind: u8, tip: &str) -> egui::Response {
 pub fn play_bar(ui: &mut Ui, app: &mut App) {
     let have = app.v3.total > 0.0;
     ui.add_enabled_ui(have, |ui| {
-        if glyph_button(ui, 2, "Restart from the beginning").clicked() { app.v3.t = 0.0; app.v3.playing = true; }
+        if glyph_button(ui, 2, tr("Restart from the beginning")).clicked() { app.v3.t = 0.0; app.v3.playing = true; }
         let playing = app.v3.playing;
-        if glyph_button(ui, if playing { 1 } else { 0 }, if playing { "Pause" } else { "Play" }).clicked() {
+        if glyph_button(ui, if playing { 1 } else { 0 }, if playing { tr("Pause") } else { tr("Play") }).clicked() {
             if playing { app.v3.playing = false; } else { if app.v3.t >= app.v3.total - 1e-9 { app.v3.t = 0.0; } app.v3.playing = true; }
         }
     });
@@ -316,7 +316,7 @@ pub fn speed_box(ui: &mut Ui, app: &mut App, width: f32) {
     ui.add_enabled_ui(app.v3.total > 0.0, |ui| {
         egui::ComboBox::from_id_source("speed").width(width).selected_text(SPEEDS[app.v3.speed_idx].1).show_ui(ui, |ui| {
             for (i, (_, n)) in SPEEDS.iter().enumerate() { ui.selectable_value(&mut app.v3.speed_idx, i, *n); }
-        }).response.on_hover_text("Playback speed relative to the machine's real time");
+        }).response.on_hover_text(tr("Playback speed relative to the machine's real time"));
     });
 }
 
@@ -330,7 +330,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     // hint line, as wide as the view
     egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
-        ui.label(egui::RichText::new("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll or pinch: zoom  ·  F: fit  ·  Double-click: reset").weak());
+        ui.label(egui::RichText::new(tr("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll or pinch: zoom  ·  F: fit  ·  Double-click: reset")).weak());
     });
 
     // camera controls
@@ -560,9 +560,9 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             });
             let zof = |_op: usize, pass: usize| -> Option<f64> { lows.get(pass).copied().filter(|z| z.is_finite()) };
             let fmt = |op: usize, pass: usize, lap: bool| if pass > 0 && passes > 0 {
-                let what = if lap { "Levelling lap".to_string() } else { format!("Pass {} of {}", pass, passes) };
-                match zof(op, pass) { Some(z) => format!("Operation {} · {}  ·  {}  ·  to Z {}", op + 1, name, what, zfmt(z)), None => format!("Operation {} · {}  ·  {}", op + 1, name, what) }
-            } else { format!("Operation {} · {}", op + 1, name) };
+                let what = if lap { tr("Levelling lap").to_string() } else { tr_f("Pass {pass} of {passes}", &[("pass", &pass), ("passes", &passes)]) };
+                match zof(op, pass) { Some(z) => tr_f("Operation {n} · {name}  ·  {what}  ·  to Z {z}", &[("n", &(op + 1)), ("name", &name), ("what", &what), ("z", &zfmt(z))]), None => tr_f("Operation {n} · {name}  ·  {what}", &[("n", &(op + 1)), ("name", &name), ("what", &what)]) }
+            } else { tr_f("Operation {n} · {name}", &[("n", &(op + 1)), ("name", &name)]) };
             let lap = m.lap && m.cut;
             let hid = egui::Id::new("v3_label");
             let now = ui.input(|i| i.time);
@@ -575,8 +575,10 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             ui.data_mut(|d| d.insert_temp(hid, (shown, since)));
             let widest = {
                 let low = (1..=passes).filter_map(|p| zof(m.op, p)).fold(f64::INFINITY, f64::min);
-                let zs = if low.is_finite() { format!("  ·  to Z {}", zfmt(low).replace(|c: char| c.is_ascii_digit(), "8")) } else { String::new() };
-                format!("Operation {} · {}  ·  Pass {} of {}{}", m.op + 1, name, "8".repeat(passes.max(1).to_string().len()), passes, zs)
+                // the widest text this operation can show: every digit as an 8
+                let what = tr_f("Pass {pass} of {passes}", &[("pass", &"8".repeat(passes.max(1).to_string().len())), ("passes", &passes)]);
+                if low.is_finite() { tr_f("Operation {n} · {name}  ·  {what}  ·  to Z {z}", &[("n", &(m.op + 1)), ("name", &name), ("what", &what), ("z", &zfmt(low).replace(|c: char| c.is_ascii_digit(), "8"))]) }
+                else { tr_f("Operation {n} · {name}  ·  {what}", &[("n", &(m.op + 1)), ("name", &name), ("what", &what)]) }
             };
             let wg = painter.layout_no_wrap(widest, FontId::proportional(13.0), Color32::WHITE);
             let g = painter.layout_no_wrap(fmt(shown.0, shown.1, shown.2), FontId::proportional(13.0), Color32::WHITE);
@@ -592,13 +594,13 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         let step = st.cum.partition_point(|&c| c <= st.t + 1e-12).min(rp_arc.moves.len().saturating_sub(1));
         let stop = st.stops.iter().find(|s| (s.0 - st.t).abs() < 1e-9 && !st.playing).map(|s| s.1.clone());
         let touch = contacts.first().map(|(ci, p)| {
-            let what = if *p == putiacnc_core::checks::Part::Holder { "The tool holder" } else { "The tool" };
-            (format!("{what} runs into Clamp {}", ci + 1), "Move the clamp, raise the safe height or use a longer tool.".to_string(), 2u8)
+            let n = ci + 1;
+            (if *p == putiacnc_core::checks::Part::Holder { tr_f("The tool holder runs into Clamp {n}", &[("n", &n)]) } else { tr_f("The tool runs into Clamp {n}", &[("n", &n)]) }, tr("Move the clamp, raise the safe height or use a longer tool.").to_string(), 2u8)
         });
         let msg = match (stop, rp_arc.info.get(step).map(|i| &i.kind)) {
-            (Some(m), _) => Some((format!("Paused: {m}"), "Press Play to continue".to_string(), 1u8)),
+            (Some(m), _) => Some((tr_f("Paused: {m}", &[("m", &m)]), tr("Press Play to continue").to_string(), 1u8)),
             _ if touch.is_some() => touch,
-            (None, Some(putiacnc_core::replay::Kind::Wait(s))) if st.playing || st.t > 0.0 => Some((format!("Waiting {s} s for the spindle to reach speed"), String::new(), 0u8)),
+            (None, Some(putiacnc_core::replay::Kind::Wait(s))) if st.playing || st.t > 0.0 => Some((tr_f("Waiting {s} s for the spindle to reach speed", &[("s", &s)]), String::new(), 0u8)),
             _ => None,
         };
         if let Some((a, b, amber)) = msg {
@@ -617,15 +619,15 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
 
     // a job with plugs on separate pieces of stock: which piece the preview shows
     if !app.pieces.is_empty() {
-        let names: Vec<String> = app.pieces.iter().map(|pp| format!("Plug piece (operation {})", pp.job.op_index + 1)).collect();
+        let names: Vec<String> = app.pieces.iter().map(|pp| tr_f("Plug piece (operation {n})", &[("n", &(pp.job.op_index + 1))])).collect();
         let mut part = app.v3.part;
         egui::Area::new(egui::Id::new("v3_part")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -44.0)).show(&ctx, |ui| {
             if names.len() == 1 {
-                let (c, _) = crate::zoomcard::seg2(ui, ["Main stock", "Plug piece"], ["Shows the main stock, where the pocket is cut", "Shows the separate piece of stock the plug is cut from (its own G-code file)"], part.min(1));
+                let (c, _) = crate::zoomcard::seg2(ui, [tr("Main stock"), tr("Plug piece")], [tr("Shows the main stock, where the pocket is cut"), tr("Shows the separate piece of stock the plug is cut from (its own G-code file)")], part.min(1));
                 if let Some(i) = c { part = i; }
             } else {
-                egui::ComboBox::from_id_source("v3_part_pick").selected_text(if part == 0 { "Main stock".to_string() } else { names[part - 1].clone() }).show_ui(ui, |ui| {
-                    ui.selectable_value(&mut part, 0, "Main stock");
+                egui::ComboBox::from_id_source("v3_part_pick").selected_text(if part == 0 { tr("Main stock").to_string() } else { names[part - 1].clone() }).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut part, 0, tr("Main stock"));
                     for (i, n) in names.iter().enumerate() { ui.selectable_value(&mut part, i + 1, n.as_str()); }
                 });
             }
@@ -635,7 +637,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     // a reminder that part of the job is left out of the picture, with a way back
     let n_hid = app.v3.hid.iter().filter(|&&h| h).count();
     if n_hid > 0 {
-        let text = format!("{n_hid} operation{} hidden · Show all", if n_hid == 1 { "" } else { "s" });
+        let text = putiacnc_core::i18n::tr_n(n_hid as u64, "{n} operation hidden · Show all", "{n} operations hidden · Show all");
         let g = painter.layout_no_wrap(text, FontId::proportional(12.5), Color32::WHITE);
         let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 50.0), g.size() + Vec2::new(18.0, 8.0));
         let resp = ui.interact(r, ui.id().with("v3_show_all"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -652,7 +654,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         let a = ui.input(|i| i.time) as f32 * 6.0;
         let pts: Vec<Pos2> = (0..=18).map(|k| { let t = a + k as f32 * 0.2; c + Vec2::new(t.cos(), t.sin()) * 9.0 }).collect();
         painter.add(Shape::line(pts, Stroke::new(2.5_f32, Color32::WHITE)));
-        painter.text(c + Vec2::new(24.0, 0.0), egui::Align2::LEFT_CENTER, format!("Preparing 3D preview… {pct}%"), FontId::proportional(13.0), Color32::WHITE);
+        painter.text(c + Vec2::new(24.0, 0.0), egui::Align2::LEFT_CENTER, tr_f("Preparing 3D preview… {pct}%", &[("pct", &pct)]), FontId::proportional(13.0), Color32::WHITE);
     }
     if let Some(e) = &app.gen_error {
         // framed like the message bars: the panel colour, the error icon, and the same softer red (plain red on the dark canvas is hard to read)
@@ -667,7 +669,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         painter.circle_filled(c + Vec2::new(0.0, 4.0), 1.1, Color32::WHITE);
         painter.galley(r.left_top() + Vec2::new(36.0, 10.0), g, col);
     } else if rp_arc.moves.is_empty() {
-        painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, "No toolpaths yet: add an operation to preview the cut", FontId::proportional(13.0), ui.visuals().weak_text_color());
+        painter.text(rect.center_top() + Vec2::new(0.0, 14.0), egui::Align2::CENTER_TOP, tr("No toolpaths yet: add an operation to preview the cut"), FontId::proportional(13.0), ui.visuals().weak_text_color());
     }
 }
 

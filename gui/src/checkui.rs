@@ -1,4 +1,5 @@
 //! Warnings about the toolpath: the status-bar chip, the list window and the red markers in the 3D preview.
+use putiacnc_core::i18n::{tr, tr_f};
 use crate::csd::ShowFollowing;
 use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Stroke};
@@ -8,7 +9,7 @@ pub const RED: Color32 = Color32::from_rgb(0xe0, 0x1b, 0x24);
 
 /// "checking…" at the right of the status bar while the warnings are being worked out (the warnings themselves are in `bar`).
 pub fn chip(ui: &mut egui::Ui, app: &mut App) {
-    if app.output.is_some() && app.checks_rx.is_some() { ui.weak("checking…"); ui.separator(); }
+    if app.output.is_some() && app.checks_rx.is_some() { ui.weak(tr("checking…")); ui.separator(); }
 }
 
 /// The findings the bar under the view tabs speaks for: all but those about clamps, which have a bar of their own.
@@ -25,12 +26,12 @@ pub fn bar(ui: &mut egui::Ui, app: &mut App) {
     let Some(&first) = ids.first() else { return };
     let n = app.checks.len();
     let f = &app.checks[first];
-    let text = if ids.len() == 1 { f.msg.clone() } else { format!("{} (and {} more)", f.msg, ids.len() - 1) };
+    let text = if ids.len() == 1 { f.msg.clone() } else { tr_f("{msg} (and {n} more)", &[("msg", &f.msg), ("n", &(ids.len() - 1))]) };
     let go = f.mv.is_some();
     let (mut show, mut list) = (false, false);
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        if ui.button(format!("List ({n})")).on_hover_text("All the warnings about the toolpath").clicked() { list = true; }
-        if ui.add_enabled(go, egui::Button::new("Show in 3D")).on_hover_text("Jump the 3D preview to the move").clicked() { show = true; }
+        if ui.button(tr_f("List ({n})", &[("n", &n)])).on_hover_text(tr("All the warnings about the toolpath")).clicked() { list = true; }
+        if ui.add_enabled(go, egui::Button::new(tr("Show in 3D"))).on_hover_text(tr("Jump the 3D preview to the move")).clicked() { show = true; }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             ui.add_space(2.0);
             crate::msg::sign(ui, crate::app::Level::Warning);
@@ -88,13 +89,13 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Toolpath warnings").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Toolpath warnings", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(520.0);
-        if crate::csd::dialog_header(ui, "Toolpath warnings", true) { close = true; }
+        if crate::csd::dialog_header(ui, tr("Toolpath warnings"), true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.add_space(8.0);
         if app.checks.is_empty() {
-            ui.label("Nothing found: no move goes deeper than the cutting length, through the stock at rapid speed, outside the machine or into a clamp.");
+            ui.label(tr("Nothing found: no move goes deeper than the cutting length, through the stock at rapid speed, outside the machine or into a clamp."));
         } else {
-            ui.add(egui::Label::new(egui::RichText::new("The G-code is still written. These are things to look at before cutting; the cutting length and shank of each tool are in the tool manager, clamps are under Stock.").weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new(tr("The G-code is still written. These are things to look at before cutting; the cutting length and shank of each tool are in the tool manager, clamps are under Stock.")).weak()).wrap(true));
             ui.add_space(6.0);
             egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show_following(ui, |ui| {
                 let list: Vec<(usize, Finding)> = app.checks.iter().cloned().enumerate().collect();
@@ -107,15 +108,15 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                             // a collision with a clamp is an error, as in its bar; the other findings are warnings
                             crate::msg::sign(ui, if f.kind.about_clamps() { crate::app::Level::Error } else { crate::app::Level::Warning });
                             ui.label(egui::RichText::new(f.kind.title()).strong().size(19.0));
-                            if app.check_parts.get(i).is_some_and(|&p| p > 0) { ui.weak("plug piece"); }
-                            if f.count > 1 { ui.weak(format!("({} moves)", f.count)); }
+                            if app.check_parts.get(i).is_some_and(|&p| p > 0) { ui.weak(tr("plug piece")); }
+                            if f.count > 1 { ui.weak(tr_f("({count} moves)", &[("count", &f.count)])); }
                         });
                         ui.add_space(2.0);
                         ui.add(egui::Label::new(crate::widgets::localize(ui, &f.msg)).wrap(true));
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 8.0;
-                            if f.mv.is_some() && crate::panels::dlg_button(ui, crate::icons::Icon::Fit, "Show in 3D", None, None, false).on_hover_text("Jump the preview to the first move that does it").clicked() { show = Some(i); }
+                            if f.mv.is_some() && crate::panels::dlg_button(ui, crate::icons::Icon::Fit, tr("Show in 3D"), None, None, false).on_hover_text(tr("Jump the preview to the first move that does it")).clicked() { show = Some(i); }
                             if f.op.is_some() && crate::panels::dlg_button(ui, crate::icons::Icon::ChevR, "Go to operation", None, None, false).clicked() { goto = Some(i); }
                         });
                         ui.add_space(4.0);
@@ -150,10 +151,10 @@ pub fn export_gate(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Before you export").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Before you export", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(crate::csd::dialog_w(480.0));
-        if crate::csd::dialog_header(ui, "Before you export", true) { close = true; }
+        if crate::csd::dialog_header(ui, tr("Before you export"), true) { close = true; }
         ui.add_space(8.0);
         let n = app.checks.len();
-        ui.add(egui::Label::new(if n == 1 { "The toolpath has a warning:".to_string() } else { format!("The toolpath has {n} warnings:") }).wrap(true));
+        ui.add(egui::Label::new(if n == 1 { tr("The toolpath has a warning:").to_string() } else { tr_f("The toolpath has {n} warnings:", &[("n", &n)]) }).wrap(true));
         ui.add_space(6.0);
         for f in app.checks.iter().take(4) {
             ui.horizontal_top(|ui| {
@@ -165,15 +166,15 @@ pub fn export_gate(ctx: &egui::Context, app: &mut App) {
             });
             ui.add_space(4.0);
         }
-        if n > 4 { ui.weak(format!("…and {} more", n - 4)); }
+        if n > 4 { ui.weak(tr_f("…and {n} more", &[("n", &(n - 4))])); }
         ui.add_space(6.0);
-        ui.add(egui::Label::new(egui::RichText::new("The G-code can still be written. You will not be asked again until the warnings change.").weak()).wrap(true));
+        ui.add(egui::Label::new(egui::RichText::new(tr("The G-code can still be written. You will not be asked again until the warnings change.")).weak()).wrap(true));
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(egui::Button::new("Export anyway").fill(ui.visuals().selection.bg_fill)).clicked() { go = true; }
-                if ui.button("Review warnings").clicked() { review = true; }
-                if ui.button("Cancel").clicked() { close = true; }
+                if ui.add(egui::Button::new(tr("Export anyway")).fill(ui.visuals().selection.bg_fill)).clicked() { go = true; }
+                if ui.button(tr("Review warnings")).clicked() { review = true; }
+                if ui.button(tr("Cancel")).clicked() { close = true; }
             });
         });
         ui.add_space(4.0);

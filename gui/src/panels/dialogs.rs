@@ -1,4 +1,5 @@
 //! Dialog buttons, the unsaved-changes prompt and the status bar.
+use putiacnc_core::i18n::{tr, tr_f};
 use super::*;
 
 /// Dialog button with an icon: `fill` None = the normal button look; otherwise a tinted / solid button.
@@ -51,16 +52,16 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 6.0;
                     ui.set_width(crate::csd::dialog_w(340.0));
-                    ui.label(egui::RichText::new("Save changes?").size(18.0).strong());
-                    ui.label(egui::RichText::new(format!("\"{name}\" has unsaved changes. If you don't save them, they will be lost.")).color(ui.visuals().weak_text_color()));
+                    ui.label(egui::RichText::new(tr("Save changes?")).size(18.0).strong());
+                    ui.label(egui::RichText::new(tr_f("\"{name}\" has unsaved changes. If you don't save them, they will be lost.", &[("name", &name)])).color(ui.visuals().weak_text_color()));
                 });
             });
             ui.add_space(18.0);
             ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
-                if dlg_button(ui, Icon::Save, "Save", Some(accent), Some(Color32::WHITE), true).clicked() { choice = 1; }
-                if dlg_button(ui, Icon::Trash, "Discard", Some(red), Some(red), false).clicked() { choice = 2; }
-                if dlg_button(ui, Icon::Close, "Cancel", None, None, false).clicked() { choice = 3; }
+                if dlg_button(ui, Icon::Save, tr("Save"), Some(accent), Some(Color32::WHITE), true).clicked() { choice = 1; }
+                if dlg_button(ui, Icon::Trash, tr("Discard"), Some(red), Some(red), false).clicked() { choice = 2; }
+                if dlg_button(ui, Icon::Close, tr("Cancel"), None, None, false).clicked() { choice = 3; }
             });
             ui.add_space(8.0);
         }));
@@ -84,7 +85,7 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
         let slow = app.gen_started.is_some_and(|t| t.elapsed().as_millis() > 200);
         if slow {
             ui.add(egui::Spinner::new().size(12.0));
-            ui.label("generating…");
+            ui.label(tr("generating…"));
             ui.separator();
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
         }
@@ -94,26 +95,26 @@ pub fn status_bar(ui: &mut Ui, app: &mut App) {
                 let (mut tm, mut ct, mut cl, mut ln) = (o.time_min, o.cut_time_min, o.cut_len_mm, o.lines.len());
                 for pp in &app.pieces { tm += pp.output.time_min; ct += pp.output.cut_time_min; cl += pp.output.cut_len_mm; ln += pp.output.lines.len(); }
                 // the time opens its breakdown by operation
-                let r = ui.add(egui::Label::new(format!("Estimated time {}", fmt_time(tm))).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Click to see where the time goes, operation by operation");
+                let r = ui.add(egui::Label::new(tr_f("Estimated time {t}", &[("t", &fmt_time(tm))])).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr("Click to see where the time goes, operation by operation"));
                 if r.clicked() { toggle_time = true; }
                 ui.separator();
-                ui.label(format!("cutting {}", fmt_time(ct)));
+                ui.label(tr_f("cutting {t}", &[("t", &fmt_time(ct))]));
                 ui.separator();
-                ui.label(format!("cut length {}", crate::widgets::fmt_len(ui, cl)));
+                ui.label(tr_f("cut length {len}", &[("len", &crate::widgets::fmt_len(ui, cl))]));
                 ui.separator();
-                ui.label(format!("{} lines, generated in {:.0} ms", ln, app.gen_ms));
+                ui.label(tr_f("{n} lines, generated in {ms} ms", &[("n", &ln), ("ms", &format!("{:.0}", app.gen_ms))]));
             }
             // the first toolpath of a project is still being worked out: the spinner says so
             None if app.gen_stale() && app.gen_error.is_none() => {}
-            None if app.project.data.ops.is_empty() => { ui.label("Add an operation to generate G-code"); }
-            None => { ui.label(crate::widgets::localize(ui, &app.gen_error.clone().unwrap_or_else(|| "No G-code".into()))); }
+            None if app.project.data.ops.is_empty() => { ui.label(tr("Add an operation to generate G-code")); }
+            None => { ui.label(crate::widgets::localize(ui, &app.gen_error.clone().unwrap_or_else(|| tr("No G-code").into()))); }
         }
         ui.separator();
         {
             use putiacnc_core::model::ProjectData;
             let d = &app.project.data;
             let n = ProjectData::object_count(&d.loops);
-            ui.label(format!("{} shape{}, {} selected", n, if n == 1 { "" } else { "s" }, ProjectData::object_count(app.sel.iter().filter_map(|&i| d.loops.get(i)))));
+            ui.label(putiacnc_core::i18n::tr_nf(n as u64, "{n} shape, {sel} selected", "{n} shapes, {sel} selected", &[("sel", &ProjectData::object_count(app.sel.iter().filter_map(|&i| d.loops.get(i))))]));
         }
         if let Some(msg) = app.note.take() { let now = ui.input(|i| i.time); ui.ctx().data_mut(|x| x.insert_temp(egui::Id::new("status_note"), (msg, now))); }
         let note: Option<(String, f64)> = ui.ctx().data(|x| x.get_temp(egui::Id::new("status_note")));

@@ -156,17 +156,17 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
                     ctx.request_repaint();
                 }
             }
-            if resp.hovered() && !dragging { tip = Some("Click a face, an edge or a corner to look from there. Drag the cube to orbit."); }
+            if resp.hovered() && !dragging { tip = Some(putiacnc_core::i18n::tr("Click a face, an edge or a corner to look from there. Drag the cube to orbit.")); }
             // perspective or orthographic, side by side under the cube
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing = Vec2::splat(2.0);
                 let w = crate::zoomcard::BW3;
                 let (clicked, hov) = crate::zoomcard::segmented(ui, Vec2::new(w, 30.0), app.v3.ortho as usize, [crate::icons::Icon::Persp, crate::icons::Icon::Ortho]);
-                let what = ["Perspective view: things farther away look smaller.", "Orthographic view: parallel lines stay parallel and sizes do not shrink with distance."];
+                let what = [putiacnc_core::i18n::tr("Perspective view: things farther away look smaller."), putiacnc_core::i18n::tr("Orthographic view: parallel lines stay parallel and sizes do not shrink with distance.")];
                 if let Some(h) = hov { tip = Some(what[h]); }
                 if let Some(c) = clicked { app.v3.ortho = c == 1; }
                 ui.add_space(10.0);
-                let r = crate::zoomcard::button(ui, Vec2::new(w, 30.0), false, "Fit the stock in view (F)", |p, rc, fg| crate::icons::paint_icon(p, crate::icons::Icon::Fit, rc.center(), fg, 0.8));
+                let r = crate::zoomcard::button(ui, Vec2::new(w, 30.0), false, putiacnc_core::i18n::tr("Fit the stock in view (F)"), |p, rc, fg| crate::icons::paint_icon(p, crate::icons::Icon::Fit, rc.center(), fg, 0.8));
                 if r.clicked() { fit_click = true; }
             });
             // zoom out and in, the zoom level and Fit, in the same card

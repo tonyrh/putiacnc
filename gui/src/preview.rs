@@ -45,7 +45,7 @@ impl App {
         let key = h.finish();
         if self.ghost.owner == owner && self.ghost.key == key { return; }
         if self.project.data.loops.len() > MAX_SHAPES {
-            self.ghost = Ghost { owner, key, note: Some("Too many shapes for a preview.".into()), ..Default::default() };
+            self.ghost = Ghost { owner, key, note: Some(putiacnc_core::i18n::tr("Too many shapes for a preview.").into()), ..Default::default() };
             return;
         }
         // run the tool on a scratch copy and put everything it touches back afterwards

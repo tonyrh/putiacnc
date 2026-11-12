@@ -1,4 +1,5 @@
 //! Editing the drawing: history steps, delete, duplicate, offset, combine, nudge, snapping.
+use putiacnc_core::i18n::{tr, tr_f};
 use super::*;
 
 impl App {
@@ -43,9 +44,9 @@ impl App {
         if !fresh.is_empty() {
             let name = |id: i64| d.ops.iter().position(|o| o.id == id).map(|k| format!("{} ({})", k + 1, crate::panels::label_of(crate::panels::KINDS, &d.ops[k].p.kind))).unwrap_or_default();
             self.note = Some(if fresh.len() == 1 {
-                format!("Operation {} has no shapes now but keeps its settings: select shapes and press \"Use selected shapes\" in it", name(fresh[0]))
+                tr_f("Operation {op} has no shapes now but keeps its settings: select shapes and press \"Use selected shapes\" in it", &[("op", &name(fresh[0]))])
             } else {
-                format!("{} operations have no shapes now but keep their settings", fresh.len())
+                tr_f("{n} operations have no shapes now but keep their settings", &[("n", &fresh.len())])
             });
         }
         self.empty_ops = empty;
@@ -101,7 +102,7 @@ impl App {
         let kept: Vec<usize> = self.sel.iter().copied().filter(|&i| d.loops.get(i).is_some_and(|l| d.shape_locked(l))).collect();
         if !kept.is_empty() {
             self.sel.retain(|i| !kept.contains(i));
-            self.say(Level::Info, format!("{} shape{} on a locked layer {} not deleted.", kept.len(), if kept.len() == 1 { "" } else { "s" }, if kept.len() == 1 { "was" } else { "were" }));
+            self.say(Level::Info, putiacnc_core::i18n::tr_n(kept.len() as u64, "{n} shape on a locked layer was not deleted.", "{n} shapes on a locked layer were not deleted."));
             if self.sel.is_empty() { self.sel = kept.into_iter().collect(); return; }
         }
         self.hist.record(&self.project.data);
@@ -204,7 +205,7 @@ impl App {
         let before = self.project.data.loops.clone();
         self.tool_note = None;
         if Self::changes_selection(tool) && self.sel_locked() {
-            self.tool_note = Some((tool, "Some of the selected shapes are locked (their layer or drawing): unlock them first.".into()));
+            self.tool_note = Some((tool, tr("Some of the selected shapes are locked (their layer or drawing): unlock them first.").into()));
             return false;
         }
         let msg = f(self);
@@ -265,8 +266,8 @@ impl App {
         self.sel = replaced.iter().map(|&i| shift(i)).chain(start..self.project.data.loops.len()).collect();
         self.touch();
         let mut notes = vec![];
-        if skipped > 0 { notes.push(format!("{skipped} open shape{} cannot be offset", if skipped == 1 { "" } else { "s" })); }
-        if vanished > 0 { notes.push(format!("{vanished} shape{} too small to shrink by {} mm", if vanished == 1 { " is" } else { "s are" }, dist.abs())); }
+        if skipped > 0 { notes.push(putiacnc_core::i18n::tr_n(skipped as u64, "{n} open shape cannot be offset", "{n} open shapes cannot be offset")); }
+        if vanished > 0 { notes.push(putiacnc_core::i18n::tr_nf(vanished as u64, "{n} shape is too small to shrink by {d} mm", "{n} shapes are too small to shrink by {d} mm", &[("d", &dist.abs())])); }
         if notes.is_empty() { None } else { Some(notes.join("; ") + ".") }
     }
 
@@ -275,9 +276,9 @@ impl App {
     pub fn combine_selection(&mut self, op: shapes::BoolOp, keep: bool, swap: bool) -> Option<String> {
         let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).is_some_and(|l| l.closed())).collect();
         let open = self.sel.len() - idx.len();
-        if idx.len() < 2 { return Some("Select at least two closed shapes.".into()); }
+        if idx.len() < 2 { return Some(tr("Select at least two closed shapes.").into()); }
         let result = { let refs: Vec<&putiacnc_core::model::LoopData> = idx.iter().map(|&i| &self.project.data.loops[i]).collect(); shapes::combine(&refs, op, swap) };
-        if result.is_empty() { return Some("Nothing is left: the shapes do not overlap that way.".into()); }
+        if result.is_empty() { return Some(tr("Nothing is left: the shapes do not overlap that way.").into()); }
         self.hist.record(&self.project.data);
         if !keep {
             for &i in idx.iter().rev() { self.project.data.loops.remove(i); }
@@ -287,7 +288,7 @@ impl App {
         self.project.data.loops.extend(result);
         self.sel = (start..self.project.data.loops.len()).collect();
         self.touch();
-        if open > 0 { Some(format!("{open} open shape{} left out.", if open == 1 { " was" } else { "s were" })) } else { None }
+        if open > 0 { Some(putiacnc_core::i18n::tr_n(open as u64, "{n} open shape was left out.", "{n} open shapes were left out.")) } else { None }
     }
 
     /// True when a selected shape belongs to a locked imported drawing or is on a locked layer.

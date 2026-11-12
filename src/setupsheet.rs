@@ -1,6 +1,7 @@
 //! The setup sheet: one printable page for the person standing at the machine. The stock and where the work zero goes (with a picture),
 //! the tools in the order they are used, the operations with their depths and times, what to do before starting and what to watch for.
 //! It is a self-contained HTML page (no outside files) laid out for A4 or Letter paper: open it in a browser and print it or save it as PDF.
+use crate::i18n::{tr, tr_f};
 use crate::model::{ProjectData, Tool};
 use crate::pieces::PartOutput;
 use crate::shapes;
@@ -16,14 +17,14 @@ const COLORS: [&str; 8] = ["#2b6cd4", "#e07b1a", "#2a9d5c", "#b8438f", "#7a5cc7"
 fn esc(s: &str) -> String { s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;") }
 
 fn kind_name(k: &str) -> &str {
-    match k { "outside" => "Profile outside", "inside" => "Profile inside", "online" => "On line", "pocket" => "Pocket", "vcarve" => "V-carve", "drill" => "Drill",
-        "inlay" => "Inlay pocket", "plug" => "Inlay plug", "relief" => "3D relief", "draw" => "Draw (pen)", other => other }
+    match k { "outside" => tr("Profile outside"), "inside" => tr("Profile inside"), "online" => tr("On line"), "pocket" => tr("Pocket"), "vcarve" => tr("V-carve"), "drill" => tr("Drill"),
+        "inlay" => tr("Inlay pocket"), "plug" => tr("Inlay plug"), "relief" => tr("3D relief"), "draw" => tr("Draw (pen)"), other => other }
 }
 
-fn shape_name(s: &str) -> &str { crate::toollib::SHAPES.iter().find(|(k, _)| *k == s).map_or(s, |(_, n)| *n) }
+fn shape_name(s: &str) -> &str { crate::toollib::SHAPES.iter().find(|(k, _)| *k == s).map_or(s, |(_, n)| tr(n)) }
 
 fn zero_name(zr: &str) -> &'static str {
-    match zr { "lr" => "lower-right corner", "ul" => "upper-left corner", "ur" => "upper-right corner", "c" => "center", _ => "lower-left corner" }
+    match zr { "lr" => tr("lower-right corner"), "ul" => tr("upper-left corner"), "ur" => tr("upper-right corner"), "c" => tr("center"), _ => tr("lower-left corner") }
 }
 
 /// A length in the display units: "12 mm" or "0.472 in".
@@ -98,7 +99,7 @@ fn diagram(data: &ProjectData) -> String {
 }
 
 fn z_zero(st: &crate::model::Stock, units: Units) -> String {
-    if st.zm == "h" { format!("{} above the bottom of the stock", len(st.zh, units)) } else { "the top surface of the stock".into() }
+    if st.zm == "h" { tr_f("{h} above the bottom of the stock", &[("h", &len(st.zh, units))]) } else { tr("the top surface of the stock").into() }
 }
 
 /// The setup sheet of a job: `parts` are its programs (the main one first, then the separate plug pieces) as `generate_parts` makes them.
@@ -118,11 +119,11 @@ pub fn html(data: &ProjectData, parts: &[PartOutput], units: Units, info: &Sheet
     let rows = describe(data, main, units, false);
     let st = &data.stock;
     let machine = data.machine.as_ref();
-    let name = if project_name.trim().is_empty() { "Untitled" } else { project_name.trim() };
+    let name = if project_name.trim().is_empty() { tr("Untitled") } else { project_name.trim() };
 
     let mut h = String::new();
-    h += "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">";
-    h += &format!("<title>Setup sheet - {}</title>", esc(name));
+    h += &format!("<!doctype html><html lang=\"{}\"><head>", crate::i18n::language()).replace("pseudo", "en"); h += "<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">";
+    h += &format!("<title>{} - {}</title>", esc(tr("Setup sheet")), esc(name));
     h += "<style>
 :root{color-scheme:light}
 *{box-sizing:border-box}
@@ -141,19 +142,19 @@ ul.check{list-style:none;margin:0;padding:0}ul.check li{padding:3px 0 3px 26px;p
 .piece{page-break-inside:avoid}
 @media print{body{padding:0}@page{margin:14mm}h2{page-break-after:avoid}tr,li{page-break-inside:avoid}}
 </style></head><body>";
-    h += &format!("<h1>{}</h1><div class=\"sub\">Setup sheet &middot; <span id=\"d\"></span> &middot; PutiaCNC {}</div><script>try{{document.getElementById('d').textContent=new Date().toLocaleDateString(undefined,{{dateStyle:'long'}})}}catch(e){{}}</script>", esc(name), esc(&info.version));
+    h += &format!("<h1>{}</h1><div class=\"sub\">{} &middot; <span id=\"d\"></span> &middot; PutiaCNC {}</div><script>try{{document.getElementById('d').textContent=new Date().toLocaleDateString(undefined,{{dateStyle:'long'}})}}catch(e){{}}</script>", esc(name), esc(tr("Setup sheet")), esc(&info.version));
 
     // the job in numbers, beside the picture of the stock
-    h += "<h2>The job</h2><div class=\"top\"><dl>";
+    h += &format!("<h2>{}</h2><div class=\"top\"><dl>", esc(tr("The job")));
     let mut dl = |k: &str, v: String| { h += &format!("<dt>{}</dt><dd>{}</dd>", esc(k), esc(&v)); };
-    if let Some(m) = machine { dl("Machine", m.name.clone()); }
-    dl("Stock", format!("{} \u{d7} {} \u{d7} {}", len(st.w, units), len(st.h, units), len(st.t, units)));
-    if !st.cut.is_empty() { dl("Material", crate::feeds::MATERIALS.iter().find(|m| m.id == st.cut).map_or(st.cut.clone(), |m| m.label.to_string())); }
+    if let Some(m) = machine { dl(tr("Machine"), m.name.clone()); }
+    dl(tr("Stock"), format!("{} \u{d7} {} \u{d7} {}", len(st.w, units), len(st.h, units), len(st.t, units)));
+    if !st.cut.is_empty() { dl(tr("Material"), crate::feeds::MATERIALS.iter().find(|m| m.id == st.cut).map_or(st.cut.clone(), |m| crate::i18n::tr_dyn(m.label))); }
     dl("X0 Y0", zero_name(&st.zr).to_string());
     dl("Z0", z_zero(st, units));
-    dl("Estimated time", duration(total_min));
-    dl("Cutting", format!("{} of {}", duration(cut_min), match units { Units::Metric => format!("{} mm", trim(cut_len, 0)), Units::Imperial => format!("{} in", trim(cut_len / 25.4, 1)) }));
-    dl("Safe height", len(data.job.safe, units));
+    dl(tr("Estimated time"), duration(total_min));
+    dl(tr("Cutting"), tr_f("{time} of {len}", &[("time", &duration(cut_min)), ("len", &match units { Units::Metric => format!("{} mm", trim(cut_len, 0)), Units::Imperial => format!("{} in", trim(cut_len / 25.4, 1)) })]));
+    dl(tr("Safe height"), len(data.job.safe, units));
     h += "</dl>";
     h += &diagram(data);
     h += "</div>";
@@ -161,50 +162,50 @@ ul.check{list-style:none;margin:0;padding:0}ul.check li{padding:3px 0 3px 26px;p
     // the tools, in order
     let tools = tools_in_order(data);
     if !tools.is_empty() {
-        h += "<h2>Tools, in the order they are used</h2><table><tr><th>#</th><th>Tool</th><th>Type</th><th class=\"n\">Diameter</th><th class=\"n\">Speed</th><th class=\"n\">Feed</th><th class=\"n\">Plunge</th><th>Operations</th></tr>";
+        h += &format!("<h2>{}</h2><table><tr><th>#</th><th>{}</th><th>{}</th><th class=\"n\">{}</th><th class=\"n\">{}</th><th class=\"n\">{}</th><th class=\"n\">{}</th><th>{}</th></tr>", esc(tr("Tools, in the order they are used")), esc(tr("Tool")), esc(tr("Type")), esc(tr("Diameter")), esc(tr("Speed")), esc(tr("Feed")), esc(tr("Plunge")), esc(tr("Operations")));
         for (i, (t, used)) in tools.iter().enumerate() {
             let pen = t.shape == "pen";
             h += &format!("<tr><td>{}</td><td>{}</td><td>{}</td><td class=\"n\">{}</td><td class=\"n\">{}</td><td class=\"n\">{}</td><td class=\"n\">{}</td><td>{}</td></tr>",
-                i + 1, esc(&t.name), shape_name(&t.shape), match units { Units::Metric => format!("{} mm", trim(t.dia, 3)), Units::Imperial => len(t.dia, units) },
+                i + 1, esc(&t.name), esc(shape_name(&t.shape)), match units { Units::Metric => format!("{} mm", trim(t.dia, 3)), Units::Imperial => len(t.dia, units) },
                 if pen { "-".to_string() } else { format!("{} rpm", trim(t.rpm, 0)) }, feed(t.feed, units), feed(t.plunge, units),
                 used.iter().map(|k| k.to_string()).collect::<Vec<_>>().join(", "));
         }
         h += "</table>";
-        if tools.len() > 1 { h += "<p class=\"sub\">The program stops for each tool change. Touch off Z0 again with the new tool before you resume.</p>"; }
+        if tools.len() > 1 { h += &format!("<p class=\"sub\">{}</p>", esc(tr("The program stops for each tool change. Touch off Z0 again with the new tool before you resume."))); }
     }
 
     // the operations
-    h += "<h2>Operations</h2><table><tr><th>#</th><th>Operation</th><th>Shapes</th><th>Tool</th><th class=\"n\">Depth</th><th class=\"n\">Pass</th><th>Notes</th><th class=\"n\">Time</th></tr>";
+    h += &format!("<h2>{}</h2><table><tr><th>#</th><th>{}</th><th>{}</th><th>{}</th><th class=\"n\">{}</th><th class=\"n\">{}</th><th>{}</th><th class=\"n\">{}</th></tr>", esc(tr("Operations")), esc(tr("Operation")), esc(tr("Shapes")), esc(tr("Tool")), esc(tr("Depth")), esc(tr("Pass")), esc(tr("Notes")), esc(tr("Time")));
     for (i, o) in data.ops.iter().enumerate() {
         let shapes_n = data.loops.iter().filter(|l| l.op == o.id).count();
         let tool = data.tools.iter().find(|t| t.id == o.p.tool).map_or("-".to_string(), |t| t.name.clone());
         let pass = o.p.pass_depth.or_else(|| data.tools.iter().find(|t| t.id == o.p.tool).map(|t| t.pd)).map_or("-".to_string(), |v| len(v, units));
         let mut flags: Vec<String> = Vec::new();
-        if o.p.tabs { flags.push("holding tabs".into()); }
-        if o.p.air || data.job.air { flags.push("<span class=\"warn\">air cut: nothing is cut</span>".into()); }
-        if let Some(m) = &o.p.pause { flags.push(format!("pause{}", if m.is_empty() { String::new() } else { format!(": {}", esc(m)) })); }
-        if crate::pieces::is_piece_op(o) { flags.push("separate piece of stock".into()); }
+        if o.p.tabs { flags.push(esc(tr("holding tabs"))); }
+        if o.p.air || data.job.air { flags.push(format!("<span class=\"warn\">{}</span>", esc(tr("air cut: nothing is cut")))); }
+        if let Some(m) = &o.p.pause { flags.push(format!("{}{}", esc(tr("pause")), if m.is_empty() { String::new() } else { format!(": {}", esc(m)) })); }
+        if crate::pieces::is_piece_op(o) { flags.push(esc(tr("separate piece of stock"))); }
         let t = timing.ops.get(i).map_or(0.0, |t| t.total());
         h += &format!("<tr><td><span class=\"dot\" style=\"background:{}\"></span>{}</td><td>{}</td><td>{}</td><td>{}</td><td class=\"n\">{}</td><td class=\"n\">{}</td><td>{}</td><td class=\"n\">{}</td></tr>",
-            COLORS[i % COLORS.len()], i + 1, kind_name(&o.p.kind), shapes_n, esc(&tool), len(o.p.depth, units), pass, flags.join(", "), duration(t));
+            COLORS[i % COLORS.len()], i + 1, esc(kind_name(&o.p.kind)), shapes_n, esc(&tool), len(o.p.depth, units), pass, flags.join(", "), duration(t));
     }
     h += "</table>";
 
     // before you start
-    h += "<h2>Before you start</h2><ul class=\"check\">";
+    h += &format!("<h2>{}</h2><ul class=\"check\">", esc(tr("Before you start")));
     let corner = zero_name(&st.zr);
-    h += "<li>The stock is held down and the clamps are clear of the toolpath.</li>";
-    h += &format!("<li>X0 Y0 is set at the {corner} of the stock; Z0 is {}.</li>", esc(&z_zero(st, units)));
-    if !tools.is_empty() { h += &format!("<li>The first tool is in the holder: {}.</li>", esc(&tools[0].0.name)); }
+    h += &format!("<li>{}</li>", esc(tr("The stock is held down and the clamps are clear of the toolpath.")));
+    h += &format!("<li>{}</li>", esc(&tr_f("X0 Y0 is set at the {corner} of the stock; Z0 is {z}.", &[("corner", &corner), ("z", &z_zero(st, units))])));
+    if !tools.is_empty() { h += &format!("<li>{}</li>", esc(&tr_f("The first tool is in the holder: {tool}.", &[("tool", &tools[0].0.name)]))); }
     for r in &rows {
-        if matches!(r.label, "Before you start" | "At a tool change" | "Pauses" | "Air cut") { h += &format!("<li{}><b>{}.</b> {}</li>", if r.warn { " class=\"warn\"" } else { "" }, esc(r.label), esc(&r.text)); }
+        if [tr("Before you start"), tr("At a tool change"), tr("Pauses"), tr("Air cut")].contains(&r.label) { h += &format!("<li{}><b>{}.</b> {}</li>", if r.warn { " class=\"warn\"" } else { "" }, esc(r.label), esc(&r.text)); }
     }
-    h += "<li>Dust collection, eye and ear protection are on. A hand on the stop button for the first minute.</li></ul>";
+    h += &format!("<li>{}</li></ul>", esc(tr("Dust collection, eye and ear protection are on. A hand on the stop button for the first minute.")));
 
     // warnings
     let warns: Vec<String> = main.notes.iter().chain(parts[1..].iter().flat_map(|p| p.out.notes.iter())).filter(|n| n.starts_with('\u{26a0}')).map(|n| n.trim_start_matches('\u{26a0}').trim().to_string()).collect();
     if !warns.is_empty() {
-        h += "<h2>Warnings</h2><ul>";
+        h += &format!("<h2>{}</h2><ul>", esc(tr("Warnings")));
         for w in &warns { h += &format!("<li class=\"warn\">{}</li>", esc(w)); }
         h += "</ul>";
     }
@@ -212,12 +213,12 @@ ul.check{list-style:none;margin:0;padding:0}ul.check li{padding:3px 0 3px 26px;p
     // separate pieces of stock
     for (i, p) in parts.iter().enumerate().skip(1) {
         let d = match &p.piece { Some(j) => &j.data, None => continue };
-        h += &format!("<div class=\"piece\"><h2>Separate piece {}</h2><div class=\"top\"><dl><dt>Stock</dt><dd>{} \u{d7} {} \u{d7} {}</dd><dt>X0 Y0</dt><dd>{}</dd><dt>Z0</dt><dd>{}</dd><dt>Time</dt><dd>{}</dd></dl>{}</div></div>",
-            i, len(d.stock.w, units), len(d.stock.h, units), len(d.stock.t, units), zero_name(&d.stock.zr), esc(&z_zero(&d.stock, units)), duration(p.out.time_min), diagram(d));
+        h += &format!("<div class=\"piece\"><h2>{}</h2><div class=\"top\"><dl><dt>{}</dt><dd>{} \u{d7} {} \u{d7} {}</dd><dt>X0 Y0</dt><dd>{}</dd><dt>Z0</dt><dd>{}</dd><dt>{}</dt><dd>{}</dd></dl>{}</div></div>",
+            esc(&tr_f("Separate piece {n}", &[("n", &i)])), esc(tr("Stock")), len(d.stock.w, units), len(d.stock.h, units), len(d.stock.t, units), esc(zero_name(&d.stock.zr)), esc(&z_zero(&d.stock, units)), esc(tr("Time")), duration(p.out.time_min), diagram(d));
     }
 
-    if !data.notes.trim().is_empty() { h += &format!("<h2>Project notes</h2><div class=\"notes\">{}</div>", esc(data.notes.trim())); }
-    h += "<div class=\"foot\">Made by PutiaCNC. Check the toolpath on screen and run an air cut first on a new setup.</div></body></html>";
+    if !data.notes.trim().is_empty() { h += &format!("<h2>{}</h2><div class=\"notes\">{}</div>", esc(tr("Project notes")), esc(data.notes.trim())); }
+    h += &format!("<div class=\"foot\">{}</div></body></html>", esc(tr("Made by PutiaCNC. Check the toolpath on screen and run an air cut first on a new setup.")));
     h
 }
 
