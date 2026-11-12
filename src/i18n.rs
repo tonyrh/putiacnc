@@ -100,6 +100,18 @@ fn lookup(s: &'static str) -> Option<&'static str> {
     }
 }
 
+/// Marks a text in a `const` for extraction; translate it with `tr` where it is shown.
+pub const fn n_(s: &'static str) -> &'static str { s }
+
+/// A text known only at run time (from a `n_` list): translated when it is in the table, else as it is.
+pub fn tr_dyn(s: &str) -> String {
+    match CURRENT.load(Ordering::Relaxed) {
+        0 => s.to_string(),
+        PSEUDO_IDX => pseudo_text(s),
+        i => tables().get(i).and_then(|t| t.get(s).copied()).unwrap_or(s).to_string(),
+    }
+}
+
 /// A fixed text in the language in use.
 pub fn tr(s: &'static str) -> &'static str { lookup(s).unwrap_or(s) }
 

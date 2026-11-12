@@ -1,11 +1,12 @@
 //! The Layers section of the left panel: a name, a colour, an eye and a lock for each layer of the drawing.
 //! A layer only organizes the drawing. Hiding one hides its shapes from the canvas (they cannot be picked either), but
 //! operations still cut them; locking one keeps its shapes where they are.
+use putiacnc_core::i18n::{n_, tr, tr_f};
 use crate::icons::{small_icon_button, small_toggle_button, Icon};
 use eframe::egui::{self, Ui};
 use putiacnc_core::model::ProjectData;
 
-pub const HIDDEN_TIP: &str = "Hides this layer from the drawing. Operations still cut its shapes: the eye changes what you see, never what is cut.";
+pub const HIDDEN_TIP: &str = n_("Hides this layer from the drawing. Operations still cut its shapes: the eye changes what you see, never what is cut.");
 
 /// What is on a layer, by layer id: a line of text or a group counts once.
 pub fn count(d: &ProjectData, id: i64) -> usize { ProjectData::object_count(d.loops.iter().filter(|l| d.layer_of(l) == id)) }
@@ -23,11 +24,11 @@ impl crate::app::App {
 pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut Option<i64>) {
     ui.separator();
     ui.horizontal(|ui| {
-        ui.heading("Layers");
+        ui.heading(tr("Layers"));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if small_icon_button(ui, Icon::Add, true, "Add a layer; new shapes go on the layer highlighted").clicked() {
+            if small_icon_button(ui, Icon::Add, true, tr("Add a layer; new shapes go on the layer highlighted")).clicked() {
                 let n = d.layers.len().max(1) + 1;
-                let id = d.add_layer(&format!("Layer {n}"));
+                let id = d.add_layer(&tr_f("Layer {n}", &[("n", &n)]));
                 d.active_layer = id;
                 *changed = true;
             }
@@ -43,21 +44,21 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
         egui::Frame::none().fill(fill).rounding(4.0).inner_margin(egui::Margin::symmetric(3.0, 2.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 let mut c = l.rgb().unwrap_or([0x80, 0x80, 0x80]);
-                if crate::colorpick::button(ui, l.id, &mut c, "The colour of this layer's shapes while they are not in an operation").changed() {
+                if crate::colorpick::button(ui, l.id, &mut c, tr("The colour of this layer's shapes while they are not in an operation")).changed() {
                     if let Some(x) = d.layer_mut(l.id) { x.color = putiacnc_core::model::hex_rgb(c); *changed = true; }
                 }
                 // right side, in the order eye, lock, delete (laid out from the right)
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if small_icon_button(ui, Icon::Trash, l.id != 0, if l.id != 0 { "Delete the layer; its shapes move to the first layer" } else { "The first layer cannot be deleted" }).clicked() && l.id != 0 { remove = Some(l.id); }
-                    if small_toggle_button(ui, Icon::Lock, l.locked, if l.locked { "Unlock this layer" } else { "Lock this layer: its shapes cannot be moved or changed" }).clicked() {
+                    if small_icon_button(ui, Icon::Trash, l.id != 0, if l.id != 0 { tr("Delete the layer; its shapes move to the first layer") } else { tr("The first layer cannot be deleted") }).clicked() && l.id != 0 { remove = Some(l.id); }
+                    if small_toggle_button(ui, Icon::Lock, l.locked, if l.locked { tr("Unlock this layer") } else { tr("Lock this layer: its shapes cannot be moved or changed") }).clicked() {
                         if let Some(x) = d.layer_mut(l.id) { x.locked = !l.locked; *changed = true; }
                     }
-                    if small_toggle_button(ui, if l.hidden { Icon::EyeOff } else { Icon::Eye }, l.hidden, if l.hidden { "Show this layer" } else { HIDDEN_TIP }).clicked() {
+                    if small_toggle_button(ui, if l.hidden { Icon::EyeOff } else { Icon::Eye }, l.hidden, if l.hidden { tr("Show this layer") } else { tr(HIDDEN_TIP) }).clicked() {
                         if let Some(x) = d.layer_mut(l.id) { x.hidden = !l.hidden; *changed = true; }
                     }
                     // a framed pill, so it reads as a button; it is greyed when the layer has no shapes
                     let pill = ui.add_enabled(n > 0, egui::Button::new(n.to_string()).small().min_size(egui::vec2(26.0, 18.0)).rounding(9.0));
-                    if pill.on_hover_text(if n == 1 { "1 shape on this layer. Click to select it." } else { "Shapes on this layer. Click to select them all." }).on_disabled_hover_text("No shapes on this layer").clicked() { *pick = Some(l.id); }
+                    if pill.on_hover_text(if n == 1 { tr("1 shape on this layer. Click to select it.") } else { tr("Shapes on this layer. Click to select them all.") }).on_disabled_hover_text(tr("No shapes on this layer")).clicked() { *pick = Some(l.id); }
                     // the name is plain text: a click makes this the active layer, a double click renames it
                     let w = ui.available_width().max(40.0);
                     let edit_id = egui::Id::new("layer_rename");
@@ -78,7 +79,7 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
                         ui.painter().with_clip_rect(r.rect).galley(egui::pos2(r.rect.left() + 4.0, r.rect.center().y - galley.size().y / 2.0), galley, col);
                         if r.clicked() && d.active_layer != l.id { d.active_layer = l.id; *changed = true; }
                         if r.double_clicked() { ui.data_mut(|d| d.insert_temp(edit_id, l.id)); }
-                        r.on_hover_text(if active { "The name of the layer. New shapes go on this layer. Double-click to rename." } else { "Click to put new shapes on this layer. Double-click to rename." });
+                        r.on_hover_text(if active { tr("The name of the layer. New shapes go on this layer. Double-click to rename.") } else { tr("Click to put new shapes on this layer. Double-click to rename.") });
                     }
                 });
             });
@@ -90,7 +91,7 @@ pub fn section(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool, pick: &mut 
         if d.active_layer == id { d.active_layer = 0; }
         *changed = true;
     }
-    if d.layers.iter().any(|l| l.hidden) { ui.add(egui::Label::new(egui::RichText::new("A hidden layer is still cut by the operations that use its shapes.").weak().small()).wrap(true)); }
+    if d.layers.iter().any(|l| l.hidden) { ui.add(egui::Label::new(egui::RichText::new(tr("A hidden layer is still cut by the operations that use its shapes.")).weak().small()).wrap(true)); }
 }
 
 #[cfg(test)]

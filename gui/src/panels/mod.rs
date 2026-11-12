@@ -1,4 +1,5 @@
 //! Side panels, toolbar and status bar.
+use putiacnc_core::i18n::{n_, tr, tr_f};
 use crate::csd::ShowFollowing;
 use crate::app::{fmt_time, Action, App, Level, RightTab};
 use eframe::egui::{self, Color32, Ui};
@@ -19,17 +20,17 @@ use self::stock::*;
 /// The default font has no ″ glyph; show a plain quote instead.
 pub(super) fn clean(s: &str) -> String { s.replace('″', "\"") }
 
-pub const KINDS: &[(&str, &str)] = &[("outside", "Profile outside"), ("inside", "Profile inside"), ("online", "On line"), ("pocket", "Pocket"), ("vcarve", "V-carve"), ("drill", "Drill"), ("inlay", "Inlay pocket"), ("plug", "Inlay plug"), ("relief", "3D relief"), ("draw", "Draw (pen)")];
-pub(super) const PROFILES: &[(&str, &str)] = &[("outside", "Outside"), ("inside", "Inside"), ("online", "On")];
-pub(super) const DIRS: &[(&str, &str)] = &[("climb", "Climb"), ("conv", "Conventional")];
-pub(super) const ZEROS: &[(&str, &str)] = &[("ll", "Lower-left"), ("lr", "Lower-right"), ("ul", "Upper-left"), ("ur", "Upper-right"), ("c", "Center")];
-pub(super) const MATERIALS: &[(&str, &str)] = &[("wood", "Light wood"), ("darkwood", "Dark wood"), ("plywood", "Plywood"), ("mdf", "MDF"), ("acrylic", "Acrylic"), ("metal", "Metal"), ("foam", "Foam"), ("paper", "Paper")];
+pub const KINDS: &[(&str, &str)] = &[("outside", n_("Profile outside")), ("inside", n_("Profile inside")), ("online", n_("On line")), ("pocket", n_("Pocket")), ("vcarve", n_("V-carve")), ("drill", n_("Drill")), ("inlay", n_("Inlay pocket")), ("plug", n_("Inlay plug")), ("relief", n_("3D relief")), ("draw", n_("Draw (pen)"))];
+pub(super) const PROFILES: &[(&str, &str)] = &[("outside", n_("Outside")), ("inside", n_("Inside")), ("online", n_("On"))];
+pub(super) const DIRS: &[(&str, &str)] = &[("climb", n_("Climb")), ("conv", n_("Conventional"))];
+pub(super) const ZEROS: &[(&str, &str)] = &[("ll", n_("Lower-left")), ("lr", n_("Lower-right")), ("ul", n_("Upper-left")), ("ur", n_("Upper-right")), ("c", n_("Center"))];
+pub(super) const MATERIALS: &[(&str, &str)] = &[("wood", n_("Light wood")), ("darkwood", n_("Dark wood")), ("plywood", n_("Plywood")), ("mdf", "MDF"), ("acrylic", n_("Acrylic")), ("metal", n_("Metal")), ("foam", n_("Foam")), ("paper", n_("Paper"))];
 /// The same two choices for a plug piece, with a shorter first name so that the box is no wider than the fields above it.
-pub(super) const PIECE_ZMODES: &[(&str, &str)] = &[("top", "Top"), ("h", "Height")];
-pub(super) const ZMODES: &[(&str, &str)] = &[("top", "Stock top"), ("h", "Height")];
+pub(super) const PIECE_ZMODES: &[(&str, &str)] = &[("top", n_("Top")), ("h", n_("Height"))];
+pub(super) const ZMODES: &[(&str, &str)] = &[("top", n_("Stock top")), ("h", n_("Height"))];
 
 pub fn label_of(opts: &[(&str, &str)], v: &str) -> String {
-    opts.iter().find(|(k, _)| *k == v).map(|(_, l)| l.to_string()).unwrap_or_else(|| v.to_string())
+    opts.iter().find(|(k, _)| *k == v).map(|(_, l)| putiacnc_core::i18n::tr_dyn(l)).unwrap_or_else(|| v.to_string())
 }
 
 pub(super) fn tool_pd_of(tools: &[putiacnc_core::model::Tool], id: &str) -> Option<f64> { tools.iter().find(|t| t.id == id).map(|t| t.pd) }
@@ -72,7 +73,7 @@ pub(super) fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[
     let mut ch = false;
     let r = egui::ComboBox::from_id_source(id).width(w - 10.0).selected_text(format!("{prefix}{}", label_of(opts, cur))).show_ui(ui, |ui| {
         for (k, l) in opts {
-            if ui.selectable_label(cur == k, *l).clicked() && cur != k { *cur = k.to_string(); ch = true; }
+            if ui.selectable_label(cur == k, putiacnc_core::i18n::tr_dyn(l)).clicked() && cur != k { *cur = k.to_string(); ch = true; }
         }
     });
     if !tip.is_empty() { { use crate::widgets::Tip; r.response.clone().tip(tip); } }
@@ -85,13 +86,13 @@ pub(super) fn combo_w(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(
 
 pub fn right_panel(ui: &mut Ui, app: &mut App) {
     let theme = app.theme;
-    crate::view3d::tabs_badged(ui, &theme, &mut app.tab, &[(RightTab::Ops, "Operations", 0), (RightTab::Gcode, "G-code", 0), (RightTab::Info, "Notes", 0)]);
+    crate::view3d::tabs_badged(ui, &theme, &mut app.tab, &[(RightTab::Ops, tr("Operations"), 0), (RightTab::Gcode, tr("G-code"), 0), (RightTab::Info, tr("Notes"), 0)]);
     ui.separator();
     if app.tab == RightTab::Ops { ops_panel(ui, app); return; }
     if app.tab == RightTab::Info { notes_panel(ui, app); return; }
     if app.tab == RightTab::Gcode {
         let (d, n) = (app.project.data.job.dialect_name(), app.project.data.job.numbered);
-        ui.add(egui::Label::new(egui::RichText::new(format!("Output for {d}{}. Dialect, units, line numbers and safe Z are set per machine (File → Machines).", if n { ", numbered lines" } else { "" })).weak()).wrap(true));
+        ui.add(egui::Label::new(egui::RichText::new(tr_f("Output for {dialect}{numbered}. Dialect, units, line numbers and safe Z are set per machine (File → Machines).", &[("dialect", &d), ("numbered", &if n { tr(", numbered lines") } else { "" })])).weak()).wrap(true));
         ui.add_space(4.0);
         crate::exportui::wcs_pick(ui, app);
         ui.add_space(4.0);
@@ -99,13 +100,13 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
         if app.gcode_part > app.pieces.len() && !app.gen_stale() { app.gcode_part = 0; }
         if !app.pieces.is_empty() {
             if app.pieces.len() == 1 {
-                let (c, _) = crate::zoomcard::seg2(ui, ["Main piece", "Plug piece"], ["The G-code for the main stock", "The G-code for the separate piece the plug is cut from (its own file, its own work zero)"], app.gcode_part.min(1));
+                let (c, _) = crate::zoomcard::seg2(ui, [tr("Main piece"), tr("Plug piece")], [tr("The G-code for the main stock"), tr("The G-code for the separate piece the plug is cut from (its own file, its own work zero)")], app.gcode_part.min(1));
                 if let Some(i) = c { app.gcode_part = i; }
             } else {
-                let names: Vec<String> = app.pieces.iter().map(|pp| format!("Plug piece (operation {})", pp.job.op_index + 1)).collect();
-                let cur = if app.gcode_part == 0 { "Main piece".to_string() } else { names[app.gcode_part - 1].clone() };
+                let names: Vec<String> = app.pieces.iter().map(|pp| tr_f("Plug piece (operation {n})", &[("n", &(pp.job.op_index + 1))])).collect();
+                let cur = if app.gcode_part == 0 { tr("Main piece").to_string() } else { names[app.gcode_part - 1].clone() };
                 egui::ComboBox::from_id_source("gcode_part_pick").selected_text(cur).show_ui(ui, |ui| {
-                    ui.selectable_value(&mut app.gcode_part, 0, "Main piece");
+                    ui.selectable_value(&mut app.gcode_part, 0, tr("Main piece"));
                     for (i, n) in names.iter().enumerate() { ui.selectable_value(&mut app.gcode_part, i + 1, n.as_str()); }
                 });
             }
@@ -133,7 +134,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                 // on a short window the summary scrolls, so the G-code list and the buttons below it always keep their room
                 let cap = (ui.available_height() - 210.0).max(90.0);
                 egui::ScrollArea::vertical().id_source("gcode_summary_scroll").max_height(cap).auto_shrink([false, true]).show_following(ui, |ui| {
-                egui::CollapsingHeader::new(egui::RichText::new("What this will do").strong()).id_source("gcode_summary").default_open(true).show(ui, |ui| {
+                egui::CollapsingHeader::new(egui::RichText::new(tr("What this will do")).strong()).id_source("gcode_summary").default_open(true).show(ui, |ui| {
                     let lw = rows.iter().map(|r| tw(ui, r.label)).fold(0.0_f32, f32::max);
                     ui.spacing_mut().item_spacing.y = 4.0;
                     for r in rows {
@@ -152,22 +153,22 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
                     ui.add_space(4.0);
                     ui.separator();
                     ui.add_space(2.0);
-                    egui::CollapsingHeader::new(egui::RichText::new("Notes on the toolpath").strong()).id_source("gcode_notes").default_open(true).show(ui, |ui| {
+                    egui::CollapsingHeader::new(egui::RichText::new(tr("Notes on the toolpath")).strong()).id_source("gcode_notes").default_open(true).show(ui, |ui| {
                         for n in infos { crate::msg::line(ui, Level::Info, n); }
                     });
                 }
                 });
                 ui.add_space(2.0);
                 ui.separator();
-                ui.label(egui::RichText::new(format!("G-code ({} lines)", o.lines.len())).strong());
+                ui.label(egui::RichText::new(tr_f("G-code ({n} lines)", &[("n", &o.lines.len())])).strong());
                 ui.add_space(2.0);
             }
             // Copy / Export sit at the bottom; the G-code takes the rest of the height
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Copy").on_hover_text(if several { "Copy the G-code shown to the clipboard" } else { "Copy the G-code to the clipboard" }).clicked() { copy = Some(o.gcode()); }
-                    if ui.button("Export G-code…").on_hover_text(if several { "Save the G-code to files: one for the main piece and one for each plug piece (Ctrl+E)" } else { "Save the G-code to a file (Ctrl+E)" }).clicked() { export = true; }
+                    if ui.button(tr("Copy")).on_hover_text(if several { tr("Copy the G-code shown to the clipboard") } else { tr("Copy the G-code to the clipboard") }).clicked() { copy = Some(o.gcode()); }
+                    if ui.button(tr("Export G-code…")).on_hover_text(if several { tr("Save the G-code to files: one for the main piece and one for each plug piece (Ctrl+E)") } else { tr("Save the G-code to a file (Ctrl+E)") }).clicked() { export = true; }
                 });
                 ui.add_space(6.0);
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
@@ -194,7 +195,7 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
             });
         }
         (_, RightTab::Ops | RightTab::Info) => {}
-        (None, _) if app.project.data.ops.is_empty() => { ui.weak("Add an operation to generate G-code."); }
+        (None, _) if app.project.data.ops.is_empty() => { ui.weak(tr("Add an operation to generate G-code.")); }
         (None, _) => { ui.label(crate::widgets::localize(ui, &app.gen_error.clone().unwrap_or_else(|| "Nothing generated yet.".into()))); }
     }
     if let Some(t) = copy { ui.ctx().copy_text(t); }
@@ -209,12 +210,12 @@ pub fn right_panel(ui: &mut Ui, app: &mut App) {
 /// The Notes tab: the project's own notes (always editable, saved with the project). What the toolpath generator
 /// has to say is in the G-code tab, under "Notes on the toolpath".
 pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
-    ui.label("Project notes");
+    ui.label(tr("Project notes"));
     let row_h = ui.text_style_height(&egui::TextStyle::Body);
     let rows = (((ui.available_height() - 12.0) / row_h).floor() as usize).max(4);
     let before = app.project.data.clone();
     let mut notes = std::mem::take(&mut app.project.data.notes);
-    let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text("Material, fixtures, jobs to remember…"));
+    let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text(tr("Material, fixtures, jobs to remember…")));
     app.project.data.notes = notes;
     if r.changed() {
         // one undo step per editing session; while the field has focus, Ctrl+Z undoes the typing itself
@@ -269,7 +270,7 @@ pub(super) fn xy_picker(ui: &mut Ui, val: &mut String) -> bool {
     }
     if near.is_some() { ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand); }
     let name = ZEROS.iter().find(|(k, _)| *k == val.as_str()).map(|(_, n)| *n).unwrap_or("");
-    resp.on_hover_text(format!("Work origin (X0 Y0): {name}"));
+    resp.on_hover_text(tr_f("Work origin (X0 Y0): {name}", &[("name", &putiacnc_core::i18n::tr_dyn(name))]));
     changed
 }
 
@@ -305,16 +306,20 @@ pub fn clamp_bar(ui: &mut Ui, app: &mut App) {
     clamps.sort_unstable(); clamps.dedup();
     let list = |v: &[usize]| -> String {
         let n: Vec<String> = v.iter().map(|x| (x + 1).to_string()).collect();
-        match n.split_last() { None => String::new(), Some((last, [])) => last.clone(), Some((last, rest)) => format!("{} and {}", rest.join(", "), last) }
+        match n.split_last() { None => String::new(), Some((last, [])) => last.clone(), Some((last, rest)) => tr_f("{list} and {last}", &[("list", &rest.join(", ")), ("last", last)]) }
     };
-    let (op_word, run_word, clamp_word) = (if ops.len() == 1 { "Operation" } else { "Operations" }, if ops.len() == 1 { "runs" } else { "run" }, if clamps.len() == 1 { "Clamp" } else { "Clamps" });
-    let text = format!("{op_word} {} {run_word} into {clamp_word} {}. Move the clamp or change the drawing.", list(&ops), list(&clamps));
+    let text = match (ops.len() == 1, clamps.len() == 1) {
+        (true, true) => tr_f("Operation {ops} runs into clamp {clamps}. Move the clamp or change the drawing.", &[("ops", &list(&ops)), ("clamps", &list(&clamps))]),
+        (true, false) => tr_f("Operation {ops} runs into clamps {clamps}. Move the clamp or change the drawing.", &[("ops", &list(&ops)), ("clamps", &list(&clamps))]),
+        (false, true) => tr_f("Operations {ops} run into clamp {clamps}. Move the clamp or change the drawing.", &[("ops", &list(&ops)), ("clamps", &list(&clamps))]),
+        (false, false) => tr_f("Operations {ops} run into clamps {clamps}. Move the clamp or change the drawing.", &[("ops", &list(&ops)), ("clamps", &list(&clamps))]),
+    };
     // the first finding about a clamp, once the checks have listed them
     let first = app.checks.iter().position(|f| f.kind.about_clamps() && f.mv.is_some());
     let mut show = false;
     // the button at the right, the sign and the text in what is left; everything centred on the row's middle
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        if ui.add_enabled(first.is_some(), egui::Button::new("Show in 3D")).on_hover_text("Jump the 3D preview to the first move that hits the clamp").clicked() { show = true; }
+        if ui.add_enabled(first.is_some(), egui::Button::new(tr("Show in 3D"))).on_hover_text(tr("Jump the 3D preview to the first move that hits the clamp")).clicked() { show = true; }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             ui.add_space(2.0);
             crate::msg::sign(ui, Level::Error);
@@ -328,7 +333,7 @@ pub(super) fn icon_close(ui: &mut Ui) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
     if resp.hovered() { ui.painter().rect_filled(r, 5.0, ui.visuals().widgets.hovered.weak_bg_fill); }
     paint_icon(ui.painter(), Icon::Close, r.center(), ui.visuals().text_color(), 0.55);
-    resp.on_hover_text("Dismiss")
+    resp.on_hover_text(tr("Dismiss"))
 }
 
 /// A number for a one-line summary: no trailing zeros.

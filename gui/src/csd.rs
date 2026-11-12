@@ -1,5 +1,6 @@
 //! Client-side decorations: our own header bar (menus, title, window buttons), window dragging
 //! and edge resizing, so the window looks like a GNOME/libadwaita app on Wayland and X11 alike.
+use putiacnc_core::i18n::{tr};
 use crate::app::App;
 use eframe::egui::{self, Color32, CursorIcon, Pos2, Rect, Sense, Stroke, Ui, ViewportCommand};
 use egui::viewport::ResizeDirection;
@@ -33,7 +34,7 @@ pub fn header(ui: &mut Ui, app: &mut App) {
     if drag.double_clicked() { ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized)); }
 
     // title, centred
-    let name = if app.project.name.trim().is_empty() { "Untitled" } else { app.project.name.trim() };
+    let name = if app.project.name.trim().is_empty() { tr("Untitled") } else { app.project.name.trim() };
     let title = format!("{}{} - PutiaCNC", name, if app.modified { " •" } else { "" });
     let font = egui::TextStyle::Body.resolve(ui.style());
     ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, title, font, ui.visuals().strong_text_color());
@@ -43,19 +44,19 @@ pub fn header(ui: &mut Ui, app: &mut App) {
     let ctl = Rect::from_min_max(Pos2::new(rect.max.x - 3.0 * bw - 8.0 - 2.0 * 30.0 - 14.0, rect.min.y), Pos2::new(rect.max.x, rect.min.y + HEADER_H));
     ui.allocate_ui_at_rect(ctl, |ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if win_button(ui, WinIcon::Close, "Close") { app.request(crate::app::Action::Quit); }
-            if win_button(ui, if maximized { WinIcon::Restore } else { WinIcon::Maximize }, if maximized { "Restore" } else { "Maximize" }) {
+            if win_button(ui, WinIcon::Close, tr("Close")) { app.request(crate::app::Action::Quit); }
+            if win_button(ui, if maximized { WinIcon::Restore } else { WinIcon::Maximize }, if maximized { tr("Restore") } else { tr("Maximize") }) {
                 ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized));
             }
-            if win_button(ui, WinIcon::Minimize, "Minimize") { ctx.send_viewport_cmd(ViewportCommand::Minimized(true)); }
+            if win_button(ui, WinIcon::Minimize, tr("Minimize")) { ctx.send_viewport_cmd(ViewportCommand::Minimized(true)); }
             ui.add_space(10.0);
             // panel toggles (listed right-to-left: they read left panel, right panel)
             // a panel hidden because the window is too narrow shows as off; clicking it shows it in place of the other one
             let (sq_l, sq_r) = app.squeezed;
-            if panel_toggle(ui, false, app.show_right && !sq_r, if sq_r { "Hidden: the window is too narrow. Click to show it instead of the project panel" } else { "Show / hide the operations panel" }) {
+            if panel_toggle(ui, false, app.show_right && !sq_r, if sq_r { tr("Hidden: the window is too narrow. Click to show it instead of the project panel") } else { tr("Show / hide the operations panel") }) {
                 if sq_r { app.show_left = false; } else { app.show_right = !app.show_right; }
             }
-            if panel_toggle(ui, true, app.show_left && !sq_l, if sq_l { "Hidden: the window is too narrow. Click to show it instead of the operations panel" } else { "Show / hide the project panel" }) {
+            if panel_toggle(ui, true, app.show_left && !sq_l, if sq_l { tr("Hidden: the window is too narrow. Click to show it instead of the operations panel") } else { tr("Show / hide the project panel") }) {
                 if sq_l { app.show_right = false; } else { app.show_left = !app.show_left; }
             }
         });

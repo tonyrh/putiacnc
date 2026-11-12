@@ -55,7 +55,7 @@ fn skip_ws(s: &[u8], mut i: usize) -> usize { while s.get(i).is_some_and(|c| c.i
 pub fn scan_source(src: &str, file: &str) -> Vec<Found> {
     let b = src.as_bytes();
     let mut out = Vec::new();
-    for (name, plural) in [("tr_n(", true), ("tr_f(", false), ("tr(", false)] {
+    for (name, plural) in [("tr_n(", true), ("tr_f(", false), ("tr(", false), ("n_(", false)] {
         let mut from = 0;
         while let Some(p) = src[from..].find(name) {
             let at = from + p;

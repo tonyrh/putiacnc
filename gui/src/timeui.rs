@@ -55,7 +55,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                     ui.end_row();
                 };
                 for (i, o) in t.ops.iter().enumerate() {
-                    let kind = app.project.data.ops.get(i).map_or("", |op| crate::panels::KINDS.iter().find(|(k, _)| *k == op.p.kind).map_or(op.p.kind.as_str(), |(_, n)| *n));
+                    let kind = app.project.data.ops.get(i).map_or(String::new(), |op| crate::panels::label_of(crate::panels::KINDS, &op.p.kind));
                     let tip = format!("cutting {} · moving between cuts {}", fmt_time(o.cut), fmt_time(o.travel));
                     row(ui, crate::theme::op_color(i, dark), format!("{} · {}", i + 1, kind), o.cut, o.travel, &tip);
                 }

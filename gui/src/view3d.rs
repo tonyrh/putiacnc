@@ -544,7 +544,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         if let Some(m) = o.moves.get(cur) {
             let pass = o.moves[..=cur].iter().rev().take_while(|x| x.op == m.op).find(|x| x.pass > 0).map_or(0, |x| x.pass);
             let passes = o.moves.iter().filter(|x| x.op == m.op).map(|x| x.pass).max().unwrap_or(0);
-            let name = app.project.data.ops.get(m.op).map(|op| crate::panels::KINDS.iter().find(|(k, _)| *k == op.p.kind).map_or(op.p.kind.as_str(), |(_, n)| *n)).unwrap_or("");
+            let name = app.project.data.ops.get(m.op).map(|op| crate::panels::label_of(crate::panels::KINDS, &op.p.kind)).unwrap_or_default();
             // the Z the pass cuts down to, as the G-code writes it (a ramp reaches it by the end of the pass)
             let imp = app.imperial;
             let zfmt = |z: f64| if imp { format!("{:.4} in", z / 25.4) } else { format!("{:.3} mm", z) };

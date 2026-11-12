@@ -1,5 +1,6 @@
 //! The zoom card: minus, the zoom percentage (a menu), plus and Fit. The 2D drawing and the 3D preview share it, so zoom looks
 //! and works the same in both: 100 % is the "fit" view of that window.
+use putiacnc_core::i18n::{tr};
 use crate::icons::{paint_icon, Icon};
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2};
 
@@ -133,23 +134,23 @@ pub fn row(ui: &mut egui::Ui, id: &str, frac: f32, with_fit: bool, btn: Vec2, pc
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing = Vec2::splat(gap);
         let sq = btn;
-        if button(ui, sq, false, "Zoom out (-)", |p, r, fg| paint_icon(p, Icon::Minus, r.center(), fg, btn.y / 36.0)).clicked() { act = Some(Act::By(1.0 / STEP)); }
+        if button(ui, sq, false, tr("Zoom out (-)"), |p, r, fg| paint_icon(p, Icon::Minus, r.center(), fg, btn.y / 36.0)).clicked() { act = Some(Act::By(1.0 / STEP)); }
         let text = pct_text(frac);
-        let pr = button(ui, Vec2::new(pct_w, btn.y), false, "Zoom level: 100% is the stock framed to fit. Click for sizes", |p, r, fg| {
+        let pr = button(ui, Vec2::new(pct_w, btn.y), false, tr("Zoom level: 100% is the stock framed to fit. Click for sizes"), |p, r, fg| {
             p.text(r.center(), egui::Align2::CENTER_CENTER, text, egui::FontId::proportional(13.0), fg);
         });
         let pid = egui::Id::new((id, "menu"));
         if pr.clicked() { ui.memory_mut(|m| m.toggle_popup(pid)); }
         egui::popup::popup_below_widget(ui, pid, &pr, |ui| {
             ui.set_min_width(pct_w + 20.0);
-            if ui.selectable_label(false, "Fit").clicked() { act = Some(Act::Fit); }
+            if ui.selectable_label(false, tr("Fit")).clicked() { act = Some(Act::Fit); }
             ui.separator();
             for f in PRESETS {
                 if ui.selectable_label((f - frac).abs() < 0.005, pct_text(f)).clicked() { act = Some(Act::To(f)); }
             }
         });
-        if button(ui, sq, false, "Zoom in (+)", |p, r, fg| paint_icon(p, Icon::Add, r.center(), fg, btn.y / 36.0)).clicked() { act = Some(Act::By(STEP)); }
-        if with_fit && button(ui, sq, false, "Fit the stock in view (0 or F)", |p, r, fg| paint_icon(p, Icon::Fit, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::Fit); }
+        if button(ui, sq, false, tr("Zoom in (+)"), |p, r, fg| paint_icon(p, Icon::Add, r.center(), fg, btn.y / 36.0)).clicked() { act = Some(Act::By(STEP)); }
+        if with_fit && button(ui, sq, false, tr("Fit the stock in view (0 or F)"), |p, r, fg| paint_icon(p, Icon::Fit, r.center(), fg, BTN / 36.0)).clicked() { act = Some(Act::Fit); }
     });
     act
 }
