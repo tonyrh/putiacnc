@@ -1,4 +1,5 @@
 //! Finger joint dialog: cut tabs or slots into the edges of a selected rectangle, for plates that slot together.
+use putiacnc_core::i18n::{n_, tr, tr_f, tr_n};
 use crate::app::App;
 use crate::widgets::Tip;
 use eframe::egui;
@@ -20,7 +21,7 @@ impl Default for FingerTool {
     fn default() -> Self { FingerTool { open: false, edges: [Edge::Tabs, Edge::Flat, Edge::Flat, Edge::Flat], width: 10.0, clearance: 0.05, dogbone: false, dia: 3.175, auto: true } }
 }
 
-const NAMES: [&str; 4] = ["Bottom", "Right", "Top", "Left"];
+const NAMES: [&str; 4] = [n_("Bottom"), n_("Right"), n_("Top"), n_("Left")];
 
 impl App {
     /// True when the selection holds a rectangle the fingers can be cut into.
@@ -32,8 +33,8 @@ impl App {
     pub fn finger_selection(&mut self, edges: [Edge; 4], width: f64, clearance: f64, dogbone: Option<f64>) -> Option<String> {
         let depth = self.project.data.stock.t;
         let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).is_some_and(|l| l.rc.is_some() && l.closed())).collect();
-        if idx.is_empty() { return Some("Select a rectangle first.".into()); }
-        if edges.iter().all(|e| *e == Edge::Flat) { return Some("Choose Tabs or Slots for at least one edge.".into()); }
+        if idx.is_empty() { return Some(tr("Select a rectangle first.").into()); }
+        if edges.iter().all(|e| *e == Edge::Flat) { return Some(tr("Choose Tabs or Slots for at least one edge.").into()); }
         let mut next_id = self.project.data.loops.iter().filter_map(|l| l.fj.as_ref().map(|s| s.id)).max().unwrap_or(0);
         let mut made: Vec<(usize, Vec<putiacnc_core::model::LoopData>)> = Vec::new();
         let mut dogs = 0;
@@ -43,7 +44,7 @@ impl App {
             next_id += 1;
             let spec = putiacnc_core::model::FingerSpec { id: next_id, edges: edges.map(Edge::code), width, clearance, depth, dog: dogbone };
             let Some((ls, n)) = joints::make_fingers(bx, &spec, l.op) else {
-                return Some(format!("The fingers do not fit: the rectangle must be more than twice the material thickness ({depth} mm) in both directions."));
+                return Some(tr_f("The fingers do not fit: the rectangle must be more than twice the material thickness ({depth} mm) in both directions.", &[("depth", &depth)]));
             };
             dogs += n;
             made.push((i, ls));
@@ -59,7 +60,7 @@ impl App {
         d.loops.extend(new);
         self.sel = (start..self.project.data.loops.len()).collect();
         self.touch();
-        Some(if dogs > 0 { format!("Fingers cut, with {dogs} dogbone{}.", if dogs == 1 { "" } else { "s" }) } else { "Fingers cut.".into() })
+        Some(if dogs > 0 { tr_n(dogs as u64, "Fingers cut, with {n} dogbone.", "Fingers cut, with {n} dogbones.") } else { tr("Fingers cut.").into() })
     }
 }
 
@@ -86,7 +87,7 @@ impl App {
                     changed = true;
                 }
                 joints::Refit::Done(_) => { for &i in &idx { self.project.data.loops[i].fj = None; } }
-                joints::Refit::Unfit => { msg = Some(format!("The fingers do not fit a material {t} mm thick: they stay as they were.")); }
+                joints::Refit::Unfit => { msg = Some(tr_f("The fingers do not fit a material {t} mm thick: they stay as they were.", &[("t", &t)])); }
                 joints::Refit::Stale => { for &i in &idx { self.project.data.loops[i].fj = None; } }
             }
         }
@@ -108,30 +109,30 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Finger joint").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Finger joint", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(376.0);
-        if crate::csd::dialog_header_help(ui, "Finger joint", true, |ui| {
-            ui.label("Cuts tabs or slots into the edges of the selected rectangle. Give one plate Tabs and the plate it meets Slots on edges of the same length, and they slot together.");
+        ui.set_width(crate::csd::dialog_w(376.0));
+        if crate::csd::dialog_header_help(ui, tr("Finger joint"), true, |ui| {
+            ui.label(tr("Cuts tabs or slots into the edges of the selected rectangle. Give one plate Tabs and the plate it meets Slots on edges of the same length, and they slot together."));
             ui.add_space(4.0);
-            ui.label("The fingers are as deep as the stock is thick. The number of fingers is odd, so both ends of an edge match.");
+            ui.label(tr("The fingers are as deep as the stock is thick. The number of fingers is odd, so both ends of an edge match."));
             ui.add_space(4.0);
-            ui.label("Dogbones make room in the slot corners for a round cutter.");
+            ui.label(tr("Dogbones make room in the slot corners for a round cutter."));
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(if app.sel.is_empty() { "Select a rectangle first.".to_string() } else if has { format!("Depth {}: the thickness of the stock.", crate::widgets::fmt_len(ui, thick)) } else { "The selection has no rectangle.".to_string() });
+        ui.label(if app.sel.is_empty() { tr("Select a rectangle first.").to_string() } else if has { tr_f("Depth {t}: the thickness of the stock.", &[("t", &crate::widgets::fmt_len(ui, thick))]) } else { tr("The selection has no rectangle.").to_string() });
         ui.add_space(6.0);
-        let lw = ["Bottom", "Finger width", "Clearance", "Cutter"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let lw = [tr("Bottom"), tr("Finger width"), tr("Clearance"), tr("Cutter")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("finger_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             for (k, name) in NAMES.iter().enumerate() {
-                crate::toolmgr::rlabel(ui, lw, *name);
-                let (c, _) = crate::zoomcard::seg3(ui, ["Flat", "Tabs", "Slots"], ["Leave the edge straight", "Fingers stand out of the edge", "Notches go into the edge"], app.fingers.edges[k] as usize);
+                crate::toolmgr::rlabel(ui, lw, tr(name));
+                let (c, _) = crate::zoomcard::seg3(ui, [tr("Flat"), tr("Tabs"), tr("Slots")], [tr("Leave the edge straight"), tr("Fingers stand out of the edge"), tr("Notches go into the edge")], app.fingers.edges[k] as usize);
                 if let Some(i) = c { app.fingers.edges[k] = [Edge::Flat, Edge::Tabs, Edge::Slots][i]; }
                 ui.end_row();
             }
-            crate::toolmgr::rlabel(ui, lw, "Finger width");
+            crate::toolmgr::rlabel(ui, lw, tr("Finger width"));
             ui.horizontal(|ui| { crate::widgets::len(ui, [70.0, 24.0], &mut app.fingers.width, 0.5, 500.0, 0.5, 2, ""); ui.weak(crate::widgets::len_unit(ui)); });
             ui.end_row();
-            crate::toolmgr::rlabel(ui, lw, "Clearance");
-            ui.horizontal(|ui| { crate::widgets::len(ui, [70.0, 24.0], &mut app.fingers.clearance, 0.0, 2.0, 0.01, 2, "").tip("How much wider a slot is than its tab, for the cutting kerf and a sliding fit"); ui.weak(crate::widgets::len_unit(ui)); });
+            crate::toolmgr::rlabel(ui, lw, tr("Clearance"));
+            ui.horizontal(|ui| { crate::widgets::len(ui, [70.0, 24.0], &mut app.fingers.clearance, 0.0, 2.0, 0.01, 2, "").tip(tr("How much wider a slot is than its tab, for the cutting kerf and a sliding fit")); ui.weak(crate::widgets::len_unit(ui)); });
             ui.end_row();
             if app.fingers.dogbone {
                 let (od, tools) = (app.sel_cutter_dia(), app.cutter_choices());
@@ -139,15 +140,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 crate::corners::cutter_row(ui, lw, &mut c.dia, &mut c.auto, od, &tools);
             }
         });
-        crate::widgets::check(ui, &mut app.fingers.dogbone, "Dogbones in the slots").tip("A small round relief in each slot corner so a round cutter leaves room for the square tab");
+        crate::widgets::check(ui, &mut app.fingers.dogbone, tr("Dogbones in the slots")).tip(tr("A small round relief in each slot corner so a round cutter leaves room for the square tab"));
         let mine = app.tool_note.as_ref().filter(|(k, _)| *k == "fingers").map(|(_, m)| m);
         if let Some(n) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(has, egui::Button::new("OK")).on_hover_text("Do it and close the window").clicked() { apply = true; }
-            if ui.button("Cancel").clicked() { close = true; }
+            if ui.add_enabled(has, egui::Button::new(tr("OK"))).on_hover_text(tr("Do it and close the window")).clicked() { apply = true; }
+            if ui.button(tr("Cancel")).clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                crate::widgets::check(ui, &mut app.preview_on, "Preview").tip("Show the result in the drawing while you change the values");
+                crate::widgets::check(ui, &mut app.preview_on, tr("Preview")).tip(tr("Show the result in the drawing while you change the values"));
             });
         });
         });

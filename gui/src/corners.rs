@@ -1,4 +1,5 @@
 //! Fillet / chamfer dialog: round off or bevel the corners of the selected shapes.
+use putiacnc_core::i18n::{tr, tr_n};
 use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui;
@@ -33,7 +34,7 @@ impl App {
                 changes.push((i, r));
             }
         }
-        if changes.is_empty() { return Some("There are no sharp corners in the selection.".into()); }
+        if changes.is_empty() { return Some(tr("There are no sharp corners in the selection.").into()); }
         self.hist.record(&self.project.data);
         // rounded letters are no longer what the font draws: a changed text becomes plain outlines
         let d = &mut self.project.data;
@@ -48,8 +49,8 @@ impl App {
         self.touch();
         let _ = corners;
         let mut note = String::new();
-        if limited > 0 { note = format!("{limited} corner{} too tight for that size and got the largest that fits.", if limited == 1 { " was" } else { "s were" }); }
-        if !texts.is_empty() { if !note.is_empty() { note.push(' '); } note.push_str("The text is now plain outlines, so it can no longer be edited as text."); }
+        if limited > 0 { note = tr_n(limited as u64, "{n} corner was too tight for that size and got the largest that fits.", "{n} corners were too tight for that size and got the largest that fits."); }
+        if !texts.is_empty() { if !note.is_empty() { note.push(' '); } note.push_str(tr("The text is now plain outlines, so it can no longer be edited as text.")); }
         if note.is_empty() { None } else { Some(note) }
     }
 }
@@ -59,17 +60,17 @@ pub fn cutter_dia(auto: bool, op_dia: Option<f64>, typed: f64) -> f64 { if auto 
 
 /// The "Cutter" row of a dialog that makes dogbones: a check to follow the operation's tool, else a typed diameter or one picked from a tool.
 pub fn cutter_row(ui: &mut egui::Ui, lw: f32, dia: &mut f64, auto: &mut bool, op_dia: Option<f64>, tools: &[(String, f64)]) {
-    crate::toolmgr::rlabel(ui, lw, "Cutter");
+    crate::toolmgr::rlabel(ui, lw, tr("Cutter"));
     ui.vertical(|ui| {
-        crate::widgets::check(ui, auto, "Tool of the operation").tip("Take the diameter from the tool of the operation these shapes are cut in, so the reliefs always match the cutter");
+        crate::widgets::check(ui, auto, tr("Tool of the operation")).tip(tr("Take the diameter from the tool of the operation these shapes are cut in, so the reliefs always match the cutter"));
         if *auto {
-            match op_dia { Some(d) => { ui.weak(crate::widgets::fmt_len(ui, d)); } None => { ui.weak("Not in an operation yet: using the size below."); } }
+            match op_dia { Some(d) => { ui.weak(crate::widgets::fmt_len(ui, d)); } None => { ui.weak(tr("Not in an operation yet: using the size below.")); } }
         }
         if !*auto || op_dia.is_none() {
             ui.horizontal(|ui| {
                 crate::widgets::len(ui, [70.0, 24.0], dia, 0.1, 50.0, 0.25, 3, "");
                 ui.weak(crate::widgets::len_unit(ui));
-                egui::ComboBox::from_id_source("dog_tool").selected_text("from tool").width(110.0).show_ui(ui, |ui| {
+                egui::ComboBox::from_id_source("dog_tool").selected_text(tr("from tool")).width(110.0).show_ui(ui, |ui| {
                     for (n, d) in tools { if ui.selectable_label(false, format!("{n} ({})", crate::widgets::fmt_len(ui, *d))).clicked() { *dia = *d; } }
                 });
             });
@@ -105,12 +106,12 @@ impl App {
     /// `outside` is for shapes that will be cut around (parts with a notch), otherwise for pockets and cut-outs.
     pub fn dogbone_selection(&mut self, dia: f64, outside: bool, tbone: bool) -> Option<String> {
         let idx: Vec<usize> = self.sel.iter().copied().filter(|&i| self.project.data.loops.get(i).is_some_and(|l| l.closed())).collect();
-        if idx.is_empty() { return Some("Select one or more closed shapes.".into()); }
+        if idx.is_empty() { return Some(tr("Select one or more closed shapes.").into()); }
         let op = self.project.data.loops[idx[0]].op;
         let cut = if outside { putiacnc_core::joints::Cut::Outside } else { putiacnc_core::joints::Cut::Inside };
         let refs: Vec<&putiacnc_core::model::LoopData> = idx.iter().map(|&i| &self.project.data.loops[i]).collect();
         let Some((result, n)) = putiacnc_core::joints::reliefs(&refs, dia, cut, op, if tbone { putiacnc_core::joints::Relief::TBone } else { putiacnc_core::joints::Relief::Dogbone }) else {
-            return Some("There are no sharp inside corners that need a relief for this cutter.".into());
+            return Some(tr("There are no sharp inside corners that need a relief for this cutter.").into());
         };
         self.hist.record(&self.project.data);
         let d = &mut self.project.data;
@@ -127,8 +128,8 @@ impl App {
         d.loops.extend(result);
         self.sel = (start..self.project.data.loops.len()).collect();
         self.touch();
-        let mut note = format!("{n} {}{} added.", if tbone { "T-bone" } else { "dogbone" }, if n == 1 { "" } else { "s" });
-        if !texts.is_empty() { note.push_str(" The text is now plain outlines."); }
+        let mut note = if tbone { tr_n(n as u64, "{n} T-bone added.", "{n} T-bones added.") } else { tr_n(n as u64, "{n} dogbone added.", "{n} dogbones added.") };
+        if !texts.is_empty() { note.push(' '); note.push_str(tr("The text is now plain outlines.")); }
         Some(note)
     }
 }
@@ -166,31 +167,31 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Fillet and chamfer").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Fillet and chamfer", fillet_base(ctx, app, node))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(376.0);
-        if crate::csd::dialog_header_help(ui, "Fillet and chamfer", true, |ui| {
-            ui.label("Smooth curves, circles and ellipses are left alone.");
+        ui.set_width(crate::csd::dialog_w(376.0));
+        if crate::csd::dialog_header_help(ui, tr("Fillet and chamfer"), true, |ui| {
+            ui.label(tr("Smooth curves, circles and ellipses are left alone."));
             ui.add_space(4.0);
-            ui.label("A chamfer is measured as a distance along each edge from the corner.");
+            ui.label(tr("A chamfer is measured as a distance along each edge from the corner."));
             ui.add_space(4.0);
-            ui.label("While you are editing the points of a shape, it rounds or bevels only the corners you selected.");
+            ui.label(tr("While you are editing the points of a shape, it rounds or bevels only the corners you selected."));
             ui.add_space(4.0);
-            ui.label("A dogbone is a small round notch in each inside corner, as wide as the cutter, so a square corner can fit.");
+            ui.label(tr("A dogbone is a small round notch in each inside corner, as wide as the cutter, so a square corner can fit."));
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let k = app.node_sel.len();
-        ui.label(if node { if k == 0 { "Select points first: click one, Shift-click or drag a box for several.".to_string() } else { format!("{k} point{} selected.", if k == 1 { "" } else { "s" }) } }
-                 else if n == 0 { "Select one or more shapes first.".to_string() } else { format!("{n} shape{} selected.", if n == 1 { "" } else { "s" }) });
+        ui.label(if node { if k == 0 { tr("Select points first: click one, Shift-click or drag a box for several.").to_string() } else { tr_n(k as u64, "{n} point selected.", "{n} points selected.") } }
+                 else if n == 0 { tr("Select one or more shapes first.").to_string() } else { tr_n(n as u64, "{n} shape selected.", "{n} shapes selected.") });
         ui.add_space(6.0);
-        let lw = ["Corner", "Distance", "Radius", "Cutter", "Relief"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let lw = [tr("Corner"), tr("Distance"), tr("Radius"), tr("Cutter"), tr("Relief")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         egui::Grid::new("corner_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            crate::toolmgr::rlabel(ui, lw, "Corner");
+            crate::toolmgr::rlabel(ui, lw, tr("Corner"));
             ui.horizontal(|ui| {
                 let cur = if app.corners.dog { 2 } else { app.corners.chamfer as usize };
                 if node {
-                    let (c, _) = crate::zoomcard::seg2(ui, ["Fillet", "Chamfer"], ["Round the corners", "Cut the corners off with a straight bevel"], app.corners.chamfer as usize);
+                    let (c, _) = crate::zoomcard::seg2(ui, [tr("Fillet"), tr("Chamfer")], [tr("Round the corners"), tr("Cut the corners off with a straight bevel")], app.corners.chamfer as usize);
                     if let Some(i) = c { app.corners.chamfer = i == 1; }
                 } else {
-                let (c, _) = crate::zoomcard::seg3(ui, ["Fillet", "Chamfer", "Dogbone"], ["Round the corners", "Cut the corners off with a straight bevel", "Cut a small round relief into each inside corner so a square part fits a pocket the round cutter made"], cur);
+                let (c, _) = crate::zoomcard::seg3(ui, [tr("Fillet"), tr("Chamfer"), tr("Dogbone")], [tr("Round the corners"), tr("Cut the corners off with a straight bevel"), tr("Cut a small round relief into each inside corner so a square part fits a pocket the round cutter made")], cur);
                 if let Some(i) = c { app.corners.dog = i == 2; if i < 2 { app.corners.chamfer = i == 1; } }
                 }
             });
@@ -199,20 +200,20 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 let (od, tools) = (app.sel_cutter_dia(), app.cutter_choices());
                 let c = &mut app.corners;
                 cutter_row(ui, lw, &mut c.dia, &mut c.auto, od, &tools);
-                crate::toolmgr::rlabel(ui, lw, "Cut");
+                crate::toolmgr::rlabel(ui, lw, tr("Cut"));
                 ui.horizontal(|ui| {
-                    let (c, _) = crate::zoomcard::seg2(ui, ["Inside", "Around"], ["For pockets and cut-outs: the shape is the hole", "For parts cut out around the outside, with a notch in them"], app.corners.outside as usize);
+                    let (c, _) = crate::zoomcard::seg2(ui, [tr("Inside"), tr("Around")], [tr("For pockets and cut-outs: the shape is the hole"), tr("For parts cut out around the outside, with a notch in them")], app.corners.outside as usize);
                     if let Some(i) = c { app.corners.outside = i == 1; }
                 });
                 ui.end_row();
-                crate::toolmgr::rlabel(ui, lw, "Relief");
+                crate::toolmgr::rlabel(ui, lw, tr("Relief"));
                 ui.horizontal(|ui| {
-                    let (c, _) = crate::zoomcard::seg2(ui, ["Dogbone", "T-bone"], ["Along the diagonal, into both walls", "Straight into the longer wall only"], app.corners.tbone as usize);
+                    let (c, _) = crate::zoomcard::seg2(ui, [tr("Dogbone"), tr("T-bone")], [tr("Along the diagonal, into both walls"), tr("Straight into the longer wall only")], app.corners.tbone as usize);
                     if let Some(i) = c { app.corners.tbone = i == 1; }
                 });
                 ui.end_row();
             } else {
-                crate::toolmgr::rlabel(ui, lw, if app.corners.chamfer { "Distance" } else { "Radius" });
+                crate::toolmgr::rlabel(ui, lw, if app.corners.chamfer { tr("Distance") } else { tr("Radius") });
                 ui.horizontal(|ui| {
                     crate::widgets::len(ui, [70.0, 24.0], &mut app.corners.size, 0.01, 1000.0, 0.25, 2, "");
                     ui.weak(crate::widgets::len_unit(ui));
@@ -224,10 +225,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if let Some(n) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, n); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(has, egui::Button::new("Apply")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }
-            if ui.button("Close").clicked() { close = true; }
+            if ui.add_enabled(has, egui::Button::new(tr("Apply"))).on_hover_text(tr("Do it and keep the window open, to go again")).clicked() { apply = true; }
+            if ui.button(tr("Close")).clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                crate::widgets::check(ui, &mut app.preview_on, "Preview").tip("Show the result in the drawing while you change the values");
+                crate::widgets::check(ui, &mut app.preview_on, tr("Preview")).tip(tr("Show the result in the drawing while you change the values"));
             });
         });
         });

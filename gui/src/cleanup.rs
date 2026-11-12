@@ -1,4 +1,5 @@
 //! Clean up drawing: join the pieces of broken outlines, remove duplicates and specks, and show the open ends.
+use putiacnc_core::i18n::{tr, tr_f, tr_n};
 use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui;
@@ -28,14 +29,14 @@ impl App {
         let t = &self.clean;
         let o = Options { join: t.join, duplicates: t.dups, tiny: t.tiny, tol: t.tol.max(1e-4) };
         let scope = self.clean_scope();
-        if scope.is_empty() { return "Nothing to clean up: the shapes are locked or hidden.".into(); }
+        if scope.is_empty() { return tr("Nothing to clean up: the shapes are locked or hidden.").into(); }
         // simplify first, while the shapes still have their numbers; joining then works on the simplified outlines
         let mut base = self.project.data.loops.clone();
         let simplified = if t.simplify { cleanup::simplify(&mut base, &self.simplify_scope(), t.simp_tol.max(1e-4)) } else { 0 };
         let (res, removed, rep) = cleanup::clean(&base, Some(&scope), o);
         let changed = simplified > 0 || !removed.is_empty() || res.len() != self.project.data.loops.len() || rep.closed > 0 || rep.joined > 0
             || res.iter().zip(&self.project.data.loops).any(|(a, b)| a.pts != b.pts || a.c != b.c);
-        if !changed { return "Nothing to clean up.".into(); }
+        if !changed { return tr("Nothing to clean up.").into(); }
         self.hist.record(&self.project.data);
         // the selection follows its shapes through the renumbering
         let sel: std::collections::BTreeSet<usize> = self.sel.iter().filter(|i| !removed.contains(i)).map(|&i| i - removed.iter().filter(|&&r| r < i).count()).collect();
@@ -44,15 +45,15 @@ impl App {
         self.sel = sel;
         self.touch();
         let mut parts: Vec<String> = Vec::new();
-        if rep.joined > 0 { parts.push(format!("joined {} piece{}", rep.joined, if rep.joined == 1 { "" } else { "s" })); }
-        if rep.closed > 0 { parts.push(format!("closed {} outline{}", rep.closed, if rep.closed == 1 { "" } else { "s" })); }
-        if rep.duplicates > 0 { parts.push(format!("removed {} duplicate{}", rep.duplicates, if rep.duplicates == 1 { "" } else { "s" })); }
-        if rep.tiny > 0 { parts.push(format!("removed {} empty shape{}", rep.tiny, if rep.tiny == 1 { "" } else { "s" })); }
-        if simplified > 0 { parts.push(format!("simplified outlines ({} point{} removed)", simplified, if simplified == 1 { "" } else { "s" })); }
+        if rep.joined > 0 { parts.push(tr_n(rep.joined as u64, "joined {n} piece", "joined {n} pieces")); }
+        if rep.closed > 0 { parts.push(tr_n(rep.closed as u64, "closed {n} outline", "closed {n} outlines")); }
+        if rep.duplicates > 0 { parts.push(tr_n(rep.duplicates as u64, "removed {n} duplicate", "removed {n} duplicates")); }
+        if rep.tiny > 0 { parts.push(tr_n(rep.tiny as u64, "removed {n} empty shape", "removed {n} empty shapes")); }
+        if simplified > 0 { parts.push(tr_n(simplified as u64, "simplified outlines ({n} point removed)", "simplified outlines ({n} points removed)")); }
         let mut m = parts.join(", ");
-        if let Some(c) = m.get_mut(0..1) { c.make_ascii_uppercase(); }
+        if let Some(c) = m.chars().next() { m = c.to_uppercase().collect::<String>() + &m[c.len_utf8()..]; }
         m.push('.');
-        if rep.open_left > 0 { m.push_str(&format!(" {} open contour{} left.", rep.open_left, if rep.open_left == 1 { "" } else { "s" })); }
+        if rep.open_left > 0 { m.push(' '); m.push_str(&tr_n(rep.open_left as u64, "{n} open contour left.", "{n} open contours left.")); }
         m
     }
 }
@@ -68,23 +69,23 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Clean up drawing").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Clean up drawing", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(376.0);
-        if crate::csd::dialog_header_help(ui, "Clean up drawing", true, |ui| { ui.label("Rectangles, circles and ellipses are left as they are. Undo restores everything."); }) { close = true; }
+        ui.set_width(crate::csd::dialog_w(376.0));
+        if crate::csd::dialog_header_help(ui, tr("Clean up drawing"), true, |ui| { ui.label(tr("Rectangles, circles and ellipses are left as they are. Undo restores everything.")); }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(match n { Some(n) => format!("Working on the {n} selected shape{}.", if n == 1 { "" } else { "s" }), None => "Working on the whole drawing (select shapes to limit it).".to_string() });
+        ui.label(match n { Some(n) => tr_n(n as u64, "Working on the {n} selected shape.", "Working on the {n} selected shapes."), None => tr("Working on the whole drawing (select shapes to limit it).").to_string() });
         ui.add_space(4.0);
-        if open == 0 { ui.label("No open contours."); }
-        else { crate::msg::line(ui, crate::app::Level::Warning, &format!("{open} open contour{}, {} loose end{} ({joinable} can be joined at this tolerance).", if open == 1 { "" } else { "s" }, ends.len(), if ends.len() == 1 { "" } else { "s" })); }
+        if open == 0 { ui.label(tr("No open contours.")); }
+        else { crate::msg::line(ui, crate::app::Level::Warning, &tr_f("{contours}, {ends} ({joinable} can be joined at this tolerance).", &[("contours", &tr_n(open as u64, "{n} open contour", "{n} open contours")), ("ends", &tr_n(ends.len() as u64, "{n} loose end", "{n} loose ends")), ("joinable", &joinable)])); }
         ui.add_space(6.0);
-        let lw = crate::panels::tw(ui, "Gap tolerance").max(crate::panels::tw(ui, "Simplify tolerance"));
+        let lw = crate::panels::tw(ui, tr("Gap tolerance")).max(crate::panels::tw(ui, tr("Simplify tolerance")));
         egui::Grid::new("clean_grid").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
-            crate::toolmgr::rlabel(ui, lw, "Gap tolerance");
+            crate::toolmgr::rlabel(ui, lw, tr("Gap tolerance"));
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(&mut app.clean.tol).clamp_range(0.001..=5.0).speed(0.005).max_decimals(3));
                 ui.weak("mm");
             });
             ui.end_row();
-            crate::toolmgr::rlabel(ui, lw, "Simplify tolerance").tip("The most an outline may move when Simplify drops points");
+            crate::toolmgr::rlabel(ui, lw, tr("Simplify tolerance")).tip(tr("The most an outline may move when Simplify drops points"));
             ui.horizontal(|ui| {
                 ui.add_enabled(app.clean.simplify, egui::DragValue::new(&mut app.clean.simp_tol).clamp_range(0.001..=2.0).speed(0.002).max_decimals(3));
                 ui.weak("mm");
@@ -92,21 +93,21 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.end_row();
         });
         ui.add_space(4.0);
-        crate::widgets::check(ui, &mut app.clean.join, "Join pieces whose ends meet").tip("Lines and curves drawn as separate pieces become one outline; a ring of pieces closes into a shape");
-        crate::widgets::check(ui, &mut app.clean.dups, "Remove duplicate shapes").tip("The same outline drawn twice would be cut twice");
-        crate::widgets::check(ui, &mut app.clean.tiny, "Remove empty and tiny shapes").tip("Shapes with no length, repeated points");
-        crate::widgets::check(ui, &mut app.clean.simplify, "Simplify outlines").tip("Drops the points that do not change the outline by more than the tolerance: fewer points in imported or traced drawings, a shorter G-code. Corners stay; rectangles, circles and placed text are left alone");
+        crate::widgets::check(ui, &mut app.clean.join, tr("Join pieces whose ends meet")).tip(tr("Lines and curves drawn as separate pieces become one outline; a ring of pieces closes into a shape"));
+        crate::widgets::check(ui, &mut app.clean.dups, tr("Remove duplicate shapes")).tip(tr("The same outline drawn twice would be cut twice"));
+        crate::widgets::check(ui, &mut app.clean.tiny, tr("Remove empty and tiny shapes")).tip(tr("Shapes with no length, repeated points"));
+        crate::widgets::check(ui, &mut app.clean.simplify, tr("Simplify outlines")).tip(tr("Drops the points that do not change the outline by more than the tolerance: fewer points in imported or traced drawings, a shorter G-code. Corners stay; rectangles, circles and placed text are left alone"));
         if app.clean.simplify {
             let mut copy: Vec<putiacnc_core::model::LoopData> = app.project.data.loops.clone();
             let total: usize = app.simplify_scope().iter().map(|&i| copy[i].pts.len() / 2).sum();
             let gone = cleanup::simplify(&mut copy, &app.simplify_scope(), app.clean.simp_tol.max(1e-4));
-            ui.indent("simp_note", |ui| { ui.weak(format!("{} of {} points would stay (green on the drawing; red ones go).", total - gone, total)); });
+            ui.indent("simp_note", |ui| { ui.weak(tr_f("{stay} of {total} points would stay (green on the drawing; red ones go).", &[("stay", &(total - gone)), ("total", &total)])); });
         }
-        crate::widgets::check(ui, &mut app.show_open_ends, "Show loose ends on the drawing").tip("Red rings: nothing meets this end. Amber rings: another end is within the tolerance");
+        crate::widgets::check(ui, &mut app.show_open_ends, tr("Show loose ends on the drawing")).tip(tr("Red rings: nothing meets this end. Amber rings: another end is within the tolerance"));
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.button("Clean up").clicked() { apply = true; }
-            if ui.button("Close").clicked() { close = true; }
+            if ui.button(tr("Clean up")).clicked() { apply = true; }
+            if ui.button(tr("Close")).clicked() { close = true; }
         });
         if !app.clean.msg.is_empty() { ui.add_space(2.0); ui.weak(crate::widgets::localize(ui, app.clean.msg.as_str())); }
         });

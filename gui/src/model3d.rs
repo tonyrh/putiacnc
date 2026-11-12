@@ -1,5 +1,6 @@
 //! Import 3D model: STL and OBJ files do not say which way is up, so the dialog shows the model as a height map
 //! seen from above and lets the user pick the axis that points up (and turn the model upside down).
+use putiacnc_core::i18n::{tr, tr_f};
 use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2};
@@ -24,8 +25,8 @@ pub struct ModelTool {
 
 impl ModelTool {
     pub fn load(&mut self, path: &str, saved: Option<Orient>) {
-        let bytes = match std::fs::read(path) { Ok(b) => b, Err(e) => { self.error = Some(format!("Could not read {path}: {e}")); return; } };
-        let mesh = match Mesh::parse(&bytes) { Ok(m) => m, Err(e) => { self.error = Some(format!("Could not import {path}: {e}")); return; } };
+        let bytes = match std::fs::read(path) { Ok(b) => b, Err(e) => { self.error = Some(tr_f("Could not read {path}: {e}", &[("path", &path), ("e", &e)])); return; } };
+        let mesh = match Mesh::parse(&bytes) { Ok(m) => m, Err(e) => { self.error = Some(tr_f("Could not import {path}: {e}", &[("path", &path), ("e", &e)])); return; } };
         self.obj = path.to_lowercase().ends_with(".obj");
         self.name = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "model".into());
         // an OBJ is most often Y up (the usual export), an STL Z up (CAD and printing)
@@ -65,8 +66,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     }
     egui::Window::new("Import 3D model").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Import 3D model", egui::pos2(560.0, 172.0))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(380.0);
-        if crate::csd::dialog_header_help(ui, "Import 3D model", true, |ui| { ui.label("The picture of the model is a height map: light is high, dark is low."); }) { cancel = true; }
+        ui.set_width(crate::csd::dialog_w(380.0));
+        if crate::csd::dialog_header_help(ui, tr("Import 3D model"), true, |ui| { ui.label(tr("The picture of the model is a height map: light is high, dark is low.")); }) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.model3d;
         let (rect, _) = ui.allocate_exact_size(Vec2::new(360.0, 230.0), Sense::hover());
@@ -80,15 +81,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(8.0);
         let mut changed = false;
-        let lw = crate::panels::tw(ui, "Up axis");
+        let lw = crate::panels::tw(ui, tr("Up axis"));
         egui::Grid::new("model_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            crate::toolmgr::rlabel(ui, lw, "Up axis");
+            crate::toolmgr::rlabel(ui, lw, tr("Up axis"));
             ui.horizontal(|ui| {
                 for (u, n) in [(Up::Z, "Z"), (Up::Y, "Y"), (Up::X, "X")] {
-                    if ui.selectable_label(t.orient.up == u, n).tip("The axis of the model that points towards the cutter").clicked() { t.orient.up = u; changed = true; }
+                    if ui.selectable_label(t.orient.up == u, n).tip(tr("The axis of the model that points towards the cutter")).clicked() { t.orient.up = u; changed = true; }
                 }
                 ui.add_space(10.0);
-                changed |= crate::widgets::check(ui, &mut t.orient.flip, "Upside down").tip("Look at the model from the other side").changed();
+                changed |= crate::widgets::check(ui, &mut t.orient.flip, tr("Upside down")).tip(tr("Look at the model from the other side")).changed();
             });
             ui.end_row();
         });
@@ -99,13 +100,13 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.add_space(4.0);
         match (&t.err, &t.mesh) {
             (Some(e), _) => { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
-            (None, Some(m)) => { let s = m.size(t.orient); ui.weak(crate::widgets::localize(ui, &format!("{:.1} × {:.1} mm, {:.1} mm high.", s[0], s[1], s[2]))); }
+            (None, Some(m)) => { let s = m.size(t.orient); ui.weak(crate::widgets::localize(ui, &tr_f("{w} × {h} mm, {z} mm high.", &[("w", &format!("{:.1}", s[0])), ("h", &format!("{:.1}", s[1])), ("z", &format!("{:.1}", s[2]))]))); }
             _ => {}
         }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(t.err.is_none(), egui::Button::new("Import")).clicked() { place = true; }
-            if ui.button("Cancel").clicked() { cancel = true; }
+            if ui.add_enabled(t.err.is_none(), egui::Button::new(tr("Import"))).clicked() { place = true; }
+            if ui.button(tr("Cancel")).clicked() { cancel = true; }
         });
         });
     }));
@@ -117,7 +118,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         t.tex = None;
         match rel {
             Some(Ok(r)) => app.place_relief(r),
-            Some(Err(e)) => app.say(crate::app::Level::Error, format!("Could not import the model: {e}")),
+            Some(Err(e)) => app.say(crate::app::Level::Error, tr_f("Could not import the model: {e}", &[("e", &e)])),
             None => {}
         }
     }

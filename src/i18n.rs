@@ -143,3 +143,6 @@ pub fn tr_n(n: u64, one: &'static str, other: &'static str) -> String {
     };
     fill(chosen, &[("n", &n)])
 }
+
+/// `tr_n` with other values put in as well (`{name}` as in `tr_f`).
+pub fn tr_nf(n: u64, one: &'static str, other: &'static str, args: &[(&str, &dyn std::fmt::Display)]) -> String { fill(&tr_n(n, one, other), args) }

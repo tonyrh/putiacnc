@@ -266,6 +266,9 @@ pub fn anchor(app: &crate::app::App) -> Pos2 {
     Pos2::new(app.canvas_left + 10.0, app.bars_bottom + 8.0)
 }
 
+/// A dialog's width in the language in use: `base` is the English width (see `i18n::width_factor`).
+pub fn dialog_w(base: f32) -> f32 { (base * putiacnc_core::i18n::width_factor()).round() }
+
 /// Where a dialog may be as a whole: the whole window below the header. 
 pub fn dialog_bounds(ctx: &egui::Context) -> Rect {
     let mut r = ctx.screen_rect();

@@ -504,7 +504,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     let tools_ref: &[putiacnc_core::model::Tool] = &tools;
                     // one pick list for both steps; `flat_only` limits it to flat end mills
                     let pick = |ui: &mut Ui, src: (&str, i64), w: f32, cur: &str, flat_only: bool, tip: &str| -> Option<String> {
-                        let name = tools_ref.iter().find(|t| t.id == cur).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                        let name = tools_ref.iter().find(|t| t.id == cur).map(|t| clean(&t.name)).unwrap_or_else(|| tr("none").into());
                         let name = elide(ui, &name, w - 30.0);
                         let mut got = None;
                         let mut keep = false;
@@ -610,7 +610,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.horizontal(|ui| {
                                     ui.spacing_mut().item_spacing.x = sp;
                                     rlabel(ui, lw2, tr("Detail"));
-                                    let cur = p.rest.as_ref().and_then(|id| tools_ref.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                                    let cur = p.rest.as_ref().and_then(|id| tools_ref.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| tr("none").into());
                                     let w = (ui.available_width() - 100.0).max(100.0);
                                     let cur = elide(ui, &cur, w - 30.0);
                                     let (r2, pk2) = crate::toolpick::picker(ui, ("optooldetail", id), w, cur, p.rest.as_deref(), &job_tools, tools_ref, |t| t.shape == "ball" && t.dia < md - 1e-9);
@@ -645,7 +645,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let ramp_w = tw_of(ui, tr("Ramp in")) + 30.0;
                         let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
                         rlabel(ui, l1, if p.kind == "relief" { tr("Finish") } else { tr("Tool") });
-                        let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                        let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| tr("none").into());
                         let cur = elide(ui, &cur, tool_w - 30.0);
                         let (_, pk) = crate::toolpick::picker(ui, ("optool", id), tool_w, cur, Some(p.tool.as_str()), &job_tools, &tools, |t| (t.shape == "pen") == (p.kind == "draw"));
                         match pk { Some(crate::toolpick::Picked::Tool(t)) => { p.tool = t; changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
@@ -775,7 +775,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let ramp_w = tw_of(ui, tr("Ramp in")) + 30.0;
                             let tool_w = (ui.available_width() - l1 - ramp_w - 3.0 * sp - 8.0).max(100.0);
                             rlabel(ui, l1, match p.kind.as_str() { "relief" => tr("Rough"), "vcarve" => tr("Clear with"), _ => tr("Flat") });
-                            let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| "none".into());
+                            let cur = p.tool2.as_ref().and_then(|id| tools.iter().find(|t| &t.id == id)).map(|t| clean(&t.name)).unwrap_or_else(|| tr("none").into());
                             let cur = elide(ui, &cur, tool_w - 30.0);
                             let (r2, pk2) = crate::toolpick::picker(ui, ("optool2", id), tool_w, cur, p.tool2.as_deref(), &job_tools, &tools, |t| t.shape == "flat");
                             match pk2 { Some(crate::toolpick::Picked::Tool(t)) => {

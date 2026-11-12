@@ -1,6 +1,7 @@
 //! The colour picker: a swatch that opens a small window with standard colours (mid tones that read on a light and a dark background),
 //! the colours the user added, and a hex field (#RRGGBB, editable, so a colour can be pasted). "Colour wheel" switches to a hue ring
 //! with a saturation/value square, where the colour can be added to the palette.
+use putiacnc_core::i18n::{tr, tr_f};
 use eframe::egui::{self, ecolor::Hsva, epaint::Mesh, Color32, Id, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 use std::sync::Mutex;
 
@@ -67,7 +68,7 @@ fn swatches(ui: &mut Ui, list: &[[u8; 3]], rgb: &mut [u8; 3], removable: bool) -
                 ui.painter().rect_filled(rect, 4.0, col32(c));
                 if *rgb == c { ui.painter().rect_stroke(rect.expand(1.5), 5.0, Stroke::new(2.0_f32, ui.visuals().text_color())); }
                 else if resp.hovered() { ui.painter().rect_stroke(rect, 4.0, Stroke::new(1.5_f32, ui.visuals().text_color().gamma_multiply(0.7))); }
-                let resp = resp.on_hover_text(if removable { format!("{}. Right-click to remove it from the palette.", hex(c)) } else { hex(c) });
+                let resp = resp.on_hover_text(if removable { tr_f("{hex}. Right-click to remove it from the palette.", &[("hex", &hex(c))]) } else { hex(c) });
                 if resp.clicked() { *rgb = c; changed = true; }
                 if removable && resp.secondary_clicked() { remove = Some(c); }
             }
@@ -83,7 +84,7 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
     let wheel_id = id.with("wheel");
     let mut wheel = ui.data(|d| d.get_temp::<bool>(wheel_id)).unwrap_or(false);
     // the two ways to choose, as a segmented control like the app's others
-    let pick = ui.vertical_centered(|ui| crate::zoomcard::seg2(ui, ["Palette", "Wheel"], ["The standard colours and yours", "Any colour, on a wheel"], wheel as usize).0).inner;
+    let pick = ui.vertical_centered(|ui| crate::zoomcard::seg2(ui, [tr("Palette"), tr("Wheel")], [tr("The standard colours and yours"), tr("Any colour, on a wheel")], wheel as usize).0).inner;
     if let Some(i) = pick { wheel = i == 1; ui.data_mut(|d| d.insert_temp(wheel_id, wheel)); }
     ui.add_space(6.0);
     if !wheel {
@@ -91,7 +92,7 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
         let cu = custom();
         if !cu.is_empty() {
             ui.add_space(4.0);
-            ui.weak("Yours");
+            ui.weak(tr("Yours"));
             other |= swatches(ui, &cu, rgb, true);
         }
     } else {
@@ -113,7 +114,7 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
         ui.add_space(((ui.available_width() - row_w) / 2.0).max(0.0));
         let mut te = egui::TextEdit::singleline(&mut text).id(tid).desired_width(84.0).font(egui::TextStyle::Monospace);
         if !valid { te = te.text_color(ui.visuals().error_fg_color); }
-        let r = ui.add(te).on_hover_text("The colour as #RRGGBB. Type or paste one here.");
+        let r = ui.add(te).on_hover_text(tr("The colour as #RRGGBB. Type or paste one here."));
         if r.changed() { if let Some(c) = parse_hex(&text) { *rgb = c; changed = true; } }
         if r.has_focus() || r.changed() { ui.data_mut(|d| d.insert_temp(tid, text.clone())); }
         let (rect, _) = ui.allocate_exact_size(Vec2::new(24.0, 18.0), Sense::hover());
@@ -121,7 +122,7 @@ fn panel(ui: &mut Ui, id: Id, rgb: &mut [u8; 3]) -> bool {
         // on the wheel, a "+" keeps the colour with the standard ones
         if wheel {
             let known = standard().contains(rgb) || custom().contains(rgb);
-            if ui.add_enabled(!known, egui::Button::new("+").min_size(Vec2::new(24.0, 18.0))).on_hover_text("Add this colour to the palette").on_disabled_hover_text("This colour is already in the palette").clicked() { add_custom(*rgb); }
+            if ui.add_enabled(!known, egui::Button::new("+").min_size(Vec2::new(24.0, 18.0))).on_hover_text(tr("Add this colour to the palette")).on_disabled_hover_text(tr("This colour is already in the palette")).clicked() { add_custom(*rgb); }
         }
     });
     if other { ui.memory_mut(|m| m.surrender_focus(tid)); ui.data_mut(|d| d.remove::<String>(tid)); }

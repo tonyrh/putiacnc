@@ -149,7 +149,7 @@ pub fn export_gate(ctx: &egui::Context, app: &mut App) {
     let (mut close, mut review, mut go) = (false, false, false);
     egui::Window::new("Before you export").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Before you export", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(480.0);
+        ui.set_width(crate::csd::dialog_w(480.0));
         if crate::csd::dialog_header(ui, "Before you export", true) { close = true; }
         ui.add_space(8.0);
         let n = app.checks.len();

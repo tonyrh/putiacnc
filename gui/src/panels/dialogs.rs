@@ -34,7 +34,7 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
     let name = app.file_name();
     egui::Window::new("Unsaved changes").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).resizable(false)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, crate::csd::trapped(|ui| {
-            ui.set_width(420.0);
+            ui.set_width(crate::csd::dialog_w(420.0));
             #[cfg(test)]
             crate::audit::note(ui.ctx(), crate::audit::HeaderNote { title: "Save changes?".into(), layer: ui.layer_id().id, header: egui::Rect::NOTHING, close: egui::Rect::NOTHING, has_header: false });
             ui.add_space(10.0);
@@ -50,7 +50,7 @@ pub fn confirm_dialog(ctx: &egui::Context, app: &mut App) {
                 ui.add_space(8.0);
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 6.0;
-                    ui.set_width(340.0);
+                    ui.set_width(crate::csd::dialog_w(340.0));
                     ui.label(egui::RichText::new("Save changes?").size(18.0).strong());
                     ui.label(egui::RichText::new(format!("\"{name}\" has unsaved changes. If you don't save them, they will be lost.")).color(ui.visuals().weak_text_color()));
                 });

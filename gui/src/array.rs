@@ -139,7 +139,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Array and copy").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Array and copy", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(376.0);
+        ui.set_width(crate::csd::dialog_w(376.0));
         if crate::csd::dialog_header_help(ui, tr("Array and copy"), true, |ui| {
             ui.label(tr("The gap is measured between the edges of neighbouring copies."));
             ui.add_space(4.0);

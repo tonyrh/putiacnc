@@ -1,6 +1,7 @@
 //! The Edit points window: the points of one shape are dragged, added and removed on the canvas; this window says what is being edited and
 //! simplifies the shape. Rounding or bevelling the selected points is the Fillet and chamfer window (it works on the selected points while
 //! points are being edited).
+use putiacnc_core::i18n::{tr, tr_f, tr_n};
 use crate::app::{App, Level, Mode};
 use eframe::egui;
 use putiacnc_core::shapes;
@@ -11,23 +12,23 @@ impl App {
         let li = self.node_edit?;
         let mut probe = self.project.data.loops.get(li)?.clone();
         let (before, after) = shapes::simplify(&mut probe, tol);
-        if after >= before { return Some("Nothing to simplify at this tolerance.".into()); }
+        if after >= before { return Some(tr("Nothing to simplify at this tolerance.").into()); }
         self.hist.record(&self.project.data);
         self.project.data.loops[li] = probe;
         self.touch();
-        Some(format!("Simplified: {before} \u{2192} {after} points."))
+        Some(tr_f("Simplified: {before} \u{2192} {after} points.", &[("before", &before), ("after", &after)]))
     }
 
     /// Rounds or bevels the selected points of the shape being edited (only sharp corners count).
     pub fn corner_points(&mut self, kind: shapes::CornerKind, size: f64) -> Option<String> {
         let li = self.node_edit?;
         let l = self.project.data.loops.get(li)?;
-        let Some((r, n, lim)) = shapes::round_corners_at(l, kind, size, Some(&self.node_sel)) else { return Some("The selected points are not sharp corners.".into()) };
+        let Some((r, n, lim)) = shapes::round_corners_at(l, kind, size, Some(&self.node_sel)) else { return Some(tr("The selected points are not sharp corners.").into()) };
         self.hist.record(&self.project.data);
         self.project.data.loops[li] = r;
         self.touch();
-        let what = if kind == shapes::CornerKind::Chamfer { "Chamfered" } else { "Rounded" };
-        Some(format!("{what} {n} corner{}{}.", if n == 1 { "" } else { "s" }, if lim > 0 { format!(" ({lim} too tight, made as large as fits)") } else { String::new() }))
+        let what = if kind == shapes::CornerKind::Chamfer { tr_n(n as u64, "Chamfered {n} corner", "Chamfered {n} corners") } else { tr_n(n as u64, "Rounded {n} corner", "Rounded {n} corners") };
+        Some(format!("{what}{}.", if lim > 0 { tr_f(" ({n} too tight, made as large as fits)", &[("n", &lim)]) } else { String::new() }))
     }
 }
 
@@ -45,21 +46,21 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Edit points").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Edit points", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(376.0);
-        if crate::csd::dialog_header_help(ui, "Edit points", true, |ui| {
-            ui.label("Drag a point to move it. Click a point to select it (Shift-click, or drag a box, for several) and use the arrow keys to nudge them, Delete to remove them.");
+        ui.set_width(crate::csd::dialog_w(376.0));
+        if crate::csd::dialog_header_help(ui, tr("Edit points"), true, |ui| {
+            ui.label(tr("Drag a point to move it. Click a point to select it (Shift-click, or drag a box, for several) and use the arrow keys to nudge them, Delete to remove them."));
             ui.add_space(4.0);
-            ui.label("Click on an edge to add a point there.");
+            ui.label(tr("Click on an edge to add a point there."));
             ui.add_space(4.0);
-            ui.label("To round or bevel selected corners, open Fillet and chamfer: while points are being edited it works on the selected points.");
+            ui.label(tr("To round or bevel selected corners, open Fillet and chamfer: while points are being edited it works on the selected points."));
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-            ui.label(format!("{n} point{}, {k} selected.", if n == 1 { "" } else { "s" }));
-            if !plain { crate::msg::line(ui, Level::Warning, "Changing a point turns this rectangle or ellipse into a plain polygon."); }
+            ui.label(putiacnc_core::i18n::tr_nf(n as u64, "{n} point, {k} selected.", "{n} points, {k} selected.", &[("k", &k)]));
+            if !plain { crate::msg::line(ui, Level::Warning, tr("Changing a point turns this rectangle or ellipse into a plain polygon.")); }
             ui.add_space(6.0);
-            let lw = crate::panels::tw(ui, "Simplify within");
+            let lw = crate::panels::tw(ui, tr("Simplify within"));
             egui::Grid::new("editpoints_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-                crate::toolmgr::rlabel(ui, lw, "Simplify within");
+                crate::toolmgr::rlabel(ui, lw, tr("Simplify within"));
                 ui.horizontal(|ui| {
                     crate::widgets::len(ui, [70.0, 24.0], &mut app.node_tol, 0.01, 5.0, 0.01, 2, "");
                     ui.weak(crate::widgets::len_unit(ui));
@@ -70,10 +71,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             if let Some(m) = pnote.as_ref().or(mine) { crate::msg::line(ui, Level::Info, m); }
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                if ui.add(egui::Button::new("Apply")).on_hover_text("Remove the points that hardly change the shape, and keep the window open").clicked() { apply = true; }
-                if ui.button("Close").on_hover_text("Stop editing points (Esc)").clicked() { close = true; }
+                if ui.add(egui::Button::new(tr("Apply"))).on_hover_text(tr("Remove the points that hardly change the shape, and keep the window open")).clicked() { apply = true; }
+                if ui.button(tr("Close")).on_hover_text(tr("Stop editing points (Esc)")).clicked() { close = true; }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    crate::widgets::check(ui, &mut app.preview_on, "Preview");
+                    crate::widgets::check(ui, &mut app.preview_on, tr("Preview"));
                 });
             });
         });

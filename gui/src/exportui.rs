@@ -1,12 +1,13 @@
 //! The export window: how to split the program into files, and the files that will be written, with their times.
+use putiacnc_core::i18n::{n_, tr, tr_f};
 use crate::app::{fmt_time, App};
 use eframe::egui;
 use putiacnc_core::split::{self, Split};
 
 const OPTIONS: [(Split, &str, &str); 3] = [
-    (Split::One, "One file", "The whole program, as it is shown in the G-code tab."),
-    (Split::PerTool, "One file per tool", "A file for each run of operations with the same tool: change the tool between files, not in the middle."),
-    (Split::PerOperation, "One file per operation", "Run each operation on its own, check the result, then start the next."),
+    (Split::One, n_("One file"), n_("The whole program, as it is shown in the G-code tab.")),
+    (Split::PerTool, n_("One file per tool"), n_("A file for each run of operations with the same tool: change the tool between files, not in the middle.")),
+    (Split::PerOperation, n_("One file per operation"), n_("Run each operation on its own, check the result, then start the next.")),
 ];
 
 /// The names and times of the files a split would write for `name` (the project name), without generating anything.
@@ -29,17 +30,17 @@ pub fn file_list(app: &App, mode: Split, name: &str) -> Vec<(String, f64)> {
 
 /// The work coordinate system the program runs in (G54 to G59): the drop-down at the top of the G-code tab, a setting of the job. The program starts with that word, so the machine uses the zero that was set there.
 pub fn wcs_pick(ui: &mut egui::Ui, app: &mut App) {
-    const TIP: &str = "The work coordinate system the program runs in: the one where you set the zero on the machine (G54 is the first, G55 the second, and so on). The G-code starts with it, so a job whose zero is in G55 cannot run in G54 by mistake. PutiaCNC does not set the zero: do that on the machine or in your sender (for G55, `G10 L20 P2 X0 Y0 Z0` at the point the stock's zero corner sits).";
+    const TIP: &str = n_("The work coordinate system the program runs in: the one where you set the zero on the machine (G54 is the first, G55 the second, and so on). The G-code starts with it, so a job whose zero is in G55 cannot run in G54 by mistake. PutiaCNC does not set the zero: do that on the machine or in your sender (for G55, `G10 L20 P2 X0 Y0 Z0` at the point the stock's zero corner sits).");
     if app.project.data.job.marlin() { return; }
     let (n, cur) = (app.project.data.job.wcs_count(), app.project.data.job.wcs_name());
     let mut pick: Option<usize> = None;
     ui.horizontal(|ui| {
-        let label = ui.add(egui::Label::new("Work coordinates").sense(egui::Sense::hover()));
-        crate::widgets::wait_for_field(ui.ctx(), &label, "Work coordinates");
+        let label = ui.add(egui::Label::new(tr("Work coordinates")).sense(egui::Sense::hover()));
+        crate::widgets::wait_for_field(ui.ctx(), &label, tr("Work coordinates"));
         let r = egui::ComboBox::from_id_source("wcs_pick").width(70.0).selected_text(cur).show_ui(ui, |ui| {
             for (i, name) in putiacnc_core::model::WCS.iter().enumerate().take(n) { if ui.selectable_label(*name == cur, *name).clicked() { pick = Some(i); } }
         });
-        { use crate::widgets::Tip; r.response.tip(TIP); }
+        { use crate::widgets::Tip; r.response.tip(tr(TIP)); }
     });
     if let Some(i) = pick.filter(|&i| i != app.project.data.job.wcs as usize) {
         app.hist.record(&app.project.data);
@@ -56,19 +57,19 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let (mut close, mut go) = (false, false);
     egui::Window::new("Export G-code").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Export G-code", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(480.0);
-        if crate::csd::dialog_header(ui, "Export G-code", true) { close = true; }
+        ui.set_width(crate::csd::dialog_w(480.0));
+        if crate::csd::dialog_header(ui, tr("Export G-code"), true) { close = true; }
         ui.add_space(8.0);
-        ui.label(egui::RichText::new("Split into").strong());
+        ui.label(egui::RichText::new(tr("Split into")).strong());
         ui.add_space(4.0);
         for (mode, label, sub) in OPTIONS {
-            ui.radio_value(&mut app.export_split, mode, label);
-            ui.indent(label, |ui| { ui.add(egui::Label::new(egui::RichText::new(sub).color(ui.visuals().weak_text_color()).small())); });
+            ui.radio_value(&mut app.export_split, mode, tr(label));
+            ui.indent(label, |ui| { ui.add(egui::Label::new(egui::RichText::new(tr(sub)).color(ui.visuals().weak_text_color()).small())); });
             ui.add_space(3.0);
         }
         ui.add_space(10.0);
         let files = file_list(app, app.export_split, &name);
-        ui.label(egui::RichText::new(if files.len() == 1 { "File".to_string() } else { format!("{} files", files.len()) }).strong());
+        ui.label(egui::RichText::new(if files.len() == 1 { tr("File").to_string() } else { tr_f("{n} files", &[("n", &files.len())]) }).strong());
         ui.add_space(4.0);
         let total: f64 = files.iter().map(|f| f.1).sum();
         egui::Grid::new("export_files").num_columns(2).spacing([16.0, 4.0]).show(ui, |ui| {
@@ -78,20 +79,20 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             }
             if files.len() > 1 {
-                ui.label(egui::RichText::new("Total").strong());
+                ui.label(egui::RichText::new(tr("Total")).strong());
                 ui.label(egui::RichText::new(fmt_time(total)).monospace().strong());
                 ui.end_row();
             }
         });
         if app.export_split != Split::One {
             ui.add_space(6.0);
-            ui.add(egui::Label::new(egui::RichText::new("Each file starts the spindle, goes to the safe height and ends safely on its own. Files after the first say at the top what to do before you start them. A tool change or pause between files is the end of a file, not an M0.").color(ui.visuals().weak_text_color()).small()));
+            ui.add(egui::Label::new(egui::RichText::new(tr("Each file starts the spindle, goes to the safe height and ends safely on its own. Files after the first say at the top what to do before you start them. A tool change or pause between files is the end of a file, not an M0.")).color(ui.visuals().weak_text_color()).small()));
         }
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(egui::Button::new("Export…").fill(ui.visuals().selection.bg_fill)).clicked() { go = true; }
-                if ui.button("Cancel").clicked() { close = true; }
+                if ui.add(egui::Button::new(tr("Export…")).fill(ui.visuals().selection.bg_fill)).clicked() { go = true; }
+                if ui.button(tr("Cancel")).clicked() { close = true; }
             });
         });
         ui.add_space(4.0);

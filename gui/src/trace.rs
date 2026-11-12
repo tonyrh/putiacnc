@@ -1,5 +1,6 @@
 //! Import Bitmap: a picture is traced into closed shapes (see `putiacnc_core::bitmap`). The dialog shows the picture
 //! with the traced outlines on top, and the shapes are placed on the stock like any other imported drawing.
+use putiacnc_core::i18n::{tr, tr_f, tr_n};
 use crate::widgets::Tip;
 use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Vec2};
@@ -47,7 +48,7 @@ impl TraceTool {
                 self.err = None;
                 self.open = true;
             }
-            Err(e) => self.err = Some(format!("Could not open {path}: {e}")),
+            Err(e) => self.err = Some(tr_f("Could not open {path}: {e}", &[("path", &path), ("e", &e)])),
         }
     }
     pub fn take_error(&mut self) -> Option<String> { self.err.take() }
@@ -96,7 +97,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Import bitmap").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Import bitmap", egui::pos2(560.0, 172.0))).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(dw);
-        if crate::csd::dialog_header(ui, "Import bitmap", true) { cancel = true; }
+        if crate::csd::dialog_header(ui, tr("Import bitmap"), true) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.trace;
         let (bw, bh) = t.bm.as_ref().map(|b| (b.w as f32, b.h as f32)).unwrap_or((1.0, 1.0));
@@ -137,52 +138,52 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             let pill = Rect::from_center_size(rect.center(), Vec2::new(170.0, 44.0));
             painter.rect(pill, 12.0, ui.visuals().window_fill().gamma_multiply(0.95), ui.visuals().widgets.noninteractive.bg_stroke);
             egui::Spinner::new().size(18.0).paint_at(ui, Rect::from_center_size(Pos2::new(pill.left() + 32.0, pill.center().y), Vec2::splat(18.0)));
-            painter.text(Pos2::new(pill.left() + 55.0, pill.center().y), egui::Align2::LEFT_CENTER, "Tracing\u{2026}", egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
+            painter.text(Pos2::new(pill.left() + 55.0, pill.center().y), egui::Align2::LEFT_CENTER, tr("Tracing\u{2026}"), egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
         }
         ui.add_space(8.0);
         let mut changed = false;
         // the label columns are as wide in both grids, so the labels line up
-        let col1 = ["Trace", "Threshold", "Width", "Edge trim"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
-        let col3 = crate::panels::tw(ui, "Ignore specks").max(crate::panels::tw(ui, "Height"));
+        let col1 = [tr("Trace"), tr("Threshold"), tr("Width"), tr("Edge trim")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let col3 = crate::panels::tw(ui, tr("Ignore specks")).max(crate::panels::tw(ui, tr("Height")));
         egui::Grid::new("trace_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            crate::toolmgr::rlabel(ui, col1, "Trace");
+            crate::toolmgr::rlabel(ui, col1, tr("Trace"));
             ui.horizontal(|ui| {
-                let (c, _) = crate::zoomcard::seg2(ui, ["Outlines", "Centre line"], ["Closed outlines of the shapes, holes included: for Profile, Pocket, V-carve", "One open line along the middle of each stroke: for engraving lines and writing"], (t.opts.mode == Mode::Centerline) as usize);
+                let (c, _) = crate::zoomcard::seg2(ui, [tr("Outlines"), tr("Centre line")], [tr("Closed outlines of the shapes, holes included: for Profile, Pocket, V-carve"), tr("One open line along the middle of each stroke: for engraving lines and writing")], (t.opts.mode == Mode::Centerline) as usize);
                 if let Some(i) = c { let m = if i == 0 { Mode::Outline } else { Mode::Centerline }; if t.opts.mode != m { t.opts.mode = m; changed = true; } }
             });
             ui.end_row();
-            crate::toolmgr::rlabel(ui, col1, "Threshold");
+            crate::toolmgr::rlabel(ui, col1, tr("Threshold"));
             let mut th = t.opts.threshold as i32;
             // the slider takes the rest of the row, up to the number box
             ui.spacing_mut().slider_width = (ui.available_width() - 64.0).max(80.0);
-            if ui.add(egui::Slider::new(&mut th, 1..=254)).tip("Pixels darker than this become part of the shape").changed() { t.opts.threshold = th as u8; changed = true; }
+            if ui.add(egui::Slider::new(&mut th, 1..=254)).tip(tr("Pixels darker than this become part of the shape")).changed() { t.opts.threshold = th as u8; changed = true; }
             ui.end_row();
         });
         ui.add_space(8.0);
         // number fields in pairs: label, field, label, field
         egui::Grid::new("trace_grid2").num_columns(4).spacing([10.0, 8.0]).show(ui, |ui| {
             let (_, hmm) = t.bm.as_ref().map(|b| b.size_mm(&t.opts)).unwrap_or((0.0, 0.0));
-            crate::toolmgr::rlabel(ui, col1, "Width");
+            crate::toolmgr::rlabel(ui, col1, tr("Width"));
             ui.horizontal(|ui| { changed |= crate::widgets::len(ui, [66.0, 24.0], &mut t.opts.width_mm, 1.0, 5000.0, 0.5, 2, "").changed(); ui.weak(crate::widgets::len_unit(ui)); });
-            crate::toolmgr::rlabel(ui, col3, "Height");
+            crate::toolmgr::rlabel(ui, col3, tr("Height"));
             ui.weak(crate::widgets::fmt_len(ui, hmm));
             ui.end_row();
-            crate::toolmgr::rlabel(ui, col1, "Edge trim");
-            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.trim_pct, 0.0, 45.0, 0.1, 1, "").tip("Ignore this part of every edge, for a scanner border or a frame").changed(); ui.weak("%"); });
-            crate::toolmgr::rlabel(ui, col3, "Ignore specks");
-            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.speck_mm2, 0.0, 10000.0, 0.1, 1, "").tip("Shapes this small (or smaller) are left out").changed(); ui.weak("mm\u{b2}"); });
+            crate::toolmgr::rlabel(ui, col1, tr("Edge trim"));
+            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.trim_pct, 0.0, 45.0, 0.1, 1, "").tip(tr("Ignore this part of every edge, for a scanner border or a frame")).changed(); ui.weak("%"); });
+            crate::toolmgr::rlabel(ui, col3, tr("Ignore specks"));
+            ui.horizontal(|ui| { changed |= crate::widgets::num(ui, [66.0, 24.0], &mut t.opts.speck_mm2, 0.0, 10000.0, 0.1, 1, "").tip(tr("Shapes this small (or smaller) are left out")).changed(); ui.weak("mm\u{b2}"); });
             ui.end_row();
         });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
-            changed |= crate::widgets::check(ui, &mut t.opts.crop, "Crop to content").tip("Cut the picture down to the area that has something in it").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.crop, tr("Crop to content")).tip(tr("Cut the picture down to the area that has something in it")).changed();
             ui.add_space(8.0);
-            changed |= crate::widgets::check(ui, &mut t.opts.invert, "Invert").tip("Trace the light areas instead of the dark ones").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.invert, tr("Invert")).tip(tr("Trace the light areas instead of the dark ones")).changed();
             ui.add_space(8.0);
-            changed |= crate::widgets::check(ui, &mut t.opts.smooth, "Smooth curves").tip("Off keeps straight segments that follow the pixels").changed();
+            changed |= crate::widgets::check(ui, &mut t.opts.smooth, tr("Smooth curves")).tip(tr("Off keeps straight segments that follow the pixels")).changed();
             // what the trace found, at the right end of the row
             let count = match &t.result { Some(Ok(i)) => i.loops.len(), _ => 0 };
-            let (txt, tip) = if t.opts.mode == Mode::Outline { (format!("{count} outlines"), "Holes included") } else { (format!("{count} lines"), "Centre lines found") };
+            let (txt, tip) = if t.opts.mode == Mode::Outline { (tr_n(count as u64, "{n} outline", "{n} outlines"), tr("Holes included")) } else { (tr_n(count as u64, "{n} line", "{n} lines"), tr("Centre lines found")) };
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.weak(txt).tip(tip); });
         });
         if changed {
@@ -197,8 +198,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(count > 0 && !app.trace.working(), egui::Button::new("Import")).clicked() { place = true; }
-            if ui.button("Cancel").clicked() { cancel = true; }
+            if ui.add_enabled(count > 0 && !app.trace.working(), egui::Button::new(tr("Import"))).clicked() { place = true; }
+            if ui.button(tr("Cancel")).clicked() { cancel = true; }
         });
         });
     }));

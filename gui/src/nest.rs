@@ -1,4 +1,5 @@
 //! Nest dialog: packs the selected shapes onto the stock in rows (see `putiacnc_core::nest`), a group or a placed text as one part.
+use putiacnc_core::i18n::{tr, tr_n};
 use crate::app::App;
 use eframe::egui;
 use putiacnc_core::shapes;
@@ -27,15 +28,15 @@ impl App {
     /// Moves (and, where it helps, turns by 90 degrees) the selected parts so they sit in rows on the stock.
     /// Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. Returns a message when something is worth saying.
     pub fn nest_selection(&mut self) -> Option<String> {
-        if self.sel.is_empty() { return Some("Select the shapes to nest first.".into()); }
-        if self.sel_locked() { return Some("This drawing is locked.".into()); }
+        if self.sel.is_empty() { return Some(tr("Select the shapes to nest first.").into()); }
+        if self.sel_locked() { return Some(tr("This drawing is locked.").into()); }
         let units = crate::align::units(self);
         let boxes: Vec<[f64; 4]> = units.iter().filter_map(|u| shapes::bbox_many(u.iter().map(|&i| &self.project.data.loops[i]))).collect();
-        if boxes.len() != units.len() { return Some("Nothing to nest.".into()); }
+        if boxes.len() != units.len() { return Some(tr("Nothing to nest.").into()); }
         let (sw, sh) = (self.project.data.stock.w, self.project.data.stock.h);
         let m = self.nest.margin.max(0.0);
         let sheet = [m, m, sw - m, sh - m];
-        if sheet[2] <= sheet[0] || sheet[3] <= sheet[1] { return Some("The margin leaves no room on the stock.".into()); }
+        if sheet[2] <= sheet[0] || sheet[3] <= sheet[1] { return Some(tr("The margin leaves no room on the stock.").into()); }
         let dims: Vec<(f64, f64)> = boxes.iter().map(|b| (b[2] - b[0], b[3] - b[1])).collect();
         let left_out: Vec<usize>;
         let clamps: Vec<[f64; 4]> = self.project.data.clamps.iter().map(|c| [c.x, c.y, c.x + c.w, c.y + c.h]).collect();
@@ -81,7 +82,7 @@ impl App {
             left_out = r.left_out;
             r.placed.iter().map(|p| (p.item, if p.turned { 90.0 } else { 0.0 }, p.x, p.y)).collect()
         };
-        if moves.is_empty() { return Some("None of the shapes fits on the stock. Try a smaller gap or margin, or allow turning.".into()); }
+        if moves.is_empty() { return Some(tr("None of the shapes fits on the stock. Try a smaller gap or margin, or allow turning.").into()); }
         self.hist.record(&self.project.data);
         for &(item, angle, x, y) in &moves {
             let unit: std::collections::BTreeSet<usize> = units[item].iter().copied().collect();
@@ -96,7 +97,7 @@ impl App {
         }
         self.touch();
         let k = left_out.len();
-        (k > 0).then(|| format!("{k} shape{} did not fit and {} left where {} {}: allow turning, or use a smaller gap or margin.", if k == 1 { "" } else { "s" }, if k == 1 { "was" } else { "were" }, if k == 1 { "it" } else { "they" }, if k == 1 { "was" } else { "were" }))
+        (k > 0).then(|| tr_n(k as u64, "{n} shape did not fit and was left where it was: allow turning, or use a smaller gap or margin.", "{n} shapes did not fit and were left where they were: allow turning, or use a smaller gap or margin."))
     }
 }
 
@@ -113,29 +114,29 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     let (mut apply, mut close) = (false, false);
     egui::Window::new("Nest on the stock").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Nest on the stock", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(376.0);
-        if crate::csd::dialog_header_help(ui, "Nest on the stock", true, |ui| {
-            ui.label("Packs the selected shapes onto the stock to use less material, starting from the lower left corner: by their outlines (largest first, a part may go into the space beside or inside another), or in rows of boxes, tallest first. A group or a placed text moves as one part.");
+        ui.set_width(crate::csd::dialog_w(376.0));
+        if crate::csd::dialog_header_help(ui, tr("Nest on the stock"), true, |ui| {
+            ui.label(tr("Packs the selected shapes onto the stock to use less material, starting from the lower left corner: by their outlines (largest first, a part may go into the space beside or inside another), or in rows of boxes, tallest first. A group or a placed text moves as one part."));
             ui.add_space(4.0);
-            ui.label("Leave a gap at least as wide as the cutter. Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. Finer turning steps fit better and take longer. Holes cut right through a part (an Inside profile as deep as the stock) can take other parts.");
+            ui.label(tr("Leave a gap at least as wide as the cutter. Parts keep the gap's distance from the clamps. Parts that do not fit stay where they are. Finer turning steps fit better and take longer. Holes cut right through a part (an Inside profile as deep as the stock) can take other parts."));
         }) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(if n == 0 { "Select the shapes to nest first.".to_string() } else { format!("{n} part{} selected.", if n == 1 { "" } else { "s" }) });
+        ui.label(if n == 0 { tr("Select the shapes to nest first.").to_string() } else { tr_n(n as u64, "{n} part selected.", "{n} parts selected.") });
         ui.add_space(6.0);
         egui::Grid::new("nest_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            let lw = ["Gap", "Margin"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
-            crate::toolmgr::rlabel(ui, lw, "Gap");
+            let lw = [tr("Gap"), tr("Margin")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+            crate::toolmgr::rlabel(ui, lw, tr("Gap"));
             ui.horizontal(|ui| { crate::widgets::len(ui, [70.0, 24.0], &mut app.nest.gap, 0.0, 10000.0, 0.25, 2, ""); ui.weak(crate::widgets::len_unit(ui)); });
             ui.end_row();
-            crate::toolmgr::rlabel(ui, lw, "Margin");
+            crate::toolmgr::rlabel(ui, lw, tr("Margin"));
             ui.horizontal(|ui| { crate::widgets::len(ui, [70.0, 24.0], &mut app.nest.margin, 0.0, 10000.0, 0.25, 2, ""); ui.weak(crate::widgets::len_unit(ui)); });
             ui.end_row();
         });
         ui.add_space(4.0);
-        crate::widgets::check(ui, &mut app.nest.shape, "Follow the outlines (tighter fit)").on_hover_text("Fit parts by their real shape, so a small part can go beside a curve or into the corner of an L. Off: rows of boxes.");
-        if app.nest.shape { crate::widgets::check(ui, &mut app.nest.holes, "Use the holes in parts").on_hover_text("Other parts may go into a hole that is cut right through a part (an Inside profile as deep as the stock is thick). Holes that are only pocketed or engraved are never used."); }
+        crate::widgets::check(ui, &mut app.nest.shape, tr("Follow the outlines (tighter fit)")).on_hover_text(tr("Fit parts by their real shape, so a small part can go beside a curve or into the corner of an L. Off: rows of boxes."));
+        if app.nest.shape { crate::widgets::check(ui, &mut app.nest.holes, tr("Use the holes in parts")).on_hover_text(tr("Other parts may go into a hole that is cut right through a part (an Inside profile as deep as the stock is thick). Holes that are only pocketed or engraved are never used.")); }
         ui.horizontal(|ui| {
-            crate::widgets::check(ui, &mut app.nest.turn, if app.nest.shape { "Allow turning, in steps of" } else { "Allow turning by 90°" });
+            crate::widgets::check(ui, &mut app.nest.turn, if app.nest.shape { tr("Allow turning, in steps of") } else { tr("Allow turning by 90°") });
             if app.nest.shape && app.nest.turn {
                 egui::ComboBox::from_id_source("nest_step").width(60.0).selected_text(format!("{}°", app.nest.step)).show_ui(ui, |ui| {
                     for v in [90.0, 45.0, 15.0] { ui.selectable_value(&mut app.nest.step, v, format!("{v}°")); }
@@ -146,10 +147,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if let Some(m) = pnote.as_ref().or(mine) { crate::msg::line(ui, crate::app::Level::Warning, m); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(n > 0, egui::Button::new("Apply")).on_hover_text("Do it and keep the window open, to go again").clicked() { apply = true; }
-            if ui.button("Close").clicked() { close = true; }
+            if ui.add_enabled(n > 0, egui::Button::new(tr("Apply"))).on_hover_text(tr("Do it and keep the window open, to go again")).clicked() { apply = true; }
+            if ui.button(tr("Close")).clicked() { close = true; }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                crate::widgets::Tip::tip(crate::widgets::check(ui, &mut app.preview_on, "Preview"), "Show the result in the drawing while you change the values");
+                crate::widgets::Tip::tip(crate::widgets::check(ui, &mut app.preview_on, tr("Preview")), tr("Show the result in the drawing while you change the values"));
             });
         });
         });

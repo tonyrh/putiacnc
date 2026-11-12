@@ -1,5 +1,6 @@
 //! The Align tool: a button in the palette that opens a small panel to align the selection to the stock,
 //! align shapes to each other, or distribute them with equal gaps.
+use putiacnc_core::i18n::{tr};
 use crate::app::App;
 use crate::icons::{icon_button, Icon};
 use eframe::egui::{self, Vec2};
@@ -68,7 +69,7 @@ pub fn align_selection(app: &mut App, each: bool, k: u8) {
 /// The palette button. Greyed out until something is selected (and for a locked drawing).
 pub fn button(ui: &mut egui::Ui, app: &mut App) {
     let locked = app.sel_locked();
-    let tip = if locked { "Align: this drawing is locked" } else { "Align the selection to the stock or to each other, or distribute shapes evenly" };
+    let tip = if locked { tr("Align: this drawing is locked") } else { tr("Align the selection to the stock or to each other, or distribute shapes evenly") };
     let r = icon_button(ui, Icon::AlignMenu, app.align_open, !app.sel.is_empty() && !locked, tip);
     app.align_btn = Some(r.rect);
     if r.clicked() { if app.align_open { app.align_open = false; } else { app.open_tool_window(crate::app::ToolWin::Align); } }
@@ -97,17 +98,17 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
                     }
                 });
             };
-            row(ui, "To the stock", &[
-                (0, Icon::AlignL, "Align to the left edge of the stock", true), (1, Icon::AlignHC, "Centre horizontally on the stock", true), (2, Icon::AlignR, "Align to the right edge of the stock", true),
-                (3, Icon::AlignT, "Align to the top edge of the stock", true), (4, Icon::AlignVC, "Centre vertically on the stock", true), (5, Icon::AlignB, "Align to the bottom edge of the stock", true),
-                (6, Icon::CenterBoth, "Centre on the stock", true),
+            row(ui, tr("To the stock"), &[
+                (0, Icon::AlignL, tr("Align to the left edge of the stock"), true), (1, Icon::AlignHC, tr("Centre horizontally on the stock"), true), (2, Icon::AlignR, tr("Align to the right edge of the stock"), true),
+                (3, Icon::AlignT, tr("Align to the top edge of the stock"), true), (4, Icon::AlignVC, tr("Centre vertically on the stock"), true), (5, Icon::AlignB, tr("Align to the bottom edge of the stock"), true),
+                (6, Icon::CenterBoth, tr("Centre on the stock"), true),
             ], false, &mut pick);
-            row(ui, if n >= 2 { "To each other" } else { "To each other (2+)" }, &[
-                (0, Icon::AlignL, "Align the shapes' left edges", n >= 2), (1, Icon::AlignHC, "Centre the shapes horizontally on each other", n >= 2), (2, Icon::AlignR, "Align the shapes' right edges", n >= 2),
-                (3, Icon::AlignT, "Align the shapes' top edges", n >= 2), (4, Icon::AlignVC, "Centre the shapes vertically on each other", n >= 2), (5, Icon::AlignB, "Align the shapes' bottom edges", n >= 2),
+            row(ui, if n >= 2 { tr("To each other") } else { tr("To each other (2+)") }, &[
+                (0, Icon::AlignL, tr("Align the shapes' left edges"), n >= 2), (1, Icon::AlignHC, tr("Centre the shapes horizontally on each other"), n >= 2), (2, Icon::AlignR, tr("Align the shapes' right edges"), n >= 2),
+                (3, Icon::AlignT, tr("Align the shapes' top edges"), n >= 2), (4, Icon::AlignVC, tr("Centre the shapes vertically on each other"), n >= 2), (5, Icon::AlignB, tr("Align the shapes' bottom edges"), n >= 2),
             ], true, &mut pick);
-            row(ui, if n >= 3 { "Distribute" } else { "Distribute (3+)" }, &[
-                (6, Icon::DistH, "Equal gaps between the shapes, left to right", n >= 3), (7, Icon::DistV, "Equal gaps between the shapes, bottom to top", n >= 3),
+            row(ui, if n >= 3 { tr("Distribute") } else { tr("Distribute (3+)") }, &[
+                (6, Icon::DistH, tr("Equal gaps between the shapes, left to right"), n >= 3), (7, Icon::DistV, tr("Equal gaps between the shapes, bottom to top"), n >= 3),
             ], true, &mut pick);
         });
     });

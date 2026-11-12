@@ -1,4 +1,5 @@
 //! Text tool: click where the text starts, type it, pick a font and place it as cuttable outlines.
+use putiacnc_core::i18n::{tr, tr_f, tr_n};
 use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use crate::app::{App, Mode};
@@ -251,10 +252,10 @@ impl TextTool {
         if self.content.trim().is_empty() { return; }
         let (content, style) = (self.content.clone(), self.style());
         match self.loops(&content, style) {
-            None => self.err = Some("This font could not be loaded.".into()),
+            None => self.err = Some(tr("This font could not be loaded.").into()),
             Some(r) => match r {
                 Ok(mut l) => {
-                    if l.is_empty() { self.err = Some("This font has none of those letters.".into()); }
+                    if l.is_empty() { self.err = Some(tr("This font has none of those letters.").into()); }
                     // set at the origin, then turned and moved: the same steps the editor takes back later
                     // (along a shape the letters are already where they belong: no move or turn)
                     if self.flow != Flow::Shape { apply_affine(&mut l, &Affine::compose(self.angle.to_radians(), self.rest, pos)); }
@@ -264,7 +265,7 @@ impl TextTool {
                         let flat = TextStyle { flow: Flow::Straight, align: Align::Left, shadow: [0.0, 0.0], ..self.style() };
                         if let Some(b) = self.loops(&content, flat).and_then(|r| r.ok()).and_then(|f| shapes::bbox_many(f.iter())) {
                             let circle = std::f64::consts::TAU * self.radius.max(self.size);
-                            if b[2] - b[0] > circle { self.err = Some(format!("The text is {:.0} mm long but the circle is only {:.0} mm round: the letters will overlap. Use a bigger radius or less text.", b[2] - b[0], circle)); }
+                            if b[2] - b[0] > circle { self.err = Some(tr_f("The text is {len} mm long but the circle is only {round} mm round: the letters will overlap. Use a bigger radius or less text.", &[("len", &format!("{:.0}", b[2] - b[0])), ("round", &format!("{:.0}", circle))])); }
                         }
                     }
                 }
@@ -419,7 +420,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     let Some(spec) = app.project.data.groups.iter().find(|g| g.id == gid).and_then(|g| g.text.clone()) else { return true };
     let Some(idx) = app.text.fonts.iter().position(|f| f.label == spec.font) else {
         if app.text.found.is_none() { return false; }
-        let msg = format!("The font \"{}\" is not on this computer, so this text cannot be edited here. You can still convert it to outlines.", spec.font);
+        let msg = tr_f("The font \"{font}\" is not on this computer, so this text cannot be edited here. You can still convert it to outlines.", &[("font", &spec.font)]);
         app.notes.push((crate::app::NoteUntil::NotText(gid), msg.clone()));
         app.say(crate::app::Level::Warning, msg);
         app.text.open = false;
@@ -437,7 +438,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     let Some((af, _)) = fit else {
         // the letters were edited point by point (or the font draws them differently now): they stay as outlines
         app.text_to_outlines(gid);
-        app.say(crate::app::Level::Info, "These letters were edited as shapes, so they can no longer be edited as text. They are plain outlines now.".into());
+        app.say(crate::app::Level::Info, tr("These letters were edited as shapes, so they can no longer be edited as text. They are plain outlines now.").into());
         app.text.open = false;
         app.mode = Mode::Select;
         return true;
@@ -490,16 +491,16 @@ fn section(ui: &mut egui::Ui, open: &mut std::collections::BTreeSet<String>, key
 /// What the "?" in the header says: what the tool does, and which fonts it found.
 fn help_text(ui: &mut egui::Ui, editing: bool, found: Option<usize>) {
     if editing {
-        ui.label("The letters are set again from these settings, where the text is now.");
+        ui.label(tr("The letters are set again from these settings, where the text is now."));
     } else {
-        ui.label("Letters become outlines (holes in A, O, B… are cut out). The text stays editable: double-click it later.");
+        ui.label(tr("Letters become outlines (holes in A, O, B… are cut out). The text stays editable: double-click it later."));
         ui.add_space(4.0);
-        ui.label("Click the drawing, or open Position and type X and Y, to move it.");
+        ui.label(tr("Click the drawing, or open Position and type X and Y, to move it."));
     }
     ui.add_space(4.0);
     ui.weak(match found {
-        None => "Looking for the fonts installed on this computer…".to_string(),
-        Some(n) => format!("{n} fonts found on this computer, plus Hack and Ubuntu Light."),
+        None => tr("Looking for the fonts installed on this computer…").to_string(),
+        Some(n) => tr_n(n as u64, "{n} font found on this computer, plus Hack and Ubuntu Light.", "{n} fonts found on this computer, plus Hack and Ubuntu Light."),
     });
 }
 
@@ -532,21 +533,21 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     };
     egui::Window::new("Text").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Text", crate::csd::anchor(app))).show(ctx, crate::csd::trapped(|ui| {
-        ui.set_width(376.0);
+        ui.set_width(crate::csd::dialog_w(376.0));
         let found = app.text.found;
-        if crate::csd::dialog_header_help(ui, if editing { "Edit text" } else { "Text" }, true, |ui| help_text(ui, editing, found)) { cancel = true; }
+        if crate::csd::dialog_header_help(ui, if editing { tr("Edit text") } else { tr("Text") }, true, |ui| help_text(ui, editing, found)) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.text;
-        let te = ui.add(egui::TextEdit::multiline(&mut t.content).desired_rows(3).desired_width(f32::INFINITY).hint_text("Type your text"));
+        let te = ui.add(egui::TextEdit::multiline(&mut t.content).desired_rows(3).desired_width(f32::INFINITY).hint_text(tr("Type your text")));
         if t.focus { te.request_focus(); t.focus = false; }
         ui.add_space(6.0);
         let st = &stock;
         let (zx, zy) = (match st.zr.as_str() { "lr" | "ur" => st.w, "c" => st.w / 2.0, _ => 0.0 }, match st.zr.as_str() { "ul" | "ur" => st.h, "c" => st.h / 2.0, _ => 0.0 });
         // one label column width for the whole dialog, so every field lines up whichever section it is in
-        let lw = ["Font", "Height", "Align", "Letters", "Words", "Layout", "Width", "Radius", "Position", "Start", "Angle", "Shadow"].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let lw = [tr("Font"), tr("Height"), tr("Align"), tr("Letters"), tr("Words"), tr("Layout"), tr("Width"), tr("Radius"), tr("Position"), tr("Start"), tr("Angle"), tr("Shadow")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         // the things set every time stay in view: font, height, alignment
         egui::Grid::new("text_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-            crate::toolmgr::rlabel(ui, lw, "Font");
+            crate::toolmgr::rlabel(ui, lw, tr("Font"));
             let cur = t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default();
             // a long name is shortened, so the box keeps its width
             let cur = crate::widgets::combo_elide(ui, &cur, 190.0);
@@ -556,7 +557,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             egui::ComboBox::from_id_source("text_font").width(190.0).height(400.0).selected_text(cur).show_ui(ui, |ui| {
                 let mut picked = false;
                 ui.set_min_width(NAME_W as f32 + 40.0);
-                ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text("Search fonts").desired_width(f32::INFINITY));
+                ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text(tr("Search fonts")).desired_width(f32::INFINITY));
                 ui.add_space(2.0);
                 let q = t.filter.to_lowercase();
                 egui::ScrollArea::vertical().max_height(340.0).show_following(ui, |ui| {
@@ -587,7 +588,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                         if resp.clicked() { t.sel = i; t.picked = true; picked = true; }
                         resp.tip(&label);
                     }
-                    if !any { ui.weak("No font matches."); }
+                    if !any { ui.weak(tr("No font matches.")); }
                 });
                 if picked { ui.close_menu(); }
                 // a click on the search box or beside the list leaves the menu open
@@ -595,18 +596,18 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             });
             if keep { crate::widgets::reopen_combo(ui, "text_font"); }
             ui.end_row();
-            crate::toolmgr::rlabel(ui, lw, "Height");
+            crate::toolmgr::rlabel(ui, lw, tr("Height"));
             ui.horizontal(|ui| {
                 let fitted = t.fit_on && t.flow == Flow::Straight;
                 ui.add_enabled_ui(!fitted, |ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.size, 0.5, 500.0, 0.1, 2, ""); });
-                ui.weak(format!("{}{}", crate::widgets::len_unit(ui), if fitted { ", from the width" } else { ", capital letters" }));
+                ui.weak(format!("{}{}", crate::widgets::len_unit(ui), if fitted { tr(", from the width") } else { tr(", capital letters") }));
             });
             ui.end_row();
-            crate::toolmgr::rlabel(ui, lw, "Align");
+            crate::toolmgr::rlabel(ui, lw, tr("Align"));
             {
                 const ALIGNS: [Align; 3] = [Align::Left, Align::Center, Align::Right];
                 let cur = ALIGNS.iter().position(|a| *a == t.align).unwrap_or(0);
-                let (c, _) = crate::zoomcard::seg3(ui, ["Left", "Centre", "Right"], ["Lines start at the left edge", "Lines are centred", "Lines end at the right edge"], cur);
+                let (c, _) = crate::zoomcard::seg3(ui, [tr("Left"), tr("Centre"), tr("Right")], [tr("Lines start at the left edge"), tr("Lines are centred"), tr("Lines end at the right edge")], cur);
                 if let Some(i) = c { t.align = ALIGNS[i]; }
             }
             ui.end_row();
@@ -615,76 +616,77 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         // the rest folds away; each header says in grey what it is set to, and stays open or shut as the user left it
         let grid = |id: &'static str| egui::Grid::new(id).num_columns(2).spacing([10.0, 8.0]);
         let line_font = t.is_line_font();
-        let sum_spacing = if line_font { format!("letters {} · words {}", crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct)) }
-        else { format!("kerning {} · letters {} · words {}", if t.kerning { "on" } else { "off" }, crate::panels::fmt_num(t.letter_pct), crate::panels::fmt_num(t.word_pct)) };
-        section(ui, &mut t.sections, "spacing", "Spacing", &sum_spacing, |ui| {
-            ui.add_enabled_ui(!line_font, |ui| crate::widgets::check(ui, &mut t.kerning, "Kerning")).inner.tip("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)");
+        let sum_spacing = if line_font { tr_f("letters {l} · words {w}", &[("l", &crate::panels::fmt_num(t.letter_pct)), ("w", &crate::panels::fmt_num(t.word_pct))]) }
+        else if t.kerning { tr_f("kerning on · letters {l} · words {w}", &[("l", &crate::panels::fmt_num(t.letter_pct)), ("w", &crate::panels::fmt_num(t.word_pct))]) }
+        else { tr_f("kerning off · letters {l} · words {w}", &[("l", &crate::panels::fmt_num(t.letter_pct)), ("w", &crate::panels::fmt_num(t.word_pct))]) };
+        section(ui, &mut t.sections, "spacing", tr("Spacing"), &sum_spacing, |ui| {
+            ui.add_enabled_ui(!line_font, |ui| crate::widgets::check(ui, &mut t.kerning, tr("Kerning"))).inner.tip(tr("Move pairs of letters like AV, To or Ty together or apart the way the font says (not every font has the information)"));
             ui.add_space(4.0);
             grid("text_spacing").show(ui, |ui| {
-                crate::toolmgr::rlabel(ui, lw, "Letters");
-                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.letter_pct, -30.0, 300.0, 0.5, 1, ""); ui.weak("% of the height"); });
+                crate::toolmgr::rlabel(ui, lw, tr("Letters"));
+                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.letter_pct, -30.0, 300.0, 0.5, 1, ""); ui.weak(tr("% of the height")); });
                 ui.end_row();
-                crate::toolmgr::rlabel(ui, lw, "Words");
-                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.word_pct, -100.0, 500.0, 1.0, 1, ""); ui.weak("% of the height, at the gaps"); });
+                crate::toolmgr::rlabel(ui, lw, tr("Words"));
+                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.word_pct, -100.0, 500.0, 1.0, 1, ""); ui.weak(tr("% of the height, at the gaps")); });
                 ui.end_row();
             });
         });
         let sum_layout = match t.flow {
-            Flow::Straight if t.fit_on => format!("straight · {} wide", crate::widgets::fmt_len(ui, t.fit_w)),
-            Flow::Straight => "straight".to_string(),
-            Flow::Vertical => "stacked".to_string(),
-            Flow::Shape => format!("along a shape · {}°", crate::panels::fmt_num(t.arc_deg)),
-            _ => format!("arc, r {} · {}°", crate::panels::fmt_num(t.radius), crate::panels::fmt_num(t.arc_deg)),
+            Flow::Straight if t.fit_on => tr_f("straight · {w} wide", &[("w", &crate::widgets::fmt_len(ui, t.fit_w))]),
+            Flow::Straight => tr("straight").to_string(),
+            Flow::Vertical => tr("stacked").to_string(),
+            Flow::Shape => tr_f("along a shape · {deg}°", &[("deg", &crate::panels::fmt_num(t.arc_deg))]),
+            _ => tr_f("arc, r {r} · {deg}°", &[("r", &crate::panels::fmt_num(t.radius)), ("deg", &crate::panels::fmt_num(t.arc_deg))]),
         };
-        section(ui, &mut t.sections, "layout", "Layout", &sum_layout, |ui| {
+        section(ui, &mut t.sections, "layout", tr("Layout"), &sum_layout, |ui| {
             grid("text_layout").show(ui, |ui| {
-                crate::toolmgr::rlabel(ui, lw, "Layout");
-                let flow_resp = egui::ComboBox::from_id_source("text_flow").width(crate::widgets::combo_fit(ui, &["Straight", "Along an arc", "Along a shape", "Stacked, top to bottom"]).max(190.0)).selected_text(match t.flow {
-                    Flow::Straight => "Straight", Flow::Vertical => "Stacked, top to bottom", Flow::Shape => "Along a shape", _ => "Along an arc",
+                crate::toolmgr::rlabel(ui, lw, tr("Layout"));
+                let flow_resp = egui::ComboBox::from_id_source("text_flow").width(crate::widgets::combo_fit(ui, &[tr("Straight"), tr("Along an arc"), tr("Along a shape"), tr("Stacked, top to bottom")]).max(190.0)).selected_text(match t.flow {
+                    Flow::Straight => tr("Straight"), Flow::Vertical => tr("Stacked, top to bottom"), Flow::Shape => tr("Along a shape"), _ => tr("Along an arc"),
                 }).show_ui(ui, |ui| {
-                    ui.selectable_value(&mut t.flow, Flow::Straight, "Straight");
-                    ui.selectable_value(&mut t.flow, Flow::Arc, "Along an arc");
-                    ui.selectable_value(&mut t.flow, Flow::Shape, "Along a shape");
-                    ui.selectable_value(&mut t.flow, Flow::Vertical, "Stacked, top to bottom");
+                    ui.selectable_value(&mut t.flow, Flow::Straight, tr("Straight"));
+                    ui.selectable_value(&mut t.flow, Flow::Arc, tr("Along an arc"));
+                    ui.selectable_value(&mut t.flow, Flow::Shape, tr("Along a shape"));
+                    ui.selectable_value(&mut t.flow, Flow::Vertical, tr("Stacked, top to bottom"));
                 }).response;
-                if !ui.memory(|m| m.any_popup_open()) { flow_resp.tip("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there. Along a shape: the letters follow the inside of the edge of a shape you select, such as an oval"); }
+                if !ui.memory(|m| m.any_popup_open()) { flow_resp.tip(tr("Along an arc: Start is where the text touches the circle, and Align says which part of the text sits there. Along a shape: the letters follow the inside of the edge of a shape you select, such as an oval")); }
                 ui.end_row();
                 if t.flow == Flow::Straight {
-                    crate::toolmgr::rlabel(ui, lw, "Width");
+                    crate::toolmgr::rlabel(ui, lw, tr("Width"));
                     ui.horizontal(|ui| {
-                        crate::widgets::check(ui, &mut t.fit_on, "Fit to");
+                        crate::widgets::check(ui, &mut t.fit_on, tr("Fit to"));
                         ui.add_enabled_ui(t.fit_on, |ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.fit_w, 1.0, 5000.0, 1.0, 1, ""); });
                         ui.weak(crate::widgets::len_unit(ui));
-                    }).response.tip("Sets the height so the longest line is exactly this wide");
+                    }).response.tip(tr("Sets the height so the longest line is exactly this wide"));
                     ui.end_row();
                 }
                 if t.flow == Flow::Shape {
-                    crate::toolmgr::rlabel(ui, lw, "Shape");
+                    crate::toolmgr::rlabel(ui, lw, tr("Shape"));
                     ui.horizontal(|ui| {
-                        let b = ui.add_enabled(pick_shape.is_some(), egui::Button::new("Use the selected shape")).on_hover_text("Click a closed shape in the drawing (an oval, a rounded rectangle, any outline), or select it and press this: the text follows the inside of its edge. It is taken as it is now: if the shape changes, press again");
+                        let b = ui.add_enabled(pick_shape.is_some(), egui::Button::new(tr("Use the selected shape"))).on_hover_text(tr("Click a closed shape in the drawing (an oval, a rounded rectangle, any outline), or select it and press this: the text follows the inside of its edge. It is taken as it is now: if the shape changes, press again"));
                         if b.clicked() { if let Some(p) = &pick_shape { t.path = p.clone(); } }
-                        ui.weak(if t.path.len() >= 3 { "set" } else { "none yet" });
+                        ui.weak(if t.path.len() >= 3 { "set" } else { tr("none yet") });
                     });
                     ui.end_row();
-                    crate::toolmgr::rlabel(ui, lw, "Distance");
-                    ui.horizontal(|ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.gap, 0.0, 1000.0, 0.5, 2, ""); ui.weak(format!("{}, from the edge to the letters", crate::widgets::len_unit(ui))); });
+                    crate::toolmgr::rlabel(ui, lw, tr("Distance"));
+                    ui.horizontal(|ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.gap, 0.0, 1000.0, 0.5, 2, ""); ui.weak(tr_f("{unit}, from the edge to the letters", &[("unit", &crate::widgets::len_unit(ui))])); });
                     ui.end_row();
                 }
                 if t.flow == Flow::Arc || t.flow == Flow::Shape {
                     if t.flow == Flow::Arc {
-                    crate::toolmgr::rlabel(ui, lw, "Radius");
-                    ui.horizontal(|ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak(format!("{}, of the baseline", crate::widgets::len_unit(ui))); });
+                    crate::toolmgr::rlabel(ui, lw, tr("Radius"));
+                    ui.horizontal(|ui| { crate::widgets::len(ui, [60.0, 24.0], &mut t.radius, 5.0, 5000.0, 0.5, 2, ""); ui.weak(tr_f("{unit}, of the baseline", &[("unit", &crate::widgets::len_unit(ui))])); });
                     ui.end_row();
                     }
-                    crate::toolmgr::rlabel(ui, lw, "Position");
+                    crate::toolmgr::rlabel(ui, lw, tr("Position"));
                     ui.horizontal(|ui| {
                         crate::widgets::num(ui, [60.0, 24.0], &mut t.arc_deg, -360.0, 720.0, 1.0, 1, "");
-                        ui.weak("° (90 top, 270 bottom)");
-                    }).response.tip("Where the text sits round the circle: 0 is the right, 90 the top, 180 the left, 270 the bottom");
+                        ui.weak(tr("° (90 top, 270 bottom)"));
+                    }).response.tip(tr("Where the text sits round the circle: 0 is the right, 90 the top, 180 the left, 270 the bottom"));
                     ui.end_row();
-                    crate::toolmgr::rlabel(ui, lw, "Letters");
+                    crate::toolmgr::rlabel(ui, lw, tr("Letters"));
                     ui.horizontal(|ui| {
-                        let (c, _) = crate::zoomcard::seg2(ui, ["Face outwards", "Face the centre"], ["", ""], t.arc_in as usize);
+                        let (c, _) = crate::zoomcard::seg2(ui, [tr("Face outwards"), tr("Face the centre")], ["", ""], t.arc_in as usize);
                         if let Some(i) = c { t.arc_in = i == 1; }
                     });
                     ui.end_row();
@@ -694,9 +696,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         let p0 = t.pos.unwrap_or([zx, zy]);
         let sum_pos = format!("X {} · Y {} · {}°", crate::panels::fmt_num(p0[0] - zx), crate::panels::fmt_num(p0[1] - zy), crate::panels::fmt_num(t.angle));
         if t.flow != Flow::Shape {
-        section(ui, &mut t.sections, "position", "Position", &sum_pos, |ui| {
+        section(ui, &mut t.sections, "position", tr("Position"), &sum_pos, |ui| {
             grid("text_position").show(ui, |ui| {
-                crate::toolmgr::rlabel(ui, lw, "Start");
+                crate::toolmgr::rlabel(ui, lw, tr("Start"));
                 ui.horizontal(|ui| {
                     // where the first line begins (left end of its baseline), from the XY zero like the rulers
                     let p = t.pos.unwrap_or([zx, zy]);
@@ -710,32 +712,32 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     if cx || cy { t.pos = Some([x + zx, y + zy]); }
                 });
                 ui.end_row();
-                crate::toolmgr::rlabel(ui, lw, "Angle");
-                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.angle, -360.0, 360.0, 1.0, 1, ""); ui.weak("degrees, counter-clockwise"); });
+                crate::toolmgr::rlabel(ui, lw, tr("Angle"));
+                ui.horizontal(|ui| { crate::widgets::num(ui, [60.0, 24.0], &mut t.angle, -360.0, 360.0, 1.0, 1, ""); ui.weak(tr("degrees, counter-clockwise")); });
                 ui.end_row();
             });
         });
         }
-        let sum_shadow = if t.shadow == [0.0, 0.0] { "none".to_string() } else { format!("X {} · Y {}", crate::widgets::fmt_len(ui, t.shadow[0]), crate::widgets::fmt_len(ui, t.shadow[1])) };
-        section(ui, &mut t.sections, "shadow", "Shadow", &sum_shadow, |ui| {
+        let sum_shadow = if t.shadow == [0.0, 0.0] { tr("none").to_string() } else { format!("X {} · Y {}", crate::widgets::fmt_len(ui, t.shadow[0]), crate::widgets::fmt_len(ui, t.shadow[1])) };
+        section(ui, &mut t.sections, "shadow", tr("Shadow"), &sum_shadow, |ui| {
             grid("text_shadow").show(ui, |ui| {
-                crate::toolmgr::rlabel(ui, lw, "Shadow");
+                crate::toolmgr::rlabel(ui, lw, tr("Shadow"));
                 ui.horizontal(|ui| {
                     ui.label("X");
                     crate::widgets::len(ui, [50.0, 24.0], &mut t.shadow[0], -100.0, 100.0, 0.1, 2, "");
                     ui.add_space(4.0);
                     ui.label("Y");
                     crate::widgets::len(ui, [50.0, 24.0], &mut t.shadow[1], -100.0, 100.0, 0.1, 2, "");
-                    ui.weak(format!("{}; 0 and 0 = none", crate::widgets::len_unit(ui)));
-                }).response.tip("A second copy of the letters, moved by this much. Give it an operation of its own (for example a shallower V-carve) to cut a drop shadow");
+                    ui.weak(tr_f("{unit}; 0 and 0 = none", &[("unit", &crate::widgets::len_unit(ui))]));
+                }).response.tip(tr("A second copy of the letters, moved by this much. Give it an operation of its own (for example a shallower V-carve) to cut a drop shadow"));
                 ui.end_row();
             });
         });
         if let Some(e) = &t.err { ui.add_space(4.0); ui.colored_label(egui::Color32::from_rgb(0xe0, 0x8a, 0x2a), e); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.add_enabled(!t.preview.is_empty(), egui::Button::new(if editing { "Update" } else { "Place" })).clicked() { do_place = true; }
-            if ui.button("Cancel").clicked() { cancel = true; }
+            if ui.add_enabled(!t.preview.is_empty(), egui::Button::new(if editing { tr("Update") } else { tr("Place") })).clicked() { do_place = true; }
+            if ui.button(tr("Cancel")).clicked() { cancel = true; }
         });
         });
     }));
