@@ -100,6 +100,10 @@ The program is called `putiacnc`. Your tool and machine libraries are stored per
 - The app icon is in `assets/` (`putiacnc.svg`, PNGs from 16 to 512 px, and `putiacnc.ico`, which is embedded in the Windows exe). It is also set as the window icon on every platform.
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
 
+## Languages
+
+The interface is in English and Italian (View → Language; it follows the system by default). The G-code and its comments are always English. To add a language or fix a translation, see [docs/translating.md](docs/translating.md): you edit one file and need no Rust.
+
 ## Command line
 
     cargo run --release --bin putia-gcode -- project.json [--imperial] [-o out.nc]
@@ -126,6 +130,7 @@ It turns a project into G-code (GRBL, Mach3 or LinuxCNC); its output is pinned b
 | `src/grblsettings.rs` | Reads a Grbl `$$` dump into a machine profile. |
 | `src/sim.rs` | Height-field material-removal simulation used by the 3D preview. |
 | `src/bin/putia-gcode.rs` | Command line: `putia-gcode project.json [--imperial] [-o out.nc]` |
+| `src/i18n.rs`, `locales/` | The interface in other languages (Italian so far): texts go through `tr(...)`, translations are `locales/<code>.json`. See [docs/translating.md](docs/translating.md). |
 | `tests/golden.rs` | Golden tests: snapshots of the generator's own output. |
 | `tests/data/` | Eight projects with their reference G-code and time estimate. |
 

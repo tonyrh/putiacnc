@@ -1,5 +1,7 @@
 # Translating PutiaCNC: plan
 
+Status: steps 0 to 6 and 8 are done; step 7 (the review of the Italian) is in progress. The guide for translators is `docs/translating.md`.
+
 Branch: `i18n`. Decisions (12 Nov 2026):
 
 1. The English text is the key: `tr("Slow down in tight corners")`.
