@@ -1,6 +1,7 @@
 //! Update check: asks GitHub for the latest release and, when it is newer than this build,
 //! offers to download it. An AppImage can replace itself; other builds open the release page.
 //! Nothing is contacted unless the user chooses "Check for updates" (or turns on the startup check).
+use putiacnc_core::i18n::{tr, tr_f};
 use crate::app::App;
 use crate::icons::Icon;
 use crate::panels::dlg_button;
@@ -114,7 +115,7 @@ impl Updater {
                 ctx.request_repaint();
             }
             Err(TryRecvError::Empty) => ctx.request_repaint_after(Duration::from_millis(150)),
-            Err(TryRecvError::Disconnected) => { self.rx = None; self.status = Status::Failed("The update check stopped unexpectedly.".into()); }
+            Err(TryRecvError::Disconnected) => { self.rx = None; self.status = Status::Failed(tr("The update check stopped unexpectedly.").into()); }
         }
     }
 }
@@ -128,7 +129,7 @@ fn save_auto(on: bool) { crate::prefs::modify(|s| s.update_check = on); }
 // ---------------------------------------------------------------------------- network
 
 fn agent(read_secs: u64) -> Result<ureq::Agent, String> {
-    let tls = native_tls::TlsConnector::new().map_err(|e| format!("TLS is not available: {e}"))?;
+    let tls = native_tls::TlsConnector::new().map_err(|e| tr_f("TLS is not available: {e}", &[("e", &e)]))?;
     Ok(ureq::AgentBuilder::new()
         .tls_connector(Arc::new(tls))
         .timeout_connect(Duration::from_secs(10))
@@ -141,13 +142,13 @@ fn fetch_latest() -> Result<Option<Release>, String> {
     let url = std::env::var("PUTIACNC_UPDATE_URL").unwrap_or_else(|_| format!("https://api.github.com/repos/{REPO}/releases/latest"));
     match agent(20)?.get(&url).set("Accept", "application/vnd.github+json").call() {
         Ok(resp) => {
-            let body = resp.into_string().map_err(|e| format!("Could not read the answer: {e}"))?;
+            let body = resp.into_string().map_err(|e| tr_f("Could not read the answer: {e}", &[("e", &e)]))?;
             parse_release(&body).map(Some)
         }
         Err(ureq::Error::Status(404, _)) => Ok(None),
-        Err(ureq::Error::Status(403, _)) | Err(ureq::Error::Status(429, _)) => Err("GitHub is limiting requests right now. Try again later.".into()),
-        Err(ureq::Error::Status(c, _)) => Err(format!("GitHub answered with an error ({c}).")),
-        Err(e) => Err(format!("Could not reach GitHub: {e}")),
+        Err(ureq::Error::Status(403, _)) | Err(ureq::Error::Status(429, _)) => Err(tr("GitHub is limiting requests right now. Try again later.").into()),
+        Err(ureq::Error::Status(c, _)) => Err(tr_f("GitHub answered with an error ({c}).", &[("c", &c)])),
+        Err(e) => Err(tr_f("Could not reach GitHub: {e}", &[("e", &e)])),
     }
 }
 
@@ -163,16 +164,16 @@ pub fn can_self_update(r: &Release) -> bool {
 
 fn install(url: &str, target: &std::path::Path) -> Result<(), String> {
     use std::io::Read;
-    let resp = agent(120)?.get(url).call().map_err(|e| format!("Download failed: {e}"))?;
+    let resp = agent(120)?.get(url).call().map_err(|e| tr_f("Download failed: {e}", &[("e", &e)]))?;
     let tmp = target.with_extension("AppImage.new");
     let res = (|| -> Result<(), String> {
-        let mut f = std::fs::File::create(&tmp).map_err(|e| format!("Cannot write next to the AppImage: {e}"))?;
-        let n = std::io::copy(&mut resp.into_reader().take(500 * 1024 * 1024), &mut f).map_err(|e| format!("Download failed: {e}"))?;
-        if n < 1024 * 1024 { return Err("The downloaded file is too small to be the app.".into()); }
+        let mut f = std::fs::File::create(&tmp).map_err(|e| tr_f("Cannot write next to the AppImage: {e}", &[("e", &e)]))?;
+        let n = std::io::copy(&mut resp.into_reader().take(500 * 1024 * 1024), &mut f).map_err(|e| tr_f("Download failed: {e}", &[("e", &e)]))?;
+        if n < 1024 * 1024 { return Err(tr("The downloaded file is too small to be the app.").into()); }
         drop(f);
         #[cfg(unix)]
         { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?; }
-        std::fs::rename(&tmp, target).map_err(|e| format!("Could not replace the AppImage: {e}"))
+        std::fs::rename(&tmp, target).map_err(|e| tr_f("Could not replace the AppImage: {e}", &[("e", &e)]))
     })();
     if res.is_err() { let _ = std::fs::remove_file(&tmp); }
     res
@@ -198,8 +199,8 @@ pub fn pick_asset(assets: &[(String, String)], os: &str) -> Option<(String, Stri
 }
 
 pub fn parse_release(json: &str) -> Result<Release, String> {
-    let v: serde_json::Value = serde_json::from_str(json).map_err(|_| "GitHub sent an answer I could not read.".to_string())?;
-    let tag = v.get("tag_name").and_then(|t| t.as_str()).ok_or("The latest release has no version tag.")?;
+    let v: serde_json::Value = serde_json::from_str(json).map_err(|_| tr("GitHub sent an answer I could not read.").to_string())?;
+    let tag = v.get("tag_name").and_then(|t| t.as_str()).ok_or(tr("The latest release has no version tag."))?;
     let assets: Vec<(String, String)> = v.get("assets").and_then(|a| a.as_array()).map(|a| {
         a.iter().filter_map(|x| Some((x.get("name")?.as_str()?.to_string(), x.get("browser_download_url")?.as_str()?.to_string()))).collect()
     }).unwrap_or_default();
@@ -222,20 +223,20 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Check for updates").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Check for updates", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(crate::csd::dialog_w(420.0));
-        if crate::csd::dialog_header(ui, "Check for updates", true) { close = true; }
+        if crate::csd::dialog_header(ui, tr("Check for updates"), true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-        ui.label(format!("You are using PutiaCNC {CURRENT}."));
+        ui.label(tr_f("You are using PutiaCNC {v}.", &[("v", &CURRENT)]));
         ui.add_space(6.0);
         match &up.status {
-            Status::Idle => { ui.weak("Not checked yet."); }
-            Status::Checking => { ui.horizontal(|ui| { ui.spinner(); ui.label("Checking for updates…"); }); }
-            Status::UpToDate => { ui.label("You have the latest version."); }
-            Status::NoReleases => { ui.label("No releases have been published yet."); }
+            Status::Idle => { ui.weak(tr("Not checked yet.")); }
+            Status::Checking => { ui.horizontal(|ui| { ui.spinner(); ui.label(tr("Checking for updates…")); }); }
+            Status::UpToDate => { ui.label(tr("You have the latest version.")); }
+            Status::NoReleases => { ui.label(tr("No releases have been published yet.")); }
             Status::Failed(e) => { crate::msg::line(ui, crate::app::Level::Error, e.as_str()); }
-            Status::Downloading(r) => { ui.horizontal(|ui| { ui.spinner(); ui.label(format!("Downloading {}…", r.version)); }); }
-            Status::Installed(r) => { ui.label(format!("Version {} is installed. Restart PutiaCNC to use it.", r.version)); }
+            Status::Downloading(r) => { ui.horizontal(|ui| { ui.spinner(); ui.label(tr_f("Downloading {v}…", &[("v", &r.version)])); }); }
+            Status::Installed(r) => { ui.label(tr_f("Version {v} is installed. Restart PutiaCNC to use it.", &[("v", &r.version)])); }
             Status::Available(r) => {
-                ui.strong(format!("Version {} is available.", r.version));
+                ui.strong(tr_f("Version {v} is available.", &[("v", &r.version)]));
                 if !r.notes.is_empty() {
                     ui.add_space(4.0);
                     egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| { ui.add(egui::Label::new(plain_notes(&r.notes)).wrap(true)); });
@@ -244,25 +245,25 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.spacing_mut().item_spacing.x = 8.0;
                     if can_self_update(r) {
-                        if dlg_button(ui, Icon::Import, "Download and install", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text("Replaces this AppImage with the new version").clicked() { do_download = Some(r.clone()); }
+                        if dlg_button(ui, Icon::Import, tr("Download and install"), Some(accent), Some(egui::Color32::WHITE), true).on_hover_text(tr("Replaces this AppImage with the new version")).clicked() { do_download = Some(r.clone()); }
                     } else if let Some((name, url)) = &r.asset {
-                        if dlg_button(ui, Icon::Import, "Download", Some(accent), Some(egui::Color32::WHITE), true).on_hover_text(name.as_str()).clicked() { let _ = open::that_detached(url); }
+                        if dlg_button(ui, Icon::Import, tr("Download"), Some(accent), Some(egui::Color32::WHITE), true).on_hover_text(name.as_str()).clicked() { let _ = open::that_detached(url); }
                     }
-                    if dlg_button(ui, Icon::Export, "Release page", None, None, false).clicked() { let _ = open::that_detached(&r.page); }
+                    if dlg_button(ui, Icon::Export, tr("Release page"), None, None, false).clicked() { let _ = open::that_detached(&r.page); }
                 });
             }
         }
         ui.add_space(8.0);
         ui.separator();
-        crate::widgets::check(ui, &mut auto, "Check for updates when PutiaCNC starts");
+        crate::widgets::check(ui, &mut auto, tr("Check for updates when PutiaCNC starts"));
         ui.add_space(2.0);
         ui.add_space(6.0);
         ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 32.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 8.0;
             let busy = matches!(up.status, Status::Checking | Status::Downloading(_));
-            if dlg_button(ui, Icon::Close, "Close", None, None, false).clicked() { close = true; }
+            if dlg_button(ui, Icon::Close, tr("Close"), None, None, false).clicked() { close = true; }
             ui.add_enabled_ui(!busy, |ui| {
-                if dlg_button(ui, Icon::Redo, "Check again", None, None, false).clicked() { do_check = true; }
+                if dlg_button(ui, Icon::Redo, tr("Check again"), None, None, false).clicked() { do_check = true; }
             });
         });
         ui.add_space(4.0);

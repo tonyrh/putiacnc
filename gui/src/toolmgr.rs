@@ -1,5 +1,6 @@
 //! Tool manager: tool libraries (several named sets), tool list and tool editor, like the
 //! browser app's "Tool library" dialog. Libraries live in the user's config directory.
+use putiacnc_core::i18n::{tr, tr_f, tr_n};
 use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use crate::app::App;
@@ -35,7 +36,7 @@ impl App {
         let mut copy = self.tool_libs.clone();
         copy.repair();
         if let Some(dir) = p.parent() { let _ = std::fs::create_dir_all(dir); }
-        if let Err(e) = std::fs::write(&p, copy.to_json()) { self.tool_msg = format!("Could not save the tool libraries: {e}"); }
+        if let Err(e) = std::fs::write(&p, copy.to_json()) { self.tool_msg = tr_f("Could not save the tool libraries: {e}", &[("e", &e)]); }
     }
 
     /// Make the project's tools match the current library: tools the project brings along are
@@ -73,17 +74,17 @@ impl App {
                 self.tool_libs.switch(&id);
                 self.after_lib_switch(None);
             }
-            LibAct::New => { self.tool_libs.new_library(); self.after_lib_switch(Some("Created a library with the common hobby tools.".into())); }
-            LibAct::Duplicate => { self.tool_libs.duplicate(); self.after_lib_switch(Some("Saved a copy. You are now editing the copy.".into())); }
+            LibAct::New => { self.tool_libs.new_library(); self.after_lib_switch(Some(tr("Created a library with the common hobby tools.").into())); }
+            LibAct::Duplicate => { self.tool_libs.duplicate(); self.after_lib_switch(Some(tr("Saved a copy. You are now editing the copy.").into())); }
             LibAct::Delete => match self.tool_libs.delete_current() {
-                Ok(name) => self.after_lib_switch(Some(format!("Deleted \"{name}\"."))),
+                Ok(name) => self.after_lib_switch(Some(tr_f("Deleted \"{name}\".", &[("name", &name)]))),
                 Err(e) => self.tool_msg = e,
             },
-            LibAct::Rename(name) => { self.tool_libs.rename_current(&name); self.tool_msg = "Renamed.".into(); self.libs_dirty = true; }
+            LibAct::Rename(name) => { self.tool_libs.rename_current(&name); self.tool_msg = tr("Renamed.").into(); self.libs_dirty = true; }
             LibAct::Export => {
                 let l = self.tool_libs.current();
                 let fname = format!("{}-tools.json", l.name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect::<String>());
-                self.spawn_dialog(crate::app::DlgKind::LibExport, move || rfd::FileDialog::new().add_filter("Tool library", &["json"]).set_file_name(fname).save_file());
+                self.spawn_dialog(crate::app::DlgKind::LibExport, move || rfd::FileDialog::new().add_filter(tr("Tool library"), &["json"]).set_file_name(fname).save_file());
             }
             LibAct::ReadyOpen => self.ready_open = true,
             LibAct::Bundled(i) => {
@@ -91,30 +92,30 @@ impl App {
                 if let Some(l) = self.tool_libs.libs.iter().find(|l| l.name == name) {
                     let id = l.id.clone();
                     self.tool_libs.switch(&id);
-                    self.after_lib_switch(Some(format!("\"{name}\" is already in your libraries.")));
+                    self.after_lib_switch(Some(tr_f("\"{name}\" is already in your libraries.", &[("name", &name)])));
                 } else {
                     match self.tool_libs.import(json) {
-                        Ok((name, n)) => self.after_lib_switch(Some(format!("Added \"{name}\" ({n} tools)."))),
+                        Ok((name, n)) => self.after_lib_switch(Some(putiacnc_core::i18n::tr_nf(n as u64, "Added \"{name}\" ({n} tool).", "Added \"{name}\" ({n} tools).", &[("name", &name)]))),
                         Err(e) => self.tool_msg = e,
                     }
                 }
             }
             LibAct::Import => {
-                self.spawn_dialog(crate::app::DlgKind::LibImport, || rfd::FileDialog::new().add_filter("Tool library", &["json"]).pick_file());
+                self.spawn_dialog(crate::app::DlgKind::LibImport, || rfd::FileDialog::new().add_filter(tr("Tool library"), &["json"]).pick_file());
             }
         }
     }
 
     pub fn finish_lib_export(&mut self, p: std::path::PathBuf) {
         self.tool_msg = match std::fs::write(&p, self.tool_libs.export_current()) {
-            Ok(()) => format!("Exported \"{}\".", self.tool_libs.current().name),
-            Err(e) => format!("Could not export: {e}"),
+            Ok(()) => tr_f("Exported \"{name}\".", &[("name", &self.tool_libs.current().name)]),
+            Err(e) => tr_f("Could not export: {e}", &[("e", &e)]),
         };
     }
 
     pub fn finish_lib_import(&mut self, p: std::path::PathBuf) {
         match std::fs::read_to_string(&p).map_err(|e| e.to_string()).and_then(|s| self.tool_libs.import(&s)) {
-            Ok((name, n)) => self.after_lib_switch(Some(format!("Imported \"{name}\" ({n} tool{}).", if n == 1 { "" } else { "s" }))),
+            Ok((name, n)) => self.after_lib_switch(Some(putiacnc_core::i18n::tr_nf(n as u64, "Imported \"{name}\" ({n} tool).", "Imported \"{name}\" ({n} tools).", &[("name", &name)]))),
             Err(e) => self.tool_msg = e,
         }
     }
@@ -133,8 +134,8 @@ impl App {
         }
         let first = tools[0].name.clone();
         self.tool_msg = if n > 0 {
-            format!("{n} operation{} switched to \"{first}\" because their tool is not in this library.", if n > 1 { "s" } else { "" })
-        } else { msg.unwrap_or_else(|| format!("Loaded \"{}\".", self.tool_libs.current().name)) };
+            putiacnc_core::i18n::tr_nf(n as u64, "{n} operation switched to \"{first}\" because its tool is not in this library.", "{n} operations switched to \"{first}\" because their tool is not in this library.", &[("first", &first)])
+        } else { msg.unwrap_or_else(|| tr_f("Loaded \"{name}\".", &[("name", &self.tool_libs.current().name)])) };
         self.gen_pending = true;
         self.libs_dirty = true;
     }
@@ -149,19 +150,19 @@ fn ready_window(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Add a ready-made library").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Add a ready-made library", ctx.screen_rect().center()))
         .show(ctx, crate::csd::trapped(|ui| {
-            if crate::csd::dialog_header(ui, "Add a ready-made library", true) { close = true; }
+            if crate::csd::dialog_header(ui, tr("Add a ready-made library"), true) { close = true; }
             ui.set_min_width(340.0);
             ui.add_space(4.0);
             for (i, (name, json)) in toollib::BUNDLED.iter().enumerate() {
                 let have = app.tool_libs.libs.iter().any(|l| l.name == *name);
-                let txt = format!("{name}  ({} {}){}", toollib::bundled_count(json), if json.contains("\"shape\": \"pen\"") { "pens" } else { "bits" }, if have { "  \u{b7} added" } else { "" });
+                let txt = (if json.contains("\"shape\": \"pen\"") { tr_f("{name}  ({n} pens)", &[("name", &name), ("n", &toollib::bundled_count(json))]) } else { tr_f("{name}  ({n} bits)", &[("name", &name), ("n", &toollib::bundled_count(json))]) }) + if have { tr("  \u{b7} added") } else { "" };
                 if ui.add_sized([ui.available_width(), 26.0], egui::Button::new(txt)).clicked() { pick = Some(i); }
                 ui.add_space(2.0);
             }
             ui.add_space(2.0);
-            ui.weak("\"added\" marks libraries you already have.");
+            ui.weak(tr("\"added\" marks libraries you already have."));
             ui.add_space(4.0);
-            ui.add(egui::Label::new(egui::RichText::new("Brand names are trademarks of their owners; PutiaCNC is not affiliated with or endorsed by them. Dimensions come from the makers' published catalogs; speeds and feeds are generic starting values, not the makers' recommendations.").small().weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new(tr("Brand names are trademarks of their owners; PutiaCNC is not affiliated with or endorsed by them. Dimensions come from the makers' published catalogs; speeds and feeds are generic starting values, not the makers' recommendations.")).small().weak()).wrap(true));
         }));
     if let Some(i) = pick { app.lib_action(LibAct::Bundled(i)); close = true; }
     if close { app.ready_open = false; }
@@ -175,7 +176,7 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
         .default_size([925.0, 650.0]).min_width(925.0).max_width(925.0).min_height(340.0)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Tool library", ctx.screen_rect().center()))
         .show(ctx, crate::csd::trapped(|ui| {
-            if crate::csd::dialog_header(ui, "Tool library", true) { close = true; }
+            if crate::csd::dialog_header(ui, tr("Tool library"), true) { close = true; }
             let was = app.ready_open;
             body(ui, app);
             if app.ready_open && !was { ctx.request_repaint(); }   // draw the new window right away, not on the next mouse move
@@ -224,23 +225,23 @@ fn body(ui: &mut Ui, app: &mut App) {
     ui.add_space(8.0);
     lib_row(ui, app);
     ui.add_space(8.0);
-    ui.weak(if app.tool_msg.is_empty() { "Libraries are saved automatically." } else { app.tool_msg.as_str() });
+    ui.weak(if app.tool_msg.is_empty() { tr("Libraries are saved automatically.") } else { app.tool_msg.as_str() });
     // everything below the nominal pane height: the footer, and any overshoot of the panes' own rows
     let foot = ui.min_rect().max.y - y_start - h;
     if (foot - footer).abs() > 0.5 { ui.ctx().data_mut(|d| d.insert_temp(fkey, foot)); ui.ctx().request_repaint(); }
 }
 
 fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
-    let groups: [(&str, &str); 2] = if app.disp_in { [("in", "Imperial"), ("mm", "Metric")] } else { [("mm", "Metric"), ("in", "Imperial")] };
+    let groups: [(&str, &str); 2] = if app.disp_in { [("in", tr("Imperial")), ("mm", tr("Metric"))] } else { [("mm", tr("Metric")), ("in", tr("Imperial"))] };
     let dark = app.theme.dark;
     let lib = app.tool_libs.current().clone();
     let mut pick: Option<String> = None;
     let mut toggles: Vec<(String, bool)> = Vec::new();   // groups the user clicked: (key, now open)
     ui.horizontal(|ui| {
         let clear_w = if app.tool_query.is_empty() { 0.0 } else { 56.0 };
-        let r = ui.add(egui::TextEdit::singleline(&mut app.tool_query).hint_text("Search tools (name, type, size)").desired_width(ui.available_width() - clear_w - 6.0));
+        let r = ui.add(egui::TextEdit::singleline(&mut app.tool_query).hint_text(tr("Search tools (name, type, size)")).desired_width(ui.available_width() - clear_w - 6.0));
         if r.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) { app.tool_query.clear(); }
-        if !app.tool_query.is_empty() && ui.button("Clear").clicked() { app.tool_query.clear(); }
+        if !app.tool_query.is_empty() && ui.button(tr("Clear")).clicked() { app.tool_query.clear(); }
     });
     ui.add_space(4.0);
     let words: Vec<String> = app.tool_query.to_lowercase().replace('\u{2033}', "\"").split_whitespace().map(|s| s.to_string()).collect();
@@ -310,7 +311,7 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
             if ur.header_response.clicked() && !searching { toggles.push((ukey, !unit_open)); }
             ui.add_space(6.0);
         }
-        if searching && shown == 0 { ui.add_space(6.0); ui.weak("No tool in this library matches."); }
+        if searching && shown == 0 { ui.add_space(6.0); ui.weak(tr("No tool in this library matches.")); }
     });
     let _ = dark;
     for (k, v) in toggles { app.prefs.tool_groups.insert(k, v); }
@@ -324,10 +325,10 @@ fn tool_list(ui: &mut Ui, app: &mut App, h: f32) {
 fn tool_buttons(ui: &mut Ui, app: &mut App) {
     ui.horizontal(|ui| {
         if app.confirm_tool_del {
-            ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), "Delete this tool?");
-            if ui.button("Delete").clicked() {
+            ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), tr("Delete this tool?"));
+            if ui.button(tr("Delete")).clicked() {
                 if app.tool_libs.current().tools.len() < 2 {
-                    app.tool_msg = "Keep at least one tool in the library.".into();
+                    app.tool_msg = tr("Keep at least one tool in the library.").into();
                 } else {
                     let id = app.tool_sel.clone();
                     app.hist.record(&app.project.data);
@@ -336,14 +337,14 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
                     let n = toollib::reassign_missing(&mut app.project.data.ops, &tools);
                     app.tool_sel = tools[0].id.clone();
                     app.tools_edited();
-                    if n > 0 { app.modified = true; app.tool_msg = format!("{n} operation{} now use \"{}\".", if n > 1 { "s" } else { "" }, tools[0].name); }
+                    if n > 0 { app.modified = true; app.tool_msg = putiacnc_core::i18n::tr_nf(n as u64, "{n} operation now uses \"{name}\".", "{n} operations now use \"{name}\".", &[("name", &tools[0].name)]); }
                 }
                 app.confirm_tool_del = false;
                 return;
             }
-            if ui.button("Cancel").clicked() { app.confirm_tool_del = false; }
+            if ui.button(tr("Cancel")).clicked() { app.confirm_tool_del = false; }
         } else {
-            if icon_button(ui, Icon::Add, false, true, "New tool").clicked() {
+            if icon_button(ui, Icon::Add, false, true, tr("New tool")).clicked() {
                 let sel = app.tool_libs.current().tools.iter().find(|t| t.id == app.tool_sel).cloned();
                 let sys = if app.disp_in { "in" } else { "mm" };
                 let mut t = toollib::new_tool_from(sel.as_ref(), false, sys);
@@ -353,7 +354,7 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
                 app.tools_edited();
                 app.tool_msg.clear();
             }
-            if icon_button(ui, Icon::Copy, false, true, "Duplicate tool").clicked() {
+            if icon_button(ui, Icon::Copy, false, true, tr("Duplicate tool")).clicked() {
                 let sel = app.tool_libs.current().tools.iter().find(|t| t.id == app.tool_sel).cloned();
                 let sys = if app.disp_in { "in" } else { "mm" };
                 let t = toollib::new_tool_from(sel.as_ref(), true, sys);
@@ -362,8 +363,8 @@ fn tool_buttons(ui: &mut Ui, app: &mut App) {
                 app.tools_edited();
                 app.tool_msg.clear();
             }
-            if icon_button(ui, Icon::Trash, false, true, "Delete tool").clicked() {
-                if app.tool_libs.current().tools.len() < 2 { app.tool_msg = "Keep at least one tool in the library.".into(); } else { app.confirm_tool_del = true; }
+            if icon_button(ui, Icon::Trash, false, true, tr("Delete tool")).clicked() {
+                if app.tool_libs.current().tools.len() < 2 { app.tool_msg = tr("Keep at least one tool in the library.").into(); } else { app.confirm_tool_del = true; }
             }
         }
     });
@@ -378,11 +379,11 @@ fn units_row(ui: &mut Ui, app: &mut App) {
                 let slot = app.tool_speed_slot();
                 for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(slot, i, *n); }
             });
-            ui.label("Speeds in");
+            ui.label(tr("Speeds in"));
             ui.add_space(8.0);
             let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.disp_in as usize);
             if let Some(i) = c { app.disp_in = i == 1; }
-            ui.label("Show lengths in");
+            ui.label(tr("Show lengths in"));
         });
     });
 }
@@ -402,36 +403,36 @@ fn lib_row(ui: &mut Ui, app: &mut App) {
 fn lib_row_inner(ui: &mut Ui, app: &mut App) {
     let mut act: Option<LibAct> = None;
     ui.horizontal(|ui| {
-        ui.label("Library");
+        ui.label(tr("Library"));
         let cur = app.tool_libs.current().clone();
         // a long library name is shortened, so the box keeps its width
-        let shown = crate::widgets::combo_elide(ui, &format!("{} ({} tool{})", cur.name, cur.tools.len(), if cur.tools.len() == 1 { "" } else { "s" }), 212.0);
+        let shown = crate::widgets::combo_elide(ui, &putiacnc_core::i18n::tr_nf(cur.tools.len() as u64, "{name} ({n} tool)", "{name} ({n} tools)", &[("name", &cur.name)]), 212.0);
         egui::ComboBox::from_id_source("libsel").width(212.0)
             .selected_text(shown)
             .show_ui(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 1.0;
                 for l in &app.tool_libs.libs {
-                    let txt = format!("{} ({} tool{})", l.name, l.tools.len(), if l.tools.len() == 1 { "" } else { "s" });
+                    let txt = putiacnc_core::i18n::tr_nf(l.tools.len() as u64, "{name} ({n} tool)", "{name} ({n} tools)", &[("name", &l.name)]);
                     if ui.selectable_label(l.id == cur.id, txt).clicked() && l.id != cur.id { act = Some(LibAct::Switch(l.id.clone())); }
                 }
                 ui.separator();
-                if ui.selectable_label(false, "Add a ready-made library\u{2026}").clicked() { act = Some(LibAct::ReadyOpen); }
+                if ui.selectable_label(false, tr("Add a ready-made library\u{2026}")).clicked() { act = Some(LibAct::ReadyOpen); }
             });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if icon_button(ui, Icon::Import, false, true, "Import library from a file").clicked() { act = Some(LibAct::Import); }
-            if icon_button(ui, Icon::Export, false, true, "Export library to a file").clicked() { act = Some(LibAct::Export); }
+            if icon_button(ui, Icon::Import, false, true, tr("Import library from a file")).clicked() { act = Some(LibAct::Import); }
+            if icon_button(ui, Icon::Export, false, true, tr("Export library to a file")).clicked() { act = Some(LibAct::Export); }
             ui.add_space(6.0);
             if app.confirm_lib_del {
-                if ui.button("Cancel").clicked() { app.confirm_lib_del = false; }
-                if ui.button("Delete").clicked() { act = Some(LibAct::Delete); }
-                ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), "Delete library?");
-            } else if icon_button(ui, Icon::Trash, false, true, "Delete library").clicked() {
-                if app.tool_libs.libs.len() < 2 { app.tool_msg = "Keep at least one library.".into(); } else { app.confirm_lib_del = true; }
+                if ui.button(tr("Cancel")).clicked() { app.confirm_lib_del = false; }
+                if ui.button(tr("Delete")).clicked() { act = Some(LibAct::Delete); }
+                ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), tr("Delete library?"));
+            } else if icon_button(ui, Icon::Trash, false, true, tr("Delete library")).clicked() {
+                if app.tool_libs.libs.len() < 2 { app.tool_msg = tr("Keep at least one library.").into(); } else { app.confirm_lib_del = true; }
             }
-            if icon_button(ui, Icon::Copy, false, true, "Duplicate library (edit the copy)").clicked() { act = Some(LibAct::Duplicate); }
-            if icon_button(ui, Icon::Add, false, true, "New library with the common hobby tools").clicked() { act = Some(LibAct::New); }
+            if icon_button(ui, Icon::Copy, false, true, tr("Duplicate library (edit the copy)")).clicked() { act = Some(LibAct::Duplicate); }
+            if icon_button(ui, Icon::Add, false, true, tr("New library with the common hobby tools")).clicked() { act = Some(LibAct::New); }
             ui.add_space(6.0);
-            let r = ui.add(egui::TextEdit::singleline(&mut app.lib_name_buf).desired_width(180.0).hint_text("Library name"));
+            let r = ui.add(egui::TextEdit::singleline(&mut app.lib_name_buf).desired_width(180.0).hint_text(tr("Library name")));
             if !r.has_focus() { app.lib_name_buf = cur.name.clone(); }
             if r.lost_focus() && app.lib_name_buf.trim() != cur.name { act = Some(LibAct::Rename(app.lib_name_buf.clone())); }
         });
@@ -451,7 +452,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
             let aw = ui.available_width() - 10.0;
-            let lw = crate::panels::tw(ui, "Stepover").max(crate::panels::tw(ui, "Diameter")).max(crate::panels::tw(ui, "Max pass")).max(crate::panels::tw(ui, "Tip radius")).max(crate::panels::tw(ui, "Arc radius")).max(crate::panels::tw(ui, "Line width")).max(crate::panels::tw(ui, "Draw speed")) + 2.0;
+            let lw = crate::panels::tw(ui, tr("Stepover")).max(crate::panels::tw(ui, tr("Diameter"))).max(crate::panels::tw(ui, tr("Max pass"))).max(crate::panels::tw(ui, tr("Tip radius"))).max(crate::panels::tw(ui, tr("Arc radius"))).max(crate::panels::tw(ui, tr("Line width"))).max(crate::panels::tw(ui, tr("Draw speed"))) + 2.0;
             // a pen has a line width and two speeds: no spindle, flutes, stepover or depth per pass
             let pen = t.shape == "pen";
             // wide enough for the longest shape name, or the dropdown pushes the form (and the window) wider every frame
@@ -459,7 +460,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
             let sp = 8.0_f32; // label-to-field gap
             let gap = (aw - 2.0 * (lw + fw) - 4.0 * sp).max(8.0); // space between the two column pairs
             egui::Grid::new("tool_form_top").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
-                rlabel(ui, lw, "Name");
+                rlabel(ui, lw, tr("Name"));
                 changed |= ui.add(egui::TextEdit::singleline(&mut t.name).desired_width(aw - lw - sp).char_limit(60)).changed(); ui.end_row();
             });
             ui.add_space(2.0);
@@ -476,7 +477,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     ui.label("");
                     ui.end_row();
                 }}; }
-                rlabel(ui, lw, "Shape");
+                rlabel(ui, lw, tr("Shape"));
                 egui::ComboBox::from_id_source("tshape").width(fw - 4.0).selected_text(shape_label(&t.shape)).show_ui(ui, |ui| {
                     for (key, lab) in SHAPES { if ui.selectable_label(t.shape == key, lab).clicked() {
                         t.shape = key.into();
@@ -489,36 +490,36 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 });
                 side!(true);
                 if t.shape == "arc" {
-                    rlabel(ui, lw, "Arc radius");
+                    rlabel(ui, lw, tr("Arc radius"));
                     let mut r = t.arc / k;
                     if crate::widgets::num(ui, [72.0, 22.0], &mut r, if t.concave { t.dia / 2.0 / k } else { 0.1 / k }, 100.0 / k, 0.1 / k, 3, uname).changed() { t.arc = (r * k).max(if t.concave { t.dia / 2.0 } else { 0.1 }); changed = true; }
                     side!(false);
-                    rlabel(ui, lw, "Edge");
-                    let (c, _) = crate::zoomcard::seg2(ui, ["Convex", "Concave"], ["", ""], t.concave as usize);
+                    rlabel(ui, lw, tr("Edge"));
+                    let (c, _) = crate::zoomcard::seg2(ui, [tr("Convex"), tr("Concave")], ["", ""], t.concave as usize);
                     if let Some(i) = c { t.concave = i == 1; changed = true; }
                     side!(false);
                 }
                 if has_angle(&t.shape) {
-                    rlabel(ui, lw, "Angle");
+                    rlabel(ui, lw, tr("Angle"));
                     changed |= crate::widgets::num(ui, [60.0, 22.0], &mut t.angle, 10.0, 150.0, 0.5, 3, "°").changed();
                     side!(false);
-                    rlabel(ui, lw, "Tip radius");
+                    rlabel(ui, lw, tr("Tip radius"));
                     let mut r = t.tip / k;
                     if crate::widgets::num(ui, [72.0, 22.0], &mut r, 0.0, 50.0 / k, 0.05 / k, 3, uname).changed() { t.tip = (r * k).max(0.0); changed = true; }
                     side!(false);
                 }
                 if pen {
                     // the picture takes the two right-hand cells of this row and the one above: keep them free of fields
-                    rlabel(ui, lw, "Ink colour");
+                    rlabel(ui, lw, tr("Ink colour"));
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = 8.0;
                         let mut rgb = t.ink_rgb().unwrap_or(DEFAULT_INK);
-                        if crate::colorpick::button(ui, "ink", &mut rgb, "The colour of the ink: shown in the 3D preview and next to the pen in the lists. It does not change the G-code").changed() { t.color = Some(putiacnc_core::model::hex_rgb(rgb)); changed = true; }
-                        if t.color.is_some() && crate::panels::reset_button(ui, "Back to the usual dark ink") { t.color = None; changed = true; }
+                        if crate::colorpick::button(ui, "ink", &mut rgb, tr("The colour of the ink: shown in the 3D preview and next to the pen in the lists. It does not change the G-code")).changed() { t.color = Some(putiacnc_core::model::hex_rgb(rgb)); changed = true; }
+                        if t.color.is_some() && crate::panels::reset_button(ui, tr("Back to the usual dark ink")) { t.color = None; changed = true; }
                     });
                     side!(false);
                 } else {
-                    rlabel(ui, lw, "Flutes");
+                    rlabel(ui, lw, tr("Flutes"));
                     let mut fl = t.flutes as f64;
                     if crate::widgets::num(ui, [60.0, 22.0], &mut fl, 1.0, 12.0, 0.1, 0, "").changed() { t.flutes = fl.round() as u32; changed = true; }
                     side!(false);
@@ -536,53 +537,53 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                     });
                     n += 1; if n % 2 == 0 { $ui.end_row(); } else { $ui.allocate_exact_size(egui::vec2(gap, 1.0), Sense::hover()); }
                 }}; }
-                cell!(if pen { "Line width" } else { "Diameter" }, uname, ui, {
+                cell!(if pen { tr("Line width") } else { tr("Diameter") }, uname, ui, {
                     let mut d = t.dia / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.01 / k, 1000.0 / k, 0.05 / k, 4, "").changed() { t.dia = d * k; t.sys = if app.disp_in { "in" } else { "mm" }.into(); changed = true; }
                 });
-                if !pen { cell!("Spindle", "rpm", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.rpm, 0.0, 100000.0, 50.0, 0, "").changed(); }); }
-                cell!(if pen { "Draw speed" } else { "Feed" }, sname, ui, {
+                if !pen { cell!(tr("Spindle"), "rpm", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.rpm, 0.0, 100000.0, 50.0, 0, "").changed(); }); }
+                cell!(if pen { tr("Draw speed") } else { tr("Feed") }, sname, ui, {
                     let mut f = t.feed / fspd;
                     if crate::widgets::num(ui, [fu, 22.0], &mut f, 0.001, 100000.0, 1.0 / fspd.max(1.0), 3, "").changed() { t.feed = f * fspd; changed = true; }
                 });
-                cell!(if pen { "Pen down" } else { "Plunge" }, sname, ui, {
+                cell!(if pen { tr("Pen down") } else { tr("Plunge") }, sname, ui, {
                     let mut f = t.plunge / fspd;
                     if crate::widgets::num(ui, [fu, 22.0], &mut f, 0.001, 100000.0, 1.0 / fspd.max(1.0), 3, "").changed() { t.plunge = f * fspd; changed = true; }
                 });
-                if !pen { cell!("Stepover", "%", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.so, 1.0, 100.0, 0.5, 1, "").changed(); }); }
-                if !pen { cell!("Max pass", uname, ui, {
+                if !pen { cell!(tr("Stepover"), "%", ui, { changed |= crate::widgets::num(ui, [fu, 22.0], &mut t.so, 1.0, 100.0, 0.5, 1, "").changed(); }); }
+                if !pen { cell!(tr("Max pass"), uname, ui, {
                     let mut d = t.pd / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.01 / k, 1000.0 / k, 0.05 / k, 4, "").changed() { t.pd = d * k; changed = true; }
                 }); }
                 if !pen {
-                cell!("Cut length", uname, ui, {
+                cell!(tr("Cut length"), uname, ui, {
                     let mut d = t.flute / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").changed() { t.flute = (d * k).max(0.0); changed = true; }
                 });
-                cell!("Shank dia.", uname, ui, {
+                cell!(tr("Shank dia."), uname, ui, {
                     let mut d = t.shank / k;
                     if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.05 / k, 3, "").changed() { t.shank = (d * k).max(0.0); changed = true; }
                 });
                 }
                 if holder_on && !pen {
-                    cell!("Stick-out", uname, ui, {
+                    cell!(tr("Stick-out"), uname, ui, {
                         let mut d = t.stick / k;
-                        if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").tip("How far the tip sticks out below the holder. With the holder diameter in the machine settings, the holder is checked against the clamps.").changed() { t.stick = (d * k).max(0.0); changed = true; }
+                        if crate::widgets::num(ui, [fu, 22.0], &mut d, 0.0, 1000.0 / k, 0.5 / k, 3, "").tip(tr("How far the tip sticks out below the holder. With the holder diameter in the machine settings, the holder is checked against the clamps.")).changed() { t.stick = (d * k).max(0.0); changed = true; }
                     });
                 }
                 if n % 2 == 1 { ui.end_row(); }
             });
             if pen {
-                ui.add(egui::Label::new(egui::RichText::new("A pen has no spindle. Line width is how wide its line is; draw speed is how fast it moves on the paper and pen down is how fast it lowers.").weak()).wrap(true));
+                ui.add(egui::Label::new(egui::RichText::new(tr("A pen has no spindle. Line width is how wide its line is; draw speed is how fast it moves on the paper and pen down is how fast it lowers.")).weak()).wrap(true));
             } else {
-            ui.add(egui::Label::new(egui::RichText::new(format!("Cut length is how deep the flutes reach and shank dia. the bit above them{}; 0 means unknown and switches those checks off for this tool.", if app.project.data.machine.as_ref().is_some_and(|m| m.holder_on) { ", stick-out how far the tip stands below the holder" } else { "" })).small().weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new(tr_f("Cut length is how deep the flutes reach and shank dia. the bit above them{stickout}; 0 means unknown and switches those checks off for this tool.", &[("stickout", &if app.project.data.machine.as_ref().is_some_and(|m| m.holder_on) { tr(", stick-out how far the tip stands below the holder") } else { "" })])).small().weak()).wrap(true));
             if let Some(m) = &app.project.data.machine {
                 let warn = m.hold_text(&t);
                 if !warn.is_empty() {
                     let col = crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode);
                     ui.add_space(4.0);
-                    crate::checkui::warn_line(ui, col, &format!("\"{}\" holds this tool to {warn}.", m.name))
-                        .tip("The G-code uses the machine's limits, not the tool's values. Change them in File → Machines.");
+                    crate::checkui::warn_line(ui, col, &tr_f("\"{machine}\" holds this tool to {warn}.", &[("machine", &m.name), ("warn", &warn)]))
+                        .tip(tr("The G-code uses the machine's limits, not the tool's values. Change them in File → Machines."));
                 }
             }
             ui.add_space(8.0);
@@ -590,36 +591,36 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
             egui::Grid::new("tool_form_est").num_columns(2).spacing([sp, 4.0]).show(ui, |ui| {
                 use putiacnc_core::toollib::{chip_load, chip_load_range, load_level, removal_rate, Load};
                 let (unit_len, per) = if app.disp_in { ("in", 25.4) } else { ("mm", 1.0) };
-                rlabel(ui, lw, "Chip load");
+                rlabel(ui, lw, tr("Chip load"));
                 match chip_load(&t) {
                     Some(c) => {
                         let (lo, hi) = chip_load_range(&t);
                         let dark = ui.visuals().dark_mode;
                         let (txt, col) = match load_level(&t) {
-                            Some(Load::Light) => ("light: the cutter may rub and heat up", crate::msg::colour(crate::app::Level::Warning, dark)),
-                            Some(Load::Heavy) => ("heavy: risk of a rough cut or a broken bit", crate::msg::colour(crate::app::Level::Error, dark)),
-                            _ => ("in the usual range", if dark { Color32::from_rgb(0x8f, 0xd1, 0x8a) } else { Color32::from_rgb(0x2a, 0x8a, 0x3e) }),
+                            Some(Load::Light) => (tr("light: the cutter may rub and heat up"), crate::msg::colour(crate::app::Level::Warning, dark)),
+                            Some(Load::Heavy) => (tr("heavy: risk of a rough cut or a broken bit"), crate::msg::colour(crate::app::Level::Error, dark)),
+                            _ => (tr("in the usual range"), if dark { Color32::from_rgb(0x8f, 0xd1, 0x8a) } else { Color32::from_rgb(0x2a, 0x8a, 0x3e) }),
                         };
                         // the help sits on both texts: a row that holds them would not get the pointer, the texts do
-                        let help = format!("Feed / (spindle speed x flutes). A usual range for wood and plastics at this size is {:.4} to {:.4} {unit_len}/tooth; adjust it for your material and machine.", lo / per, hi / per);
+                        let help = tr_f("Feed / (spindle speed x flutes). A usual range for wood and plastics at this size is {lo} to {hi} {unit}/tooth; adjust it for your material and machine.", &[("lo", &format!("{:.4}", lo / per)), ("hi", &format!("{:.4}", hi / per)), ("unit", &unit_len)]);
                         ui.horizontal(|ui| {
-                            ui.label(format!("{:.4} {unit_len}/tooth", c / per)).tip(help.clone());
+                            ui.label(tr_f("{v} {unit}/tooth", &[("v", &format!("{:.4}", c / per)), ("unit", &unit_len)])).tip(help.clone());
                             ui.label(egui::RichText::new(txt).color(col)).tip(help);
                         });
                     }
-                    None => { ui.weak("set the spindle speed to see it"); }
+                    None => { ui.weak(tr("set the spindle speed to see it")); }
                 }
                 ui.end_row();
-                rlabel(ui, lw, "Removal");
+                rlabel(ui, lw, tr("Removal"));
                 let r = removal_rate(&t);
                 let txt = if app.disp_in { format!("{:.2} in³/min", r / 16387.064) } else { format!("{:.1} cm³/min", r / 1000.0) };
-                ui.weak(txt).tip("Material removed per minute by a cut as wide as the stepover and as deep as the maximum pass");
+                ui.weak(txt).tip(tr("Material removed per minute by a cut as wide as the stepover and as deep as the maximum pass"));
                 ui.end_row();
             });
             }
             ui.add_space(8.0);
             egui::Grid::new("tool_form_notes").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
-                rlabel(ui, lw, "Notes");
+                rlabel(ui, lw, tr("Notes"));
                 changed |= ui.add(egui::TextEdit::multiline(&mut t.notes).desired_rows(3).desired_width(aw - lw - sp)).changed(); ui.end_row();
             });
         });
@@ -633,7 +634,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
     ui.add_space((ui.available_height() - 56.0).max(0.0));
     // its own line, so it never runs into the unit selectors however narrow the window is
     let used = app.project.data.ops.iter().filter(|o| o.p.tool == app.tool_sel).count();
-    ui.weak(if used > 0 { format!("Used by {used} operation{} in this project.", if used > 1 { "s" } else { "" }) } else { " ".to_string() });
+    ui.weak(if used > 0 { tr_n(used as u64, "Used by {n} operation in this project.", "Used by {n} operations in this project.") } else { " ".to_string() });
     units_row(ui, app);
 }
 

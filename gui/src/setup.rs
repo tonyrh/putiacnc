@@ -1,6 +1,7 @@
 //! The setup assistant: units, machine and starter tools in a few steps. It opens by itself the first time the app runs
 //! (no settings file yet) and from Help → Setup assistant. The first time it replaces the default machine and the tools of the
 //! current library; later it only adds a new machine and a new library, so nothing the user made is lost.
+use putiacnc_core::i18n::{n_, tr, tr_f, tr_n};
 use crate::csd::ShowFollowing;
 use crate::app::App;
 use crate::widgets::Tip;
@@ -106,7 +107,7 @@ impl App {
     }
 }
 
-const NAMES: [&str; STEPS] = ["Units", "Machine", "Details", "Tools", "Finish"];
+const NAMES: [&str; STEPS] = [n_("Units"), n_("Machine"), n_("Details"), n_("Tools"), n_("Finish")];
 // the same field sizes and spacing as the machine library
 const LABEL_W: f32 = 130.0;
 const UNIT_W: f32 = 60.0;
@@ -142,7 +143,7 @@ fn num_unit_w(ui: &mut egui::Ui, x: &mut f64, lo: f64, hi: f64, step: f64, unit:
 /// The same for a limit, where 0 means no limit.
 fn limit(ui: &mut egui::Ui, v: &mut Option<f64>, k: f64, hi: f64, step: f64, unit: &str) {
     let mut x = v.unwrap_or(0.0) / k;
-    if num_unit_w(ui, &mut x, 0.0, hi / k, step / k, unit).tip("0 = no limit").changed() { *v = (x > 0.0).then_some(x * k); }
+    if num_unit_w(ui, &mut x, 0.0, hi / k, step / k, unit).tip(tr("0 = no limit")).changed() { *v = (x > 0.0).then_some(x * k); }
 }
 
 fn spacer(ui: &mut egui::Ui) { ui.allocate_exact_size(egui::vec2(GAP, 1.0), egui::Sense::hover()); }
@@ -219,8 +220,8 @@ fn brand(ui: &mut egui::Ui, h: f32, step: usize, first: bool) {
         }
     }
     p.text(rect.min + egui::vec2(28.0, 104.0), egui::Align2::LEFT_TOP, "PutiaCNC", egui::FontId::proportional(26.0), white);
-    p.text(rect.min + egui::vec2(28.0, 142.0), egui::Align2::LEFT_TOP, "From drawing to G-code,\nchecked before it cuts.", egui::FontId::proportional(14.0), white.gamma_multiply(0.85));
-    for (i, t) in ["Draw or import shapes", "See the toolpath in 3D", "Catch mistakes early"].iter().enumerate() {
+    p.text(rect.min + egui::vec2(28.0, 142.0), egui::Align2::LEFT_TOP, tr("From drawing to G-code,\nchecked before it cuts."), egui::FontId::proportional(14.0), white.gamma_multiply(0.85));
+    for (i, t) in [tr("Draw or import shapes"), tr("See the toolpath in 3D"), tr("Catch mistakes early")].iter().enumerate() {
         let y = rect.min.y + 232.0 + i as f32 * 34.0;
         let c = egui::pos2(rect.min.x + 38.0, y + 9.0);
         p.circle_stroke(c, 8.0, egui::Stroke::new(1.6_f32, white.gamma_multiply(0.9)));
@@ -228,7 +229,7 @@ fn brand(ui: &mut egui::Ui, h: f32, step: usize, first: bool) {
         p.text(egui::pos2(rect.min.x + 56.0, y), egui::Align2::LEFT_TOP, *t, egui::FontId::proportional(14.0), white);
     }
     let _ = first;
-    p.text(egui::pos2(rect.min.x + 28.0, rect.max.y - 30.0), egui::Align2::LEFT_TOP, format!("Step {} of {}", step + 1, STEPS), egui::FontId::proportional(13.0), white.gamma_multiply(0.75));
+    p.text(egui::pos2(rect.min.x + 28.0, rect.max.y - 30.0), egui::Align2::LEFT_TOP, tr_f("Step {n} of {total}", &[("n", &(step + 1)), ("total", &STEPS)]), egui::FontId::proportional(13.0), white.gamma_multiply(0.75));
 }
 
 /// Dots for the steps, then the name of this one.
@@ -242,7 +243,7 @@ fn dots(ui: &mut egui::Ui, step: usize) {
             ui.painter().circle_filled(c, if i == step { 5.5 } else { 4.5 }, if i <= step { acc } else { off });
         }
         ui.add_space(4.0);
-        ui.label(egui::RichText::new(NAMES[step].to_uppercase()).small().weak());
+        ui.label(egui::RichText::new(tr(NAMES[step]).to_uppercase()).small().weak());
     });
 }
 
@@ -265,21 +266,36 @@ fn ruler(p: &egui::Painter, r: egui::Rect, inches: bool) {
 }
 
 fn units_step(ui: &mut egui::Ui, w: &mut Wizard) {
-    title(ui, if w.first { "Welcome" } else { "Set up another machine" });
+    title(ui, if w.first { tr("Welcome") } else { tr("Set up another machine") });
     ui.add_space(4.0);
     sub(ui, if w.first {
-        "A minute of setup matches the work area, the feeds and the tool list to your machine. Everything can be changed later in the File menu (Machines and Tool library)."
+        tr("A minute of setup matches the work area, the feeds and the tool list to your machine. Everything can be changed later in the File menu (Machines and Tool library).")
     } else {
-        "This adds a new machine and a new tool library. Your existing machines, libraries and projects are not touched."
+        tr("This adds a new machine and a new tool library. Your existing machines, libraries and projects are not touched.")
     });
-    ui.add_space(18.0);
-    ui.label(egui::RichText::new("How do you measure?").strong().size(16.0));
+    ui.add_space(12.0);
+    // the language first: everything after it is read in it (the same choice as View > Language)
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(tr("Language")).strong());
+        let now = putiacnc_core::i18n::language();
+        let name = putiacnc_core::i18n::LANGUAGES.iter().find(|(c, _, _)| *c == now).map_or(now, |(_, n, _)| *n);
+        egui::ComboBox::from_id_source("setup_language").selected_text(name).show_ui(ui, |ui| {
+            for (code, name, _) in putiacnc_core::i18n::LANGUAGES {
+                if ui.selectable_label(now == *code, *name).clicked() && now != *code {
+                    putiacnc_core::i18n::set_language(code);
+                    crate::prefs::modify(|s| s.language = Some(code.to_string()));
+                }
+            }
+        });
+    });
+    ui.add_space(12.0);
+    ui.label(egui::RichText::new(tr("How do you measure?")).strong().size(16.0));
     ui.add_space(8.0);
     let tw = (ui.available_width() - 14.0) / 2.0;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 14.0;
         for inch in [false, true] {
-            let (name, hint) = if inch { ("Inches", "fractions like 3/16 are fine") } else { ("Millimetres", "sizes, tools and G-code in mm") };
+            let (name, hint) = if inch { (tr("Inches"), tr("fractions like 3/16 are fine")) } else { (tr("Millimetres"), tr("sizes, tools and G-code in mm")) };
             if tile(ui, egui::vec2(tw, 150.0), w.inches == inch, |p, r, ink, weak| {
                 ruler(p, egui::Rect::from_min_size(r.min + egui::vec2(8.0, 6.0), egui::vec2(r.width() - 16.0, 30.0)), inch);
                 p.text(egui::pos2(r.center().x, r.min.y + 60.0), egui::Align2::CENTER_TOP, name, egui::FontId::proportional(19.0), ink);
@@ -288,7 +304,7 @@ fn units_step(ui: &mut egui::Ui, w: &mut Wizard) {
         }
     });
     ui.add_space(14.0);
-    ui.weak("You can change this any time in View \u{2192} Units.");
+    ui.weak(tr("You can change this any time in View \u{2192} Units."));
 }
 
 /// What the machine picker lists: the catalogue entries whose maker and model hold every word typed.
@@ -302,11 +318,11 @@ fn size_text(x: f64, y: f64, inches: bool) -> String {
 }
 
 fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
-    title(ui, "Which machine do you have?");
+    title(ui, tr("Which machine do you have?"));
     ui.add_space(4.0);
-    sub(ui, "Pick yours and the sizes, speeds and controller fill in. Not listed? Choose \u{201c}Other\u{201d}.");
+    sub(ui, tr("Pick yours and the sizes, speeds and controller fill in. Not listed? Choose \u{201c}Other\u{201d}."));
     ui.add_space(10.0);
-    ui.add(egui::TextEdit::singleline(&mut w.query).hint_text("Search: maker or model").desired_width(ui.available_width()).margin(egui::vec2(10.0, 6.0)));
+    ui.add(egui::TextEdit::singleline(&mut w.query).hint_text(tr("Search: maker or model")).desired_width(ui.available_width()).margin(egui::vec2(10.0, 6.0)));
     ui.add_space(8.0);
     let list = matches(&w.query);
     let cols = 3;
@@ -322,7 +338,7 @@ fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
                 for cell in row {
                     let on = match cell { None => other, Some(i) => w.pick == Some(*i) };
                     let (t1, t2, t3) = match cell {
-                        None => ("Other / not listed".to_string(), String::new(), "I will type the sizes".to_string()),
+                        None => (tr("Other / not listed").to_string(), String::new(), tr("I will type the sizes").to_string()),
                         Some(i) => { let c = &setup::catalog()[*i]; (c.model.clone(), c.maker.clone(), size_text(c.x, c.y, w.inches)) }
                     };
                     let (clicked, trect) = tile_at(ui, egui::vec2(tw, 72.0), on, |p, r, ink, weak| {
@@ -341,7 +357,7 @@ fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
                 }
             });
         }
-        if list.is_empty() { ui.add_space(6.0); ui.weak("Nothing matches. Choose \u{201c}Other\u{201d} to type the sizes."); }
+        if list.is_empty() { ui.add_space(6.0); ui.weak(tr("Nothing matches. Choose \u{201c}Other\u{201d} to type the sizes.")); }
     }
     match pick { Some(Some(i)) => w.pick_machine(i), Some(None) if w.pick.is_some() || !w.machine.notes.is_empty() => w.pick_other(),
         _ => {} }
@@ -349,9 +365,9 @@ fn machine_step(ui: &mut egui::Ui, w: &mut Wizard) {
 
 /// The second part of the machine: its name, the figures, and every value to adjust.
 fn details_step(ui: &mut egui::Ui, w: &mut Wizard) {
-    title(ui, "Name it and check the sizes");
+    title(ui, tr("Name it and check the sizes"));
     ui.add_space(4.0);
-    sub(ui, if w.pick.is_some() { "These are the maker's figures. Change any that differ on your machine." } else { "Pick the closest size class, then type the real values." });
+    sub(ui, if w.pick.is_some() { tr("These are the maker's figures. Change any that differ on your machine.") } else { tr("Pick the closest size class, then type the real values.") });
     ui.add_space(12.0);
     spec_card(ui, w);
     adjust_form(ui, w);
@@ -371,22 +387,22 @@ fn spec_card(ui: &mut egui::Ui, w: &mut Wizard) {
             ui.painter().circle_filled(r.left_bottom(), 3.5, acc);
             ui.add_space(8.0);
             ui.vertical(|ui| {
-                ui.horizontal(|ui| { ui.label("Name"); ui.add(egui::TextEdit::singleline(&mut w.machine.name).desired_width(ui.available_width().min(300.0))); });
+                ui.horizontal(|ui| { ui.label(tr("Name")); ui.add(egui::TextEdit::singleline(&mut w.machine.name).desired_width(ui.available_width().min(300.0))); });
                 let m = &w.machine;
                 let area = if w.inches { format!("{:.1} \u{d7} {:.1} \u{d7} {:.1} in", m.x / 25.4, m.y / 25.4, m.z / 25.4) } else { format!("{:.0} \u{d7} {:.0} \u{d7} {:.0} mm", m.x, m.y, m.z) };
-                let spindle = m.rpm_max.map_or("not set".to_string(), |r| format!("up to {:.0} rpm", r));
+                let spindle = m.rpm_max.map_or(tr("not set").to_string(), |r| tr_f("up to {rpm} rpm", &[("rpm", &format!("{:.0}", r))]));
                 ui.add_space(2.0);
                 egui::Grid::new("setup_facts").num_columns(2).spacing([14.0, 3.0]).show(ui, |ui| {
-                    ui.weak("Work area"); ui.label(area); ui.end_row();
-                    ui.weak("Spindle"); ui.label(spindle); ui.end_row();
-                    ui.weak("G-code for"); ui.label(putiacnc_core::model::dialect_name(&m.post)); ui.end_row();
+                    ui.weak(tr("Work area")); ui.label(area); ui.end_row();
+                    ui.weak(tr("Spindle")); ui.label(spindle); ui.end_row();
+                    ui.weak(tr("G-code for")); ui.label(putiacnc_core::model::dialect_name(&m.post)); ui.end_row();
                 });
             });
         });
         if let Some(c) = w.pick.and_then(|i| setup::catalog().get(i)) {
             ui.add_space(6.0);
-            ui.add(egui::Label::new(egui::RichText::new("Figures published by the maker; check them against your machine's manual.").weak()).wrap(true));
-            ui.hyperlink_to("Maker's product page", &c.source);
+            ui.add(egui::Label::new(egui::RichText::new(tr("Figures published by the maker; check them against your machine's manual.")).weak()).wrap(true));
+            ui.hyperlink_to(tr("Maker's product page"), &c.source);
             if !c.note.is_empty() { ui.add(egui::Label::new(egui::RichText::new(&c.note).weak().small()).wrap(true)); }
         }
     });
@@ -396,7 +412,7 @@ fn spec_card(ui: &mut egui::Ui, w: &mut Wizard) {
 fn adjust_form(ui: &mut egui::Ui, w: &mut Wizard) {
     if w.pick.is_none() {
         ui.add_space(4.0);
-        ui.label("Closest size class:");
+        ui.label(tr("Closest size class:"));
         let cw = (ui.available_width() - 8.0) / 2.0;
         let mut pick = None;
         for row in 0..2 {
@@ -409,58 +425,58 @@ fn adjust_form(ui: &mut egui::Ui, w: &mut Wizard) {
             });
         }
         if let Some(i) = pick { w.pick_preset(i); }
-        ui.weak("Only a starting point: set the real values below.");
+        ui.weak(tr("Only a starting point: set the real values below."));
     }
     let (lu, su) = if w.inches { ("in", "in/min") } else { ("mm", "mm/min") };
     let (k, sk) = if w.inches { (25.4, 25.4) } else { (1.0, 1.0) };
-    section(ui, "Travel and speed");
+    section(ui, tr("Travel and speed"));
     egui::Grid::new("setup_travel").num_columns(7).spacing([SP, 8.0]).show(ui, |ui| {
-        key(ui, "Travel X"); field(ui, &mut w.machine.x, k, 10.0, 100000.0, 1.0, lu, "How far the tool can move in X");
+        key(ui, tr("Travel X")); field(ui, &mut w.machine.x, k, 10.0, 100000.0, 1.0, lu, tr("How far the tool can move in X"));
         spacer(ui);
-        key(ui, "Travel Y"); field(ui, &mut w.machine.y, k, 10.0, 100000.0, 1.0, lu, "How far the tool can move in Y");
+        key(ui, tr("Travel Y")); field(ui, &mut w.machine.y, k, 10.0, 100000.0, 1.0, lu, tr("How far the tool can move in Y"));
         ui.end_row();
-        key(ui, "Travel Z"); field(ui, &mut w.machine.z, k, 5.0, 10000.0, 1.0, lu, "How far the tool can move in Z");
+        key(ui, tr("Travel Z")); field(ui, &mut w.machine.z, k, 5.0, 10000.0, 1.0, lu, tr("How far the tool can move in Z"));
         spacer(ui);
-        key(ui, "Rapid rate"); field(ui, &mut w.machine.rapid, sk, 1.0, 1.0e6, 10.0, su, "How fast the machine travels in its rapid moves. Used for the time estimate only.");
+        key(ui, tr("Rapid rate")); field(ui, &mut w.machine.rapid, sk, 1.0, 1.0e6, 10.0, su, tr("How fast the machine travels in its rapid moves. Used for the time estimate only."));
         ui.end_row();
     });
-    section(ui, "Limits (0 = no limit)");
+    section(ui, tr("Limits (0 = no limit)"));
     egui::Grid::new("setup_limits").num_columns(7).spacing([SP, 8.0]).show(ui, |ui| {
-        key(ui, "Spindle max"); limit(ui, &mut w.machine.rpm_max, 1.0, 200000.0, 100.0, "rpm");
+        key(ui, tr("Spindle max")); limit(ui, &mut w.machine.rpm_max, 1.0, 200000.0, 100.0, "rpm");
         spacer(ui);
-        key(ui, "Max feed"); limit(ui, &mut w.machine.feed_max, sk, 1.0e6, 10.0, su);
+        key(ui, tr("Max feed")); limit(ui, &mut w.machine.feed_max, sk, 1.0e6, 10.0, su);
         ui.end_row();
-        key(ui, "Max plunge"); limit(ui, &mut w.machine.plunge_max, sk, 1.0e6, 10.0, su);
+        key(ui, tr("Max plunge")); limit(ui, &mut w.machine.plunge_max, sk, 1.0e6, 10.0, su);
         ui.end_row();
     });
     ui.add_space(4.0);
-    ui.weak("A tool that asks for more is held to the limit in the G-code, with a warning.");
-    section(ui, "Controller");
-    let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", "Mach3 / LinuxCNC"]).max(100.0);
+    ui.weak(tr("A tool that asks for more is held to the limit in the G-code, with a warning."));
+    section(ui, tr("Controller"));
+    let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", tr("Mach3 / LinuxCNC")]).max(100.0);
     egui::Grid::new("setup_ctl").num_columns(2).spacing([SP, 8.0]).show(ui, |ui| {
-        key(ui, "G-code output for");
+        key(ui, tr("G-code output for"));
         egui::ComboBox::from_id_source("setup_post").width(gw).selected_text(putiacnc_core::model::dialect_name(&w.machine.post)).show_ui(ui, |ui| {
             for (id, name) in DIALECTS { ui.selectable_value(&mut w.machine.post, id.to_string(), name); }
         });
         ui.end_row();
-        key(ui, "Rigidity");
+        key(ui, tr("Rigidity"));
         let cur = putiacnc_core::feeds::RIGIDITY.iter().find(|r| r.0 == w.machine.rigid).map_or("", |r| r.1);
         egui::ComboBox::from_id_source("setup_rigid").selected_text(cur).show_ui(ui, |ui| {
             for (id, name) in putiacnc_core::feeds::RIGIDITY { ui.selectable_value(&mut w.machine.rigid, id.to_string(), name); }
-        }).response.on_hover_text("How stiff the machine is: the feeds and speeds suggestion takes heavier chips and deeper cuts from a stiffer one. Start with light unless you know better");
+        }).response.on_hover_text(tr("How stiff the machine is: the feeds and speeds suggestion takes heavier chips and deeper cuts from a stiffer one. Start with light unless you know better"));
         ui.end_row();
     });
 }
 
 fn tools_step(ui: &mut egui::Ui, w: &mut Wizard) {
-    title(ui, "Which tools do you have?");
+    title(ui, tr("Which tools do you have?"));
     ui.add_space(4.0);
-    sub(ui, "Tick what you own; more can be added any time in the tool library.");
+    sub(ui, tr("Tick what you own; more can be added any time in the tool library."));
     ui.add_space(14.0);
-    ui.label(egui::RichText::new(if w.inches { "Always included: straight end mills, 1/8\u{2033} and 1/4\u{2033}" } else { "Always included: straight end mills, 1 to 8 mm" }).strong());
+    ui.label(egui::RichText::new(if w.inches { tr("Always included: straight end mills, 1/8\u{2033} and 1/4\u{2033}") } else { tr("Always included: straight end mills, 1 to 8 mm") }).strong());
     ui.add_space(10.0);
     let tw = (ui.available_width() - 12.0) / 2.0;
-    let opts: [(&str, &str); 4] = [("V-bits and engraving bits", "V-carving, lettering"), ("Ball nose bits", "3D relief carving"), ("Surfacing bit", "Flattening the spoilboard"), ("Pens and markers", "Plotting on paper")];
+    let opts: [(&str, &str); 4] = [(tr("V-bits and engraving bits"), tr("V-carving, lettering")), (tr("Ball nose bits"), tr("3D relief carving")), (tr("Surfacing bit"), tr("Flattening the spoilboard")), (tr("Pens and markers"), tr("Plotting on paper"))];
     for row in 0..2 {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 12.0;
@@ -477,7 +493,7 @@ fn tools_step(ui: &mut egui::Ui, w: &mut Wizard) {
     }
     let n = setup::starter_tools(ToolChoice { inch_sizes: w.inches, ..w.tools }).len();
     ui.add_space(12.0);
-    ui.weak(format!("{n} tools will be added."));
+    ui.weak(tr_n(n as u64, "{n} tool will be added.", "{n} tools will be added."));
 }
 
 fn finish_step(ui: &mut egui::Ui, w: &Wizard) {
@@ -487,14 +503,14 @@ fn finish_step(ui: &mut egui::Ui, w: &Wizard) {
     ui.painter().circle_filled(rect.center(), 22.0, green);
     polyline(ui.painter(), vec![rect.center() + egui::vec2(-9.0, 1.0), rect.center() + egui::vec2(-2.5, 8.0), rect.center() + egui::vec2(10.0, -7.0)], egui::Stroke::new(3.5_f32, Color32::WHITE));
     ui.add_space(8.0);
-    title(ui, "You're set up");
+    title(ui, tr("You're set up"));
     ui.add_space(4.0);
-    sub(ui, if w.first { "The default machine and the tools of the current library are replaced." } else { "A new machine and a new library \u{201c}My tools\u{201d} are added and selected." });
+    sub(ui, if w.first { tr("The default machine and the tools of the current library are replaced.") } else { tr("A new machine and a new library \u{201c}My tools\u{201d} are added and selected.") });
     ui.add_space(16.0);
     let m = &w.machine;
     let area = if w.inches { format!("{:.1} \u{d7} {:.1} \u{d7} {:.1} in", m.x / 25.4, m.y / 25.4, m.z / 25.4) } else { format!("{:.0} \u{d7} {:.0} \u{d7} {:.0} mm", m.x, m.y, m.z) };
     let ntools = setup::starter_tools(ToolChoice { inch_sizes: w.inches, ..w.tools }).len();
-    let cards = [("Machine", m.name.trim().to_string(), area), ("Units and G-code", (if w.inches { "Inches" } else { "Millimetres" }).to_string(), putiacnc_core::model::dialect_name(&m.post).to_string()), ("Tools", format!("{ntools} tools"), "end mills and your picks".to_string())];
+    let cards = [(tr("Machine"), m.name.trim().to_string(), area), (tr("Units and G-code"), (if w.inches { tr("Inches") } else { tr("Millimetres") }).to_string(), putiacnc_core::model::dialect_name(&m.post).to_string()), (tr("Tools"), tr_n(ntools as u64, "{n} tool", "{n} tools"), tr("end mills and your picks").to_string())];
     let tw = (ui.available_width() - 24.0) / 3.0;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 12.0;
@@ -511,8 +527,8 @@ fn finish_step(ui: &mut egui::Ui, w: &Wizard) {
         }
     });
     ui.add_space(14.0);
-    ui.weak("Open this again any time from Help \u{2192} Setup assistant.");
-    ui.weak("There is more than one sample project: see Generate \u{2192} Sample projects.");
+    ui.weak(tr("Open this again any time from Help \u{2192} Setup assistant."));
+    ui.weak(tr("There is more than one sample project: see Generate \u{2192} Sample projects."));
 }
 
 /// Dims the program behind the window so that the window is the one thing to look at. It is an area of its own, shown before the
@@ -527,7 +543,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     if !app.setup.open { return; }
     let (mut next, mut back, mut done, mut skip, mut tour, mut sample) = (false, false, false, false, false, false);
     dim(ctx);
-    let name = "Setup assistant";
+    let name = tr("Setup assistant");
     let scr = ctx.screen_rect();
     let win_w = WIN_W.min(scr.width() - 40.0).max(640.0);
     // one size for every step, so the window does not jump about
@@ -559,15 +575,15 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 });
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if app.setup.step + 1 < STEPS && ui.button(if app.setup.first { "Skip setup" } else { "Cancel" }).clicked() { skip = true; }
+                    if app.setup.step + 1 < STEPS && ui.button(if app.setup.first { tr("Skip setup") } else { tr("Cancel") }).clicked() { skip = true; }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let last = app.setup.step + 1 >= STEPS;
-                        let label = if last { "  Start  " } else { "  Next \u{2192}  " };
+                        let label = if last { tr("  Start  ") } else { tr("  Next \u{2192}  ") };
                         let go = egui::Button::new(egui::RichText::new(label).color(Color32::WHITE).strong()).fill(accent(ui)).min_size(egui::vec2(96.0, 28.0));
                         if ui.add(go).clicked() { if last { done = true; } else { next = true; } }
-                        if last && ui.add(egui::Button::new("Start with a quick tour").min_size(egui::vec2(72.0, 28.0))).on_hover_text("Finish the setup, then a two-minute look at where things are").clicked() { done = true; tour = true; }
-                        if last && ui.add(egui::Button::new("Try a sample").min_size(egui::vec2(72.0, 28.0))).on_hover_text("Finish the setup and open a small name plate made to fit your machine. Help \u{2192} Try a sample has more samples").clicked() { done = true; sample = true; }
-                        if app.setup.step > 0 && ui.add(egui::Button::new("\u{2190} Back").min_size(egui::vec2(72.0, 28.0))).clicked() { back = true; }
+                        if last && ui.add(egui::Button::new(tr("Start with a quick tour")).min_size(egui::vec2(72.0, 28.0))).on_hover_text(tr("Finish the setup, then a two-minute look at where things are")).clicked() { done = true; tour = true; }
+                        if last && ui.add(egui::Button::new(tr("Try a sample")).min_size(egui::vec2(72.0, 28.0))).on_hover_text(tr("Finish the setup and open a small name plate made to fit your machine. Help \u{2192} Try a sample has more samples")).clicked() { done = true; sample = true; }
+                        if app.setup.step > 0 && ui.add(egui::Button::new(tr("\u{2190} Back")).min_size(egui::vec2(72.0, 28.0))).clicked() { back = true; }
                     });
                 });
             });

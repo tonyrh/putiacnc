@@ -1,4 +1,5 @@
 //! Help → About: what the app is, its version, licence and links, and a few things that help when reporting a problem.
+use putiacnc_core::i18n::{tr, tr_f};
 use crate::app::App;
 use eframe::egui;
 
@@ -113,7 +114,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("About PutiaCNC").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "About PutiaCNC", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(500.0);
-        if crate::csd::dialog_header(ui, "About PutiaCNC", true) { close = true; }
+        if crate::csd::dialog_header(ui, tr("About PutiaCNC"), true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.add_space(10.0);
         let head = ui.horizontal(|ui| {
@@ -122,28 +123,28 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
             ui.add_space(8.0);
             ui.vertical(|ui| {
                 ui.label(egui::RichText::new("PutiaCNC").size(22.0).strong());
-                ui.label(format!("Version {}", crate::update::CURRENT));
-                ui.weak("A CNC toolpath studio for GRBL and Mach3 / LinuxCNC machines.");
+                ui.label(tr_f("Version {v}", &[("v", &crate::update::CURRENT)]));
+                ui.weak(tr("A CNC toolpath studio for GRBL and Mach3 / LinuxCNC machines."));
             });
         }).response;
         // the whole top block is a link to the project page (the web page; the source code has its own link below)
         let link = ui.interact(head.rect, egui::Id::new("about_head"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(PAGE_URL);
         if link.clicked() { let _ = open::that_detached(PAGE_URL); }
         ui.add_space(10.0);
-        ui.add(egui::Label::new("Draw or import shapes, add operations, preview the cut in 3D and write the G-code. Free software under the GNU General Public License, version 3 or later: you may use, study, share and change it.").wrap(true));
+        ui.add(egui::Label::new(tr("Draw or import shapes, add operations, preview the cut in 3D and write the G-code. Free software under the GNU General Public License, version 3 or later: you may use, study, share and change it.")).wrap(true));
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             let mark = github_mark(ctx, ui.visuals().dark_mode);
-            let github = match &mark { Some(t) => egui::Button::image_and_text(egui::Image::new(egui::load::SizedTexture::new(t.id(), egui::vec2(16.0, 16.0))), " Source code"), None => egui::Button::new("Source code") };
-            if ui.add(github).on_hover_text("The source code, on GitHub").clicked() { let _ = open::that_detached(REPO_URL); }
-            if ui.button("Report a problem").on_hover_text("Opens the problem form on GitHub (an account is needed to post)").clicked() { let _ = open::that_detached(format!("{REPO_URL}/issues/new?template=bug_report.yml")); }
-            if ui.button("Copy system info").on_hover_text("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)").clicked() { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); }
+            let github = match &mark { Some(t) => egui::Button::image_and_text(egui::Image::new(egui::load::SizedTexture::new(t.id(), egui::vec2(16.0, 16.0))), " Source code"), None => egui::Button::new(tr("Source code")) };
+            if ui.add(github).on_hover_text(tr("The source code, on GitHub")).clicked() { let _ = open::that_detached(REPO_URL); }
+            if ui.button(tr("Report a problem")).on_hover_text(tr("Opens the problem form on GitHub (an account is needed to post)")).clicked() { let _ = open::that_detached(format!("{REPO_URL}/issues/new?template=bug_report.yml")); }
+            if ui.button(tr("Copy system info")).on_hover_text(tr("Version, system, display and graphics driver, and config folder, for a bug report (no user or computer name)")).clicked() { let t = version_info(ctx, &app.gl_info); ctx.output_mut(|o| o.copied_text = t); }
         });
         ui.add_space(8.0);
-        egui::CollapsingHeader::new(egui::RichText::new("Notices").small().weak()).default_open(false).show(ui, |ui| {
-            ui.add(egui::Label::new(egui::RichText::new("Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by them; the names only say which bits the ready-made libraries match. Dimensions come from the makers' published catalogs; feeds, speeds and notes are conservative starting values, not the makers' recommendations.").small().weak()).wrap(true));
+        egui::CollapsingHeader::new(egui::RichText::new(tr("Notices")).small().weak()).default_open(false).show(ui, |ui| {
+            ui.add(egui::Label::new(egui::RichText::new(tr("Amana Tool, Bosch, CMT, Diablo, Freud and Whiteside are trademarks of their owners. PutiaCNC is not affiliated with or endorsed by them; the names only say which bits the ready-made libraries match. Dimensions come from the makers' published catalogs; feeds, speeds and notes are conservative starting values, not the makers' recommendations.")).small().weak()).wrap(true));
             ui.add_space(4.0);
-            ui.add(egui::Label::new(egui::RichText::new("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui. The single-line text fonts are the Hershey fonts (created by Dr. A. V. Hershey at the U.S. National Bureau of Standards; data format by James Hurt, Cognition, Inc.). The GitHub logo is from GitHub\u{2019}s Octicons (MIT licence, copyright GitHub Inc.).").small().weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new(tr("Built with Rust and the egui toolkit; the fallback fonts are the ones bundled with egui. The single-line text fonts are the Hershey fonts (created by Dr. A. V. Hershey at the U.S. National Bureau of Standards; data format by James Hurt, Cognition, Inc.). The GitHub logo is from GitHub\u{2019}s Octicons (MIT licence, copyright GitHub Inc.).")).small().weak()).wrap(true));
         });
         ui.add_space(6.0);
         });

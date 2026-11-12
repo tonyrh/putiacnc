@@ -1,4 +1,5 @@
 //! The estimated time, split up: where it goes, operation by operation. Opens from the time in the status bar.
+use putiacnc_core::i18n::{tr, tr_f};
 use crate::app::{fmt_time, App};
 use eframe::egui::{self, Color32, Sense, Vec2};
 use putiacnc_core::toolpath::{OpTime, Timing};
@@ -25,7 +26,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     egui::Window::new("Estimated time").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Estimated time", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
         ui.set_width(520.0);
-        if crate::csd::dialog_header(ui, "Estimated time", true) { close = true; }
+        if crate::csd::dialog_header(ui, tr("Estimated time"), true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
             ui.add_space(8.0);
             let sum: f64 = t.ops.iter().map(|o| o.total()).sum::<f64>() + t.waits;
@@ -56,14 +57,14 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 };
                 for (i, o) in t.ops.iter().enumerate() {
                     let kind = app.project.data.ops.get(i).map_or(String::new(), |op| crate::panels::label_of(crate::panels::KINDS, &op.p.kind));
-                    let tip = format!("cutting {} · moving between cuts {}", fmt_time(o.cut), fmt_time(o.travel));
+                    let tip = tr_f("cutting {cut} · moving between cuts {travel}", &[("cut", &fmt_time(o.cut)), ("travel", &fmt_time(o.travel))]);
                     row(ui, crate::theme::op_color(i, dark), format!("{} · {}", i + 1, kind), o.cut, o.travel, &tip);
                 }
                 if t.waits > 0.0 {
-                    row(ui, Color32::from_gray(if dark { 150 } else { 120 }), "Waiting for the spindle".into(), t.waits, 0.0, "The program waits after the spindle starts or changes speed (machine settings: Spindle wait)");
+                    row(ui, Color32::from_gray(if dark { 150 } else { 120 }), tr("Waiting for the spindle").into(), t.waits, 0.0, tr("The program waits after the spindle starts or changes speed (machine settings: Spindle wait)"));
                 }
                 // the total in the same columns, so the times line up
-                ui.label(egui::RichText::new("Total").strong());
+                ui.label(egui::RichText::new(tr("Total")).strong());
                 let (r, _) = ui.allocate_exact_size(Vec2::new(bar_w, 14.0), Sense::hover());
                 ui.painter().hline(r.x_range(), r.center().y - 7.0 - 4.0, egui::Stroke::new(1.0_f32, ui.visuals().widgets.noninteractive.bg_stroke.color));
                 ui.add_sized([time_w, 20.0], egui::Label::new(egui::RichText::new(fmt_time(sum)).monospace().strong()));
@@ -71,7 +72,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             });
             ui.add_space(6.0);
-            ui.add(egui::Label::new(egui::RichText::new("Solid: cutting. Faded: moving between cuts (rapids, plunges, retracts). Pauses for you (M0) and tool changes by hand take no time here. Includes the machine's time correction, and the plug pieces.").small().weak()).wrap(true));
+            ui.add(egui::Label::new(egui::RichText::new(tr("Solid: cutting. Faded: moving between cuts (rapids, plunges, retracts). Pauses for you (M0) and tool changes by hand take no time here. Includes the machine's time correction, and the plug pieces.")).small().weak()).wrap(true));
             ui.add_space(6.0);
         });
     }));

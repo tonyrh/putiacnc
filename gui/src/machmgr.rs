@@ -1,5 +1,6 @@
 //! Machine manager: the list of machines (name, rapid rate, time correction, work area) and the
 //! dialog to edit them, like the browser app's "Machines" dialog.
+use putiacnc_core::i18n::{tr, tr_f, tr_n};
 use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use crate::app::App;
@@ -22,7 +23,7 @@ impl App {
         if let Some(dir) = p.parent() { let _ = std::fs::create_dir_all(dir); }
         let mut copy = self.machines.clone();
         copy.repair();
-        if let Err(e) = std::fs::write(&p, copy.to_json()) { self.mach_msg = format!("Could not save the machines: {e}"); }
+        if let Err(e) = std::fs::write(&p, copy.to_json()) { self.mach_msg = tr_f("Could not save the machines: {e}", &[("e", &e)]); }
     }
 
     /// Make the project's machine match the list: a machine the project brings along is added,
@@ -84,8 +85,8 @@ impl App {
     pub fn finish_mach_export(&mut self, p: std::path::PathBuf) {
         let id = self.mach_sel.clone();
         self.mach_msg = match std::fs::write(&p, self.machines.export_machine(&id)) {
-            Ok(()) => format!("Exported \"{}\".", self.machines.resolve(&id).name),
-            Err(e) => format!("Could not export: {e}"),
+            Ok(()) => tr_f("Exported \"{name}\".", &[("name", &self.machines.resolve(&id).name)]),
+            Err(e) => tr_f("Could not export: {e}", &[("e", &e)]),
         };
     }
 
@@ -93,7 +94,7 @@ impl App {
         match std::fs::read_to_string(&p).map_err(|e| e.to_string()).and_then(|s| self.machines.import(&s)) {
             Ok((id, n)) => {
                 self.mach_sel = id;
-                self.mach_msg = format!("Imported {n} machine{}.", if n == 1 { "" } else { "s" });
+                self.mach_msg = tr_n(n as u64, "Imported {n} machine.", "Imported {n} machines.");
                 self.machines_dirty = true;
             }
             Err(e) => self.mach_msg = e,
@@ -125,7 +126,7 @@ pub fn machine_manager(ctx: &egui::Context, app: &mut App) {
         .default_size([830.0, 580.0]).min_width(830.0).max_width(830.0).min_height(320.0)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Machines", ctx.screen_rect().center()))
         .show(ctx, crate::csd::trapped(|ui| {
-            if crate::csd::dialog_header(ui, "Machines", true) { close = true; }
+            if crate::csd::dialog_header(ui, tr("Machines"), true) { close = true; }
             body(ui, app);
         }));
     if close { open = false; }
@@ -160,30 +161,30 @@ fn body(ui: &mut Ui, app: &mut App) {
     footer(ui, app);
     ui.add_space(8.0);
     let used = app.project.data.machine.as_ref().map(|p| p.id == app.mach_sel).unwrap_or(false);
-    ui.weak(if !app.mach_msg.is_empty() { app.mach_msg.as_str() } else if used { "Used by the current project. Machines are saved automatically." } else { "Machines are saved automatically." });
+    ui.weak(if !app.mach_msg.is_empty() { app.mach_msg.as_str() } else if used { tr("Used by the current project. Machines are saved automatically.") } else { tr("Machines are saved automatically.") });
 }
 
 /// The box for pasting a Grbl `$$` dump, with the button that turns it into a machine.
 fn paste_panel(ui: &mut Ui, app: &mut App) {
     let Some(text) = app.grbl_paste.as_mut() else { return };
-    ui.label("Paste what Grbl prints for $$ (send $$ from any sender, copy the lines):");
+    ui.label(tr("Paste what Grbl prints for $$ (send $$ from any sender, copy the lines):"));
     egui::ScrollArea::vertical().id_source("grblpaste").max_height(110.0).show(ui, |ui| {
         ui.add(egui::TextEdit::multiline(text).desired_rows(5).desired_width(f32::INFINITY).font(egui::TextStyle::Monospace).hint_text("$110=3000.000\n$111=3000.000\n$130=300.000 ..."));
     });
     let dump = text.clone();
     ui.horizontal(|ui| {
-        if ui.add_enabled(!dump.trim().is_empty(), egui::Button::new("Make machine")).clicked() {
+        if ui.add_enabled(!dump.trim().is_empty(), egui::Button::new(tr("Make machine"))).clicked() {
             match putiacnc_core::grblsettings::machine_from_dump(&dump) {
                 Ok(m) => {
                     app.mach_sel = app.machines.push_unique(m);
-                    app.mach_msg = "Machine made from the $$ settings. Give it a name and check the values.".into();
+                    app.mach_msg = tr("Machine made from the $$ settings. Give it a name and check the values.").into();
                     app.grbl_paste = None;
                     app.machine_edited();
                 }
                 Err(e) => app.mach_msg = e,
             }
         }
-        if ui.button("Cancel").clicked() { app.grbl_paste = None; }
+        if ui.button(tr("Cancel")).clicked() { app.grbl_paste = None; }
     });
     ui.add_space(6.0);
 }
@@ -192,8 +193,8 @@ fn footer(ui: &mut Ui, app: &mut App) {
     let sname = app.tool_speed().0;
     ui.horizontal(|ui| {
         if app.confirm_mach_del {
-            ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), "Delete this machine?");
-            if ui.button("Delete").clicked() {
+            ui.colored_label(crate::msg::colour(crate::app::Level::Error, ui.visuals().dark_mode), tr("Delete this machine?"));
+            if ui.button(tr("Delete")).clicked() {
                 let id = app.mach_sel.clone();
                 match app.machines.delete(&id) {
                     Ok(next) => {
@@ -202,7 +203,7 @@ fn footer(ui: &mut Ui, app: &mut App) {
                         if app.project.data.machine.as_ref().map(|p| p.id == id).unwrap_or(false) {
                             app.sync_machine();
                             app.modified = true;
-                            app.mach_msg = "The project now uses another machine.".into();
+                            app.mach_msg = tr("The project now uses another machine.").into();
                         } else { app.mach_msg.clear(); }
                         app.machines_dirty = true;
                     }
@@ -211,26 +212,26 @@ fn footer(ui: &mut Ui, app: &mut App) {
                 app.confirm_mach_del = false;
                 return;
             }
-            if ui.button("Cancel").clicked() { app.confirm_mach_del = false; }
+            if ui.button(tr("Cancel")).clicked() { app.confirm_mach_del = false; }
         } else {
-            ui.menu_button("+ New machine", |ui| {
+            ui.menu_button(tr("+ New machine"), |ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.set_min_width(200.0);
-                if ui.button("Blank machine").clicked() {
+                if ui.button(tr("Blank machine")).clicked() {
                     let id = app.machines.add(None, false);
                     app.mach_sel = id;
                     app.machine_edited();
                     ui.close_menu();
                 }
                 let sel_name = app.machines.resolve(&app.mach_sel).name.clone();
-                if ui.button(format!("Copy of \"{sel_name}\"")).clicked() {
+                if ui.button(tr_f("Copy of \"{name}\"", &[("name", &sel_name)])).clicked() {
                     let sel = app.mach_sel.clone();
                     let id = app.machines.add(Some(&sel), true);
                     app.mach_sel = id;
                     app.machine_edited();
                     ui.close_menu();
                 }
-                ui.menu_button("From the catalogue", |ui| {
+                ui.menu_button(tr("From the catalogue"), |ui| {
                     ui.style_mut().wrap = Some(false);
                     ui.set_min_width(180.0);
                     for maker in putiacnc_core::setup::makers() {
@@ -249,23 +250,23 @@ fn footer(ui: &mut Ui, app: &mut App) {
                             }
                         });
                     }
-                }).response.on_hover_text("A ready-made machine with the maker's published figures");
-                if ui.button("From a file…").on_hover_text("A machine exported from PutiaCNC").clicked() {
-                    app.spawn_dialog(crate::app::DlgKind::MachImport, || rfd::FileDialog::new().add_filter("Machine", &["json"]).pick_file());
+                }).response.on_hover_text(tr("A ready-made machine with the maker's published figures"));
+                if ui.button(tr("From a file…")).on_hover_text(tr("A machine exported from PutiaCNC")).clicked() {
+                    app.spawn_dialog(crate::app::DlgKind::MachImport, || rfd::FileDialog::new().add_filter(tr("Machine"), &["json"]).pick_file());
                     ui.close_menu();
                 }
-                if ui.button("From a Grbl $$ dump…").on_hover_text("Paste the settings a Grbl controller prints for $$: travel, top speeds, accelerations, spindle range").clicked() {
+                if ui.button(tr("From a Grbl $$ dump…")).on_hover_text(tr("Paste the settings a Grbl controller prints for $$: travel, top speeds, accelerations, spindle range")).clicked() {
                     app.grbl_paste = Some(String::new());
                     ui.close_menu();
                 }
             });
             ui.add_space(12.0);
-            if ui.button("Export").on_hover_text("Save this machine to a file").clicked() {
+            if ui.button(tr("Export")).on_hover_text(tr("Save this machine to a file")).clicked() {
                 let fname = format!("{}-machine.json", app.machines.resolve(&app.mach_sel).name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect::<String>());
-                app.spawn_dialog(crate::app::DlgKind::MachExport, move || rfd::FileDialog::new().add_filter("Machine", &["json"]).set_file_name(fname).save_file());
+                app.spawn_dialog(crate::app::DlgKind::MachExport, move || rfd::FileDialog::new().add_filter(tr("Machine"), &["json"]).set_file_name(fname).save_file());
             }
-            if ui.button("Delete").on_hover_text("Delete this machine").clicked() {
-                if app.machines.list.len() < 2 { app.mach_msg = "Keep at least one machine.".into(); } else { app.confirm_mach_del = true; }
+            if ui.button(tr("Delete")).on_hover_text(tr("Delete this machine")).clicked() {
+                if app.machines.list.len() < 2 { app.mach_msg = tr("Keep at least one machine.").into(); } else { app.confirm_mach_del = true; }
             }
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -273,11 +274,11 @@ fn footer(ui: &mut Ui, app: &mut App) {
                 let slot = app.tool_speed_slot();
                 for (i, (n, _)) in SPEED_UNITS.iter().enumerate() { ui.selectable_value(slot, i, *n); }
             });
-            ui.label("Speeds in");
+            ui.label(tr("Speeds in"));
             ui.add_space(8.0);
             let (c, _) = crate::zoomcard::seg2(ui, ["mm", "in"], ["", ""], app.disp_in as usize);
             if let Some(i) = c { app.disp_in = i == 1; }
-            ui.label("Lengths in");
+            ui.label(tr("Lengths in"));
         });
     });
 
@@ -295,7 +296,7 @@ fn list(ui: &mut Ui, app: &mut App, h: f32) {
             else if resp.hovered() { ui.painter().rect_filled(rect, 6.0, vis.widgets.hovered.bg_fill); }
             let col = if sel { Color32::WHITE } else { vis.text_color() };
             let font = egui::TextStyle::Body.resolve(ui.style());
-            let tag = if m.id == used { "in use" } else { "" };
+            let tag = if m.id == used { tr("in use") } else { "" };
             let gt = ui.painter().layout_no_wrap(tag.to_string(), font.clone(), col.gamma_multiply(0.7));
             let gn = ui.painter().layout_no_wrap(m.name.clone(), font, col);
             let clip = ui.painter().with_clip_rect(egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x - gt.size().x - 12.0, rect.max.y)));
@@ -333,34 +334,34 @@ fn form(ui: &mut Ui, app: &mut App) {
     };
 
     egui::Grid::new("mach_name").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
-        rlabel(ui, lw, "Name");
+        rlabel(ui, lw, tr("Name"));
         let r = ui.add(egui::TextEdit::singleline(&mut m.name).desired_width(aw - lw - sp + 8.0).char_limit(60));
         changed |= r.changed();
         // two machines never share a name: a taken one gets a number when the field is left
         let taken = app.machines.list.iter().any(|o| o.id != m.id && o.name == m.name.trim());
         if r.lost_focus() && (taken || m.name.trim().is_empty() || m.name != m.name.trim()) { m.name = app.machines.unique_name(&m.name, Some(&m.id)); changed = true; }
         ui.end_row();
-        if taken && r.has_focus() { ui.label(""); ui.colored_label(ui.visuals().warn_fg_color, "Another machine has this name: a number is added when you leave the field."); ui.end_row(); }
+        if taken && r.has_focus() { ui.label(""); ui.colored_label(ui.visuals().warn_fg_color, tr("Another machine has this name: a number is added when you leave the field.")); ui.end_row(); }
     });
     ui.add_space(2.0);
     egui::Grid::new("mach_perf").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
-        rlabel(ui, lw, format!("Rapid rate ({sname})"));
+        rlabel(ui, lw, tr_f("Rapid rate ({unit})", &[("unit", &sname)]));
         let mut r = m.rapid / sfac;
-        if crate::widgets::num(ui, [fw, 22.0], &mut r, 0.01, 1.0e6, 10.0 / sfac, 3, "").tip("How fast the machine travels in its rapid (G0) moves. Used for the time estimate and the playback only: the G-code does not carry it, the controller moves at its own rapid speed.").changed() { m.rapid = (r * sfac).max(1.0); changed = true; }
+        if crate::widgets::num(ui, [fw, 22.0], &mut r, 0.01, 1.0e6, 10.0 / sfac, 3, "").tip(tr("How fast the machine travels in its rapid (G0) moves. Used for the time estimate and the playback only: the G-code does not carry it, the controller moves at its own rapid speed.")).changed() { m.rapid = (r * sfac).max(1.0); changed = true; }
         spacer(ui);
         // the whole control (label and box) sits flush with the right edge, like the checkbox and the button below
         ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + lw), Layout::right_to_left(Align::Center));
-        let tip = "Multiplies the estimated time to account for acceleration and corners";
+        let tip = tr("Multiplies the estimated time to account for acceleration and corners");
         changed |= crate::widgets::num(&mut c, [60.0, 22.0], &mut m.tsc, 0.1, 100.0, 0.01, 2, "").tip(tip).changed();
         c.add_space(8.0 - c.spacing().item_spacing.x);
-        c.add(egui::Label::new("Time correction ×").wrap(false)).tip(tip);
+        c.add(egui::Label::new(tr("Time correction ×")).wrap(false)).tip(tip);
         ui.end_row();
         // the acceleration model: 0 leaves it off (the time is then length / feed times the correction)
-        rlabel(ui, lw, "Acceleration (mm/s²)");
+        rlabel(ui, lw, tr("Acceleration (mm/s²)"));
         let mut acc = m.accel.unwrap_or(0.0);
-        let atip = "How fast the machine speeds up and slows down (Grbl's $120 to $122). With a value here the time estimate and the playback account for the ramps and the corners; leave 0 to use the plain length / feed times the correction.";
+        let atip = tr("How fast the machine speeds up and slows down (Grbl's $120 to $122). With a value here the time estimate and the playback account for the ramps and the corners; leave 0 to use the plain length / feed times the correction.");
         if crate::widgets::num(ui, [fw, 22.0], &mut acc, 0.0, 100_000.0, 10.0, 0, "").tip(atip).changed() {
             // the correction was standing in for the ramps and corners: it goes back to 1 when they are modelled
             if m.accel.is_none() && acc > 0.0 && m.tsc > 1.0 { m.tsc = 1.0; }
@@ -371,17 +372,17 @@ fn form(ui: &mut Ui, app: &mut App) {
         ui.allocate_exact_size(egui::vec2(lw, 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(flush_right(cell, 60.0 + 8.0 + lw), Layout::right_to_left(Align::Center));
-        let jtip = "How closely the path may cut a corner off (Grbl's $11, 0.01 mm by default): the larger it is, the faster corners are taken. Used with the acceleration.";
+        let jtip = tr("How closely the path may cut a corner off (Grbl's $11, 0.01 mm by default): the larger it is, the faster corners are taken. Used with the acceleration.");
         let mut jd = m.junction.unwrap_or(putiacnc_core::motion::DEFAULT_JUNCTION);
         c.add_enabled_ui(m.accel.is_some(), |c| {
             if crate::widgets::num(c, [60.0, 22.0], &mut jd, 0.001, 10.0, 0.005, 3, "").tip(jtip).changed() { m.junction = Some(jd); changed = true; }
         });
         c.add_space(8.0 - c.spacing().item_spacing.x);
-        c.add(egui::Label::new("Corner deviation (mm)").wrap(false)).tip(jtip);
+        c.add(egui::Label::new(tr("Corner deviation (mm)")).wrap(false)).tip(jtip);
         ui.end_row();
         // Y and Z can differ from X (Z is usually the slowest); 0 = the same as the first value
-        let ztip = "Grbl's $121 (Y) and $122 (Z) where they differ from the first value: Z is often much slower than X and Y, and it decides how fast the machine plunges and ramps. 0 = the same as the first.";
-        rlabel(ui, lw, "Acceleration Y (mm/s²)");
+        let ztip = tr("Grbl's $121 (Y) and $122 (Z) where they differ from the first value: Z is often much slower than X and Y, and it decides how fast the machine plunges and ramps. 0 = the same as the first.");
+        rlabel(ui, lw, tr("Acceleration Y (mm/s²)"));
         let mut ay = m.accel_y.unwrap_or(0.0);
         ui.add_enabled_ui(m.accel.is_some(), |ui| {
             if crate::widgets::num(ui, [fw, 22.0], &mut ay, 0.0, 100_000.0, 10.0, 0, "").tip(ztip).changed() { m.accel_y = if ay > 0.0 { Some(ay) } else { None }; changed = true; }
@@ -395,11 +396,11 @@ fn form(ui: &mut Ui, app: &mut App) {
             if crate::widgets::num(c, [60.0, 22.0], &mut az, 0.0, 100_000.0, 10.0, 0, "").tip(ztip).changed() { m.accel_z = if az > 0.0 { Some(az) } else { None }; changed = true; }
         });
         c.add_space(8.0 - c.spacing().item_spacing.x);
-        c.add(egui::Label::new("Acceleration Z (mm/s²)").wrap(false)).tip(ztip);
+        c.add(egui::Label::new(tr("Acceleration Z (mm/s²)")).wrap(false)).tip(ztip);
         ui.end_row();
         // the top speed of each axis (Grbl's $110 to $112): 0 = no limit; Y and Z follow X where they are 0
-        let rtip = "The fastest each axis can go (Grbl's $110 to $112). The time estimate holds every move down to what its slowest axis allows, and a note says when a cut is asked to go faster. 0 = no limit; Y and Z follow X where they are 0.";
-        rlabel(ui, lw, format!("Top speed X ({sname})"));
+        let rtip = tr("The fastest each axis can go (Grbl's $110 to $112). The time estimate holds every move down to what its slowest axis allows, and a note says when a cut is asked to go faster. 0 = no limit; Y and Z follow X where they are 0.");
+        rlabel(ui, lw, tr_f("Top speed X ({unit})", &[("unit", &sname)]));
         let mut rx = m.rate.unwrap_or(0.0) / sfac;
         if crate::widgets::num(ui, [fw, 22.0], &mut rx, 0.0, 1.0e6, 10.0 / sfac, 3, "").tip(rtip).changed() { m.rate = if rx > 0.0 { Some(rx * sfac) } else { None }; changed = true; }
         spacer(ui);
@@ -409,34 +410,34 @@ fn form(ui: &mut Ui, app: &mut App) {
         let mut ry = m.rate_y.unwrap_or(0.0) / sfac;
         if crate::widgets::num(&mut c, [60.0, 22.0], &mut ry, 0.0, 1.0e6, 10.0 / sfac, 3, "").tip(rtip).changed() { m.rate_y = if ry > 0.0 { Some(ry * sfac) } else { None }; changed = true; }
         c.add_space(8.0 - c.spacing().item_spacing.x);
-        c.add(egui::Label::new(format!("Top speed Y ({sname})")).wrap(false)).tip(rtip);
+        c.add(egui::Label::new(tr_f("Top speed Y ({unit})", &[("unit", &sname)])).wrap(false)).tip(rtip);
         ui.end_row();
-        rlabel(ui, lw, format!("Top speed Z ({sname})"));
+        rlabel(ui, lw, tr_f("Top speed Z ({unit})", &[("unit", &sname)]));
         let mut rz = m.rate_z.unwrap_or(0.0) / sfac;
         if crate::widgets::num(ui, [fw, 22.0], &mut rz, 0.0, 1.0e6, 10.0 / sfac, 3, "").tip(rtip).changed() { m.rate_z = if rz > 0.0 { Some(rz * sfac) } else { None }; changed = true; }
         ui.end_row();
     });
     ui.add_space(2.0);
     egui::Grid::new("mach_gcode").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
-        rlabel(ui, lw, "G-code output for");
+        rlabel(ui, lw, tr("G-code output for"));
         let cur = putiacnc_core::model::dialect_name(m.post.as_deref().unwrap_or(""));
         // both dropdowns of this block share one width that holds the longest choice
-        let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", "Mach3 / LinuxCNC", "Marlin (no spindle control)", "mm", "inches"]).max(fw);
+        let gw = crate::widgets::combo_fit(ui, &["GRBL", "grblHAL", "FluidNC", tr("Mach3 / LinuxCNC"), tr("Marlin (no spindle control)"), "mm", tr("inches")]).max(fw);
         egui::ComboBox::from_id_source("mach_post").width(gw).selected_text(cur).show_ui(ui, |ui| {
             for (id, name) in putiacnc_core::model::DIALECTS {
                 let tip = match id {
-                    "mach" => "Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end",
-                    "marlin" => "Motion only: no M3 or M5 and no G54. The program stops (M0 with a message) for you to start and stop the spindle by hand, has no M2 or M30 at the end, and the zero is wherever you set it with G92",
-                    "grblhal" | "fluidnc" => "Written like GRBL for now; the name is kept with the machine and shown in the G-code's first line",
-                    _ => "Tool changes as M0 with a message, G54 in the header and M2 at the end",
+                    "mach" => tr("Tool changes as T1 M6 (the controller asks you to swap the tool), a safe-start line, G54 and M30 at the end"),
+                    "marlin" => tr("Motion only: no M3 or M5 and no G54. The program stops (M0 with a message) for you to start and stop the spindle by hand, has no M2 or M30 at the end, and the zero is wherever you set it with G92"),
+                    "grblhal" | "fluidnc" => tr("Written like GRBL for now; the name is kept with the machine and shown in the G-code's first line"),
+                    _ => tr("Tool changes as M0 with a message, G54 in the header and M2 at the end"),
                 };
                 if ui.selectable_label(cur == name, name).tip(tip).clicked() { m.post = Some(id.to_string()); changed = true; }
             }
         });
         ui.end_row();
-        rlabel(ui, lw, "G-code units");
+        rlabel(ui, lw, tr("G-code units"));
         let in_now = m.inches.unwrap_or(false);
-        let (c, combo_resp) = crate::zoomcard::seg2(ui, ["mm", "inches"], ["", "A project that uses this machine writes its G-code in inches"], in_now as usize);
+        let (c, combo_resp) = crate::zoomcard::seg2(ui, ["mm", tr("inches")], ["", tr("A project that uses this machine writes its G-code in inches")], in_now as usize);
         if let Some(i) = c { m.inches = Some(i == 1); changed = true; }
         // the code sits after the dropdown without taking any room from the grid, so the columns never move
         ui.painter().text(egui::pos2(combo_resp.rect.right() + 6.0, combo_resp.rect.center().y), egui::Align2::LEFT_CENTER,
@@ -448,66 +449,66 @@ fn form(ui: &mut Ui, app: &mut App) {
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
             let mut c = ui.child_ui(flush_right(cell, 150.0), Layout::right_to_left(Align::Center));
         let mut nb = m.numbered.unwrap_or(false);
-        let nb_tip = "Number the G-code lines (N10, N20…), for controllers that want them";
+        let nb_tip = tr("Number the G-code lines (N10, N20…), for controllers that want them");
         if crate::widgets::check(&mut c, &mut nb, "").tip(nb_tip).changed() { m.numbered = Some(nb); changed = true; }
-        c.add(egui::Label::new("Line numbers").wrap(false)).tip(nb_tip);
+        c.add(egui::Label::new(tr("Line numbers")).wrap(false)).tip(nb_tip);
         ui.end_row();
-        rlabel(ui, lw, format!("Safe Z ({uname})"));
+        rlabel(ui, lw, tr_f("Safe Z ({unit})", &[("unit", &uname)]));
         let mut sz = m.safe.unwrap_or(5.0) / k;
-        if crate::widgets::num(ui, [fw, 22.0], &mut sz, 0.1 / k, 200.0 / k, 0.5 / k, 3, "").tip("Height above the stock where the tool travels between cuts").changed() { m.safe = Some((sz * k).clamp(0.1, 200.0)); changed = true; }
+        if crate::widgets::num(ui, [fw, 22.0], &mut sz, 0.1 / k, 200.0 / k, 0.5 / k, 3, "").tip(tr("Height above the stock where the tool travels between cuts")).changed() { m.safe = Some((sz * k).clamp(0.1, 200.0)); changed = true; }
         ui.end_row();
-        rlabel(ui, lw, "Spindle wait (s)");
+        rlabel(ui, lw, tr("Spindle wait (s)"));
         let mut sw = m.spin_up_s();
-        if crate::widgets::num(ui, [fw, 22.0], &mut sw, 0.0, 60.0, 0.5, 1, "").tip("How long the program waits after the spindle starts or changes speed before the tool touches anything. 0 = no wait.").changed() { m.spin_up = Some(sw.clamp(0.0, 60.0)); changed = true; }
+        if crate::widgets::num(ui, [fw, 22.0], &mut sw, 0.0, 60.0, 0.5, 1, "").tip(tr("How long the program waits after the spindle starts or changes speed before the tool touches anything. 0 = no wait.")).changed() { m.spin_up = Some(sw.clamp(0.0, 60.0)); changed = true; }
         ui.end_row();
-        rlabel(ui, lw, "Tool holder");
-        let holder_tip = "Off by default. When on, give the holder's diameter here and each tool's stick-out in the tool manager: the warnings and the 3D preview then check the holder against the clamps and draw it.";
+        rlabel(ui, lw, tr("Tool holder"));
+        let holder_tip = tr("Off by default. When on, give the holder's diameter here and each tool's stick-out in the tool manager: the warnings and the 3D preview then check the holder against the clamps and draw it.");
         let hr = crate::widgets::check(ui, &mut m.holder_on, "").tip(holder_tip);
         if hr.changed() { changed = true; }
         // the words sit after the box without taking any room from the grid, so the columns never move
-        let words = ui.painter().text(egui::pos2(hr.rect.right() + 6.0, hr.rect.center().y), egui::Align2::LEFT_CENTER, "Check it against the clamps", egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
+        let words = ui.painter().text(egui::pos2(hr.rect.right() + 6.0, hr.rect.center().y), egui::Align2::LEFT_CENTER, tr("Check it against the clamps"), egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
         crate::widgets::tip_rect(ui, words, "holder words", holder_tip);
         ui.end_row();
         if m.holder_on {
-            rlabel(ui, lw, format!("Holder dia. ({uname})"));
+            rlabel(ui, lw, tr_f("Holder dia. ({unit})", &[("unit", &uname)]));
             let mut hd = m.holder.unwrap_or(0.0) / k;
-            if crate::widgets::num(ui, [fw, 22.0], &mut hd, 0.0, 1000.0 / k, 0.5 / k, 3, "").tip("Diameter of the collet nut or spindle nose, whatever hangs lowest. 0 = not known: not checked.").changed() { m.holder = if hd > 0.0 { Some((hd * k).min(1000.0)) } else { None }; changed = true; }
+            if crate::widgets::num(ui, [fw, 22.0], &mut hd, 0.0, 1000.0 / k, 0.5 / k, 3, "").tip(tr("Diameter of the collet nut or spindle nose, whatever hangs lowest. 0 = not known: not checked.")).changed() { m.holder = if hd > 0.0 { Some((hd * k).min(1000.0)) } else { None }; changed = true; }
             ui.end_row();
         }
-        rlabel(ui, lw, "Arcs (G2/G3)");
+        rlabel(ui, lw, tr("Arcs (G2/G3)"));
         let mut ar = m.arcs.unwrap_or(false);
-        if crate::widgets::check(ui, &mut ar, "").tip("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.").changed() { m.arcs = Some(ar); changed = true; }
+        if crate::widgets::check(ui, &mut ar, "").tip(tr("Write circles and rounded corners as G2/G3 arcs: much shorter files. Grbl, Mach3 and LinuxCNC support them; check yours with the test lines first.")).changed() { m.arcs = Some(ar); changed = true; }
         spacer(ui);
         // the dropdown above makes the second column wider than a field; this empty label gives that much back, so the grid keeps its width
         ui.allocate_exact_size(egui::vec2(lw - (gw - fw).max(0.0), 22.0), Sense::hover());
         let (cell, _) = ui.allocate_exact_size(egui::vec2(fw, 22.0), Sense::hover());
         let mut c = ui.child_ui(flush_right(cell, 160.0), Layout::right_to_left(Align::Center));
-        if c.button("Copy test lines").tip("A half circle to send with the spindle off and the tool well above the work. If the machine draws it, it supports arcs.").clicked() {
+        if c.button(tr("Copy test lines")).tip(tr("A half circle to send with the spindle off and the tool well above the work. If the machine draws it, it supports arcs.")).clicked() {
             c.ctx().output_mut(|o| o.copied_text = "G21 G90 G17\nG0 X0 Y0\nG2 X10 Y0 I5 J0 F300\n".into());
-            app.mach_msg = "Test lines copied. Send them with the spindle off and the tool well above the work: a half circle means arcs work, a straight move or an error means they don't.".into();
+            app.mach_msg = tr("Test lines copied. Send them with the spindle off and the tool well above the work: a half circle means arcs work, a straight move or an error means they don't.").into();
         }
         ui.end_row();
     });
     ui.add_space(10.0);
-    ui.weak("Limits (0 = no limit). A tool that asks for more is held to the limit in the G-code, with a warning.");
+    ui.weak(tr("Limits (0 = no limit). A tool that asks for more is held to the limit in the G-code, with a warning."));
     ui.add_space(4.0);
     let limits = egui::Grid::new("mach_limits").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         let lim = |ui: &mut Ui, v: &mut Option<f64>, f: f64, max: f64, step: f64| -> bool {
             let mut d = v.unwrap_or(0.0) / f;
-            let ch = crate::widgets::num(ui, [fw, 22.0], &mut d, 0.0, max / f, step / f, 3, "").tip("0 = no limit").changed();
+            let ch = crate::widgets::num(ui, [fw, 22.0], &mut d, 0.0, max / f, step / f, 3, "").tip(tr("0 = no limit")).changed();
             if ch { *v = if d > 0.0 { Some(d * f) } else { None }; }
             ch
         };
-        rlabel(ui, lw, "Spindle min (rpm)");
+        rlabel(ui, lw, tr("Spindle min (rpm)"));
         changed |= lim(ui, &mut m.rpm_min, 1.0, 200000.0, 100.0);
         spacer(ui);
-        rlabel(ui, lw, "Spindle max (rpm)");
+        rlabel(ui, lw, tr("Spindle max (rpm)"));
         changed |= lim(ui, &mut m.rpm_max, 1.0, 200000.0, 100.0);
         ui.end_row();
-        rlabel(ui, lw, format!("Max feed ({sname})"));
+        rlabel(ui, lw, tr_f("Max feed ({unit})", &[("unit", &sname)]));
         changed |= lim(ui, &mut m.feed_max, sfac, 1.0e6, 10.0);
         spacer(ui);
-        rlabel(ui, lw, format!("Max plunge ({sname})"));
+        rlabel(ui, lw, tr_f("Max plunge ({unit})", &[("unit", &sname)]));
         changed |= lim(ui, &mut m.plunge_max, sfac, 1.0e6, 10.0);
         ui.end_row();
     });
@@ -516,14 +517,14 @@ fn form(ui: &mut Ui, app: &mut App) {
     if edge.is_none_or(|e| (e - right).abs() > 0.5) { ui.ctx().data_mut(|d| d.insert_temp(edge_id, right)); ui.ctx().request_repaint(); }
     ui.add_space(10.0);
     ui.horizontal(|ui| {
-        rlabel(ui, lw, "Rigidity");
+        rlabel(ui, lw, tr("Rigidity"));
         let cur = putiacnc_core::feeds::RIGIDITY.iter().find(|r| r.0 == m.rigid).map(|r| r.1).unwrap_or(putiacnc_core::feeds::RIGIDITY[0].1);
         egui::ComboBox::from_id_source("mach_rigid").selected_text(cur).show_ui(ui, |ui| {
             for (k, l) in putiacnc_core::feeds::RIGIDITY { if ui.selectable_label(m.rigid == k || (m.rigid.is_empty() && k == "light"), l).clicked() { m.rigid = if k == "light" { String::new() } else { k.into() }; changed = true; } }
-        }).response.on_hover_text("How stiff the machine is: the feeds and speeds suggestion takes heavier chips and deeper cuts from a stiffer one. Start with light unless you know better");
+        }).response.on_hover_text(tr("How stiff the machine is: the feeds and speeds suggestion takes heavier chips and deeper cuts from a stiffer one. Start with light unless you know better"));
     });
     ui.add_space(10.0);
-    ui.weak("Max size of operation (work area)");
+    ui.weak(tr("Max size of operation (work area)"));
     ui.add_space(4.0);
     egui::Grid::new("mach_area").num_columns(5).spacing([sp, 8.0]).show(ui, |ui| {
         for (i, (lab, v)) in [("X", &mut m.x), ("Y", &mut m.y), ("Z", &mut m.z)].into_iter().enumerate() {
@@ -535,16 +536,16 @@ fn form(ui: &mut Ui, app: &mut App) {
     });
     ui.add_space(8.0);
     egui::Grid::new("mach_notes").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
-        rlabel(ui, lw, "Notes");
+        rlabel(ui, lw, tr("Notes"));
         changed |= ui.add(egui::TextEdit::multiline(&mut m.notes).desired_rows(3).desired_width(aw - lw - sp + 8.0)).changed(); ui.end_row();
     });
     ui.add_space(8.0);
-    ui.weak("Your own G-code");
+    ui.weak(tr("Your own G-code"));
     ui.add_space(4.0);
     egui::Grid::new("mach_code").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
         for (lab, tip, slot) in [
-            ("Start", "Written after the setup lines (units, absolute mode, work offset) and before the first tool is chosen: a warm-up, a probe, an M-code. One command per line.", &mut m.start_code),
-            ("End", "Written at the very end, after the spindle stops and the tool returns to X0 Y0, just before the program ends: park the tool, switch on a dust shoe or light. One command per line.", &mut m.end_code),
+            (tr("Start"), tr("Written after the setup lines (units, absolute mode, work offset) and before the first tool is chosen: a warm-up, a probe, an M-code. One command per line."), &mut m.start_code),
+            (tr("End"), tr("Written at the very end, after the spindle stops and the tool returns to X0 Y0, just before the program ends: park the tool, switch on a dust shoe or light. One command per line."), &mut m.end_code),
         ] {
             rlabel(ui, lw, lab);
             let mut s = slot.clone().unwrap_or_default();
@@ -554,7 +555,7 @@ fn form(ui: &mut Ui, app: &mut App) {
         }
     });
     ui.add_space(2.0);
-    ui.add(egui::Label::new(egui::RichText::new("Added as typed. The time estimate and the 3D preview ignore any moves in these lines.").small().weak()).wrap(true));
+    ui.add(egui::Label::new(egui::RichText::new(tr("Added as typed. The time estimate and the 3D preview ignore any moves in these lines.")).small().weak()).wrap(true));
     if changed {
         if let Some(slot) = app.machines.get_mut(&app.mach_sel) { *slot = m; }
         app.mach_msg.clear();

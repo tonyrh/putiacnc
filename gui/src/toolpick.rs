@@ -1,5 +1,6 @@
 //! The tool field of an operation: a button that opens a panel with a search box on top and the tools below it, grouped by
 //! unit and type. Typing narrows the list (all words must match the name, type or size); Enter takes the first match.
+use putiacnc_core::i18n::{tr};
 use crate::csd::ShowFollowing;
 use eframe::egui::{self, Ui};
 use putiacnc_core::model::Tool;
@@ -38,7 +39,7 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
         ui.set_min_width(width.max(280.0));
         let first = !ui.data(|d| d.get_temp::<bool>(oid)).unwrap_or(false);
         let mut q: String = ui.data(|d| d.get_temp(qid)).unwrap_or_default();
-        let te = ui.add(egui::TextEdit::singleline(&mut q).hint_text("Search tools (name, type, size)").desired_width(f32::INFINITY));
+        let te = ui.add(egui::TextEdit::singleline(&mut q).hint_text(tr("Search tools (name, type, size)")).desired_width(f32::INFINITY));
         if first { te.request_focus(); ui.data_mut(|d| d.insert_temp(oid, true)); }
         ui.add_space(4.0);
         let w = words(&q);
@@ -47,14 +48,14 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
             if let Some(t) = list.first() { picked = Some(Picked::Tool(t.id.clone())); }
         }
         egui::ScrollArea::vertical().max_height(340.0).auto_shrink([false, true]).show_following(ui, |ui| {
-            if list.is_empty() { ui.weak("No tool matches."); }
+            if list.is_empty() { ui.weak(tr("No tool matches.")); }
             let mut job_shown = false;
             // the tools this job already uses come first: most jobs need only two or three
             if w.is_empty() {
                 let job: Vec<&&Tool> = used.iter().filter_map(|id| list.iter().find(|t| &t.id == id)).collect();
                 if !job.is_empty() {
                     job_shown = true;
-                    ui.label(egui::RichText::new("In this job").strong());
+                    ui.label(egui::RichText::new(tr("In this job")).strong());
                     for t in job {
                         let sel = current == Some(t.id.as_str());
                         if ui.selectable_label(sel, tool_line(t)).clicked() { picked = Some(Picked::Tool(t.id.clone())); }
@@ -66,7 +67,7 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
             // the groups fold; what the user opens or closes stays that way. They open by themselves while searching, and around the
             // tool in use (unless it is already listed under "In this job")
             let searching = !w.is_empty();
-            for (sys, label) in [("mm", "Metric"), ("in", "Imperial")] {
+            for (sys, label) in [("mm", tr("Metric")), ("in", tr("Imperial"))] {
                 let g: Vec<&&Tool> = list.iter().filter(|t| t.sys == sys).collect();
                 if g.is_empty() { continue; }
                 let sys_cur = g.iter().any(|t| current == Some(t.id.as_str()));
@@ -94,7 +95,7 @@ pub fn picker(ui: &mut Ui, id: impl std::hash::Hash, width: f32, shown: String, 
             }
         });
         ui.separator();
-        if ui.selectable_label(false, "Manage tools…").on_hover_text("Open the tool library").clicked() { picked = Some(Picked::Manage); }
+        if ui.selectable_label(false, tr("Manage tools…")).on_hover_text(tr("Open the tool library")).clicked() { picked = Some(Picked::Manage); }
         if picked.is_some() { ui.close_menu(); }
         ui.data_mut(|d| d.insert_temp(qid, q));
         // egui closes a combo popup on any click inside it; a click on a group header or the search box should leave it open
