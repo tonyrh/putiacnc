@@ -528,3 +528,55 @@ mod tab_tests {
         assert!(r.editing(2), "and Shift+Tab goes back to the field");
     }
 }
+
+/// A small flag for a language code, drawn with shapes (flag emoji are not in the fonts): England's Union flag for "en", Italy's tricolour for "it",
+/// and a globe for anything else (Automatic). It tells a reader who cannot read the word "Language" what the list is for.
+pub fn flag(ui: &mut Ui, code: &str) -> Response { flag_sized(ui, code, egui::vec2(24.0, 16.0)) }
+
+pub fn flag_sized(ui: &mut Ui, code: &str, size: egui::Vec2) -> Response {
+    let (r, resp) = ui.allocate_exact_size(size, Sense::hover());
+    if ui.is_rect_visible(r) { paint_flag(ui.painter(), r, code, ui.visuals().text_color()); }
+    resp
+}
+
+/// Draws the flag of `code` in `r` (a globe in `ink` for "" and unknown codes).
+pub fn paint_flag(painter: &egui::Painter, r: egui::Rect, code: &str, ink: egui::Color32) {
+    use egui::{Color32, Pos2, Rect, Stroke, vec2};
+    let p = painter.with_clip_rect(r);
+    let k = r.height() / 16.0;
+    match code {
+        "it" => {
+            let w = r.width() / 3.0;
+            for (n, c) in [Color32::from_rgb(0x00, 0x92, 0x46), Color32::WHITE, Color32::from_rgb(0xce, 0x2b, 0x37)].into_iter().enumerate() {
+                p.rect_filled(Rect::from_min_size(r.min + vec2(w * n as f32, 0.0), vec2(w + 0.5, r.height())), 0.0, c);
+            }
+        }
+        "en" => {
+            let (blue, red) = (Color32::from_rgb(0x01, 0x21, 0x69), Color32::from_rgb(0xc8, 0x10, 0x2e));
+            p.rect_filled(r, 0.0, blue);
+            let (a, b, c, d) = (r.left_top(), r.right_bottom(), r.right_top(), r.left_bottom());
+            for (u, v) in [(a, b), (c, d)] {
+                p.line_segment([u, v], Stroke::new(3.2 * k, Color32::WHITE));
+                p.line_segment([u, v], Stroke::new(1.2 * k, red));
+            }
+            let m = r.center();
+            let (h, v) = ([Pos2::new(r.left(), m.y), Pos2::new(r.right(), m.y)], [Pos2::new(m.x, r.top()), Pos2::new(m.x, r.bottom())]);
+            p.line_segment(h, Stroke::new(5.0 * k, Color32::WHITE));
+            p.line_segment(v, Stroke::new(5.0 * k, Color32::WHITE));
+            p.line_segment(h, Stroke::new(2.8 * k, red));
+            p.line_segment(v, Stroke::new(2.8 * k, red));
+        }
+        _ => {
+            let c = r.center();
+            let rad = r.height() / 2.0 - 1.0;
+            let s = Stroke::new(1.2 * k, ink);
+            p.circle_stroke(c, rad, s);
+            p.line_segment([Pos2::new(c.x - rad, c.y), Pos2::new(c.x + rad, c.y)], s);
+            p.line_segment([Pos2::new(c.x, c.y - rad), Pos2::new(c.x, c.y + rad)], s);
+            let pts: Vec<Pos2> = (0..=24).map(|n| { let t = n as f32 / 24.0 * std::f32::consts::TAU; Pos2::new(c.x + rad * 0.45 * t.cos(), c.y + rad * t.sin()) }).collect();
+            p.add(egui::Shape::line(pts, s));
+            return;
+        }
+    }
+    painter.rect_stroke(r, 1.5, Stroke::new(1.0_f32, Color32::from_gray(110)));
+}

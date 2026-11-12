@@ -275,19 +275,29 @@ fn units_step(ui: &mut egui::Ui, w: &mut Wizard) {
     });
     ui.add_space(12.0);
     // the language first: everything after it is read in it (the same choice as View > Language)
-    ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(tr("Language")).strong());
-        let now = putiacnc_core::i18n::language();
-        let name = putiacnc_core::i18n::LANGUAGES.iter().find(|(c, _, _)| *c == now).map_or(now, |(_, n, _)| *n);
-        egui::ComboBox::from_id_source("setup_language").selected_text(name).show_ui(ui, |ui| {
-            for (code, name, _) in putiacnc_core::i18n::LANGUAGES {
-                if ui.selectable_label(now == *code, *name).clicked() && now != *code {
-                    putiacnc_core::i18n::set_language(code);
-                    crate::prefs::modify(|s| s.language = Some(code.to_string()));
-                }
+    // one card per language, like the unit cards below: a flag and the language's own name. With more languages the cards get narrower
+    // (up to four to a row) and wrap onto further rows.
+    let now = putiacnc_core::i18n::language();
+    let mut pick: Option<&str> = None;
+    ui.label(egui::RichText::new(tr("Language")).strong().size(16.0));
+    ui.add_space(8.0);
+    let langs = putiacnc_core::i18n::LANGUAGES;
+    let cols = langs.len().clamp(1, 4);
+    let tw = (ui.available_width() - 14.0 * (cols as f32 - 1.0)) / cols as f32;
+    let th = if cols <= 2 { 96.0 } else { 84.0 };
+    for row in langs.chunks(cols) {
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 14.0;
+            for (code, name, _) in row {
+                if tile(ui, egui::vec2(tw, th), now == *code, |p, r, ink, _| {
+                    crate::widgets::paint_flag(p, egui::Rect::from_center_size(egui::pos2(r.center().x, r.min.y + 18.0), egui::vec2(48.0, 32.0)), code, ink);
+                    p.text(egui::pos2(r.center().x, r.min.y + 48.0), egui::Align2::CENTER_TOP, *name, egui::FontId::proportional(18.0), ink);
+                }) { pick = Some(code); }
             }
         });
-    });
+        ui.add_space(6.0);
+    }
+    if let Some(code) = pick { if now != code { putiacnc_core::i18n::set_language(code); crate::prefs::modify(|s| s.language = Some(code.to_string())); } }
     ui.add_space(12.0);
     ui.label(egui::RichText::new(tr("How do you measure?")).strong().size(16.0));
     ui.add_space(8.0);

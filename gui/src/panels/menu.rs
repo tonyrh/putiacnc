@@ -161,8 +161,8 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                 ui.style_mut().wrap = Some(false);
                 let saved = crate::prefs::load().language.unwrap_or_else(|| "auto".into());
                 let mut pick: Option<String> = None;
-                if ui.radio(saved == "auto", tr("Automatic")).clicked() { pick = Some("auto".into()); }
-                for (code, name, _) in putiacnc_core::i18n::LANGUAGES { if ui.radio(saved == *code, *name).clicked() { pick = Some(code.to_string()); } }
+                ui.horizontal(|ui| { crate::widgets::flag(ui, ""); if ui.radio(saved == "auto", tr("Automatic")).clicked() { pick = Some("auto".into()); } });
+                for (code, name, _) in putiacnc_core::i18n::LANGUAGES { ui.horizontal(|ui| { crate::widgets::flag(ui, code); if ui.radio(saved == *code, *name).clicked() { pick = Some(code.to_string()); } }); }
                 if std::env::var_os("PUTIACNC_PSEUDO").is_some() && ui.radio(saved == putiacnc_core::i18n::PSEUDO, tr("Pseudo (test)")).clicked() { pick = Some(putiacnc_core::i18n::PSEUDO.into()); }
                 if let Some(code) = pick {
                     putiacnc_core::i18n::set_language(&code);
