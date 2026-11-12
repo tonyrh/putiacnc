@@ -1,5 +1,6 @@
 //! 3D preview: the simulated stock (height field) seen through an orbit camera, the toolpath and a
 //! playback bar that replays the job move by move.
+use putiacnc_core::i18n::{tr};
 use crate::app::App;
 use eframe::egui::{self, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, Ui, Vec2};
 use eframe::glow::{self, HasContext};
@@ -265,7 +266,7 @@ pub fn tabs_badged<T: PartialEq + Copy>(ui: &mut Ui, theme: &crate::theme::Theme
 
 pub fn tab_strip(ui: &mut Ui, app: &mut App) {
     let theme = app.theme;
-    tabs(ui, &theme, &mut app.view_tab, &[(ViewTab::Design, "2D design"), (ViewTab::Split, "2D + 3D"), (ViewTab::Preview, "3D preview")]);
+    tabs(ui, &theme, &mut app.view_tab, &[(ViewTab::Design, tr("2D design")), (ViewTab::Split, tr("2D + 3D")), (ViewTab::Preview, tr("3D preview"))]);
 }
 
 /// Painted play / pause / restart glyphs.

@@ -212,24 +212,24 @@ impl App {
 
         // a window narrower than the panels and the smallest canvas (a tiling window manager can do that) hides the operations panel first,
         // then the project panel, until the window is wide enough again
-        let (fit_left, fit_right) = csd::fit_panels(ctx.screen_rect().width(), MIN_CANVAS_W, LEFT_W, RIGHT_W, self.show_left, self.show_right);
+        let (fit_left, fit_right) = csd::fit_panels(ctx.screen_rect().width(), MIN_CANVAS_W, left_w(), right_w(), self.show_left, self.show_right);
         self.squeezed = (self.show_left && !fit_left, self.show_right && !fit_right);
         egui::TopBottomPanel::top("menu").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, true))).show(ctx, |ui| { ui.set_min_height(csd::HEADER_H); csd::header(ui, self) });
         let r = egui::TopBottomPanel::bottom("status").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, false))).show(ctx, |ui| panels::status_bar(ui, self));
         tour::note(ctx, "status", r.response.rect);
         // the smallest window depends on which panels are showing
-        let min_w = MIN_CANVAS_W + if self.show_left { LEFT_W } else { 0.0 } + if self.show_right { RIGHT_W } else { 0.0 };
+        let min_w = MIN_CANVAS_W + if self.show_left { left_w() } else { 0.0 } + if self.show_right { right_w() } else { 0.0 };
         if (self.last_min_w - min_w).abs() > 0.5 {
             self.last_min_w = min_w;
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(min_w.max(640.0), MIN_H)));
         }
         if fit_left {
-            let r = egui::SidePanel::left("left").resizable(false).exact_width(LEFT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)); });
+            let r = egui::SidePanel::left("left").resizable(false).exact_width(left_w()).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)); });
             tour::note(ctx, "left", r.response.rect);
             csd::allow_tab(ctx, r.response.rect);
         }
         if fit_right {
-            let r = egui::SidePanel::right("right").resizable(false).exact_width(RIGHT_W).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)); });
+            let r = egui::SidePanel::right("right").resizable(false).exact_width(right_w()).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)); });
             tour::note(ctx, "right", r.response.rect);
             csd::allow_tab(ctx, r.response.rect);
         }
@@ -326,6 +326,9 @@ fn bar_frame(ctx: &egui::Context, fill: egui::Color32) -> egui::Frame {
 /// Fixed side panel widths (content-driven: the left panel holds the stock grid, the right one the operation editor).
 const LEFT_W: f32 = 394.0;
 const RIGHT_W: f32 = 440.0;
+/// The panels' widths in the language in use (see `i18n::width_factor`).
+fn left_w() -> f32 { (LEFT_W * putiacnc_core::i18n::width_factor()).round() }
+fn right_w() -> f32 { (RIGHT_W * putiacnc_core::i18n::width_factor()).round() }
 /// Smallest canvas that still fits the bottom toolbar (view toggles left and right) and the floating palette.
 const MIN_CANVAS_W: f32 = 520.0;
 /// Smallest window: both panels plus the canvas.

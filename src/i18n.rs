@@ -100,6 +100,12 @@ fn lookup(s: &'static str) -> Option<&'static str> {
     }
 }
 
+/// How much wider than in English the side panels should be for the language in use: texts there are measured from
+/// fixed layouts, and longer words (Italian is about a fifth longer) would otherwise be cut off at the panel's edge.
+pub fn width_factor() -> f32 {
+    match language() { "en" => 1.0, PSEUDO => 1.4, "it" => 1.25, _ => 1.25 }
+}
+
 /// Marks a text in a `const` for extraction; translate it with `tr` where it is shown.
 pub const fn n_(s: &'static str) -> &'static str { s }
 
