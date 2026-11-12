@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds putiacnc-<version>-x86_64.AppImage. Needs appimagetool (https://github.com/AppImage/appimagetool)
-# on PATH or in $APPIMAGETOOL. Run from the repository root.
+# on PATH or in $APPIMAGETOOL, and zsyncmake (package zsync) for the .zsync file. Run from the repository root.
 set -e
 VER=$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)
 cargo build --release -p putiacnc-gui
@@ -25,4 +25,5 @@ for lib in libxkbcommon.so.0 libxkbcommon-x11.so.0 libxcb-xkb.so.1; do
 done
 printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexport LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\nexec "$HERE/usr/bin/putiacnc" "$@"\n' > "$A/AppRun"
 chmod +x "$A/AppRun"
-ARCH=x86_64 "${APPIMAGETOOL:-appimagetool}" "$A" "putiacnc-$VER-x86_64.AppImage"
+# -u embeds the update information (AppImageUpdate reads it) and writes the .zsync file next to the AppImage; both go on the release
+ARCH=x86_64 "${APPIMAGETOOL:-appimagetool}" -u "gh-releases-zsync|tonyrh|putiacnc|latest|putiacnc-*x86_64.AppImage.zsync" "$A" "putiacnc-$VER-x86_64.AppImage"

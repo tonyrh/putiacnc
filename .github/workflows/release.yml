@@ -20,7 +20,7 @@ jobs:
       - name: Build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y appstream libxkbcommon-dev libxkbcommon-x11-0 libxcb-xkb1 libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev
+          sudo apt-get install -y zsync appstream libxkbcommon-dev libxkbcommon-x11-0 libxcb-xkb1 libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev
           curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
           # GitHub's runners have no FUSE, so appimagetool unpacks itself and runs from there
@@ -44,12 +44,16 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: linux-appimage
-          path: putiacnc-*-x86_64.AppImage
+          path: |
+            putiacnc-*-x86_64.AppImage
+            putiacnc-*-x86_64.AppImage.zsync
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: putiacnc-*-x86_64.AppImage
+          files: |
+            putiacnc-*-x86_64.AppImage
+            putiacnc-*-x86_64.AppImage.zsync
 
   macos-dmg:
     runs-on: macos-15
