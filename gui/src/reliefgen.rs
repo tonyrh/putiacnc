@@ -51,7 +51,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         crate::csd::scroll(ui, 90.0, |ui| {
         ui.label(if n == 0 { tr("Select one or more closed shapes first.").to_string() } else { tr_n(n as u64, "{n} closed shape selected.", "{n} closed shapes selected.") });
         ui.add_space(6.0);
-        let lw = [tr("Profile"), tr("Height"), tr("Edge width"), tr("Background")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
+        let rounded = app.reliefgen.params.profile == Profile::Rounded;
+        let lw = [tr("Profile"), tr("Height"), tr("Background")].iter().copied().chain(rounded.then(|| tr("Edge width"))).map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max);
         let t = &mut app.reliefgen;
         egui::Grid::new("relief_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, lw, tr("Profile"));
