@@ -1,5 +1,6 @@
 //! Text to outlines: the glyph contours of a font, flattened into closed polygons (one shape per contour,
 //! so the holes of letters like O and A are separate shapes inside the outer one).
+use crate::i18n::{tr};
 use crate::model::LoopData;
 use crate::shapes::S;
 use ttf_parser::{Face, OutlineBuilder};
@@ -141,7 +142,7 @@ fn merge_overlaps(contours: Vec<crate::clip::Path>) -> Vec<crate::clip::Path> {
 /// Outlines of `text` set in the font, with the first line's baseline starting at `origin` (mm, y up) and
 /// further lines below it. Every contour becomes a closed shape of operation `op`.
 pub fn text_loops(font: &[u8], face_index: u32, text: &str, style: TextStyle, origin: [f64; 2], op: i64) -> Result<Vec<LoopData>, String> {
-    let face = Face::parse(font, face_index).map_err(|_| "This font cannot be read.".to_string())?;
+    let face = Face::parse(font, face_index).map_err(|_| tr(tr("This font cannot be read.")).to_string())?;
     let upm = face.units_per_em() as f64;
     // measure the real height of a capital H: the cap-height field in fonts is often a little off
     let cap = face.glyph_index('H').and_then(|g| face.glyph_bounding_box(g)).map(|b| b.y_max as f64)

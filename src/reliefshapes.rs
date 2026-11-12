@@ -1,5 +1,6 @@
 //! A relief built from closed shapes: each shape gets a height and a profile, and the result is a height map like an imported model's,
 //! carved by the same 3D relief operation. A shape inside another one is a hole in it (as in a pocket), so the counters of letters work.
+use crate::i18n::{n_, tr};
 use crate::model::{LoopData, Relief};
 use crate::shapes::{bbox_many, point_in_loop};
 
@@ -14,7 +15,7 @@ pub enum Profile {
     /// A slope from the edge up to a ridge along the middle.
     Cone,
 }
-pub const PROFILES: [(Profile, &str); 4] = [(Profile::Flat, "Flat"), (Profile::Rounded, "Rounded"), (Profile::Dome, "Dome"), (Profile::Cone, "Slope")];
+pub const PROFILES: [(Profile, &str); 4] = [(Profile::Flat, n_("Flat")), (Profile::Rounded, n_("Rounded")), (Profile::Dome, n_("Dome")), (Profile::Cone, n_("Slope"))];
 
 #[derive(Clone, Copy, Debug)]
 pub struct Params {
@@ -117,14 +118,14 @@ fn distance_inside(mask: &[bool], nx: usize, ny: usize) -> Vec<f64> {
 
 /// The relief of the closed shapes `loops`, lower-left corner at the shapes' own lower-left (less the margin), scale 1.
 pub fn from_shapes(loops: &[&LoopData], p: &Params, name: &str) -> Result<Relief, String> {
-    if !(p.height > 0.0) || !p.height.is_finite() { return Err("The height must be more than zero.".into()); }
+    if !(p.height > 0.0) || !p.height.is_finite() { return Err(tr("The height must be more than zero.").into()); }
     let shapes: Vec<&LoopData> = loops.iter().copied().filter(|l| l.closed() && l.pts.len() >= 6).collect();
-    if shapes.is_empty() { return Err("Select closed shapes to build a relief from.".into()); }
-    let b = bbox_many(shapes.iter().copied()).ok_or("The shapes have no size.")?;
+    if shapes.is_empty() { return Err(tr("Select closed shapes to build a relief from.").into()); }
+    let b = bbox_many(shapes.iter().copied()).ok_or(tr("The shapes have no size."))?;
     let m = p.margin.max(0.0);
     let (x0, y0, x1, y1) = (b[0] - m, b[1] - m, b[2] + m, b[3] + m);
     let (w, h) = (x1 - x0, y1 - y0);
-    if w < 1e-3 || h < 1e-3 { return Err("The shapes have no width or height.".into()); }
+    if w < 1e-3 || h < 1e-3 { return Err(tr("The shapes have no width or height.").into()); }
     let res = (((w * h) / MAX_CELLS).sqrt().max(0.2) * 100.0).round() / 100.0;
     let (nx, ny) = (((w / res).ceil() as usize).max(2), ((h / res).ceil() as usize).max(2));
     // nesting: a shape inside an odd number of others is a hole of the shape that most closely holds it

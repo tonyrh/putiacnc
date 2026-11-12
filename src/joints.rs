@@ -3,6 +3,7 @@
 //! A round cutter cannot reach into a sharp inside corner: it leaves a radius, and a square corner of a mating part will not go
 //! in. A dogbone cuts a little further into the walls at the corner, with the cutter's centre going out to a point one radius
 //! from the corner, so the corner itself is reached.
+use crate::i18n::{tr, tr_f};
 use crate::clip::{self, BoolKind, Path};
 use crate::model::{FingerSpec, LoopData};
 use crate::shapes::S;
@@ -326,14 +327,14 @@ fn rect_pts(x0: f64, y0: f64, x1: f64, y1: f64) -> Vec<[f64; 2]> { vec![[x0, y0]
 /// overlaps and nothing is missing (except the clearance).
 pub fn box_panels(b: BoxSpec) -> Result<Vec<Panel>, String> {
     let t = b.t;
-    if !(t > 0.0 && b.finger > 0.0 && b.clearance >= 0.0) { return Err("The thickness and the finger width must be above zero.".into()); }
-    if b.w < 4.0 * t || b.d < 4.0 * t || b.h < 4.0 * t { return Err(format!("The box must be at least {} mm in every direction for {} mm material.", 4.0 * t, t)); }
+    if !(t > 0.0 && b.finger > 0.0 && b.clearance >= 0.0) { return Err(tr("The thickness and the finger width must be above zero.").into()); }
+    if b.w < 4.0 * t || b.d < 4.0 * t || b.h < 4.0 * t { return Err(tr_f("The box must be at least {v} mm in every direction for {t} mm material.", &[("v", &(4.0 * t)), ("t", &t)])); }
     for (n, la, lb) in [(b.div_w, b.d, b.w), (b.div_d, b.w, b.d)] {
         if n == 0 { continue; }
-        if b.h < 6.0 * t { return Err(format!("Dividers need a box at least {} mm high for {} mm material.", 6.0 * t, t)); }
-        if la < 6.0 * t { return Err("The box is too short for dividers.".into()); }
+        if b.h < 6.0 * t { return Err(tr_f("Dividers need a box at least {v} mm high for {t} mm material.", &[("v", &(6.0 * t)), ("t", &t)])); }
+        if la < 6.0 * t { return Err(tr("The box is too short for dividers.").into()); }
         let cw = (lb - 2.0 * t - n as f64 * t) / (n as f64 + 1.0);
-        if cw < 2.0 * t { return Err("The dividers are too close together: the compartments must be at least twice the material thickness.".into()); }
+        if cw < 2.0 * t { return Err(tr("The dividers are too close together: the compartments must be at least twice the material thickness.").into()); }
     }
     let (xs_list, ys_list) = (divider_positions(b.w, b.div_w, t), divider_positions(b.d, b.div_d, t));
     let sides: Vec<Side> = if b.lid { vec![Side::Bottom, Side::Top, Side::Front, Side::Back, Side::Left, Side::Right] } else { vec![Side::Bottom, Side::Front, Side::Back, Side::Left, Side::Right] };
@@ -372,7 +373,7 @@ pub fn box_panels(b: BoxSpec) -> Result<Vec<Panel>, String> {
             let Some(n) = nb[e] else { continue };
             let len = if e % 2 == 0 { w } else { h };
             let inner = len - 2.0 * t;
-            if inner <= 0.0 { return Err("The box is too small for this material.".into()); }
+            if inner <= 0.0 { return Err(tr("The box is too small for this material.").into()); }
             let cnt = finger_count(inner, b.finger);
             let fw = inner / cnt as f64;
             let owns_even = side.rank() < n.rank();
@@ -388,7 +389,7 @@ pub fn box_panels(b: BoxSpec) -> Result<Vec<Panel>, String> {
             // all the notches run the same way round, so where they overlap (clearance) they add up rather than cancel
             clip::boolean(BoolKind::Difference, &base, &notches)
         };
-        if cut.len() != 1 { return Err("A plate came out in pieces: try a different finger width.".into()); }
+        if cut.len() != 1 { return Err(tr("A plate came out in pieces: try a different finger width.").into()); }
         let pts = cut[0].iter().map(|q| [q[0] as f64 / S, q[1] as f64 / S]).collect();
         // slots for the tabs of the dividers
         let mut holes = Vec::new();
@@ -431,7 +432,7 @@ pub fn box_panels(b: BoxSpec) -> Result<Vec<Panel>, String> {
             let slots: Vec<Path> = across.iter().map(|&a| if split_w { rect_path(a - c, zmid - c / 2.0, a + t + c, hd + 1.0) } else { rect_path(a - c, t - 1.0, a + t + c, zmid + c / 2.0) }).collect();
             body = clip::boolean(BoolKind::Difference, &body, &slots);
         }
-        if body.len() != 1 { return Err("A divider came out in pieces: try a different finger width.".into()); }
+        if body.len() != 1 { return Err(tr("A divider came out in pieces: try a different finger width.").into()); }
         let pts: Vec<[f64; 2]> = body[0].iter().map(|q| [q[0] as f64 / S, q[1] as f64 / S]).collect();
         for &st in here.iter() { out.push(Panel { side: Side::Divider, w: la, h: hd, outline: pts.clone(), holes: Vec::new(), pos: Some((split_w, st)) }); }
     }

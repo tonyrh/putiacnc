@@ -1,5 +1,6 @@
 //! "What will this do?": a few plain lines about a generated program, read from the G-code itself and the project, for the person
 //! standing at the machine: where the zero is, what the first moves do, which tools it asks for, how deep and how long, how it ends.
+use crate::i18n::{tr, tr_f, tr_n};
 use crate::model::ProjectData;
 use crate::toolpath::Output;
 use crate::Units;
@@ -50,7 +51,7 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
 
     // zero: the header comment says it, for the main piece and for a plug piece alike
     if let Some(h) = l.iter().find(|x| x.starts_with("(Stock ")) {
-        if let Some((_, z)) = h.trim_end_matches(')').split_once("; ") { rows.push(row("Zero", format!("{z}, in {}", data.job.wcs_name()), false)); }
+        if let Some((_, z)) = h.trim_end_matches(')').split_once("; ") { rows.push(row(tr("Zero"), tr_f("{zero}, in {wcs}", &[("zero", &z), ("wcs", &data.job.wcs_name())]), false)); }
     }
 
     // the first sideways move with no lift before it: the tool goes wherever it stands
@@ -58,28 +59,28 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     // a lift counts when it is a rapid Z move, also in machine coordinates (G53) as a machine's own start code may do it
     let lifted = first_xy.is_some_and(|i| l[..i].iter().any(|x| (x.starts_with("G0 ") || x.contains("G53")) && word(x, 'Z').is_some()));
     if first_xy.is_some() && !lifted {
-        rows.push(row("Before you start", "Raise the tool clear of the stock and clamps. The program does not lift first: its first move travels sideways at the height the tool is at.", true));
+        rows.push(row(tr("Before you start"), tr("Raise the tool clear of the stock and clamps. The program does not lift first: its first move travels sideways at the height the tool is at."), true));
     }
 
     // start: spindle, dwell, first move
     if let Some(i) = l.iter().position(|x| x.starts_with("M3 ")) {
         let rpm = word(&l[i], 'S').map(|v| format!("{}", v as i64));
         let wait = l.get(i + 1).filter(|x| x.starts_with("G4 ")).and_then(|x| word(x, 'P'));
-        let mut t = format!("Starts the spindle{}", rpm.map(|r| format!(" at {r} rpm")).unwrap_or_default());
-        if let Some(w) = wait { t += &format!(" and waits {} s", w); }
-        if let Some(f) = first_xy { t += &format!(", then moves to {}", l[f].split_once(' ').map_or("", |x| x.1).split(" F").next().unwrap_or("")); }
-        rows.push(row("Start", t + ".", false));
+        let mut t = match rpm { Some(r) => tr_f("Starts the spindle at {rpm} rpm", &[("rpm", &r)]), None => tr("Starts the spindle").to_string() };
+        if let Some(w) = wait { t += &tr_f(" and waits {s} s", &[("s", &w)]); }
+        if let Some(f) = first_xy { t += &tr_f(", then moves to {xy}", &[("xy", &l[f].split_once(' ').map_or("", |x| x.1).split(" F").next().unwrap_or(""))]); }
+        rows.push(row(tr("Start"), t + ".", false));
     }
 
     // Marlin without spindle control: the operator runs it
     if l.iter().any(|x| x.contains("Spindle: by hand")) {
-        rows.push(row("Spindle", "Not run by the program: it stops (M0) to ask you to start it at the speed shown, and again before a tool change and at the end to stop it. There is no work coordinate system: jog to the zero of the job and set it with G92 X0 Y0 Z0 first.".to_string(), true));
+        rows.push(row(tr("Spindle"), tr("Not run by the program: it stops (M0) to ask you to start it at the speed shown, and again before a tool change and at the end to stop it. There is no work coordinate system: jog to the zero of the job and set it with G92 X0 Y0 Z0 first.").to_string(), true));
     }
 
     // a pen plotter: nothing spins
     let plotter = l.iter().any(|x| x.starts_with("(Pen:")) && !l.iter().any(|x| x.starts_with("M3 "));
     if plotter {
-        rows.push(row("Spindle", "Stays off: the pen draws. Put the paper under it, set Z0 on the paper's surface, and make sure the pen is held so that it can lift and lower by Z alone.".to_string(), false));
+        rows.push(row(tr("Spindle"), tr("Stays off: the pen draws. Put the paper under it, set Z0 on the paper's surface, and make sure the pen is held so that it can lift and lower by Z alone.").to_string(), false));
     }
 
     // tools: the names from the operations, and where the program stops for a change
@@ -102,55 +103,61 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
     let m6 = l.iter().filter(|x| x.contains(" M6 ")).count().saturating_sub(1);
     let changes = stops.len().max(m6);
     let mut t = if names.is_empty() { String::new() } else { names.join(", ") };
-    if changes == 0 { if !t.is_empty() { t += ". No tool change."; } }
+    if changes == 0 { if !t.is_empty() { t += tr(". No tool change."); } }
     else if !stops.is_empty() {
         if !t.is_empty() { t += ". "; }
-        t += &format!("The program pauses {} time{} for you to change the tool (to {}).", changes, if changes == 1 { "" } else { "s" }, stops.join(", then "));
+        t += &crate::i18n::tr_nf(changes as u64, "The program pauses {n} time for you to change the tool (to {tools}).", "The program pauses {n} times for you to change the tool (to {tools}).", &[("tools", &stops.join(tr(", then ")))]);
     } else {
         if !t.is_empty() { t += ". "; }
-        t += &format!("{} tool change{} (M6).", changes, if changes == 1 { "" } else { "s" });
+        t += &tr_n(changes as u64, "{n} tool change (M6).", "{n} tool changes (M6).");
     }
-    if !t.is_empty() { rows.push(row("Tools", t, false)); }
+    if !t.is_empty() { rows.push(row(tr("Tools"), t, false)); }
     if !stops.is_empty() {
-        rows.push(row("At a tool change", "Touch off Z0 again with the new tool before you resume: the controller does not know how long each tool is.", true));
+        rows.push(row(tr("At a tool change"), tr("Touch off Z0 again with the new tool before you resume: the controller does not know how long each tool is."), true));
     }
 
     // pauses the operator asked for (a tool change has its own row)
     let pauses: Vec<String> = l.iter().filter_map(|x| crate::toolpath::stop_message(x)).filter(|m| !m.starts_with("Change tool to "))
         .map(|m| format!("\u{201c}{m}\u{201d}")).collect();
     if !pauses.is_empty() {
-        let tail = if plotter { "Resume it when you are ready." } else { "Resume it when you are ready; the spindle starts again by itself." };
-        let spindle_off = if plotter { "" } else { " with the spindle off" };
-        rows.push(row("Pauses", format!("The program stops {} time{}{}: {}. {}", pauses.len(), if pauses.len() == 1 { "" } else { "s" }, spindle_off, pauses.join(", "), tail), false));
+        let n = pauses.len() as u64;
+        let text = if plotter { crate::i18n::tr_nf(n, "The program stops {n} time: {what}. Resume it when you are ready.", "The program stops {n} times: {what}. Resume it when you are ready.", &[("what", &pauses.join(", "))]) }
+            else { crate::i18n::tr_nf(n, "The program stops {n} time with the spindle off: {what}. Resume it when you are ready; the spindle starts again by itself.", "The program stops {n} times with the spindle off: {what}. Resume it when you are ready; the spindle starts again by itself.", &[("what", &pauses.join(", "))]) };
+        rows.push(row(tr("Pauses"), text, false));
     }
 
     // how deep, how much, how long
     let deepest = l.iter().filter(|x| x.starts_with("G1 ")).filter_map(|x| word(x, 'Z')).fold(f64::MAX, f64::min);
     let k = units.factor();
     let mut t = String::new();
-    if deepest < f64::MAX { t += &format!("{} Z {} {}. ", if plotter { "Pen down at" } else { "Down to" }, crate::toolpath::num(deepest), un); }
-    t += &format!("{} {} of {}, about {} in all.", crate::toolpath::num(crate::toolpath::to_fixed(out.cut_len_mm / k, if k == 1.0 { 0 } else { 1 })), un, if plotter { "drawing" } else { "cutting" }, duration(out.time_min));
-    rows.push(row(if plotter { "Drawing" } else { "Cutting" }, t, false));
+    if deepest < f64::MAX {
+        let z: [(&str, &dyn std::fmt::Display); 2] = [("z", &crate::toolpath::num(deepest)), ("un", &un)];
+        t += &if plotter { tr_f("Pen down at Z {z} {un}. ", &z) } else { tr_f("Down to Z {z} {un}. ", &z) };
+    }
+    let len = crate::toolpath::num(crate::toolpath::to_fixed(out.cut_len_mm / k, if k == 1.0 { 0 } else { 1 }));
+    let all: [(&str, &dyn std::fmt::Display); 3] = [("len", &len), ("un", &un), ("time", &duration(out.time_min))];
+    t += &if plotter { tr_f("{len} {un} of drawing, about {time} in all.", &all) } else { tr_f("{len} {un} of cutting, about {time} in all.", &all) };
+    rows.push(row(if plotter { tr("Drawing") } else { tr("Cutting") }, t, false));
 
     // the end
     let tail = &l[l.len().saturating_sub(6)..];
     let lift = tail.iter().rev().find(|x| x.starts_with("G0 ")).and_then(|x| word(x, 'Z')).or_else(|| tail.iter().rev().filter(|x| x.starts_with("G0 ")).find_map(|x| word(x, 'Z')));
     let mut t = Vec::new();
-    if let Some(z) = lift { t.push(format!("lifts to Z {} {}", crate::toolpath::num(z), un)); }
-    if tail.iter().any(|x| x.starts_with("M5")) { t.push("stops the spindle".into()); }
-    if let Some(x) = tail.iter().rev().find(|x| x.starts_with("G0 X")) { t.push(format!("goes to {}", x.trim_start_matches("G0 "))); }
-    if !t.is_empty() { let mut s = t.join(", "); if let Some(c) = s.get_mut(0..1) { c.make_ascii_uppercase() } rows.push(row("End", s + ".", false)); }
+    if let Some(z) = lift { t.push(tr_f("lifts to Z {z} {un}", &[("z", &crate::toolpath::num(z)), ("un", &un)])); }
+    if tail.iter().any(|x| x.starts_with("M5")) { t.push(tr("stops the spindle").into()); }
+    if let Some(x) = tail.iter().rev().find(|x| x.starts_with("G0 X")) { t.push(tr_f("goes to {xy}", &[("xy", &x.trim_start_matches("G0 "))])); }
+    if !t.is_empty() { let mut s = t.join(", "); if let Some(c) = s.chars().next() { s = c.to_uppercase().collect::<String>() + &s[c.len_utf8()..]; } rows.push(row(tr("End"), s + ".", false)); }
 
     // air cut: nothing is cut
     if !piece {
         let air: Vec<String> = data.ops.iter().enumerate().filter(|(_, o)| runs(data, o) && (o.p.air || data.job.air)).map(|(i, _)| (i + 1).to_string()).collect();
-        if !air.is_empty() { rows.push(row("Air cut", format!("Operation{} {} run{} 10 mm above the stock: nothing is cut.", if air.len() == 1 { "" } else { "s" }, air.join(", "), if air.len() == 1 { "s" } else { "" }), true)); }
+        if !air.is_empty() { rows.push(row(tr("Air cut"), crate::i18n::tr_nf(air.len() as u64, "Operation {ops} runs 10 mm above the stock: nothing is cut.", "Operations {ops} run 10 mm above the stock: nothing is cut.", &[("ops", &air.join(", "))]), true)); }
     }
 
     // shapes on a hidden layer are cut all the same: say so, so a layer hidden to tidy the drawing is not forgotten
     if !piece && data.layers.iter().any(|l| l.hidden) {
         let ops: Vec<String> = data.ops.iter().enumerate().filter(|(_, o)| o.p.kind != "relief" && data.loops.iter().any(|l| l.op == o.id && data.shape_hidden(l))).map(|(i, _)| (i + 1).to_string()).collect();
-        if !ops.is_empty() { rows.push(row("Hidden layers", format!("Operation{} {} cut{} shapes on a hidden layer: hiding a layer only hides it from the drawing.", if ops.len() == 1 { "" } else { "s" }, ops.join(", "), if ops.len() == 1 { "s" } else { "" }), true)); }
+        if !ops.is_empty() { rows.push(row(tr("Hidden layers"), crate::i18n::tr_nf(ops.len() as u64, "Operation {ops} cuts shapes on a hidden layer: hiding a layer only hides it from the drawing.", "Operations {ops} cut shapes on a hidden layer: hiding a layer only hides it from the drawing.", &[("ops", &ops.join(", "))]), true)); }
     }
 
     rows
@@ -160,7 +167,8 @@ pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> 
 /// are the ones of the "What this will do" box, in plain ASCII without brackets and wrapped to short lines. Nothing else in the
 /// program changes (the comments are ignored by every sender and by the 3D replay).
 pub fn add_header(out: &mut Output, data: &ProjectData, units: Units, piece: bool) {
-    let rows = describe(data, out, units, piece);
+    // always in English: the file may be read at a machine set to any language, and a G-code comment is plain ASCII
+    let rows = crate::i18n::english(|| describe(data, out, units, piece));
     let mut head = vec!["(Summary, written by PutiaCNC)".to_string()];
     for r in &rows {
         let text: String = crate::toolpath::tool_label(&r.text.replace(['\u{201c}', '\u{201d}'], "'").replace('\u{2019}', "'"));

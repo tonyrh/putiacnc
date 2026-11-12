@@ -4,6 +4,7 @@
 //! closed or open shapes. Text, dimensions, hatches and images are skipped and reported.
 //!
 //! Like the SVG import the result keeps the drawing's own frame (Y up); the caller places it.
+use crate::i18n::{tr, tr_f};
 use crate::shapes;
 use crate::svg::{ImpLayer, Imported};
 use std::collections::BTreeMap;
@@ -64,7 +65,7 @@ fn parse(text: &str) -> Result<Doc, String> {
     let mut lines = text.lines();
     let mut pairs: Vec<(i32, String)> = Vec::new();
     while let (Some(c), Some(v)) = (lines.next(), lines.next()) {
-        let Ok(code) = c.trim().parse::<i32>() else { return Err("This does not look like an ASCII DXF file.".into()) };
+        let Ok(code) = c.trim().parse::<i32>() else { return Err(tr("This does not look like an ASCII DXF file.").into()) };
         pairs.push((code, v.trim().to_string()));
     }
     let mut doc = Doc { units_mm: 1.0, ..Default::default() };
@@ -119,7 +120,7 @@ fn parse(text: &str) -> Result<Doc, String> {
         0 if measurement == 0 => 25.4, // unitless: the header's imperial/metric flag is the best hint
         _ => 1.0,
     };
-    if doc.ents.is_empty() && doc.blocks.is_empty() { return Err("The file has no drawing entities.".into()); }
+    if doc.ents.is_empty() && doc.blocks.is_empty() { return Err(tr("The file has no drawing entities.").into()); }
     Ok(doc)
 }
 
@@ -342,9 +343,9 @@ fn join(paths: Vec<Path>) -> Vec<Path> {
 }
 
 pub fn import(data: &[u8]) -> Result<Imported, String> {
-    if data.starts_with(b"AutoCAD Binary DXF") { return Err("Binary DXF files are not supported; save the drawing as ASCII DXF.".into()); }
+    if data.starts_with(b"AutoCAD Binary DXF") { return Err(tr("Binary DXF files are not supported; save the drawing as ASCII DXF.").into()); }
     let text = String::from_utf8_lossy(data);
-    let doc = parse(&text).map_err(|e| format!("Could not read DXF: {e}"))?;
+    let doc = parse(&text).map_err(|e| tr_f("Could not read DXF: {e}", &[("e", &e)]))?;
     let k = doc.units_mm;
     let mut items = Vec::new();
     let mut lays: Vec<String> = Vec::new();

@@ -3,6 +3,7 @@
 //!
 //! The result uses the SVG page as the coordinate frame with the origin at its lower-left corner
 //! (Y up, like the editor); the caller decides where to place it.
+use crate::i18n::{tr_f};
 use crate::model::LoopData;
 use usvg::tiny_skia_path::{PathSegment, Point};
 
@@ -30,7 +31,7 @@ pub fn import(data: &[u8]) -> Result<Imported, String> {
         static FONTS: std::sync::OnceLock<std::sync::Arc<usvg::fontdb::Database>> = std::sync::OnceLock::new();
         opt.fontdb = FONTS.get_or_init(|| { let mut db = usvg::fontdb::Database::new(); db.load_system_fonts(); std::sync::Arc::new(db) }).clone();
     }
-    let tree = usvg::Tree::from_data(data, &opt).map_err(|e| format!("Could not read SVG: {e}"))?;
+    let tree = usvg::Tree::from_data(data, &opt).map_err(|e| tr_f("Could not read SVG: {e}", &[("e", &e)]))?;
     let h_px = tree.size().height() as f64;
     let mut ctx = Ctx { h_px, loops: vec![], images: 0, named: inkscape_layers(data), layers: vec![], cur: None };
     walk(tree.root(), &mut ctx);

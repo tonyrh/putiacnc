@@ -460,9 +460,9 @@ fn adjust_form(ui: &mut egui::Ui, w: &mut Wizard) {
         });
         ui.end_row();
         key(ui, tr("Rigidity"));
-        let cur = putiacnc_core::feeds::RIGIDITY.iter().find(|r| r.0 == w.machine.rigid).map_or("", |r| r.1);
+        let cur = putiacnc_core::feeds::RIGIDITY.iter().find(|r| r.0 == w.machine.rigid).map_or("", |r| tr(r.1));
         egui::ComboBox::from_id_source("setup_rigid").selected_text(cur).show_ui(ui, |ui| {
-            for (id, name) in putiacnc_core::feeds::RIGIDITY { ui.selectable_value(&mut w.machine.rigid, id.to_string(), name); }
+            for (id, name) in putiacnc_core::feeds::RIGIDITY { ui.selectable_value(&mut w.machine.rigid, id.to_string(), tr(name)); }
         }).response.on_hover_text(tr("How stiff the machine is: the feeds and speeds suggestion takes heavier chips and deeper cuts from a stiffer one. Start with light unless you know better"));
         ui.end_row();
     });

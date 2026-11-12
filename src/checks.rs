@@ -2,6 +2,7 @@
 //! moves and the settings alone (too deep for the tool, outside the machine); the others replay the moves on
 //! the height-field simulation and look at what the tool touches (a rapid through material, a shank rubbing
 //! the walls, a clamp in the way).
+use crate::i18n::{tr, tr_f};
 use crate::model::{ProjectData, Tool};
 use crate::sim::Sim;
 use crate::clip::{self, Path};
@@ -53,17 +54,17 @@ impl Kind {
     pub fn about_clamps(self) -> bool { matches!(self, Kind::Clamp | Kind::Holder) }
     pub fn title(self) -> &'static str {
         match self {
-            Kind::TooDeep => "Deeper than the cutting length",
-            Kind::Spoilboard => "Cuts into the table",
-            Kind::OutOfArea => "Outside the machine",
-            Kind::ZTravel => "Not enough Z travel",
-            Kind::RapidCut => "Rapid move through material",
-            Kind::Shank => "Shank rubbing the walls",
-            Kind::Clamp => "Tool hits a clamp",
-            Kind::Holder => "Tool holder hits a clamp",
-            Kind::TooSmall => "Shape smaller than the tool",
-            Kind::Overcut => "Tool cuts past the design",
-            Kind::Setting => "Check the settings",
+            Kind::TooDeep => tr("Deeper than the cutting length"),
+            Kind::Spoilboard => tr("Cuts into the table"),
+            Kind::OutOfArea => tr("Outside the machine"),
+            Kind::ZTravel => tr("Not enough Z travel"),
+            Kind::RapidCut => tr("Rapid move through material"),
+            Kind::Shank => tr("Shank rubbing the walls"),
+            Kind::Clamp => tr("Tool hits a clamp"),
+            Kind::Holder => tr("Tool holder hits a clamp"),
+            Kind::TooSmall => tr("Shape smaller than the tool"),
+            Kind::Overcut => tr("Tool cuts past the design"),
+            Kind::Setting => tr("Check the settings"),
         }
     }
 }
@@ -90,8 +91,8 @@ pub fn tool_of(d: &ProjectData, op: usize, which: usize) -> Option<&Tool> {
 }
 
 fn op_name(d: &ProjectData, op: usize) -> String {
-    let kind = d.ops.get(op).map(|o| match o.p.kind.as_str() { "outside" => "Profile outside", "inside" => "Profile inside", "online" => "Profile on the line", "pocket" => "Pocket", "vcarve" => "V-carve", "drill" => "Drill", "inlay" => "Inlay pocket", "plug" => "Inlay plug", "relief" => "3D relief", k => k }).unwrap_or("Operation");
-    format!("Operation {} ({kind})", op + 1)
+    let kind = d.ops.get(op).map(|o| match o.p.kind.as_str() { "outside" => tr("Profile outside"), "inside" => tr("Profile inside"), "online" => tr("Profile on the line"), "pocket" => tr("Pocket"), "vcarve" => tr("V-carve"), "drill" => tr("Drill"), "inlay" => tr("Inlay pocket"), "plug" => tr("Inlay plug"), "relief" => tr("3D relief"), "draw" => tr("Draw (pen)"), _ => tr("Operation") }).unwrap_or(tr("Operation"));
+    tr_f("Operation {n} ({kind})", &[("n", &(op + 1)), ("kind", &kind)])
 }
 
 /// The tool holder as far as it is known: its radius and how far the tool tip sticks out below it.
@@ -174,14 +175,14 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         if t.flute > 0.0 && -z > t.flute + 0.01 {
             let m = &out.moves[i];
             found.push(Finding { clamps: vec![], kind: Kind::TooDeep, op: Some(op), mv: Some(i), at: m.to, count: 1,
-                msg: format!("{} cuts {:.1} mm deep, but the {} has a cutting length of {:.1} mm: the shank would rub the work.", op_name(data, op), -z, if t.name.is_empty() { "tool" } else { &t.name }, t.flute) });
+                msg: tr_f("{op} cuts {d} mm deep, but the {tool} has a cutting length of {flute} mm: the shank would rub the work.", &[("op", &op_name(data, op)), ("d", &format!("{:.1}", -z)), ("tool", &if t.name.is_empty() { tr("tool") } else { &t.name }), ("flute", &format!("{:.1}", t.flute))]) });
         }
     }
     if let Some((z, i)) = lowest {
         if -z > t_stock + 0.5 {
             let m = &out.moves[i];
             found.push(Finding { clamps: vec![], kind: Kind::Spoilboard, op: Some(m.op), mv: Some(i), at: m.to, count: 1,
-                msg: format!("{} goes {:.1} mm below the bottom of the stock: that cuts into the table or spoilboard (a through cut needs 0.1 to 0.3 mm).", op_name(data, m.op), -z - t_stock) });
+                msg: tr_f("{op} goes {d} mm below the bottom of the stock: that cuts into the table or spoilboard (a through cut needs 0.1 to 0.3 mm).", &[("op", &op_name(data, m.op)), ("d", &format!("{:.1}", -z - t_stock))]) });
         }
     }
     if let Some(mc) = &data.machine {
@@ -190,11 +191,11 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         if let Some(&i) = bad.first() {
             let m = &out.moves[i];
             found.push(Finding { clamps: vec![], kind: Kind::OutOfArea, op: Some(m.op), mv: Some(i), at: m.to, count: bad.len(),
-                msg: format!("{} moves outside the machine's work area ({:.0} × {:.0} mm).", op_name(data, m.op), mc.x, mc.y) });
+                msg: tr_f("{op} moves outside the machine's work area ({x} × {y} mm).", &[("op", &op_name(data, m.op)), ("x", &format!("{:.0}", mc.x)), ("y", &format!("{:.0}", mc.y))]) });
         }
         if mc.z > 0.0 && t_stock + data.job.safe > mc.z + 1e-6 {
             found.push(Finding { clamps: vec![], kind: Kind::ZTravel, op: None, mv: None, at: [0.0, 0.0, 0.0], count: 1,
-                msg: format!("The stock ({t_stock:.1} mm) plus the safe height ({:.1} mm) is more than the machine's Z travel ({:.1} mm).", data.job.safe, mc.z) });
+                msg: tr_f("The stock ({t} mm) plus the safe height ({safe} mm) is more than the machine's Z travel ({z} mm).", &[("t", &format!("{:.1}", t_stock)), ("safe", &format!("{:.1}", data.job.safe)), ("z", &format!("{:.1}", mc.z))]) });
         }
     }
 
@@ -219,7 +220,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
         }).count();
         if small > 0 {
             found.push(Finding { clamps: vec![], kind: Kind::TooSmall, op: Some(op), mv: None, at: [0.0; 3], count: small,
-                msg: format!("{}: {} shape{} narrower than the {:.2} mm the {} cuts at this depth, so {} not cut at all. Use a smaller tool or remove {}.", op_name(data, op), small, if small == 1 { " is" } else { "s are" }, r * 2.0, if t.name.is_empty() { "tool" } else { &t.name }, if small == 1 { "it is" } else { "they are" }, if small == 1 { "it" } else { "them" }) });
+                msg: crate::i18n::tr_nf(small as u64, "{op}: {n} shape is narrower than the {w} mm the {tool} cuts at this depth, so it is not cut at all. Use a smaller tool or remove it.", "{op}: {n} shapes are narrower than the {w} mm the {tool} cuts at this depth, so they are not cut at all. Use a smaller tool or remove them.", &[("op", &op_name(data, op)), ("w", &format!("{:.2}", r * 2.0)), ("tool", &if t.name.is_empty() { tr("tool") } else { &t.name })]) });
         }
     }
     // where a cutter's centre may not be, by operation and cutter radius at the surface (to 0.02 mm)
@@ -264,8 +265,8 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
 
         for (ci, c) in data.clamps.iter().enumerate() {
             match clamp_contact_seg(c, m.from, m.to, r, holder) {
-                Some(Part::Cutter) => note(&mut found, Kind::Clamp, i, clamp_first_contact(c, m.from, m.to, r, holder), format!("{} runs into a clamp at {:.0}, {:.0} mm.", op_name(data, m.op), c.x, c.y), Some(ci)),
-                Some(Part::Holder) => note(&mut found, Kind::Holder, i, clamp_first_contact(c, m.from, m.to, r, holder), format!("{}: the tool holder runs into a clamp at {:.0}, {:.0} mm ({:.0} mm of the tool shows below it, the clamp stands {:.0} mm above the stock).", op_name(data, m.op), c.x, c.y, holder.map_or(0.0, |h| h.stick), c.height), Some(ci)),
+                Some(Part::Cutter) => note(&mut found, Kind::Clamp, i, clamp_first_contact(c, m.from, m.to, r, holder), tr_f("{op} runs into a clamp at {x}, {y} mm.", &[("op", &op_name(data, m.op)), ("x", &format!("{:.0}", c.x)), ("y", &format!("{:.0}", c.y))]), Some(ci)),
+                Some(Part::Holder) => note(&mut found, Kind::Holder, i, clamp_first_contact(c, m.from, m.to, r, holder), tr_f("{op}: the tool holder runs into a clamp at {x}, {y} mm ({stick} mm of the tool shows below it, the clamp stands {height} mm above the stock).", &[("op", &op_name(data, m.op)), ("x", &format!("{:.0}", c.x)), ("y", &format!("{:.0}", c.y)), ("stick", &format!("{:.0}", holder.map_or(0.0, |h| h.stick))), ("height", &format!("{:.0}", c.height))]), Some(ci)),
                 None => {}
             }
         }
@@ -278,8 +279,8 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
                     let rad = match g.shape { ShapeKind::Flat | ShapeKind::Bull => g.r, _ => g.r_at(-p[2]) };
                     if !guard_violated(m.op, rad, p[0], p[1]) { continue; }
                     over_done[m.op] = true;
-                    let why = if kinds[m.op] == "outside" { "cuts into a part: shapes closer together than the tool's width, or overlapping" } else { "cuts outside its shape" };
-                    note(&mut found, Kind::Overcut, i, p, format!("{} {why} (by more than {TOL} mm), first at {:.1}, {:.1} mm.", op_name(data, m.op), p[0], p[1]), None);
+                    let why = if kinds[m.op] == "outside" { tr("cuts into a part: shapes closer together than the tool's width, or overlapping") } else { tr("cuts outside its shape") };
+                    note(&mut found, Kind::Overcut, i, p, tr_f("{op} {why} (by more than {tol} mm), first at {x}, {y} mm.", &[("op", &op_name(data, m.op)), ("why", &why), ("tol", &TOL), ("x", &format!("{:.1}", p[0])), ("y", &format!("{:.1}", p[1]))]), None);
                     break;
                 }
             }
@@ -291,7 +292,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
                     if p[2] >= -0.02 { continue; }
                     let ex = sim.inside_cutter(slot, p[0], p[1], p[2]);
                     if ex > 0.05 {
-                        note(&mut found, Kind::RapidCut, i, p, format!("{} has a rapid move through material ({ex:.1} mm into the stock): the tool would crash. Check the safe height and the retracts.", op_name(data, m.op)), None);
+                        note(&mut found, Kind::RapidCut, i, p, tr_f("{op} has a rapid move through material ({ex} mm into the stock): the tool would crash. Check the safe height and the retracts.", &[("op", &op_name(data, m.op)), ("ex", &format!("{:.1}", ex))]), None);
                         break;
                     }
                 }
@@ -304,7 +305,7 @@ pub fn run(data: &ProjectData, out: &Output) -> Vec<Finding> {
                     if top >= 0.0 { continue; }
                     let ex = sim.above_in_ring(p[0], p[1], r + sim.cell * 1.5 + 0.05, t.shank / 2.0, top);
                     if ex > 0.05 {
-                        note(&mut found, Kind::Shank, i, p, format!("{}: the {:.1} mm shank of the {} would rub the walls ({ex:.1} mm of material above its cutting length of {:.1} mm).", op_name(data, m.op), t.shank, if t.name.is_empty() { "tool" } else { &t.name }, t.flute), None);
+                        note(&mut found, Kind::Shank, i, p, tr_f("{op}: the {shank} mm shank of the {tool} would rub the walls ({ex} mm of material above its cutting length of {flute} mm).", &[("op", &op_name(data, m.op)), ("shank", &format!("{:.1}", t.shank)), ("tool", &if t.name.is_empty() { tr("tool") } else { &t.name }), ("ex", &format!("{:.1}", ex)), ("flute", &format!("{:.1}", t.flute))]), None);
                         break;
                     }
                 }

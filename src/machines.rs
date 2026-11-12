@@ -1,5 +1,6 @@
 //! Machine library: named machines (rapid rate, time correction, work area). Mirrors the browser
 //! app's Machines dialog. A project stores a copy of the machine it was made for.
+use crate::i18n::{tr, tr_f};
 use crate::model::Machine;
 use crate::toollib::new_id;
 use serde::{Deserialize, Serialize};
@@ -42,7 +43,7 @@ impl Default for Machines {
 
 impl Machines {
     pub fn from_json(s: &str) -> Result<Machines, String> {
-        let mut m: Machines = serde_json::from_str(s).map_err(|e| format!("Not a valid machine list: {e}"))?;
+        let mut m: Machines = serde_json::from_str(s).map_err(|e| tr_f("Not a valid machine list: {e}", &[("e", &e)]))?;
         m.repair();
         Ok(m)
     }
@@ -100,7 +101,7 @@ impl Machines {
 
     /// Delete a machine; at least one always stays. Returns the id to select next.
     pub fn delete(&mut self, id: &str) -> Result<String, String> {
-        if self.list.len() < 2 { return Err("Keep at least one machine.".into()); }
+        if self.list.len() < 2 { return Err(tr("Keep at least one machine.").into()); }
         self.list.retain(|m| m.id != id);
         if self.def == id { self.def = self.list[0].id.clone(); }
         Ok(self.def.clone())
@@ -116,7 +117,7 @@ impl Machines {
     pub fn import(&mut self, json: &str) -> Result<(String, usize), String> {
         #[derive(serde::Deserialize)]
         struct File { app: String, machines: Vec<Machine> }
-        let bad = || "This is not a PutiaCNC machine file.".to_string();
+        let bad = || tr("This is not a PutiaCNC machine file.").to_string();
         let f: File = serde_json::from_str(json).map_err(|_| bad())?;
         if f.app != "putia-cnc-machine" || f.machines.is_empty() { return Err(bad()); }
         let mut last = String::new();

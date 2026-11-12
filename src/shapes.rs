@@ -1,6 +1,7 @@
 //! Shape construction and editing helpers used by the GUI. Everything here is UI-free so it
 //! can be unit-tested. Coordinates in the API are millimetres (`[f64; 2]`); the stored
 //! loop points are integers in 1/1000 mm.
+use crate::i18n::{tr};
 use crate::model::*;
 use std::f64::consts::PI;
 
@@ -702,9 +703,9 @@ pub fn blank_project() -> ProjectFile {
 pub fn tool_missing(d: &ProjectData, kind: &str) -> Option<&'static str> {
     let pens = d.tools.iter().filter(|t| t.shape == "pen").count();
     if kind == "draw" {
-        if pens == 0 { return Some("There is no pen in the tool list. Add one in Manage tools, or switch to a library that has pens (File → Tool library)."); }
+        if pens == 0 { return Some(tr("There is no pen in the tool list. Add one in Manage tools, or switch to a library that has pens (File → Tool library).")); }
     } else if pens == d.tools.len() {
-        return Some("The tool list has only pens, and a pen can only draw. Use Draw for it, or switch to a library with cutters (File → Tool library).");
+        return Some(tr("The tool list has only pens, and a pen can only draw. Use Draw for it, or switch to a library with cutters (File → Tool library)."));
     }
     None
 }

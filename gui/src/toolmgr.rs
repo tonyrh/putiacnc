@@ -456,7 +456,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
             // a pen has a line width and two speeds: no spindle, flutes, stepover or depth per pass
             let pen = t.shape == "pen";
             // wide enough for the longest shape name, or the dropdown pushes the form (and the window) wider every frame
-            let fw = SHAPES.iter().map(|(_, l)| crate::panels::tw(ui, l) + 34.0).fold(120.0_f32, f32::max).max(crate::widgets::combo_fit(ui, &SHAPES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 4.0);
+            let fw = SHAPES.iter().map(|(_, l)| crate::panels::tw(ui, tr(l)) + 34.0).fold(120.0_f32, f32::max).max(crate::widgets::combo_fit(ui, &SHAPES.iter().map(|(_, l)| tr(l)).collect::<Vec<_>>()) + 4.0);
             let sp = 8.0_f32; // label-to-field gap
             let gap = (aw - 2.0 * (lw + fw) - 4.0 * sp).max(8.0); // space between the two column pairs
             egui::Grid::new("tool_form_top").num_columns(2).spacing([sp, 8.0]).show(ui, |ui| {
@@ -479,7 +479,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 }}; }
                 rlabel(ui, lw, tr("Shape"));
                 egui::ComboBox::from_id_source("tshape").width(fw - 4.0).selected_text(shape_label(&t.shape)).show_ui(ui, |ui| {
-                    for (key, lab) in SHAPES { if ui.selectable_label(t.shape == key, lab).clicked() {
+                    for (key, lab) in SHAPES { if ui.selectable_label(t.shape == key, tr(lab)).clicked() {
                         t.shape = key.into();
                         // a tapered ball nose has a rounded tip by definition
                         if key == "taper" && t.tip <= 0.0 { t.tip = 0.5; }

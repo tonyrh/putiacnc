@@ -40,6 +40,21 @@ fn languages_switch_and_fall_back_to_english() {
     assert_eq!(tr_f("shape {n}", &[("n", &4)]), "forma 4");
     // a text with no translation is shown in English
     assert_eq!(tr("A text nobody translated"), "A text nobody translated");
+    // the G-code file is the same in every language: its comments and the summary at its top stay English, while the
+    // notes and the "What this will do" rows are in the language in use
+    let data = |name: &str| putiacnc_core::load_project(&std::fs::read_to_string(root().join(format!("tests/data/{name}.project.json"))).unwrap()).unwrap().data;
+    for name in ["imperial_center", "hardware_m0_aircut"] {
+        let d = data(name);
+        i18n::set_language("en");
+        let en = putiacnc_core::pieces::generate_parts(&d, putiacnc_core::Units::Metric).unwrap();
+        let rows_en = putiacnc_core::summary::describe(&d, &en[0].out, putiacnc_core::Units::Metric, false);
+        i18n::set_language("it");
+        let it = putiacnc_core::pieces::generate_parts(&d, putiacnc_core::Units::Metric).unwrap();
+        let rows_it = putiacnc_core::summary::describe(&d, &it[0].out, putiacnc_core::Units::Metric, false);
+        assert_eq!(en.len(), it.len());
+        for (a, b) in en.iter().zip(&it) { assert_eq!(a.out.lines, b.out.lines, "{name}: the G-code depends on the language"); }
+        assert!(rows_en.iter().zip(&rows_it).any(|(a, b)| a.text != b.text), "{name}: the summary rows are not translated");
+    }
     i18n::set_language("pseudo");
     assert!(tr("Copies").starts_with("[! ") && tr("Copies").ends_with(" !]"));
     assert_eq!(tr_f("shape {n}", &[("n", &4)]).matches('4').count(), 1);

@@ -2,6 +2,7 @@
 //! It is made of the things the program already has: a rectangle as big as the stock, and a Pocket operation over it with the wide cutter,
 //! a light cut and a wide stepover. The rectangle is a cutter radius larger than the stock on every side, so the cutter's edge (not its
 //! centre) reaches the stock's edge and the whole surface is cleared.
+use crate::i18n::{tr};
 use crate::model::{Operation, ProjectData, Tool};
 use crate::shapes;
 
@@ -34,10 +35,10 @@ pub fn defaults(t: &Tool, spoilboard: bool) -> SurfaceSpec {
 
 /// Adds the surfacing operation and its rectangle. Returns the operation's id.
 pub fn add_surfacing(d: &mut ProjectData, s: &SurfaceSpec) -> Result<i64, String> {
-    let tool = d.tools.iter().find(|t| t.id == s.tool).ok_or("Choose a cutter for the surfacing.")?.clone();
-    if tool.shape != "flat" { return Err("Surfacing needs a flat cutter.".into()); }
-    if !(s.depth > 0.0 && s.pass > 0.0 && s.stepover > 0.0 && s.stepover <= 100.0) { return Err("Check the depth, the pass depth and the stepover.".into()); }
-    if d.stock.w <= 0.0 || d.stock.h <= 0.0 { return Err("The stock has no size.".into()); }
+    let tool = d.tools.iter().find(|t| t.id == s.tool).ok_or(tr("Choose a cutter for the surfacing."))?.clone();
+    if tool.shape != "flat" { return Err(tr("Surfacing needs a flat cutter.").into()); }
+    if !(s.depth > 0.0 && s.pass > 0.0 && s.stepover > 0.0 && s.stepover <= 100.0) { return Err(tr("Check the depth, the pass depth and the stepover.").into()); }
+    if d.stock.w <= 0.0 || d.stock.h <= 0.0 { return Err(tr("The stock has no size.").into()); }
     let r = tool.dia / 2.0;
     let id = d.ops.iter().map(|o| o.id).max().unwrap_or(0).max(d.oid) + 1;
     let mut p = shapes::default_op_params(&tool.id);

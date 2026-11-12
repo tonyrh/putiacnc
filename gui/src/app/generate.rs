@@ -100,10 +100,12 @@ impl App {
         for n in notes {
             // "Op 3: ..." names the operation
             let op = n.strip_prefix("Op ").and_then(|r| r.split(':').next()).and_then(|k| k.trim().parse::<usize>().ok()).and_then(|k| k.checked_sub(1));
-            let same_as_check = n.contains("depth exceeds stock thickness")
+            // the generator's own note for this, in the language in use (the text after the operation's name)
+            let deep = putiacnc_core::i18n::tr("⚠ {pre}depth exceeds stock thickness.");
+            let same_as_check = n.contains(deep.split_once("{pre}").map_or(deep, |(_, tail)| tail))
                 && self.checks.iter().zip(&self.check_parts).any(|(f, &p)| p == 0 && matches!(f.kind, putiacnc_core::checks::Kind::Spoilboard | putiacnc_core::checks::Kind::TooDeep) && f.op == op);
             if same_as_check { continue; }
-            let msg = match n.split_once(": ") { Some((a, rest)) if op.is_some() && a.starts_with("Op ") => format!("Operation {}: {}", a.trim_start_matches("Op "), rest), _ => n.clone() };
+            let msg = match n.split_once(": ") { Some((a, rest)) if op.is_some() && a.starts_with("Op ") => putiacnc_core::i18n::tr_f("Operation {n}: {rest}", &[("n", &a.trim_start_matches("Op ")), ("rest", &rest)]), _ => n.clone() };
             self.checks.push(putiacnc_core::checks::Finding { kind: putiacnc_core::checks::Kind::Setting, op, mv: None, at: [0.0; 3], count: 1, msg, clamps: vec![] });
             self.check_parts.push(0);
         }

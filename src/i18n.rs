@@ -47,7 +47,7 @@ pub fn set_language(code: &str) {
 
 /// The code of the language in use.
 pub fn language() -> &'static str {
-    match CURRENT.load(Ordering::Relaxed) { PSEUDO_IDX => PSEUDO, i => LANGUAGES.get(i).map_or("en", |l| l.0) }
+    match current() { PSEUDO_IDX => PSEUDO, i => LANGUAGES.get(i).map_or("en", |l| l.0) }
 }
 
 /// The language of the system if there is a translation for it, else English.
@@ -92,8 +92,21 @@ pub fn pseudo_text(text: &str) -> String {
     out
 }
 
+thread_local! { static ENGLISH: std::cell::Cell<u32> = const { std::cell::Cell::new(0) }; }
+
+/// Runs `f` with every text in English, whatever the language in use, on this thread only: for what is written into a
+/// G-code file (the summary at its top), which stays English.
+pub fn english<R>(f: impl FnOnce() -> R) -> R {
+    struct Guard;
+    impl Drop for Guard { fn drop(&mut self) { ENGLISH.with(|e| e.set(e.get().saturating_sub(1))); } }
+    ENGLISH.with(|e| e.set(e.get() + 1));
+    let _g = Guard;
+    f()
+}
+fn current() -> usize { if ENGLISH.with(|e| e.get()) > 0 { 0 } else { CURRENT.load(Ordering::Relaxed) } }
+
 fn lookup(s: &'static str) -> Option<&'static str> {
-    match CURRENT.load(Ordering::Relaxed) {
+    match current() {
         0 => None,
         PSEUDO_IDX => Some(pseudo(s)),
         i => tables().get(i).and_then(|t| t.get(s).copied()),
@@ -111,7 +124,7 @@ pub const fn n_(s: &'static str) -> &'static str { s }
 
 /// A text known only at run time (from a `n_` list): translated when it is in the table, else as it is.
 pub fn tr_dyn(s: &str) -> String {
-    match CURRENT.load(Ordering::Relaxed) {
+    match current() {
         0 => s.to_string(),
         PSEUDO_IDX => pseudo_text(s),
         i => tables().get(i).and_then(|t| t.get(s).copied()).unwrap_or(s).to_string(),

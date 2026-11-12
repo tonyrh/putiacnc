@@ -1,5 +1,6 @@
 //! Toolpath and G-code generation. This is a direct port of the browser app's `build()`
 //! so the two produce the same output for the same project.
+use crate::i18n::{tr, tr_f, tr_n, tr_nf};
 use crate::clip::{self, Path};
 use crate::model::*;
 
@@ -42,6 +43,14 @@ pub struct TabMark {
     pub op: usize,
     pub mid: [f64; 2],
     pub dir: [f64; 2],
+}
+
+/// The note for an operation without shapes, and whether a note is one (in the language in use: `pieces` and `split` drop them).
+pub fn no_shapes_note(k: usize) -> String { tr_f("Op {n} has no shapes.", &[("n", &(k + 1))]) }
+pub fn is_no_shapes_note(note: &str) -> bool {
+    let t = tr("Op {n} has no shapes.");
+    let (a, b) = t.split_once("{n}").unwrap_or((t, ""));
+    note.len() > a.len() + b.len() && note.starts_with(a) && note.ends_with(b) && note[a.len()..note.len() - b.len()].chars().all(|c| c.is_ascii_digit())
 }
 
 #[derive(Debug, Clone)]
@@ -648,7 +657,7 @@ fn assign_manual_tabs(c: &OpCtx, jobs: &mut [Job], tabs: &[[f64; 2]], notes: &mu
         for v in iv { match merged.last_mut() { Some(m) if v[0] <= m[1] => m[1] = m[1].max(v[1]), _ => merged.push(v) } }
         jobs[ji].iv = Some(Some(merged));
     }
-    if skipped > 0 { notes.push(format!("{}{} manual tab{} not on the outline, skipped.", pre, skipped, if skipped == 1 { " is" } else { "s are" })); }
+    if skipped > 0 { notes.push(tr_nf(skipped as u64, "{pre}{n} manual tab is not on the outline, skipped.", "{pre}{n} manual tabs are not on the outline, skipped.", &[("pre", &pre)])); }
 }
 
 /// Even-odd test of a point (mm) against a set of closed paths.
@@ -1097,19 +1106,19 @@ fn select_tool(e: &mut Em, st: &mut ToolSt, mach: bool, tool: &Tool, sz: f64, di
 fn rest_pass(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, o: &Operation, k: usize, mach: bool, main: &OpCtx, region: &[Path], tool: &Tool, id: &str) {
     let pre = format!("Op {}: ", k + 1);
     let (ku, un) = (e.ku, if e.imp { "in" } else { "mm" });
-    let Some(rt) = data.tools.iter().find(|t| t.id == id) else { notes.push(format!("{}rest machining skipped: its tool is not in the tool list.", pre)); return };
-    if rt.shape != "flat" || tool.shape != "flat" { notes.push(format!("{}rest machining needs flat end mills (the main tool and the cleanup tool).", pre)); return; }
-    if rt.dia >= tool.dia - 1e-9 { notes.push(format!("{}rest machining skipped: the cleanup tool ({} {}) must be smaller than the main tool ({} {}).", pre, num(to_fixed(rt.dia / ku, 4)), un, num(to_fixed(tool.dia / ku, 4)), un)); return; }
-    if !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) { notes.push(format!("{}rest machining skipped: check the cleanup tool's values.", pre)); return; }
+    let Some(rt) = data.tools.iter().find(|t| t.id == id) else { notes.push(tr_f("{pre}rest machining skipped: its tool is not in the tool list.", &[("pre", &pre)])); return };
+    if rt.shape != "flat" || tool.shape != "flat" { notes.push(tr_f("{pre}rest machining needs flat end mills (the main tool and the cleanup tool).", &[("pre", &pre)])); return; }
+    if rt.dia >= tool.dia - 1e-9 { notes.push(tr_f("{pre}rest machining skipped: the cleanup tool ({v} {un}) must be smaller than the main tool ({v2} {un2}).", &[("pre", &pre), ("v", &num(to_fixed(rt.dia / ku, 4))), ("un", &un), ("v2", &num(to_fixed(tool.dia / ku, 4))), ("un2", &un)])); return; }
+    if !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) { notes.push(tr_f("{pre}rest machining skipped: check the cleanup tool's values.", &[("pre", &pre)])); return; }
     let area = crate::rest::cleanup_region(region, tool.dia / 2.0, rt.dia / 2.0);
-    if area.is_empty() { notes.push(format!("{}rest machining: nothing is left for the {} {} tool to clear.", pre, num(to_fixed(rt.dia / ku, 4)), un)); return; }
+    if area.is_empty() { notes.push(tr_f("{pre}rest machining: nothing is left for the {v} {un} tool to clear.", &[("pre", &pre), ("v", &num(to_fixed(rt.dia / ku, 4))), ("un", &un)])); return; }
     let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(tool.pd).min(rt.pd);
     let nz = (o.p.depth / pd - 1e-9).ceil().clamp(1.0, 5000.0) as usize;
     let zs: Vec<f64> = (0..nz).map(|i| -(o.p.depth / nz as f64) * (i as f64 + 1.0)).collect();
     let rctx = OpCtx { kind: "pocket", dia: rt.dia, so: rt.so, plunge: rt.plunge, feed: rt.feed, ramp: main.ramp, rev: main.rev, helix: None, adapt: false, z0: main.z0, sz: main.sz, zs: zs.clone(),
         tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0, slow: 0.0, troch: None };
     let mut jobs = mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0);
-    if jobs.is_empty() { notes.push(format!("{}rest machining: what is left is too narrow for the {} {} tool.", pre, num(to_fixed(rt.dia / ku, 4)), un)); return; }
+    if jobs.is_empty() { notes.push(tr_f("{pre}rest machining: what is left is too narrow for the {v} {un} tool.", &[("pre", &pre), ("v", &num(to_fixed(rt.dia / ku, 4))), ("un", &un)])); return; }
     select_tool(e, ts, mach, rt, main.sz, &num(to_fixed(rt.dia / ku, 4)), un);
     e.g.push(format!("(Operation {}: pocket, corners and narrow parts, tool {} {})", k + 1, num(to_fixed(rt.dia / ku, 4)), un));
     e.alt = true;
@@ -1175,9 +1184,9 @@ fn air_lift(depth: f64) -> f64 { 10.0_f64.max(depth + 2.0) }
 /// lifted a few millimetres between strokes. The strokes are ordered nearest first so the pen travels as little as it can.
 fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, o: &Operation, k: usize, mach: bool, mine: &[&LoopData]) -> Result<(), String> {
     let pre = format!("Op {}: ", k + 1);
-    let tool = data.tools.iter().find(|t| t.id == o.p.tool).ok_or_else(|| format!("Operation {}: choose a pen (Manage… to create one)", k + 1))?;
-    if tool.shape != "pen" { return Err(format!("Operation {}: Draw needs a pen or marker; choose one in Manage… (type: Pen / marker)", k + 1)); }
-    if !(tool.feed > 0.0 && tool.plunge > 0.0) { return Err(format!("Operation {}: check the pen's draw speed and pen-down speed", k + 1)); }
+    let tool = data.tools.iter().find(|t| t.id == o.p.tool).ok_or_else(|| tr_f("Operation {n}: choose a pen (Manage… to create one)", &[("n", &(k + 1))]))?;
+    if tool.shape != "pen" { return Err(tr_f("Operation {n}: Draw needs a pen or marker; choose one in Manage… (type: Pen / marker)", &[("n", &(k + 1))])); }
+    if !(tool.feed > 0.0 && tool.plunge > 0.0) { return Err(tr_f("Operation {n}: check the pen's draw speed and pen-down speed", &[("n", &(k + 1))])); }
     let z0 = if o.p.air || data.job.air { air_lift(o.p.depth) } else { 0.0 };
     let sz = data.job.safe + z0;
     let down = z0 - o.p.depth.max(0.0);
@@ -1201,15 +1210,15 @@ fn draw_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectD
     if let Some(h) = &o.p.hatch {
         let gap = h.gap.filter(|g| *g > 0.0).unwrap_or(tool.dia).max(0.05);
         let polys: Vec<Vec<[f64; 2]>> = strokes.iter().filter(|(_, c, _)| *c).map(|(v, _, _)| v.clone()).collect();
-        if polys.is_empty() { notes.push(format!("{}there are no closed shapes to fill.", pre)); }
+        if polys.is_empty() { notes.push(tr_f("{pre}there are no closed shapes to fill.", &[("pre", &pre)])); }
         let mut lines = hatch_lines(&polys, h.angle, gap);
         if h.cross { lines.extend(hatch_lines(&polys, h.angle + 90.0, gap)); }
-        if lines.len() > 200_000 { return Err(format!("Operation {}: the fill would need {} lines; use a wider line spacing", k + 1, lines.len())); }
+        if lines.len() > 200_000 { return Err(tr_f("Operation {n}: the fill would need {lines} lines; use a wider line spacing", &[("n", &(k + 1)), ("lines", &lines.len())])); }
         if !h.outline { strokes.retain(|(_, c, _)| !*c); }
         strokes.extend(lines.into_iter().map(|l| (l, false, true)));
         fill = Some((polys, gap));
     }
-    if strokes.is_empty() { notes.push(format!("{}nothing to draw.", pre)); return Ok(()); }
+    if strokes.is_empty() { notes.push(tr_f("{pre}nothing to draw.", &[("pre", &pre)])); return Ok(()); }
     select_pen(e, ts, mach, tool, sz);
     e.g.push(format!("(Operation {}: draw with {}, pen down at {} {} below Z0, up at {} {} above it)", k + 1, tool_label(&tool.name), num(to_fixed(o.p.depth.max(0.0) / e.ku, e.dec())), if e.imp { "in" } else { "mm" }, num(to_fixed(lift / e.ku, e.dec())), if e.imp { "in" } else { "mm" }));
     e.go("G0", None, None, Some(sz), 0.0);
@@ -1411,19 +1420,19 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let pre = format!("Op {}: ", k + 1);
     let un = if e.imp { "in" } else { "mm" };
     let ku = e.ku;
-    let Some(rel) = &data.relief else { return Err(format!("Operation {}: import a 3D model first (File menu, Import 3D Model)", k + 1)); };
+    let Some(rel) = &data.relief else { return Err(tr_f("Operation {n}: import a 3D model first (File menu, Import 3D Model)", &[("n", &(k + 1))])); };
     let depth = relief_depth(data, &o.p);
     let tool_opt = data.tools.iter().find(|t| t.id == o.p.tool);
     let rough = if o.p.r_off { None } else { o.p.tool2.as_deref().and_then(|id| data.tools.iter().find(|t| t.id == id)) };
-    if o.p.r_off && o.p.f_off { return Err(format!("Operation {}: roughing and finishing are both switched off, so there is nothing to cut", k + 1)); }
-    if !(depth > 0.0) { return Err(format!("Operation {}: check the depth", k + 1)); }
+    if o.p.r_off && o.p.f_off { return Err(tr_f("Operation {n}: roughing and finishing are both switched off, so there is nothing to cut", &[("n", &(k + 1))])); }
+    if !(depth > 0.0) { return Err(tr_f("Operation {n}: check the depth", &[("n", &(k + 1))])); }
     // the finishing tool is only needed when finishing; without it the roughing tool sets the margins
     let tool = match (tool_opt, o.p.f_off) {
         (Some(t), _) => t,
-        (None, true) => rough.ok_or_else(|| format!("Operation {}: choose a roughing tool", k + 1))?,
-        (None, false) => return Err(format!("Operation {}: choose a finishing tool (Manage… to create one)", k + 1)),
+        (None, true) => rough.ok_or_else(|| tr_f("Operation {n}: choose a roughing tool", &[("n", &(k + 1))]))?,
+        (None, false) => return Err(tr_f("Operation {n}: choose a finishing tool (Manage… to create one)", &[("n", &(k + 1))])),
     };
-    if !o.p.f_off && !(tool.dia > 0.0 && tool.so > 0.0 && tool.feed > 0.0 && tool.plunge > 0.0) { return Err(format!("Operation {}: check the finishing tool's values", k + 1)); }
+    if !o.p.f_off && !(tool.dia > 0.0 && tool.so > 0.0 && tool.feed > 0.0 && tool.plunge > 0.0) { return Err(tr_f("Operation {n}: check the finishing tool's values", &[("n", &(k + 1))])); }
     // custom feeds and speeds: the finishing tool's are `custom`, the roughing tool's `custom2` (the stepovers have their own fields)
     let (tool_own, rough_own);
     let tool = match &o.p.custom { Some(cf) if !o.p.f_off => { tool_own = custom_tool(cf, tool, machine, notes, &pre, "finishing"); &tool_own } _ => tool };
@@ -1433,10 +1442,10 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     let sz = data.job.safe + z0;
     let hop = data.job.safe.min(1.0);
     let st = &data.stock;
-    if depth > st.t + 1e-6 { notes.push(format!("⚠ {}depth exceeds stock thickness.", pre)); }
+    if depth > st.t + 1e-6 { notes.push(tr_f("⚠ {pre}depth exceeds stock thickness.", &[("pre", &pre)])); }
     let (mw, mh) = rel.size();
     if rel.x < -1e-6 || rel.y < -1e-6 || rel.x + mw > st.w + 1e-6 || rel.y + mh > st.h + 1e-6 {
-        notes.push(format!("⚠ {}the model ({:.0} x {:.0} mm) extends beyond the stock.", pre, mw, mh));
+        notes.push(tr_f("⚠ {pre}the model ({mw} x {mh} mm) extends beyond the stock.", &[("pre", &pre), ("mw", &format!("{:.0}", mw)), ("mh", &format!("{:.0}", mh))]));
     }
     let fgeo = ToolGeo::new(tool);
     let rmax = tool.dia / 2.0 + 0.2;
@@ -1452,7 +1461,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
     // how far out from the model the roughing cutter's edge reaches (mm): the finishing lines must reach as far, or a ledge is left around the pocket
     let mut rough_reach = 0.0f64;
     if let Some(rt) = rough {
-        if !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) { return Err(format!("Operation {}: check the roughing tool's values", k + 1)); }
+        if !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) { return Err(tr_f("Operation {n}: check the roughing tool's values", &[("n", &(k + 1))])); }
         let rg = ToolGeo::new(rt);
         let kc = ((rt.dia / 6.0 / g).round() as usize).max(1);
         // the plan reaches as far out as the cutter, plus the extra width of its footprint, so a cell at its edge is not blocked by the model's rim
@@ -1526,10 +1535,10 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
             e.alt = false;
             layers = n;
         } else {
-            notes.push(format!("{}nothing to rough: the model is flat.", pre));
+            notes.push(tr_f("{pre}nothing to rough: the model is flat.", &[("pre", &pre)]));
         }
     } else if !o.p.r_off {
-        notes.push(format!("{}no roughing tool chosen: the finishing tool cuts everything (slow, and hard on the tool). Pick a flat end mill as the roughing tool.", pre));
+        notes.push(tr_f("{pre}no roughing tool chosen: the finishing tool cuts everything (slow, and hard on the tool). Pick a flat end mill as the roughing tool.", &[("pre", &pre)]));
     }
 
     let mut nlines = 0usize;
@@ -1538,7 +1547,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
         let fp = Footprint::new(g, tool.dia / 2.0, |rho| fgeo.rise(rho));
         let fso = o.p.f_so.filter(|v| *v > 0.0).unwrap_or(tool.so);
         let step = ((tool.dia * fso / 100.0 / g).round() as usize).max(1);
-        if step as f64 * g > tool.dia * fso / 100.0 * 1.6 { notes.push(format!("{}the model's resolution ({} {}) limits the finishing line spacing; re-import it finer for a smoother surface.", pre, fnum(g), un)); }
+        if step as f64 * g > tool.dia * fso / 100.0 * 1.6 { notes.push(tr_f("{pre}the model's resolution ({v} {un}) limits the finishing line spacing; re-import it finer for a smoother surface.", &[("pre", &pre), ("v", &fnum(g)), ("un", &un)])); }
         let margin = (((tool.dia / 2.0 + 0.2) / g).ceil() as usize).max(((rough_reach - (2.0 * (tool.dia / 2.0) * leave - leave * leave).max(0.0).sqrt().min(tool.dia / 2.0)) / g).ceil().max(0.0) as usize).min(f.pad);
         // the lines along X, along Y (the surface turned, and the lines turned back), or both, X first
         let dir = o.p.f_dir.as_deref().unwrap_or("x");
@@ -1574,16 +1583,16 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
             }
         }
         e.go("G0", None, None, Some(sz), 0.0);
-        if dir == "xy" { notes.push(format!("{}finishing in both directions takes twice as long; the second pass evens out the ridges the first one leaves between its lines.", pre)); }
-        if tool.shape == "flat" { notes.push(format!("{}a flat end mill as the finishing tool leaves a stepped surface; use a ball nose.", pre)); }
+        if dir == "xy" { notes.push(tr_f("{pre}finishing in both directions takes twice as long; the second pass evens out the ridges the first one leaves between its lines.", &[("pre", &pre)])); }
+        if tool.shape == "flat" { notes.push(tr_f("{pre}a flat end mill as the finishing tool leaves a stepped surface; use a ball nose.", &[("pre", &pre)])); }
     }
     // 3. detail: a smaller ball finishes only what the finishing ball could not reach
     let detail = if o.p.f_off { None } else { o.p.detail_tool().and_then(|id| data.tools.iter().find(|t| t.id == id)) };
     if let Some(dt) = detail {
-        if !(dt.dia > 0.0 && dt.so > 0.0 && dt.feed > 0.0 && dt.plunge > 0.0) { return Err(format!("Operation {}: check the detail tool's values", k + 1)); }
+        if !(dt.dia > 0.0 && dt.so > 0.0 && dt.feed > 0.0 && dt.plunge > 0.0) { return Err(tr_f("Operation {n}: check the detail tool's values", &[("n", &(k + 1))])); }
         let dgeo = ToolGeo::new(dt);
         if dt.dia >= tool.dia {
-            notes.push(format!("{}the detail tool ({} {}) is not smaller than the finishing tool ({} {}): choose a smaller ball nose.", pre, fnum(dt.dia), un, fnum(tool.dia), un));
+            notes.push(tr_f("{pre}the detail tool ({v} {un}) is not smaller than the finishing tool ({v2} {un2}): choose a smaller ball nose.", &[("pre", &pre), ("v", &fnum(dt.dia)), ("un", &un), ("v2", &fnum(tool.dia)), ("un2", &un)]));
         } else {
             use crate::relief::{dilate, leftover_mask, detail_lines};
             let big = Footprint::new(g, tool.dia / 2.0, |rho| fgeo.rise(rho));
@@ -1592,7 +1601,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
             let total = ((f.nx - 2 * f.pad) * (f.ny - 2 * f.pad)).max(1);
             let left = mask.iter().filter(|v| **v).count();
             if left == 0 {
-                notes.push(format!("{}the finishing tool reaches the whole surface: the detail tool is not needed.", pre));
+                notes.push(tr_f("{pre}the finishing tool reaches the whole surface: the detail tool is not needed.", &[("pre", &pre)]));
             } else {
                 let rc = ((dt.dia / 2.0 / g).ceil() as usize).max(1);
                 let need = dilate(&mask, f.nx, f.ny, rc);
@@ -1621,7 +1630,7 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
                 }
                 e.go("G0", None, None, Some(sz), 0.0);
                 e.det = false;
-                notes.push(format!("{}the detail tool finishes the {:.0}% of the surface the finishing tool could not reach.", pre, 100.0 * left as f64 / total as f64));
+                notes.push(tr_f("{pre}the detail tool finishes the {pct}% of the surface the finishing tool could not reach.", &[("pre", &pre), ("pct", &format!("{:.0}", 100.0 * left as f64 / total as f64))]));
             }
         }
     }
@@ -1635,7 +1644,7 @@ fn custom_tool(cf: &CustomFeeds, tool: &Tool, machine: &Machine, notes: &mut Vec
     let what = machine.hold_text(&asked);
     if !what.is_empty() {
         let who = if which.is_empty() { String::new() } else { format!(" ({which})") };
-        notes.push(format!("⚠ {}Custom feeds and speeds{} held to the machine's limits: {}.", pre, who, what)); // the sign first, like every warning note
+        notes.push(tr_f("⚠ {pre}Custom feeds and speeds{who} held to the machine's limits: {what}.", &[("pre", &pre), ("who", &who), ("what", &what)])); // the sign first, like every warning note
     }
     machine.hold(&asked)
 }
@@ -1645,16 +1654,16 @@ fn custom_tool(cf: &CustomFeeds, tool: &Tool, machine: &Machine, notes: &mut Vec
 fn sanity(data: &ProjectData) -> Result<(), String> {
     let ok = |v: f64, max: f64| v.is_finite() && v.abs() <= max;
     let st = &data.stock;
-    if !(ok(st.w, 1e5) && ok(st.h, 1e5) && ok(st.t, 1e5)) { return Err("The stock size is out of range (up to 100 m).".into()); }
-    if !ok(data.job.safe, 1e4) { return Err("The safe Z is out of range.".into()); }
+    if !(ok(st.w, 1e5) && ok(st.h, 1e5) && ok(st.t, 1e5)) { return Err(tr("The stock size is out of range (up to 100 m).").into()); }
+    if !ok(data.job.safe, 1e4) { return Err(tr("The safe Z is out of range.").into()); }
     for t in &data.tools {
         if !(ok(t.dia, 1e3) && ok(t.pd, 1e4) && ok(t.so, 1e4) && ok(t.feed, 1e6) && ok(t.plunge, 1e6) && ok(t.rpm, 1e6)) {
-            return Err(format!("Tool {}: a value is out of range.", if t.name.is_empty() { &t.id } else { &t.name }));
+            return Err(tr_f("Tool {v}: a value is out of range.", &[("v", &(if t.name.is_empty() { &t.id } else { &t.name }))]));
         }
     }
-    if data.loops.iter().any(|l| l.pts.iter().any(|v| !ok(*v as f64, 1e9))) { return Err("A shape has a point far outside any work area.".into()); }
+    if data.loops.iter().any(|l| l.pts.iter().any(|v| !ok(*v as f64, 1e9))) { return Err(tr("A shape has a point far outside any work area.").into()); }
     for o in &data.ops {
-        if !ok(o.p.depth, 1e4) { return Err("An operation's depth is out of range.".into()); }
+        if !ok(o.p.depth, 1e4) { return Err(tr("An operation's depth is out of range.").into()); }
     }
     Ok(())
 }
@@ -1682,7 +1691,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             if h.rpm != r0 { what.push(format!("spindle {} rpm (tool: {})", num(h.rpm), num(r0))); }
             if h.feed != f0 { what.push(format!("feed {} {}/min (tool: {})", num(fl(h.feed)), un, num(fl(f0)))); }
             if h.plunge != p0 { what.push(format!("plunge {} {}/min (tool: {})", num(fl(h.plunge)), un, num(fl(p0)))); }
-            if !what.is_empty() { limit_notes.push(format!("⚠ {}: held to the machine's limits, {}.", if t.name.is_empty() { "Tool" } else { &t.name }, what.join(", "))); }
+            if !what.is_empty() { limit_notes.push(tr_f("⚠ {tool}: held to the machine's limits, {what}.", &[("tool", &if t.name.is_empty() { tr("Tool") } else { &t.name }), ("what", &what.join(", "))])); }
         }
         for t in d.tools.iter_mut() { *t = machine.hold(t); }
         limited = d;
@@ -1696,11 +1705,11 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     let mut notes: Vec<String> = limit_notes;
 
     if data.loops.iter().filter(|l| !data.ops.iter().any(|o| o.id == l.op && o.p.surf)).any(|l| l.pts.chunks_exact(2).any(|p| (p[0] as f64) < 0.0 || (p[1] as f64) < 0.0 || (p[0] as f64) > st.w * S || (p[1] as f64) > st.h * S)) {
-        notes.push("⚠ Shapes extend beyond the stock.".into());
+        notes.push(tr("⚠ Shapes extend beyond the stock.").into());
     }
-    if data.loops.iter().any(|l| !data.ops.iter().any(|o| o.id == l.op)) { notes.push("Some shapes have no operation (not machined).".into()); }
+    if data.loops.iter().any(|l| !data.ops.iter().any(|o| o.id == l.op)) { notes.push(tr("Some shapes have no operation (not machined).").into()); }
     if st.w > machine.x + 1e-6 || st.h > machine.y + 1e-6 || st.t > machine.z + 1e-6 {
-        notes.push(format!("⚠ The stock is larger than the machine work area ({} × {} × {} {}).", num(fl(machine.x)), num(fl(machine.y)), num(fl(machine.z)), un));
+        notes.push(tr_f("⚠ The stock is larger than the machine work area ({v} × {v2} × {v3} {un}).", &[("v", &num(fl(machine.x))), ("v2", &num(fl(machine.y))), ("v3", &num(fl(machine.z))), ("un", &un)]));
     }
     let mach = data.job.mach();
     e.g.push(format!("(PutiaCNC - {})", data.job.dialect_name()));
@@ -1744,9 +1753,9 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         if o.p.kind != "drill" {
             let n = mine.len();
             mine.retain(|l| !crate::shapes::is_point(l));
-            if mine.len() < n { notes.push(format!("{}{} drill point(s) skipped: only Drill operations use points.", pre, n - mine.len())); }
+            if mine.len() < n { notes.push(tr_f("{pre}{n} drill point(s) skipped: only Drill operations use points.", &[("pre", &pre), ("n", &(n - mine.len()))])); }
         }
-        if mine.is_empty() { notes.push(format!("Op {} has no shapes.", k + 1)); continue; }
+        if mine.is_empty() { notes.push(no_shapes_note(k)); continue; }
         if o.p.kind == "draw" {
             draw_op(&mut e, &mut ts, &mut notes, data, o, k, mach, &mine)?;
             op_pause(&mut e, &mut ts, o, k, mach, data.job.safe + if o.p.air || data.job.air { air_lift(o.p.depth) } else { 0.0 });
@@ -1754,8 +1763,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             continue;
         }
         let tool = data.tools.iter().find(|t| t.id == o.p.tool)
-            .ok_or_else(|| format!("Operation {}: choose a tool (Manage… to create one)", k + 1))?;
-        if tool.shape == "pen" { return Err(format!("Operation {}: a pen only draws; use a Draw operation for it, or choose a cutting tool", k + 1)); }
+            .ok_or_else(|| tr_f("Operation {n}: choose a tool (Manage… to create one)", &[("n", &(k + 1))]))?;
+        if tool.shape == "pen" { return Err(tr_f("Operation {n}: a pen only draws; use a Draw operation for it, or choose a cutting tool", &[("n", &(k + 1))])); }
         // this operation's own feeds and speeds, held to the machine's limits like the tool's
         let tool_own;
         let tool = match &o.p.custom {
@@ -1767,22 +1776,22 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let z0 = if o.p.air || data.job.air { air_lift(depth) } else { 0.0 };
         let sz = data.job.safe + z0;
         if !(dia > 0.0 && depth > 0.0 && pd > 0.0 && so > 0.0 && feed > 0.0 && plunge > 0.0) {
-            return Err(format!("Operation {}: check tool, depth and feed values", k + 1));
+            return Err(tr_f("Operation {n}: check tool, depth and feed values", &[("n", &(k + 1))]));
         }
         let kind = o.p.kind.as_str();
         let geo = ToolGeo::new(tool);
         let rr = dia / 2.0;
         let closed: Vec<Path> = mine.iter().filter(|l| l.closed() && l.pts.len() / 2 > 2).map(|l| l.path()).collect();
         let open: Vec<Path> = mine.iter().filter(|l| !l.closed()).map(|l| l.path()).collect();
-        if depth > st.t { notes.push(format!("⚠ {}depth exceeds stock thickness.", pre)); }
+        if depth > st.t { notes.push(tr_f("⚠ {pre}depth exceeds stock thickness.", &[("pre", &pre)])); }
         // drilling goes by each shape's centre; the union of the shapes (slow when there are many) is not needed
         let region = if kind == "drill" { Vec::new() } else { clip::simplify_even_odd(&closed) };
-        if kind != "online" && kind != "drill" && !open.is_empty() { notes.push(format!("{}{} open path(s) skipped.", pre, open.len())); }
+        if kind != "online" && kind != "drill" && !open.is_empty() { notes.push(tr_f("{pre}{n} open path(s) skipped.", &[("pre", &pre), ("n", &open.len())])); }
 
         let pd = o.p.pass_depth.filter(|v| *v > 0.0).unwrap_or(pd);
         let nz = (depth / pd - 1e-9).ceil() as usize;
         // a pass depth of a thousandth of the depth would write millions of passes (and run the computer out of memory)
-        if nz > 5000 { return Err(format!("Operation {}: a pass depth of {} {} for a depth of {} {} would take {} passes; raise the pass depth.", k + 1, num(pd / ku), un, num(fl(depth)), un, nz)); }
+        if nz > 5000 { return Err(tr_f("Operation {n}: a pass depth of {v2} {un} for a depth of {v3} {un2} would take {nz} passes; raise the pass depth.", &[("n", &(k + 1)), ("v2", &num(pd / ku)), ("un", &un), ("v3", &num(fl(depth))), ("un2", &un), ("nz", &nz)])); }
         let zs: Vec<f64> = (0..nz).map(|i| -(depth / nz as f64) * (i as f64 + 1.0)).collect();
         let tab_h = o.p.tab_h.unwrap_or(2.0);
         let tabs_req = o.p.tabs && (kind == "outside" || kind == "inside" || kind == "online"); // open paths on a line are cut without tabs
@@ -1798,21 +1807,21 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         if kind == "inlay" || kind == "plug" {
             let female = kind == "inlay";
             let label = if female { "inlay pocket" } else { "inlay plug" };
-            if !geo.cone { return Err(format!("Operation {}: an inlay needs a V-bit, engraving or tapered tool; choose one in Manage…", k + 1)); }
+            if !geo.cone { return Err(tr_f("Operation {n}: an inlay needs a V-bit, engraving or tapered tool; choose one in Manage…", &[("n", &(k + 1))])); }
             let Some(ft) = o.p.tool2.as_deref().and_then(|id| data.tools.iter().find(|t| t.id == id)) else {
-                return Err(format!("Operation {}: choose the flat end mill that clears the pocket and cuts the plug out", k + 1));
+                return Err(tr_f("Operation {n}: choose the flat end mill that clears the pocket and cuts the plug out", &[("n", &(k + 1))]));
             };
-            if ToolGeo::new(ft).cone { return Err(format!("Operation {}: the clearing tool of an inlay must be a flat end mill", k + 1)); }
+            if ToolGeo::new(ft).cone { return Err(tr_f("Operation {n}: the clearing tool of an inlay must be a flat end mill", &[("n", &(k + 1))])); }
             let ft_own;
             let ft = match &o.p.custom2 { Some(cf) => { ft_own = custom_tool(cf, ft, &machine, &mut notes, &pre, "flat end mill"); &ft_own } None => ft };
             if !(ft.dia > 0.0 && ft.pd > 0.0 && ft.so > 0.0 && ft.feed > 0.0 && ft.plunge > 0.0) {
-                return Err(format!("Operation {}: check the clearing tool's values", k + 1));
+                return Err(tr_f("Operation {n}: check the clearing tool's values", &[("n", &(k + 1))]));
             }
-            if region.is_empty() { notes.push(format!("{}no closed shapes to cut.", pre)); continue; }
-            if geo.rt > 1e-9 { notes.push(format!("{}the inlay assumes a sharp V-bit tip; with a tip radius the plug will not fit exactly.", pre)); }
+            if region.is_empty() { notes.push(tr_f("{pre}no closed shapes to cut.", &[("pre", &pre)])); continue; }
+            if geo.rt > 1e-9 { notes.push(tr_f("{pre}the inlay assumes a sharp V-bit tip; with a tip radius the plug will not fit exactly.", &[("pre", &pre)])); }
             let tn = geo.tn;
             let pdepth = depth.min(geo.z_full);
-            if depth > geo.z_full + 1e-6 { notes.push(format!("{}depth limited to {} {} (the V-bit diameter is reached).", pre, num(fl(pdepth)), un)); }
+            if depth > geo.z_full + 1e-6 { notes.push(tr_f("{pre}depth limited to {v} {un} (the V-bit diameter is reached).", &[("pre", &pre), ("v", &num(fl(pdepth))), ("un", &un)])); }
             // how far the walls slope sideways over the whole depth
             let total = pdepth * tn;
             let fit = o.p.fit.unwrap_or(0.05).max(0.0);
@@ -1866,7 +1875,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 // shallow rings first
                 rings.reverse();
             }
-            if rings.is_empty() { notes.push(format!("{}no V-bit toolpath: the shapes are too thin for this depth.", pre)); }
+            if rings.is_empty() { notes.push(tr_f("{pre}no V-bit toolpath: the shapes are too thin for this depth.", &[("pre", &pre)])); }
 
             if female {
                 // 1. flat end mill clears the floor, up to where the walls begin
@@ -1875,7 +1884,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 let c = fctx("pocket", zsf.clone(), !conv);
                 let mut jobs = mk_jobs(&c, &floor, &[], &[], rf);
                 if jobs.is_empty() {
-                    notes.push(format!("{}the floor is too narrow for the flat end mill; the V-bit cuts all of it.", pre));
+                    notes.push(tr_f("{pre}the floor is too narrow for the flat end mill; the V-bit cuts all of it.", &[("pre", &pre)]));
                 } else {
                     select_tool(&mut e, &mut ts, mach, ft, sz, &fdia, un);
                     e.alt = true;
@@ -1897,7 +1906,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 let zso = mkzs(st.t);
                 let c = fctx("outside", zso.clone(), conv);
                 let mut jobs = mk_jobs(&c, &base, &[], &[], rf);
-                if jobs.is_empty() { notes.push(format!("{}nothing to cut out.", pre)); }
+                if jobs.is_empty() { notes.push(tr_f("{pre}nothing to cut out.", &[("pre", &pre)])); }
                 else {
                     select_tool(&mut e, &mut ts, mach, ft, sz, &fdia, un);
                     e.alt = true;
@@ -1905,7 +1914,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                     let guard: Vec<Path> = jobs.iter().filter(|j| !j.pocket || j.gen == 0).map(|j| j.p.clone()).collect();
                     for j in jobs.iter_mut() { cut(&mut e, &c, j, &zso, &guard); }
                     e.alt = false;
-                    notes.push(format!("{}the plug is cut free of the stock: hold it down, and it is sanded flush after gluing.", pre));
+                    notes.push(tr_f("{pre}the plug is cut free of the stock: hold it down, and it is sanded flush after gluing.", &[("pre", &pre)]));
                 }
             }
             any = true;
@@ -1927,9 +1936,9 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 if (b[2] - b[0]).max(b[3] - b[1]) > dia * 1.1 + 1e-6 { wide += 1; }
                 if !crate::shapes::is_circle(l) && !crate::shapes::is_point(l) { odd += 1; }
             }
-            if wide > 0 { notes.push(format!("{}{} hole(s) are wider than the tool, so they will come out the tool's size (use Pocket or Profile inside to cut them to size).", pre, wide)); }
-            if odd > 0 { notes.push(format!("{}{} shape(s) are not circles; drilled at their centre.", pre, odd)); }
-            if !open.is_empty() { notes.push(format!("{}{} open path(s) skipped.", pre, open.len())); }
+            if wide > 0 { notes.push(tr_f("{pre}{n} hole(s) are wider than the tool, so they will come out the tool's size (use Pocket or Profile inside to cut them to size).", &[("pre", &pre), ("n", &wide)])); }
+            if odd > 0 { notes.push(tr_f("{pre}{n} shape(s) are not circles; drilled at their centre.", &[("pre", &pre), ("n", &odd)])); }
+            if !open.is_empty() { notes.push(tr_f("{pre}{n} open path(s) skipped.", &[("pre", &pre), ("n", &open.len())])); }
             // visit the holes in a short order: always the nearest one next, starting from where the tool is
             let mut from = [e.cur[0], e.cur[1]];
             let mut left = std::mem::take(&mut holes);
@@ -1942,21 +1951,21 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                 holes.push(from);
             }
         } else if kind == "vcarve" {
-            if !(geo.cone || matches!(geo.shape, ShapeKind::Ball | ShapeKind::Arc)) { return Err(format!("Operation {}: V-carve needs a V-bit, engraving, tapered, ball nose or arc profile tool (choose one in Manage…)", k + 1)); }
+            if !(geo.cone || matches!(geo.shape, ShapeKind::Ball | ShapeKind::Arc)) { return Err(tr_f("Operation {n}: V-carve needs a V-bit, engraving, tapered, ball nose or arc profile tool (choose one in Manage…)", &[("n", &(k + 1))])); }
             let mut zmax = depth.min(geo.z_full);
-            if depth > geo.z_full + 1e-6 { notes.push(format!("{}V-carve depth limited to {} {} (the tool diameter is reached).", pre, num(fl(zmax)), un)); }
+            if depth > geo.z_full + 1e-6 { notes.push(tr_f("{pre}V-carve depth limited to {v} {un} (the tool diameter is reached).", &[("pre", &pre), ("v", &num(fl(zmax))), ("un", &un)])); }
             let sv = (dia * so / 100.0 * 0.25).min(0.3).max(0.05);
             // a flat floor: the V-bit carves only the sloped band down to the flat depth, and a flat end mill clears the floor inside it
             let mut dmax = f64::INFINITY;
             let mut left: Vec<Path> = Vec::new();
             if let Some(fd) = o.p.flat.filter(|v| *v > 1e-6) {
                 if fd < zmax - 1e-9 { zmax = fd; }
-                else if fd > zmax + 1e-9 { notes.push(format!("{}the flat depth ({} {}) is deeper than the V-carve depth, so it is {} {}.", pre, num(fl(fd)), un, num(fl(zmax)), un)); }
+                else if fd > zmax + 1e-9 { notes.push(tr_f("{pre}the flat depth ({v} {un}) is deeper than the V-carve depth, so it is {v2} {un2}.", &[("pre", &pre), ("v", &num(fl(fd))), ("un", &un), ("v2", &num(fl(zmax))), ("un2", &un)])); }
                 if let Some(id) = o.p.tool2.as_deref() {
                     match data.tools.iter().find(|t| t.id == id) {
-                        None => notes.push(format!("{}the flat end mill is not in the tool list: the V-bit clears the floor.", pre)),
+                        None => notes.push(tr_f("{pre}the flat end mill is not in the tool list: the V-bit clears the floor.", &[("pre", &pre)])),
                         Some(rt) if rt.shape != "flat" || !(rt.dia > 0.0 && rt.so > 0.0 && rt.feed > 0.0 && rt.plunge > 0.0 && rt.pd > 0.0) =>
-                            notes.push(format!("{}\"Clear with\" needs a flat end mill with its values set: the V-bit clears the floor.", pre)),
+                            notes.push(tr_f("{pre}\"Clear with\" needs a flat end mill with its values set: the V-bit clears the floor.", &[("pre", &pre)])),
                         Some(rt) => {
                             // this operation's own values for the flat end mill (the V-bit's are `custom`)
                             let rt_own;
@@ -1973,7 +1982,7 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                                 tabs_on: false, ztab: 0.0, tab_w: 5.0, tab_n: 4.0, lead: 0.0, slow: 0.0, troch: None };
                             let fj = if area.is_empty() { Vec::new() } else { mk_jobs(&rctx, &area, &[], &[], rt.dia / 2.0) };
                             if fj.is_empty() {
-                                notes.push(format!("{}the flat floor is too narrow for the {} {} end mill (or there is none): the V-bit carves it all.", pre, num(fl(rt.dia)), un));
+                                notes.push(tr_f("{pre}the flat floor is too narrow for the {v} {un} end mill (or there is none): the V-bit carves it all.", &[("pre", &pre), ("v", &num(fl(rt.dia))), ("un", &un)]));
                             } else {
                                 dmax = df;
                                 left = floor_left(&area, rt.dia / 2.0);
@@ -2026,30 +2035,30 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             // the corners and narrow parts of the floor that the end mill cannot get into: the V-bit clears them, tip at the floor's depth
             if flat_clear.is_some() && d >= dmax - 1e-3 && !left.is_empty() {
                 vr.extend(floor_rings(&left, sv, -zmax));
-                notes.push(format!("{}the V-bit clears the corners and narrow parts of the floor that the flat end mill is too big for.", pre));
+                notes.push(tr_f("{pre}the V-bit clears the corners and narrow parts of the floor that the flat end mill is too big for.", &[("pre", &pre)]));
             }
             if flat_clear.is_some() && d < dmax - 1e-3 {
                 // the shape ran out before the flat depth was reached: the V-bit has done it all
                 flat_clear = None;
-                notes.push(format!("{}the shape is narrower than the flat floor needs, so the V-bit carves it all and the flat end mill is not used.", pre));
+                notes.push(tr_f("{pre}the shape is narrower than the flat floor needs, so the V-bit carves it all and the flat end mill is not used.", &[("pre", &pre)]));
             }
         } else if geo.cone && kind != "online" {
             by_pass = true;
-            notes.push(format!("{}{}: walls are sloped, with the top edge on the line.", pre, geo.shape.label()));
-            if kind == "pocket" { notes.push(format!("{}a pocket cut with a cone tool has a ridged floor (try V-carve or a flat tool).", pre)); }
+            notes.push(tr_f("{pre}{label}: walls are sloped, with the top edge on the line.", &[("pre", &pre), ("label", &crate::i18n::tr_dyn(geo.shape.label()))]));
+            if kind == "pocket" { notes.push(tr_f("{pre}a pocket cut with a cone tool has a ridged floor (try V-carve or a flat tool).", &[("pre", &pre)])); }
         } else {
             let rm = if matches!(geo.shape, ShapeKind::Ball | ShapeKind::Arc) && depth < geo.z_full { geo.r_at(depth) } else { rr };
-            if rm < rr - 1e-6 && kind != "online" { notes.push(format!("{}depth is below the ball radius, so the cut is narrower than the tool ({} {}).", pre, num(fl(rm * 2.0)), un)); }
+            if rm < rr - 1e-6 && kind != "online" { notes.push(tr_f("{pre}depth is below the ball radius, so the cut is narrower than the tool ({v} {un}).", &[("pre", &pre), ("v", &num(fl(rm * 2.0))), ("un", &un)])); }
             jobs = mk_jobs(&ctx, &region, &closed, &open, rm);
             // stock to leave: the depth passes keep `wl` away from the walls, and a finishing pass cuts them to size
             if let Some(wl) = o.p.w_leave.filter(|v| *v > 0.0 && matches!(kind, "outside" | "inside" | "pocket")).map(|v| v.min(2.0)) {
                 let rough = mk_jobs(&ctx, &region, &closed, &open, rm + wl);
                 if rough.is_empty() {
-                    notes.push(format!("{}too narrow to leave {} {} on the walls: it is cut to size in one go.", pre, num(fl(wl)), un));
+                    notes.push(tr_f("{pre}too narrow to leave {v} {un} on the walls: it is cut to size in one go.", &[("pre", &pre), ("v", &num(fl(wl))), ("un", &un)]));
                 } else {
                     fin = if kind == "pocket" { off(&region, -rm * S).into_iter().map(|p| Job { p, closed: true, pocket: false, gen: 0, iv: None, troch: false, skin: false, entry: false }).collect() } else { std::mem::take(&mut jobs) };
                     jobs = rough;
-                    notes.push(format!("{}the walls are cut {} {} oversize in the depth passes, then to size in a finishing pass.", pre, num(fl(wl)), un));
+                    notes.push(tr_f("{pre}the walls are cut {v} {un} oversize in the depth passes, then to size in a finishing pass.", &[("pre", &pre), ("v", &num(fl(wl))), ("un", &un)]));
                 }
             }
         }
@@ -2062,18 +2071,18 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
                     rest_pass(&mut e, &mut ts, &mut notes, data, o, k, mach, &ctx, &region, tool, id);
                     if e.moves.len() > before {
                         let rn = data.tools.iter().find(|t| t.id == id).map(|t| tool_label(&t.name)).unwrap_or_default();
-                        notes.push(format!("{}the {} is wider than the shape (about {} {}), so the whole pocket is cut with the Corners tool, the {}.", pre,
-                            tool_label(&tool.name), num(to_fixed(narrowest_width(&region, dia) / ku, 2)), un, rn));
+                        notes.push(tr_f("{pre}the {tool} is wider than the shape (about {w} {un}), so the whole pocket is cut with the Corners tool, the {corners}.",
+                            &[("pre", &pre), ("tool", &tool_label(&tool.name)), ("w", &num(to_fixed(narrowest_width(&region, dia) / ku, 2))), ("un", &un), ("corners", &rn)]));
                         op_pause(&mut e, &mut ts, o, k, mach, sz);
                         any = true;
                         continue;
                     }
                 }
             }
-            notes.push(no_toolpath_reason(data, k, kind, tool, &region, &closed, ku, un).unwrap_or_else(|| format!("{}no toolpath (tool too large?).", pre)));
+            notes.push(no_toolpath_reason(data, k, kind, tool, &region, &closed, ku, un).unwrap_or_else(|| tr_f("{pre}no toolpath (tool too large?).", &[("pre", &pre)])));
             continue;
         }
-        if tabs_req && !tabs_on { notes.push(format!("{}tabs skipped: the tab height must be smaller than the cut depth.", pre)); }
+        if tabs_req && !tabs_on { notes.push(tr_f("{pre}tabs skipped: the tab height must be smaller than the cut depth.", &[("pre", &pre)])); }
         if tabs_on {
             if let Some(tp) = &o.p.tab_pts {
                 let pts: Vec<[f64; 2]> = tp.iter().filter_map(|t| crate::shapes::tab_resolve(&data.loops, o.id, t).map(|r| r.0)).collect();
@@ -2145,11 +2154,11 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             finish_pass(&mut e, &ctx, &mut fin, &region, &zs, tool, depth, k);
         }
         if e.helix_skipped > 0 {
-            notes.push(format!("{}helical entry skipped on {} path(s): not enough room for the circle, so they enter as the Ramp in setting says.", pre, e.helix_skipped));
+            notes.push(tr_f("{pre}helical entry skipped on {n} path(s): not enough room for the circle, so they enter as the Ramp in setting says.", &[("pre", &pre), ("n", &e.helix_skipped)]));
             e.helix_skipped = 0;
         }
         if e.lead_skipped > 0 {
-            notes.push(format!("{}lead-in/out skipped on {} path(s): not enough room for the arc.", pre, e.lead_skipped));
+            notes.push(tr_f("{pre}lead-in/out skipped on {n} path(s): not enough room for the arc.", &[("pre", &pre), ("n", &e.lead_skipped)]));
             e.lead_skipped = 0;
         }
         // a pause the operator asked for: lift, stop the spindle, wait; the next operation starts the spindle again
@@ -2159,8 +2168,8 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     if !any {
         // say why, operation by operation, when we know; the general advice only when nothing more specific is known
         let why: Vec<&String> = notes.iter().filter(|n| n.starts_with("Op ")).collect();
-        return Err(if why.is_empty() { format!("No toolpath: attach closed shapes to an operation (or the tool is too large). {}", notes.join(" ")) }
-            else { format!("No toolpath. {}", why.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" ")) });
+        return Err(if why.is_empty() { tr_f("No toolpath: attach closed shapes to an operation (or the tool is too large). {notes}", &[("notes", &notes.join(" "))]) }
+            else { tr_f("No toolpath. {why}", &[("why", &why.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" "))]) });
     }
     if ts.spun && e.marlin { e.stop(false, "Stop the spindle, then resume"); } else if ts.spun { e.g.push("M5".into()); }
     e.g.push("G0 X0 Y0".into());
@@ -2174,22 +2183,22 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
             let (lines, k) = crate::arcs::fit_arcs(&e.g[a..b.min(e.g.len())], e.dec(), ku);
             if k > 0 { e.g.splice(a..b.min(e.g.len()), lines); n += k; }
         }
-        if n > 0 { notes.push(format!("Trochoidal loops written as {} G2/G3 arcs: run an air cut first if this machine has not done arcs before.", n)); }
+        if n > 0 { notes.push(tr_f("Trochoidal loops written as {n} G2/G3 arcs: run an air cut first if this machine has not done arcs before.", &[("n", &n)])); }
     }
     if machine.arcs == Some(true) {
         let (lines, n) = crate::arcs::fit_arcs(&e.g, e.dec(), ku);
-        if n > 0 { e.g = lines; notes.push(format!("{} arc{} written as G2/G3: shorter file; run an air cut first if this machine has not done arcs before.", n, if n == 1 { "" } else { "s" })); }
+        if n > 0 { e.g = lines; notes.push(tr_n(n as u64, "{n} arc written as G2/G3: shorter file; run an air cut first if this machine has not done arcs before.", "{n} arcs written as G2/G3: shorter file; run an air cut first if this machine has not done arcs before.")); }
     }
     if !start_code.is_empty() || !end_code.is_empty() {
         let last = e.g.len().saturating_sub(1);
         for (k, l) in end_code.iter().enumerate() { e.g.insert(last + k, l.clone()); }
         for (k, l) in start_code.iter().enumerate() { e.g.insert(start_at + k, l.clone()); }
-        notes.push(format!("{}: {} start line{} and {} end line{} of your own G-code added; the time estimate does not include any moves in them.", machine.name,
-            start_code.len(), if start_code.len() == 1 { "" } else { "s" }, end_code.len(), if end_code.len() == 1 { "" } else { "s" }));
+        notes.push(tr_f("{machine}: {start} and {end} of your own G-code added; the time estimate does not include any moves in them.", &[("machine", &machine.name),
+            ("start", &tr_n(start_code.len() as u64, "{n} start line", "{n} start lines")), ("end", &tr_n(end_code.len() as u64, "{n} end line", "{n} end lines"))]));
     }
     if e.marlin { e.g = e.g.into_iter().map(|l| marlin_comment(&l)).collect(); }
     if data.job.numbered { e.g = number_lines(e.g); }
-    if e.capped > 0 { notes.push(format!("{} cutting move{} asked for more than the machine's top speed on an axis; the time estimate holds {} down to it, as the controller does.", e.capped, if e.capped == 1 { "" } else { "s" }, if e.capped == 1 { "it" } else { "them" })); }
+    if e.capped > 0 { notes.push(tr_n(e.capped as u64, "{n} cutting move asked for more than the machine's top speed on an axis; the time estimate holds it down to it, as the controller does.", "{n} cutting moves asked for more than the machine's top speed on an axis; the time estimate holds them down to it, as the controller does.")); }
     // last of all, the text itself is read back by a checker that shares nothing with the code above
     notes.extend(crate::verify::hazards(&e.g));
     // with an acceleration set, the moves take what the machine really needs (the waits for the spindle stay as they were)

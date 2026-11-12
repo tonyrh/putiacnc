@@ -1,5 +1,6 @@
 //! The sample projects (Generate → Sample projects): a small name plate made to fit the user's own machine, tools and units.
 //! The Notes tab explains it and how to try it as an air cut first.
+use crate::i18n::{tr, tr_f};
 use crate::linetext::line_text_loops;
 use crate::model::{Operation, ProjectData, ShapeGroup, TextSpec, Tool};
 use crate::shapes;
@@ -23,7 +24,7 @@ fn pick_engraver(tools: &[Tool]) -> Option<&Tool> {
 /// travel, rounded to round numbers in the display units. Returns an error when there is no cutter to use.
 pub fn fill(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     let (mx, my, mz) = d.machine.as_ref().map(|m| (m.x, m.y, m.z)).unwrap_or((300.0, 200.0, 60.0));
-    let flat = pick_flat(&d.tools).ok_or("There is no flat end mill in the tool list.")?.clone();
+    let flat = pick_flat(&d.tools).ok_or(tr("There is no flat end mill in the tool list."))?.clone();
     let engr = pick_engraver(&d.tools).unwrap_or(&flat).clone();
     // round numbers: whole 5 mm / quarter inches for sizes, whole mm / sixteenths for the thickness
     let (big, small) = if inches { (6.35, 1.5875) } else { (5.0, 1.0) };
@@ -99,12 +100,12 @@ pub fn fill_oval(d: &mut ProjectData) -> Result<(), String> {
     let f = crate::load_project(include_str!("../examples/projects/oval-sign.project.json"))?;
     let src = f.data;
     let (mx, my, mz) = d.machine.as_ref().map(|m| (m.x, m.y, m.z)).unwrap_or((300.0, 200.0, 60.0));
-    if mx < src.stock.w || my < src.stock.h { return Err(format!("The oval sign needs a work area of at least {:.0} x {:.0} mm.", src.stock.w, src.stock.h)); }
-    let flat = pick_flat(&d.tools).ok_or("There is no flat end mill in the tool list.")?.clone();
+    if mx < src.stock.w || my < src.stock.h { return Err(tr_f("The oval sign needs a work area of at least {v} x {v2} mm.", &[("v", &format!("{:.0}", src.stock.w)), ("v2", &format!("{:.0}", src.stock.h))])); }
+    let flat = pick_flat(&d.tools).ok_or(tr("There is no flat end mill in the tool list."))?.clone();
     // the name: the V-bit nearest 60 degrees; the fine work: an engraving bit, else the sharpest V-bit
     let vbit = d.tools.iter().filter(|t| t.shape == "vbit").min_by(|a, b| (a.angle - 60.0).abs().total_cmp(&(b.angle - 60.0).abs())).cloned();
     let fine = d.tools.iter().find(|t| t.shape == "engrave").or_else(|| d.tools.iter().filter(|t| t.shape == "vbit").min_by(|a, b| a.angle.total_cmp(&b.angle))).cloned();
-    let (vbit, fine) = match (vbit, fine) { (Some(v), Some(f)) => (v, f), (Some(v), None) => (v.clone(), v), (None, Some(f)) => (f.clone(), f), (None, None) => return Err("There is no V-bit or engraving bit in the tool list.".into()) };
+    let (vbit, fine) = match (vbit, fine) { (Some(v), Some(f)) => (v, f), (Some(v), None) => (v.clone(), v), (None, Some(f)) => (f.clone(), f), (None, None) => return Err(tr("There is no V-bit or engraving bit in the tool list.").into()) };
     d.stock.w = src.stock.w; d.stock.h = src.stock.h;
     d.stock.t = src.stock.t.min((mz * 0.5).floor()).max(3.0);
     d.ops = src.ops; d.loops = src.loops; d.groups = src.groups;
@@ -170,7 +171,7 @@ fn rosette(n: usize) -> Vec<u16> {
 pub fn fill_relief(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     let (mx, my, mz) = d.machine.as_ref().map(|m| (m.x, m.y, m.z)).unwrap_or((300.0, 200.0, 60.0));
     // the roughing cutter: the widest flat end mill up to 6.5 mm (the roughing is quicker with a wide one), else any flat one
-    let flat = d.tools.iter().filter(|t| t.shape == "flat" && t.dia <= 6.5).max_by(|a, b| a.dia.total_cmp(&b.dia)).or_else(|| pick_flat(&d.tools)).ok_or("There is no flat end mill in the tool list.")?.clone();
+    let flat = d.tools.iter().filter(|t| t.shape == "flat" && t.dia <= 6.5).max_by(|a, b| a.dia.total_cmp(&b.dia)).or_else(|| pick_flat(&d.tools)).ok_or(tr("There is no flat end mill in the tool list."))?.clone();
     // a project without a ball nose gets the two of the starter set (1/8 and 1/4 inch), so the sample can run
     let mut added = false;
     if !d.tools.iter().any(|t| t.shape == "ball" && t.dia <= 7.0) {
@@ -178,7 +179,7 @@ pub fn fill_relief(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     }
     let mut balls: Vec<&Tool> = d.tools.iter().filter(|t| t.shape == "ball" && t.dia <= 7.0).collect();
     balls.sort_by(|a, b| b.dia.total_cmp(&a.dia));
-    let ball = (*balls.first().ok_or("There is no ball nose in the tool list.")?).clone();
+    let ball = (*balls.first().ok_or(tr("There is no ball nose in the tool list."))?).clone();
     let detail = balls.iter().find(|t| t.dia < ball.dia - 1e-6 && t.dia >= 0.5).map(|t| (*t).clone());
     let (big, small) = if inches { (6.35, 1.5875) } else { (5.0, 1.0) };
     d.stock.w = floor_to(mx.min(90.0).min(mx * 0.9), big).max(big * 6.0);
@@ -232,7 +233,7 @@ Before cutting for real
 pub fn fill_shaped_relief(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     // the stock, the tools and the operation are those of the rosette sample
     fill_relief(d, inches)?;
-    let (rx, ry, (s, _)) = { let r = d.relief.as_ref().ok_or("no relief")?; (r.x, r.y, r.size()) };
+    let (rx, ry, (s, _)) = { let r = d.relief.as_ref().ok_or(tr("no relief"))?; (r.x, r.y, r.size()) };
     let zmax = d.relief.as_ref().map_or(3.0, |r| r.zmax);
     let c = [rx + s / 2.0, ry + s / 2.0];
     d.loops.clear(); d.groups.clear();
@@ -274,7 +275,7 @@ Before cutting for real
 pub fn fill_box(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     use crate::joints::{box_panels, layout, reliefs, BoxSpec, Cut, Relief};
     let (mx, my, mz) = d.machine.as_ref().map(|m| (m.x, m.y, m.z)).unwrap_or((300.0, 200.0, 60.0));
-    let flat = pick_flat(&d.tools).ok_or("There is no flat end mill in the tool list.")?.clone();
+    let flat = pick_flat(&d.tools).ok_or(tr("There is no flat end mill in the tool list."))?.clone();
     let (big, small) = if inches { (6.35, 1.5875) } else { (5.0, 1.0) };
     d.stock.w = floor_to(mx.min(200.0).min(mx * 0.9), big).max(big * 4.0);
     d.stock.h = floor_to(my.min(150.0).min(my * 0.9), big).max(big * 3.0);
@@ -305,7 +306,7 @@ pub fn fill_box(d: &mut ProjectData, inches: bool) -> Result<(), String> {
             w = (w * 0.9).floor(); dd = (dd * 0.9).floor(); h = (h * 0.9).floor();
         }
     }
-    let Some((spec, panels, pos, margin)) = found else { return Err("The stock is too small for the sample box.".into()) };
+    let Some((spec, panels, pos, margin)) = found else { return Err(tr("The stock is too small for the sample box.").into()) };
     d.ops.clear(); d.loops.clear(); d.groups.clear();
     let mut p = shapes::default_op_params(&flat.id);
     p.kind = "outside".into(); p.depth = t; p.tabs = true;

@@ -45,8 +45,8 @@ pub use toolpath::{generate, Output};
 
 /// Load a project file exported by the browser app (or by this crate).
 pub fn load_project(json: &str) -> Result<ProjectFile, String> {
-    let f: ProjectFile = serde_json::from_str(json).map_err(|e| format!("Not a valid project file: {e}"))?;
-    if f.app != "putia-cnc" { return Err("This is not a PutiaCNC project file.".into()); }
+    let f: ProjectFile = serde_json::from_str(json).map_err(|e| i18n::tr_f("Not a valid project file: {e}", &[("e", &e)]))?;
+    if f.app != "putia-cnc" { return Err(i18n::tr("This is not a PutiaCNC project file.").into()); }
     let mut f = f;
     // older projects had one project-wide air-cut switch; it now lives on each operation
     if f.data.job.air { for o in f.data.ops.iter_mut() { o.p.air = true; } f.data.job.air = false; }

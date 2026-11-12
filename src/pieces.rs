@@ -74,13 +74,13 @@ pub fn generate_parts(data: &ProjectData, units: Units) -> Result<Vec<PartOutput
     let ids: Vec<usize> = pieces.iter().map(|p| p.op_index).collect();
     let mut out_main = generate(&main, units)?;
     // the plugs that have a piece are not in this part; drop the "no shapes" notes about them
-    out_main.notes.retain(|n| !ids.iter().any(|&k| *n == format!("Op {} has no shapes.", k + 1)));
+    out_main.notes.retain(|n| !ids.iter().any(|&k| *n == crate::toolpath::no_shapes_note(k)));
     crate::summary::add_header(&mut out_main, &main, units, false);
     let mut parts = vec![PartOutput { piece: None, out: out_main }];
     for pj in pieces {
         let mut out = generate(&pj.data, units)?;
         // in a piece's job every other operation has no shapes: not worth a note
-        out.notes.retain(|n| !(n.starts_with("Op ") && n.ends_with(" has no shapes.") && *n != format!("Op {} has no shapes.", pj.op_index + 1)));
+        out.notes.retain(|n| !(crate::toolpath::is_no_shapes_note(n) && *n != crate::toolpath::no_shapes_note(pj.op_index)));
         // the header says what this file is: the plug's piece, not "the stock"
         let replaces = pj.op_index_piece_same(data);
         if let Some(l) = out.lines.iter_mut().find(|l| l.contains("(Stock ")) {

@@ -1,5 +1,6 @@
 //! 3D relief carving: an STL model reduced to a height map, and the planning of the roughing and
 //! finishing passes over it. The G-code itself is written by `toolpath`.
+use crate::i18n::{tr};
 use crate::model::Relief;
 
 // ------------------------------------------------------------------ base64 (heights are stored in the project file)
@@ -49,7 +50,7 @@ fn parse_stl(b: &[u8]) -> Result<Vec<Tri>, String> {
         }
     }
     let text = String::from_utf8_lossy(b);
-    if !text.trim_start().starts_with("solid") { return Err("Not an STL file.".into()); }
+    if !text.trim_start().starts_with("solid") { return Err(tr("Not an STL file.").into()); }
     let mut vs: Vec<[f32; 3]> = Vec::new();
     for line in text.lines() {
         let mut w = line.split_whitespace();
@@ -58,7 +59,7 @@ fn parse_stl(b: &[u8]) -> Result<Vec<Tri>, String> {
             if n.len() == 3 { vs.push([n[0], n[1], n[2]]); }
         }
     }
-    if vs.len() < 3 { return Err("The STL file has no triangles.".into()); }
+    if vs.len() < 3 { return Err(tr("The STL file has no triangles.").into()); }
     Ok(vs.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect())
 }
 
@@ -73,14 +74,14 @@ fn parse_obj(b: &[u8]) -> Result<Vec<Tri>, String> {
         match w.next() {
             Some("v") => {
                 let n: Vec<f32> = w.take(3).filter_map(|x| x.parse().ok()).collect();
-                if n.len() == 3 { vs.push([n[0], n[1], n[2]]); } else { return Err("The OBJ file has a vertex with missing coordinates.".into()); }
+                if n.len() == 3 { vs.push([n[0], n[1], n[2]]); } else { return Err(tr("The OBJ file has a vertex with missing coordinates.").into()); }
             }
             Some("f") => {
                 let mut idx: Vec<usize> = Vec::new();
                 for t in w {
-                    let k: i64 = t.split('/').next().and_then(|s| s.parse().ok()).ok_or("The OBJ file has an unreadable face.")?;
+                    let k: i64 = t.split('/').next().and_then(|s| s.parse().ok()).ok_or(tr("The OBJ file has an unreadable face."))?;
                     let i = if k < 0 { vs.len() as i64 + k } else { k - 1 };
-                    if i < 0 || i as usize >= vs.len() { return Err("The OBJ file has a face that points at a missing vertex.".into()); }
+                    if i < 0 || i as usize >= vs.len() { return Err(tr("The OBJ file has a face that points at a missing vertex.").into()); }
                     idx.push(i as usize);
                 }
                 for k in 1..idx.len().saturating_sub(1) { tris.push([vs[idx[0]], vs[idx[k]], vs[idx[k + 1]]]); }
@@ -88,7 +89,7 @@ fn parse_obj(b: &[u8]) -> Result<Vec<Tri>, String> {
             _ => {}
         }
     }
-    if tris.is_empty() { return Err("The OBJ file has no faces.".into()); }
+    if tris.is_empty() { return Err(tr("The OBJ file has no faces.").into()); }
     Ok(tris)
 }
 
@@ -123,7 +124,7 @@ pub struct Mesh { tris: Vec<Tri> }
 impl Mesh {
     pub fn parse(bytes: &[u8]) -> Result<Mesh, String> {
         let tris = parse_mesh(bytes)?;
-        if tris.is_empty() { return Err("The model has no triangles.".into()); }
+        if tris.is_empty() { return Err(tr("The model has no triangles.").into()); }
         Ok(Mesh { tris })
     }
 
@@ -163,17 +164,17 @@ impl Relief {
     }
 
     fn from_tris(tris: &[Tri], name: &str, res: f64) -> Result<Relief, String> {
-        if tris.is_empty() { return Err("The STL file has no triangles.".into()); }
+        if tris.is_empty() { return Err(tr("The STL file has no triangles.").into()); }
         let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
         for t in tris { for v in t { for k in 0..3 {
-            if !v[k].is_finite() { return Err("The STL file contains invalid numbers.".into()); }
+            if !v[k].is_finite() { return Err(tr("The STL file contains invalid numbers.").into()); }
             lo[k] = lo[k].min(v[k]); hi[k] = hi[k].max(v[k]);
         } } }
         let (w, h, zmax) = ((hi[0] - lo[0]) as f64, (hi[1] - lo[1]) as f64, (hi[2] - lo[2]) as f64);
-        if w < 1e-3 || h < 1e-3 || zmax < 1e-3 { return Err("The model is flat in one direction; it needs width, depth and height.".into()); }
+        if w < 1e-3 || h < 1e-3 || zmax < 1e-3 { return Err(tr("The model is flat in one direction; it needs width, depth and height.").into()); }
         let res = res.max(0.05);
         let (nx, ny) = (((w / res).ceil() as usize).max(2), ((h / res).ceil() as usize).max(2));
-        if nx * ny > 6_000_000 { return Err("The height map would be too large; use a coarser resolution.".into()); }
+        if nx * ny > 6_000_000 { return Err(tr("The height map would be too large; use a coarser resolution.").into()); }
         let mut g = vec![0f32; nx * ny];
         let (rx, ry) = (res as f32, res as f32);
         for t in tris {

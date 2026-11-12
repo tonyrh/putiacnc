@@ -58,7 +58,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             ui.horizontal(|ui| {
                 let tips = [tr("A flat top at the full height, with straight sides"), tr("A flat top with a rounded rim"), tr("Round over the whole shape, highest along the middle"), tr("A straight slope up to a ridge along the middle")];
                 for ((pr, name), tip) in reliefshapes::PROFILES.iter().zip(tips) {
-                    if ui.selectable_label(t.params.profile == *pr, *name).tip(tip).clicked() { t.params.profile = *pr; }
+                    if ui.selectable_label(t.params.profile == *pr, tr(name)).tip(tip).clicked() { t.params.profile = *pr; }
                 }
             });
             ui.end_row();

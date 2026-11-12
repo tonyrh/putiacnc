@@ -1,4 +1,5 @@
 //! Read a Grbl `$$` settings dump into a machine profile: travel, top speeds, accelerations, junction deviation and spindle range.
+use crate::i18n::{tr};
 use crate::model::Machine;
 
 /// The `$N=value` lines of a dump as (number, value). Lines that are not settings (`ok`, `[MSG:...]`, comments, banners) are skipped;
@@ -21,7 +22,7 @@ pub fn settings(text: &str) -> Vec<(u32, f64)> {
 /// `$30` and `$31` the spindle range. The cutting and plunge limits are not in a dump, so the fastest axis (X and Y) stands in for the feed limit.
 pub fn machine_from_dump(text: &str) -> Result<Machine, String> {
     let s = settings(text);
-    if s.is_empty() { return Err("No Grbl settings found. Paste the lines that `$$` prints, such as $110=3000.000.".into()); }
+    if s.is_empty() { return Err(tr("No Grbl settings found. Paste the lines that `$$` prints, such as $110=3000.000.").into()); }
     let get = |n: u32| s.iter().rev().find(|(k, _)| *k == n).map(|(_, v)| *v).filter(|v| *v > 0.0);
     let mut m = Machine::default();
     m.id = String::new();

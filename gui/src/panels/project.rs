@@ -1098,7 +1098,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let mat = putiacnc_core::feeds::material(&cut_mat);
                         ui.indent(("cfs_sug", id), |ui| {
                             ui.horizontal(|ui| {
-                                let r = ui.add_enabled(mat.is_some() && t1.is_some(), egui::Button::new(match mat { Some(m) => tr_f("Suggest for {material}", &[("material", &m.label.split(" (").next().unwrap_or(m.label).to_lowercase())]), None => tr("Suggest from material").into() }));
+                                let r = ui.add_enabled(mat.is_some() && t1.is_some(), egui::Button::new(match mat { Some(m) => tr_f("Suggest for {material}", &[("material", &putiacnc_core::i18n::tr_dyn(m.label).split(" (").next().unwrap_or_default().to_lowercase())]), None => tr("Suggest from material").into() }));
                                 let r = if mat.is_none() { r.on_disabled_hover_text(tr("Choose what you are cutting under Material in the Stock section first")) } else { r.on_hover_text(tr("Fills in spindle speed, feed, plunge and stepover (and the depth per pass) from the material, the tool and how stiff the machine is. A starting point for a test cut: change any value afterwards")) };
                                 if r.clicked() {
                                     let fill = |cf: &mut Option<putiacnc_core::model::CustomFeeds>, t0: &putiacnc_core::model::Tool| -> Option<putiacnc_core::feeds::Suggestion> {
@@ -1122,11 +1122,11 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 let held = machine_now.as_ref().map(|mc| mc.hold(&asked)).unwrap_or(asked);
                                 if let (Some(c), Some((lo, hi))) = (putiacnc_core::toollib::chip_load(&held), putiacnc_core::feeds::chip_range(&cut_mat, t0, rigid)) {
                                     let (word, col) = if c < lo * 0.9 { (tr("light: it may rub and heat the cutter"), None) } else if c > hi * 1.1 { (tr("heavy: more strain on the cutter and the machine"), Some(true)) } else { (tr("in the usual range"), None) };
-                                    let line = tr_f("Chip load {c} mm per tooth, {word} (usual in {material}: {lo} to {hi})", &[("c", &format!("{:.3}", c)), ("word", &word), ("material", &m.label.split(" (").next().unwrap_or(m.label).to_lowercase()), ("lo", &format!("{:.3}", lo)), ("hi", &format!("{:.3}", hi))]);
+                                    let line = tr_f("Chip load {c} mm per tooth, {word} (usual in {material}: {lo} to {hi})", &[("c", &format!("{:.3}", c)), ("word", &word), ("material", &putiacnc_core::i18n::tr_dyn(m.label).split(" (").next().unwrap_or_default().to_lowercase()), ("lo", &format!("{:.3}", lo)), ("hi", &format!("{:.3}", hi))]);
                                     match col { Some(_) => { crate::checkui::warn_line(ui, crate::msg::colour(crate::app::Level::Warning, ui.visuals().dark_mode), &line); } None => { ui.weak(line); } }
                                 }
                                 if let Some(s) = putiacnc_core::feeds::suggest(&cut_mat, t0, rigid, machine_now.as_ref()) {
-                                    for n in s.notes.iter().filter(|n| !n.starts_with("A starting point")) { ui.add(egui::Label::new(egui::RichText::new(n).weak()).wrap(true)); }
+                                    for n in s.notes.iter().filter(|n| n.as_str() != putiacnc_core::feeds::starting_point_note()) { ui.add(egui::Label::new(egui::RichText::new(n).weak()).wrap(true)); }
                                 }
                             }
                         });

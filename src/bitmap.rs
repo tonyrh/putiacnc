@@ -2,6 +2,7 @@
 //! traced into closed shapes, in millimetres, ready for Profile, Pocket and the other operations.
 //!
 //! The tracing itself (outlines, holes, curve fitting) is done by `visioncortex`.
+use crate::i18n::{tr, tr_f};
 use crate::model::LoopData;
 use crate::svg::Imported;
 use visioncortex::{BinaryImage, CompoundPathElement, PathSimplifyMode, PointF64};
@@ -52,9 +53,9 @@ pub struct Bitmap {
 
 impl Bitmap {
     pub fn load(bytes: &[u8]) -> Result<Bitmap, String> {
-        let mut img = image::load_from_memory(bytes).map_err(|e| format!("Could not read the picture: {e}"))?;
+        let mut img = image::load_from_memory(bytes).map_err(|e| tr_f("Could not read the picture: {e}", &[("e", &e)]))?;
         let (w, h) = (img.width(), img.height());
-        if w < 2 || h < 2 { return Err("The picture is too small.".into()); }
+        if w < 2 || h < 2 { return Err(tr("The picture is too small.").into()); }
         if w.max(h) > MAX_SIDE {
             let f = MAX_SIDE as f64 / w.max(h) as f64;
             img = img.resize_exact(((w as f64 * f).round() as u32).max(2), ((h as f64 * f).round() as u32).max(2), image::imageops::FilterType::Triangle);
@@ -141,7 +142,7 @@ impl Bitmap {
             }
         }
         let mut warnings = vec![];
-        if loops.is_empty() { warnings.push("Nothing was traced: adjust the threshold, or switch Invert.".into()); }
+        if loops.is_empty() { warnings.push(tr("Nothing was traced: adjust the threshold, or switch Invert.").into()); }
         Ok(Imported { loops, layers: vec![], width_mm: wmm, height_mm: hmm, warnings })
     }
 }

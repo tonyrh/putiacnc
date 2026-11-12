@@ -1,12 +1,13 @@
 //! Tool libraries: several named sets of tools, one of them current. Mirrors the browser app's
 //! tool manager (including its `putia-cnc-tools` export format).
+use crate::i18n::{n_, tr, tr_f};
 use crate::model::{Operation, Tool};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const SHAPES: [(&str, &str); 8] = [
-    ("flat", "Flat end mill"), ("ball", "Ball nose"), ("bull", "Bull nose"),
-    ("vbit", "V-bit"), ("engrave", "Engraving bit"), ("taper", "Tapered ball nose"), ("arc", "Arc profile bit"), ("pen", "Pen / marker"),
+    ("flat", n_("Flat end mill")), ("ball", n_("Ball nose")), ("bull", n_("Bull nose")),
+    ("vbit", n_("V-bit")), ("engrave", n_("Engraving bit")), ("taper", n_("Tapered ball nose")), ("arc", n_("Arc profile bit")), ("pen", n_("Pen / marker")),
 ];
 
 /// Ready-made libraries shipped inside the app: (library name, `putia-cnc-tools` file). The same files are in `libraries/`.
@@ -25,19 +26,19 @@ pub const BUNDLED: &[(&str, &str)] = &[
 pub fn bundled_count(json: &str) -> usize { json.matches("\"shape\"").count() }
 
 pub fn shape_label(s: &str) -> &'static str {
-    SHAPES.iter().find(|(k, _)| *k == s).map(|(_, l)| *l).unwrap_or("Flat end mill")
+    tr(SHAPES.iter().find(|(k, _)| *k == s).map(|(_, l)| *l).unwrap_or(SHAPES[0].1))
 }
 
 /// The kind of bit a shape belongs to, for grouping in the tool list: (sort order, group name).
 pub fn category(shape: &str) -> (usize, &'static str) {
     match shape {
-        "flat" => (0, "Straight bits"),
-        "bull" => (1, "Corner-radius bits"),
-        "ball" | "taper" => (2, "Ball-nose & tapered bits"),
-        "vbit" | "engrave" => (3, "V-grooving & engraving bits"),
-        "arc" => (4, "Decorative & profile bits"),
-        "pen" => (5, "Pens"),
-        _ => (0, "Straight bits"),
+        "flat" => (0, tr("Straight bits")),
+        "bull" => (1, tr("Corner-radius bits")),
+        "ball" | "taper" => (2, tr("Ball-nose & tapered bits")),
+        "vbit" | "engrave" => (3, tr("V-grooving & engraving bits")),
+        "arc" => (4, tr("Decorative & profile bits")),
+        "pen" => (5, tr("Pens")),
+        _ => (0, tr("Straight bits")),
     }
 }
 
@@ -181,8 +182,8 @@ impl Default for ToolLibs {
 
 impl ToolLibs {
     pub fn from_json(s: &str) -> Result<Self, String> {
-        let mut t: ToolLibs = serde_json::from_str(s).map_err(|e| format!("Not a valid tool library store: {e}"))?;
-        if t.app != "putia-cnc-toollibs" { return Err("Not a PutiaCNC tool library store.".into()); }
+        let mut t: ToolLibs = serde_json::from_str(s).map_err(|e| tr_f("Not a valid tool library store: {e}", &[("e", &e)]))?;
+        if t.app != "putia-cnc-toollibs" { return Err(tr("Not a PutiaCNC tool library store.").into()); }
         t.repair();
         Ok(t)
     }
@@ -242,7 +243,7 @@ impl ToolLibs {
 
     /// Delete the current library; the first remaining one becomes current. Returns its name.
     pub fn delete_current(&mut self) -> Result<String, String> {
-        if self.libs.len() < 2 { return Err("Keep at least one library.".into()); }
+        if self.libs.len() < 2 { return Err(tr("Keep at least one library.").into()); }
         let i = self.libs.iter().position(|l| l.id == self.cur).unwrap_or(0);
         let removed = self.libs.remove(i);
         self.cur = self.libs[0].id.clone();
@@ -262,7 +263,7 @@ impl ToolLibs {
         #[derive(Deserialize)]
         struct File { app: String, #[serde(default)] name: String, tools: Vec<Tool> }
         let f: File = serde_json::from_str(json).map_err(|_| "This is not a PutiaCNC tool library file.".to_string())?;
-        if f.app != "putia-cnc-tools" || f.tools.is_empty() { return Err("This is not a PutiaCNC tool library file.".into()); }
+        if f.app != "putia-cnc-tools" || f.tools.is_empty() { return Err(tr("This is not a PutiaCNC tool library file.").into()); }
         let mut tools: Vec<Tool> = f.tools.into_iter().take(500).collect();
         let mut seen = std::collections::HashSet::new();
         for t in &mut tools { normalize_tool(t); if !seen.insert(t.id.clone()) { t.id = new_id("t"); } }

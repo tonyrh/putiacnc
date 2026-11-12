@@ -1,6 +1,7 @@
 //! Feeds and speeds by material: from what is being cut, the tool and how stiff the machine is, suggest spindle speed,
 //! feed, plunge, stepover and depth per pass. A starting point for a test cut, not a promise: the numbers are typical
 //! hobby-router values (chip load per tooth by material and diameter), and a stiffer machine may go further.
+use crate::i18n::{n_, tr, tr_f};
 use crate::model::{Machine, Tool};
 
 /// What is being cut.
@@ -24,13 +25,13 @@ pub struct Material {
 }
 
 pub const MATERIALS: [Material; 7] = [
-    Material { id: "softwood", label: "Softwood (pine, spruce)", look: "wood", chip: 1.0, rpm: (10000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &[] },
-    Material { id: "hardwood", label: "Hardwood (oak, beech, walnut)", look: "darkwood", chip: 0.75, rpm: (10000.0, 20000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &["Hard wood burns when the feed is too slow: do not go below the suggested feed."] },
-    Material { id: "plywood", label: "Plywood", look: "plywood", chip: 0.85, rpm: (12000.0, 24000.0), plunge: 0.35, so: 40.0, pass: 0.45, notes: &["Glue layers dull a cutter quickly; a downcut or compression bit keeps the top edge clean."] },
-    Material { id: "mdf", label: "MDF / chipboard", look: "mdf", chip: 1.0, rpm: (12000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &["MDF dust is fine and unhealthy: use dust extraction and a mask."] },
-    Material { id: "acrylic", label: "Acrylic / plastic", look: "acrylic", chip: 0.6, rpm: (8000.0, 16000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &["Use a single-flute or O-flute cutter and keep it moving: a pause melts the plastic. Blow the chips away."] },
-    Material { id: "aluminium", label: "Aluminium", look: "metal", chip: 0.3, rpm: (6000.0, 14000.0), plunge: 0.2, so: 25.0, pass: 0.15, notes: &["Use a cutter made for aluminium (1 to 3 flutes, upcut) with lubricant or an air blast. Light cuts only; try it on scrap first."] },
-    Material { id: "foam", label: "Foam / wax", look: "foam", chip: 1.4, rpm: (12000.0, 24000.0), plunge: 0.5, so: 50.0, pass: 1.0, notes: &["Only sharp cutters; keep the chips clear or they clog the flutes."] },
+    Material { id: "softwood", label: n_("Softwood (pine, spruce)"), look: "wood", chip: 1.0, rpm: (10000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &[] },
+    Material { id: "hardwood", label: n_("Hardwood (oak, beech, walnut)"), look: "darkwood", chip: 0.75, rpm: (10000.0, 20000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &[n_("Hard wood burns when the feed is too slow: do not go below the suggested feed.")] },
+    Material { id: "plywood", label: n_("Plywood"), look: "plywood", chip: 0.85, rpm: (12000.0, 24000.0), plunge: 0.35, so: 40.0, pass: 0.45, notes: &[n_("Glue layers dull a cutter quickly; a downcut or compression bit keeps the top edge clean.")] },
+    Material { id: "mdf", label: n_("MDF / chipboard"), look: "mdf", chip: 1.0, rpm: (12000.0, 24000.0), plunge: 0.4, so: 45.0, pass: 0.5, notes: &[n_("MDF dust is fine and unhealthy: use dust extraction and a mask.")] },
+    Material { id: "acrylic", label: n_("Acrylic / plastic"), look: "acrylic", chip: 0.6, rpm: (8000.0, 16000.0), plunge: 0.3, so: 35.0, pass: 0.35, notes: &[n_("Use a single-flute or O-flute cutter and keep it moving: a pause melts the plastic. Blow the chips away.")] },
+    Material { id: "aluminium", label: n_("Aluminium"), look: "metal", chip: 0.3, rpm: (6000.0, 14000.0), plunge: 0.2, so: 25.0, pass: 0.15, notes: &[n_("Use a cutter made for aluminium (1 to 3 flutes, upcut) with lubricant or an air blast. Light cuts only; try it on scrap first.")] },
+    Material { id: "foam", label: n_("Foam / wax"), look: "foam", chip: 1.4, rpm: (12000.0, 24000.0), plunge: 0.5, so: 50.0, pass: 1.0, notes: &[n_("Only sharp cutters; keep the chips clear or they clog the flutes.")] },
 ];
 
 pub fn material(id: &str) -> Option<&'static Material> { MATERIALS.iter().find(|m| m.id == id) }
@@ -39,7 +40,7 @@ pub fn material(id: &str) -> Option<&'static Material> { MATERIALS.iter().find(|
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Rigidity { #[default] Light, Medium, Heavy }
 
-pub const RIGIDITY: [(&str, &str); 3] = [("light", "Light (hobby router, desktop machine)"), ("medium", "Medium (strong frame, good spindle)"), ("heavy", "Heavy (industrial machine)")];
+pub const RIGIDITY: [(&str, &str); 3] = [("light", n_("Light (hobby router, desktop machine)")), ("medium", n_("Medium (strong frame, good spindle)")), ("heavy", n_("Heavy (industrial machine)"))];
 
 impl Rigidity {
     /// From a machine's setting; anything unknown is light.
@@ -78,7 +79,7 @@ fn round_to(v: f64, step: f64) -> f64 { (v / step).round() * step }
 pub fn suggest(mat: &str, t: &Tool, rigid: Rigidity, machine: Option<&Machine>) -> Option<Suggestion> {
     let m = material(mat)?;
     if t.shape == "pen" || !(t.dia > 0.0) || t.flutes == 0 { return None; }
-    let mut notes: Vec<String> = m.notes.iter().map(|s| s.to_string()).collect();
+    let mut notes: Vec<String> = m.notes.iter().map(|s| crate::i18n::tr_dyn(s)).collect();
     // the spindle speed the tool is set for, kept when it suits the material; big cutters turn slower
     let (mut lo, mut hi) = m.rpm;
     if t.dia > 12.0 { hi *= 0.7; }
@@ -88,7 +89,7 @@ pub fn suggest(mat: &str, t: &Tool, rigid: Rigidity, machine: Option<&Machine>) 
     if let Some(mc) = machine {
         let (a, b) = (mc.rpm_min.unwrap_or(0.0), mc.rpm_max.unwrap_or(f64::MAX));
         let held = rpm.clamp(a, b.max(a));
-        if (held - rpm).abs() > 0.5 { notes.push(format!("The machine's spindle limits hold the speed to {} rpm.", held.round())); }
+        if (held - rpm).abs() > 0.5 { notes.push(tr_f("The machine's spindle limits hold the speed to {round} rpm.", &[("round", &held.round())])); }
         rpm = held;
     }
     let (clo, chi) = chip_range(mat, t, rigid)?;
@@ -97,14 +98,14 @@ pub fn suggest(mat: &str, t: &Tool, rigid: Rigidity, machine: Option<&Machine>) 
     let mut feed = rpm * t.flutes as f64 * chip;
     let mut plunge = feed * m.plunge;
     if let Some(mc) = machine {
-        if let Some(fm) = mc.feed_max.filter(|v| *v > 0.0) { if feed > fm { notes.push(format!("The machine's top feed of {} mm/min holds the feed down.", fm.round())); feed = fm; } }
+        if let Some(fm) = mc.feed_max.filter(|v| *v > 0.0) { if feed > fm { notes.push(tr_f("The machine's top feed of {round} mm/min holds the feed down.", &[("round", &fm.round())])); feed = fm; } }
         if let Some(pm) = mc.plunge_max.filter(|v| *v > 0.0) { if plunge > pm { plunge = pm; } }
     }
     let feed = round_to(feed, 10.0).max(10.0);
     let plunge = round_to(plunge, 10.0).clamp(10.0, feed);
-    if feed < 150.0 { notes.push("This feed is very slow: the cutter may rub instead of cutting. A smaller cutter, or a faster spindle if it allows it, helps.".into()); }
+    if feed < 150.0 { notes.push(tr("This feed is very slow: the cutter may rub instead of cutting. A smaller cutter, or a faster spindle if it allows it, helps.").into()); }
     if t.name.to_lowercase().contains("downcut") && matches!(m.id, "aluminium" | "acrylic") {
-        notes.push("A downcut bit packs the chips into the slot in this material: an upcut or O-flute cutter clears them better.".into());
+        notes.push(tr("A downcut bit packs the chips into the slot in this material: an upcut or O-flute cutter clears them better.").into());
     }
     let free_depth = matches!(t.shape.as_str(), "vbit" | "engrave");
     let pass = if free_depth { None } else {
@@ -114,9 +115,12 @@ pub fn suggest(mat: &str, t: &Tool, rigid: Rigidity, machine: Option<&Machine>) 
         if t.flute > 0.0 { p = p.min(t.flute); }
         Some(((p * 20.0).round() / 20.0).max(0.1))
     };
-    notes.push("A starting point: make a test cut on scrap and raise the feed or the depth if the cut is clean and the machine is not struggling.".into());
+    notes.push(starting_point_note().into());
     Some(Suggestion { rpm: round_to(rpm, 100.0).max(100.0), feed, plunge, so: m.so, pass, chip: feed / (rpm * t.flutes as f64), range: (clo, chi), notes })
 }
+
+/// The note every suggestion ends with (the operation card leaves it out: its Suggest button's tip says the same).
+pub fn starting_point_note() -> &'static str { tr("A starting point: make a test cut on scrap and raise the feed or the depth if the cut is clean and the machine is not struggling.") }
 
 #[cfg(test)]
 mod tests {

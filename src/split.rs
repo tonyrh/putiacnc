@@ -130,7 +130,7 @@ pub fn generate_files(data: &ProjectData, units: Units, mode: Split) -> Result<V
         let last = *g.last().expect("a group has an operation");
         let after = d.ops[last].p.pause.take().map(|m| if m.trim().is_empty() { format!("Operation {} done: resume when ready", last + 1) } else { m });
         let mut out = generate(&d, units)?;
-        out.notes.retain(|x| !(x.starts_with("Op ") && x.ends_with(" has no shapes.")));
+        out.notes.retain(|x| !crate::toolpath::is_no_shapes_note(x));
 
         let first = &main.ops[g[0]];
         let tool_first = tool_name(&main, &first.p.tool);

@@ -1,5 +1,6 @@
 //! Single-line text: letters drawn as open strokes (the Hershey fonts) instead of outlines, so that a pen
 //! or an engraving bit follows each letter's centre line. The fonts are small text files in `fonts/hershey`.
+use crate::i18n::{tr};
 use crate::model::LoopData;
 use crate::shapes::{new_poly, S};
 use crate::text::{bend, Align, Flow, TextStyle};
@@ -136,7 +137,7 @@ fn glyph(f: &Font, ch: char) -> Option<Glyph> {
 /// Strokes of `text` set in the single-line font `id` (see `fonts()`), the first line's baseline starting at `origin`
 /// (mm, y up). Every stroke becomes an open shape of operation `op`; a stroke that ends where it began (an o) is closed.
 pub fn line_text_loops(id: &str, text: &str, style: TextStyle, origin: [f64; 2], op: i64) -> Result<Vec<LoopData>, String> {
-    let f = font(id).ok_or_else(|| "This single-line font is not available.".to_string())?;
+    let f = font(id).ok_or_else(|| tr(tr("This single-line font is not available.")).to_string())?;
     let scale = style.size_mm / CAP;
     let adv = |ch: char| -> f64 { glyph(f, ch).map(|g| g.adv).unwrap_or(16.0) * scale + style.spacing_mm + if ch == ' ' { style.word_spacing_mm } else { 0.0 } };
     // a stroke: its points in mm and whether it closes on itself

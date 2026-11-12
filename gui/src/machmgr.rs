@@ -518,9 +518,9 @@ fn form(ui: &mut Ui, app: &mut App) {
     ui.add_space(10.0);
     ui.horizontal(|ui| {
         rlabel(ui, lw, tr("Rigidity"));
-        let cur = putiacnc_core::feeds::RIGIDITY.iter().find(|r| r.0 == m.rigid).map(|r| r.1).unwrap_or(putiacnc_core::feeds::RIGIDITY[0].1);
+        let cur = putiacnc_core::feeds::RIGIDITY.iter().find(|r| r.0 == m.rigid).map(|r| tr(r.1)).unwrap_or(tr(putiacnc_core::feeds::RIGIDITY[0].1));
         egui::ComboBox::from_id_source("mach_rigid").selected_text(cur).show_ui(ui, |ui| {
-            for (k, l) in putiacnc_core::feeds::RIGIDITY { if ui.selectable_label(m.rigid == k || (m.rigid.is_empty() && k == "light"), l).clicked() { m.rigid = if k == "light" { String::new() } else { k.into() }; changed = true; } }
+            for (k, l) in putiacnc_core::feeds::RIGIDITY { if ui.selectable_label(m.rigid == k || (m.rigid.is_empty() && k == "light"), tr(l)).clicked() { m.rigid = if k == "light" { String::new() } else { k.into() }; changed = true; } }
         }).response.on_hover_text(tr("How stiff the machine is: the feeds and speeds suggestion takes heavier chips and deeper cuts from a stiffer one. Start with light unless you know better"));
     });
     ui.add_space(10.0);

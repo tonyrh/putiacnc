@@ -7,6 +7,7 @@
 //! It reads absolute G-code with G0 to G3 (arcs by I and J), G20 / G21, M3 / M4 / M5, M2 / M30, S and F, with or without line numbers
 //! and comments, which is all PutiaCNC writes. Anything else on a line is passed over.
 
+use crate::i18n::{tr, tr_f};
 /// One word of a G-code line: a letter and its number ("X-1.5").
 fn words(line: &str) -> Vec<(char, f64)> {
     // comments: (...) and everything after ; (most lines have none, and are read as they are)
@@ -152,14 +153,14 @@ pub fn trace(lines: &[String]) -> Trace {
 impl Trace {
     fn finish(mut self, found: Vec<(&'static str, Found)>) -> Trace {
         for (kind, f) in found {
-            let more = if f.count > 1 { format!(" ({} more lines like it)", f.count - 1) } else { String::new() };
+            let more = if f.count > 1 { crate::i18n::tr_n(f.count as u64 - 1, " ({n} more line like it)", " ({n} more lines like it)") } else { String::new() };
             let msg = match kind {
-                "nan" => format!("⚠ G-code line {}: a value that is not a number{more}. Do not run this program.", f.first),
-                "spindle" => format!("⚠ G-code line {}: a cutting move while the spindle is off{more}.", f.first),
-                "feed" => format!("⚠ G-code line {}: a cutting move with no feed rate set{more}. Most controllers stop with an error.", f.first),
-                "s0" => format!("⚠ G-code line {}: the spindle is started with no speed (S){more}.", f.first),
-                "nolift" => format!("⚠ G-code line {}: the first sideways move comes before the program has set the tool's height{more}: raise the tool clear of the stock and clamps before you start.", f.first),
-                "running" => "⚠ The program ends with the spindle still running (no M5, M2 or M30 after the last M3).".to_string(),
+                "nan" => tr_f("⚠ G-code line {line}: a value that is not a number{more}. Do not run this program.", &[("line", &f.first), ("more", &more)]),
+                "spindle" => tr_f("⚠ G-code line {line}: a cutting move while the spindle is off{more}.", &[("line", &f.first), ("more", &more)]),
+                "feed" => tr_f("⚠ G-code line {line}: a cutting move with no feed rate set{more}. Most controllers stop with an error.", &[("line", &f.first), ("more", &more)]),
+                "s0" => tr_f("⚠ G-code line {line}: the spindle is started with no speed (S){more}.", &[("line", &f.first), ("more", &more)]),
+                "nolift" => tr_f("⚠ G-code line {line}: the first sideways move comes before the program has set the tool's height{more}: raise the tool clear of the stock and clamps before you start.", &[("line", &f.first), ("more", &more)]),
+                "running" => tr("⚠ The program ends with the spindle still running (no M5, M2 or M30 after the last M3).").to_string(),
                 _ => continue,
             };
             self.hazards.push(msg);
