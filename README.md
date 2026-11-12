@@ -3,6 +3,8 @@
   <img src="docs/banner-light.png" alt="PutiaCNC" width="480">
 </picture>
 
+# PutiaCNC
+
 **Project page: <https://tonyrh.github.io/putiacnc/>**
 
 A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC and Marlin output too), written in Rust. Draw or import shapes, assign operations

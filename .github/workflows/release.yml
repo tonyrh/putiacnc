@@ -32,11 +32,11 @@ jobs:
         run: |
           # a window must open and stay: a missing library makes the program exit within seconds
           sudo apt-get install -y xvfb
-          chmod +x PutiaCNC-*-x86_64.AppImage
+          chmod +x putiacnc-*-x86_64.AppImage
           export PUTIACNC_CONFIG_DIR="$(mktemp -d)" PUTIACNC_SKIP_SETUP=1 DISPLAY=:99
           Xvfb :99 -screen 0 1280x800x24 &
           sleep 2
-          ./PutiaCNC-*-x86_64.AppImage --appimage-extract-and-run &
+          ./putiacnc-*-x86_64.AppImage --appimage-extract-and-run &
           pid=$!
           sleep 12
           kill -0 "$pid" || { echo "the AppImage exited early"; exit 1; }
@@ -44,12 +44,12 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: linux-appimage
-          path: PutiaCNC-*-x86_64.AppImage
+          path: putiacnc-*-x86_64.AppImage
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: PutiaCNC-*-x86_64.AppImage
+          files: putiacnc-*-x86_64.AppImage
 
   macos-dmg:
     runs-on: macos-15

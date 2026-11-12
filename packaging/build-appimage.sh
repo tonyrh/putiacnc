@@ -1,11 +1,11 @@
 #!/bin/sh
-# Builds PutiaCNC-<version>-x86_64.AppImage. Needs appimagetool (https://github.com/AppImage/appimagetool)
+# Builds putiacnc-<version>-x86_64.AppImage. Needs appimagetool (https://github.com/AppImage/appimagetool)
 # on PATH or in $APPIMAGETOOL. Run from the repository root.
 set -e
 VER=$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)
 cargo build --release -p putiacnc-gui
 T="${CARGO_TARGET_DIR:-target}"
-A="$T/PutiaCNC.AppDir"
+A="$T/putiacnc.AppDir"
 rm -rf "$A"
 mkdir -p "$A/usr/bin" "$A/usr/share/licenses/putiacnc" "$A/usr/share/applications" "$A/usr/share/icons/hicolor/256x256/apps"
 cp "$T/release/putiacnc" "$A/usr/bin/putiacnc" && strip "$A/usr/bin/putiacnc"
@@ -24,4 +24,4 @@ for lib in libxkbcommon.so.0 libxkbcommon-x11.so.0 libxcb-xkb.so.1; do
 done
 printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexport LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\nexec "$HERE/usr/bin/putiacnc" "$@"\n' > "$A/AppRun"
 chmod +x "$A/AppRun"
-ARCH=x86_64 "${APPIMAGETOOL:-appimagetool}" "$A" "PutiaCNC-$VER-x86_64.AppImage"
+ARCH=x86_64 "${APPIMAGETOOL:-appimagetool}" "$A" "putiacnc-$VER-x86_64.AppImage"
