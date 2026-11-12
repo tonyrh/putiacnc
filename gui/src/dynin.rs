@@ -1,5 +1,6 @@
 //! Typed input while drawing: start typing a number with the Line, Rectangle or Ellipse tool and a small
 //! panel takes the exact values (position, length and angle, or width and height).
+use putiacnc_core::i18n::{tr};
 use crate::app::{App, Mode};
 use eframe::egui::{self, Key, Modifiers, Vec2};
 use putiacnc_core::shapes;
@@ -154,7 +155,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
     if esc { app.dyn_in = None; return; }
     let mut d = app.dyn_in.clone().unwrap();
     if tab { d.active = (d.active + 1) % d.vals.len(); d.focus = true; }
-    let title = match d.kind { Kind::Start if app.mode == Mode::Point => "Drill point", Kind::Radial if app.mode == Mode::Point => "Bolt circle", Kind::Radial => if app.poly_star { "Star" } else { "Polygon" }, Kind::Box if app.mode == Mode::Point => "Point grid", Kind::Start => "Start point", Kind::Segment => "Next point", Kind::Circle => "Circle", Kind::Box => if app.mode == Mode::Ellipse { "Ellipse" } else { "Rectangle" } };
+    let title = match d.kind { Kind::Start if app.mode == Mode::Point => tr("Drill point"), Kind::Radial if app.mode == Mode::Point => tr("Bolt circle"), Kind::Radial => if app.poly_star { tr("Star") } else { tr("Polygon") }, Kind::Box if app.mode == Mode::Point => tr("Point grid"), Kind::Start => tr("Start point"), Kind::Segment => tr("Next point"), Kind::Circle => tr("Circle"), Kind::Box => if app.mode == Mode::Ellipse { tr("Ellipse") } else { tr("Rectangle") } };
     let labels = d.labels();
     // near where the pointer was, but wholly inside the drawing area
     let (pw, ph) = (330.0, 80.0 + 32.0 * labels.len().div_ceil(2) as f32);
@@ -165,7 +166,7 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
             ui.strong(title);
             egui::Grid::new("dynin_grid").num_columns(4).spacing([6.0, 4.0]).show(ui, |ui| {
                 for (k, lab) in labels.iter().enumerate() {
-                    ui.label(*lab);
+                    ui.label(putiacnc_core::i18n::tr_dyn(lab)); // the words are texts of other windows too
                     let id = egui::Id::new(("dynin_field", k));
                     let r = ui.add(egui::TextEdit::singleline(&mut d.vals[k]).id(id).desired_width(64.0));
                     if d.focus && d.active == k { r.request_focus(); }
@@ -175,8 +176,8 @@ pub fn drive(ctx: &egui::Context, app: &mut App, pointer_over: bool, hover: Opti
                     if (labels.len() == 4 && k % 2 == 1) || labels.len() == 2 || (labels.len() == 3 && k != 0) { ui.end_row(); }
                 }
             });
-            ui.weak("Enter confirms · Tab next · Esc cancels");
-            ui.weak("Empty fields follow the pointer");
+            ui.weak(tr("Enter confirms · Tab next · Esc cancels"));
+            ui.weak(tr("Empty fields follow the pointer"));
         });
     });
     d.focus = false;

@@ -1,4 +1,5 @@
 //! Keyboard shortcuts and mouse actions, as a reference window (Help menu or F1).
+use putiacnc_core::i18n::{n_, tr};
 use crate::csd::ShowFollowing;
 use crate::app::App;
 use eframe::egui::{self, Ui};
@@ -6,66 +7,66 @@ use eframe::egui::{self, Ui};
 type Section = (&'static str, &'static [(&'static str, &'static str)]);
 
 const LEFT: &[Section] = &[
-    ("Tools", &[
-        ("V", "Select and move"),
-        ("N", "Edit points of a shape"),
-        ("L", "Line / polyline"),
-        ("R", "Rectangle (Shift: square)"),
-        ("E", "Ellipse (Shift: circle)"),
-        ("D", "Drill point (click to place, stays active)"),
-        ("P", "Polygon or star (Shift: point straight up)"),
-        ("T", "Text"),
-        ("X", "Trim and extend"),
-        ("Esc or right-click", "Cancel, deselect, back to Select (right-click on a shape: its menu)"),
+    (n_("Tools"), &[
+        ("V", n_("Select and move")),
+        ("N", n_("Edit points of a shape")),
+        ("L", n_("Line / polyline")),
+        ("R", n_("Rectangle (Shift: square)")),
+        ("E", n_("Ellipse (Shift: circle)")),
+        ("D", n_("Drill point (click to place, stays active)")),
+        ("P", n_("Polygon or star (Shift: point straight up)")),
+        ("T", n_("Text")),
+        ("X", n_("Trim and extend")),
+        (n_("Esc or right-click"), n_("Cancel, deselect, back to Select (right-click on a shape: its menu)")),
     ]),
-    ("Project", &[
-        ("Ctrl+N", "New project"),
-        ("Ctrl+O", "Open project"),
-        ("Ctrl+S", "Save"),
-        ("Ctrl+Shift+S", "Save as"),
-        ("Ctrl+I", "Import vectors (SVG or DXF)"),
-        ("Ctrl+E", "Export G-code"),
-        ("Ctrl+Q", "Quit"),
+    (n_("Project"), &[
+        (n_("Ctrl+N"), n_("New project")),
+        (n_("Ctrl+O"), n_("Open project")),
+        (n_("Ctrl+S"), n_("Save")),
+        (n_("Ctrl+Shift+S"), n_("Save as")),
+        (n_("Ctrl+I"), n_("Import vectors (SVG or DXF)")),
+        (n_("Ctrl+E"), n_("Export G-code")),
+        (n_("Ctrl+Q"), n_("Quit")),
     ]),
-    ("3D preview", &[
-        ("Drag", "Orbit"),
-        ("Right-drag", "Pan"),
-        ("Scroll", "Zoom"),
-        ("Double-click", "Reset the view"),
+    (n_("3D preview"), &[
+        (n_("Drag"), n_("Orbit")),
+        (n_("Right-drag"), n_("Pan")),
+        (n_("Scroll"), n_("Zoom")),
+        (n_("Double-click"), n_("Reset the view")),
     ]),
 ];
 
 const RIGHT: &[Section] = &[
-    ("Editing", &[
-        ("Ctrl+Z", "Undo (any change)"),
-        ("Ctrl+Shift+Z", "Redo (also Ctrl+Y)"),
-        ("Ctrl+A", "Select all"),
-        ("Ctrl+D", "Duplicate"),
-        ("Ctrl+G", "Group the selection"),
-        ("Ctrl+Shift+G", "Ungroup"),
-        ("Del", "Delete the selection"),
-        ("Arrows", "Nudge by the snap step (Shift: ×10)"),
-        ("F", "Fit the stock in view"),
-        ("F1", "This window"),
+    (n_("Editing"), &[
+        (n_("Ctrl+Z"), n_("Undo (any change)")),
+        (n_("Ctrl+Shift+Z"), n_("Redo (also Ctrl+Y)")),
+        (n_("Ctrl+A"), n_("Select all")),
+        (n_("Ctrl+D"), n_("Duplicate")),
+        (n_("Ctrl+G"), n_("Group the selection")),
+        (n_("Ctrl+Shift+G"), n_("Ungroup")),
+        (n_("Del"), n_("Delete the selection")),
+        (n_("Arrows"), n_("Nudge by the snap step (Shift: ×10)")),
+        ("F", n_("Fit the stock in view")),
+        ("F1", n_("This window")),
     ]),
-    ("Drawing and selecting", &[
-        ("Click", "Select a shape"),
-        ("Shift+Click", "Add to or remove from the selection"),
-        ("Drag", "Box-select, or move the selection"),
-        ("Shift+Handle", "Resize keeping proportions"),
-        ("Alt+Handle", "Resize from the centre"),
-        ("Double-click", "Edit the points of a shape"),
-        ("Enter / C", "Line: finish / close the shape"),
-        ("Right-click", "Line: finish. Tabs: remove one"),
-        ("Scroll", "Zoom"),
-        ("Middle / right-drag", "Pan"),
+    (n_("Drawing and selecting"), &[
+        (n_("Click"), n_("Select a shape")),
+        (n_("Shift+Click"), n_("Add to or remove from the selection")),
+        (n_("Drag"), n_("Box-select, or move the selection")),
+        (n_("Shift+Handle"), n_("Resize keeping proportions")),
+        (n_("Alt+Handle"), n_("Resize from the centre")),
+        (n_("Double-click"), n_("Edit the points of a shape")),
+        (n_("Enter / C"), n_("Line: finish / close the shape")),
+        (n_("Right-click"), n_("Line: finish. Tabs: remove one")),
+        (n_("Scroll"), n_("Zoom")),
+        (n_("Middle / right-drag"), n_("Pan")),
     ]),
-    ("Editing points", &[
-        ("Drag", "Move a point, or box-select several"),
-        ("Click an edge", "Add a point"),
-        ("Del", "Remove the selected points"),
-        ("Arrows", "Nudge the selected points"),
-        ("Esc", "Finish"),
+    (n_("Editing points"), &[
+        (n_("Drag"), n_("Move a point, or box-select several")),
+        (n_("Click an edge"), n_("Add a point")),
+        (n_("Del"), n_("Remove the selected points")),
+        (n_("Arrows"), n_("Nudge the selected points")),
+        (n_("Esc"), n_("Finish")),
     ]),
 ];
 
@@ -89,16 +90,17 @@ fn keys(ui: &mut Ui, combo: &str) {
 fn column(ui: &mut Ui, sections: &[Section], id: &str, kw: f32) {
     for (si, (title, rows)) in sections.iter().enumerate() {
         if si > 0 { ui.add_space(10.0); }
-        ui.strong(*title);
+        ui.strong(tr(title));
         ui.add_space(2.0);
         egui::Grid::new((id, si)).num_columns(2).spacing([14.0, 5.0]).show(ui, |ui| {
             for (k, d) in rows.iter() {
                 // the keycaps share a fixed-width cell so the descriptions line up across sections
                 ui.allocate_ui_with_layout(egui::vec2(kw, 22.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     ui.set_min_size(egui::vec2(kw, 22.0));
+                    let k = putiacnc_core::i18n::tr_dyn(k);
                     for (i, alt) in k.split(" / ").enumerate() { if i > 0 { ui.weak("/"); } keys(ui, alt); }
                 });
-                ui.label(*d);
+                ui.label(tr(d));
                 ui.end_row();
             }
         });
@@ -110,7 +112,7 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     let mut close = false;
     egui::Window::new("Keyboard shortcuts").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Keyboard shortcuts", ctx.screen_rect().center())).show(ctx, crate::csd::trapped(|ui| {
-        if crate::csd::dialog_header(ui, "Keyboard shortcuts", true) { close = true; }
+        if crate::csd::dialog_header(ui, tr("Keyboard shortcuts"), true) { close = true; }
         egui::ScrollArea::vertical().max_height((ctx.screen_rect().height() - 140.0).max(200.0)).auto_shrink([true, true]).show_following(ui, |ui| {
             ui.horizontal_top(|ui| {
                 ui.allocate_ui_with_layout(egui::vec2(370.0, 0.0), egui::Layout::top_down(egui::Align::LEFT), |ui| column(ui, LEFT, "sc_l", 160.0));

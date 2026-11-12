@@ -1,4 +1,5 @@
 //! Resize and rotate handles of the selection, and the selection bar.
+use putiacnc_core::i18n::{tr};
 use super::*;
 
 /// In rotate mode: a small field above the selection to turn it by a typed angle (counter-clockwise is positive).
@@ -17,10 +18,10 @@ pub(super) fn rotate_popup(ctx: &egui::Context, app: &mut App, rect: Rect) {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 4.0)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                ui.label("Rotate");
+                ui.label(tr("Rotate"));
                 ui.add_space(4.0); // as far from its field as the labels in the selection bar
                 let r = crate::widgets::num(ui, [54.0, 24.0], &mut v, -360.0, 360.0, 0.5, 1, "")
-                    .on_hover_text("Turn the selection by this many degrees about the centre mark (counter-clockwise is positive). Drag a corner handle to turn it with the mouse; Shift snaps to 15°.");
+                    .on_hover_text(tr("Turn the selection by this many degrees about the centre mark (counter-clockwise is positive). Drag a corner handle to turn it with the mouse; Shift snaps to 15°."));
                 if r.changed() && live.is_none() && v != 0.0 { delta = Some(v); typed = !r.dragged(); }
                 ui.weak("°");
             });

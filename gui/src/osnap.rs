@@ -1,5 +1,6 @@
 //! Object snap: the pointer jumps to the corners, midpoints, centres and crossings of the drawing
 //! (and the corners, edge midpoints and centre of the stock) when it comes within a few pixels of one.
+use putiacnc_core::i18n::{tr};
 use putiacnc_core::model::LoopData;
 use putiacnc_core::shapes::{self, S};
 
@@ -8,7 +9,7 @@ pub enum Kind { Corner, Midpoint, Centre, Crossing, Stock }
 
 impl Kind {
     pub fn label(self) -> &'static str {
-        match self { Kind::Corner => "Corner", Kind::Midpoint => "Midpoint", Kind::Centre => "Centre", Kind::Crossing => "Crossing", Kind::Stock => "Stock" }
+        match self { Kind::Corner => tr("Corner"), Kind::Midpoint => tr("Midpoint"), Kind::Centre => tr("Centre"), Kind::Crossing => tr("Crossing"), Kind::Stock => tr("Stock") }
     }
 }
 

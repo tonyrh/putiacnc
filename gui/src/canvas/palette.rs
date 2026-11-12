@@ -156,21 +156,21 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
     tool_options_bar(ctx, app, rect);
     if app.tab_edit.is_some() { tab_bar(ctx, app, rect); } else if app.node_edit.is_some() { /* the Edit points window */ } else { selection_bar(ctx, app, rect); }
     // hint line
-    let hint = if app.node_edit.is_some() { "Drag a point \u{b7} click an edge to add one \u{b7} Del removes" } else if app.tab_edit.is_some() { "Click an outline to add a tab \u{b7} right-click removes one" } else { match app.mode {
-        Mode::Select if app.selected_text().is_some() => "Double-click: edit the text \u{b7} drag to move \u{b7} Right-drag: pan",
-        Mode::Select => "Click or box-select \u{b7} drag to move \u{b7} Right-drag: pan",
+    let hint = if app.node_edit.is_some() { tr("Drag a point \u{b7} click an edge to add one \u{b7} Del removes") } else if app.tab_edit.is_some() { tr("Click an outline to add a tab \u{b7} right-click removes one") } else { match app.mode {
+        Mode::Select if app.selected_text().is_some() => tr("Double-click: edit the text \u{b7} drag to move \u{b7} Right-drag: pan"),
+        Mode::Select => tr("Click or box-select \u{b7} drag to move \u{b7} Right-drag: pan"),
         Mode::Node => tr("Click a shape to edit its points"),
-        Mode::Line => "Click points \u{b7} Enter ends \u{b7} C closes \u{b7} Esc cancels",
-        Mode::Rect => "Drag to draw a rectangle \u{b7} Shift for a square",
-        Mode::Ellipse => if app.circle_mode { "Drag from the centre \u{b7} or type centre X, Y and size" } else { "Drag a bounding box \u{b7} Shift for a circle" },
-        Mode::Point => "Click to place a drill point \u{b7} Grid and Bolt circle above",
-        Mode::Polygon => "Drag from the centre \u{b7} Shift points it up \u{b7} sides above",
+        Mode::Line => tr("Click points \u{b7} Enter ends \u{b7} C closes \u{b7} Esc cancels"),
+        Mode::Rect => tr("Drag to draw a rectangle \u{b7} Shift for a square"),
+        Mode::Ellipse => if app.circle_mode { tr("Drag from the centre \u{b7} or type centre X, Y and size") } else { tr("Drag a bounding box \u{b7} Shift for a circle") },
+        Mode::Point => tr("Click to place a drill point \u{b7} Grid and Bolt circle above"),
+        Mode::Polygon => tr("Drag from the centre \u{b7} Shift points it up \u{b7} sides above"),
         Mode::Text => tr("Type the text, then click where it starts"),
         Mode::Trim => if app.trim_extend { tr("Click near an open end to run it on to the next shape") } else { tr("Click the part to remove, up to the nearest crossings") },
     } };
     if app.trace.open || app.clean.open { return; } // a dialog covers that part of the canvas
     let hint = if app.array.open && app.array.picking { tr("Click the line or curve the copies should follow") } else { hint };
-    let hint = if app.dyn_in.is_some() { "Typing values: Enter confirms \u{b7} Tab next field \u{b7} Esc cancels" } else { hint };
+    let hint = if app.dyn_in.is_some() { tr("Typing values: Enter confirms \u{b7} Tab next field \u{b7} Esc cancels") } else { hint };
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.add(egui::Label::new(egui::RichText::new(hint).weak()).truncate(true));

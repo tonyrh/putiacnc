@@ -223,7 +223,7 @@ fn dialog_header_inner(ui: &mut Ui, title: &str, closable: bool, help: Option<im
         let c = b.center();
         ui.painter().line_segment([c + egui::vec2(-4.5, -4.5), c + egui::vec2(4.5, 4.5)], st);
         ui.painter().line_segment([c + egui::vec2(-4.5, 4.5), c + egui::vec2(4.5, -4.5)], st);
-        clicked = resp.on_hover_text("Close").clicked();
+        clicked = resp.on_hover_text(tr("Close")).clicked();
     }
     if let Some(help) = help {
         let b = Rect::from_center_size(Pos2::new(rect.min.x + 15.0, rect.center().y), egui::vec2(28.0, 28.0));

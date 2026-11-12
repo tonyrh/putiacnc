@@ -68,7 +68,7 @@ pub fn step(st: &mut crate::view3d::State, ctx: &egui::Context) {
 const SIZE: f32 = 108.0;
 // the cell borders along a face: edge, middle, edge
 const CUT: [f32; 4] = [-1.0, -0.42, 0.42, 1.0];
-const FACES: [(usize, f32, &str); 6] = [(2, 1.0, "TOP"), (1, -1.0, "FRONT"), (0, 1.0, "RIGHT"), (1, 1.0, "BACK"), (0, -1.0, "LEFT"), (2, -1.0, "BOTTOM")];
+const FACES: [(usize, f32, &str); 6] = [(2, 1.0, putiacnc_core::i18n::n_("TOP")), (1, -1.0, putiacnc_core::i18n::n_("FRONT")), (0, 1.0, putiacnc_core::i18n::n_("RIGHT")), (1, 1.0, putiacnc_core::i18n::n_("BACK")), (0, -1.0, putiacnc_core::i18n::n_("LEFT")), (2, -1.0, putiacnc_core::i18n::n_("BOTTOM"))];
 
 struct Cell { quad: [Pos2; 4], dir: [i32; 3], face: usize, centre: bool, shade: f32 }
 
@@ -136,7 +136,7 @@ pub fn show(ctx: &egui::Context, app: &mut App, rect: Rect) {
             for c in list.iter().filter(|c| c.centre) {
                 let mid = Pos2::new(c.quad.iter().map(|p| p.x).sum::<f32>() / 4.0, c.quad.iter().map(|p| p.y).sum::<f32>() / 4.0);
                 let hot = !dragging && hover == Some(c.dir);
-                ui.painter().text(mid, egui::Align2::CENTER_CENTER, FACES[c.face].2, FontId::proportional(9.5), if hot { Color32::WHITE } else { text });
+                ui.painter().text(mid, egui::Align2::CENTER_CENTER, putiacnc_core::i18n::tr(FACES[c.face].2), FontId::proportional(9.5), if hot { Color32::WHITE } else { text });
             }
             if hover.is_some() || dragging { ui.ctx().set_cursor_icon(if dragging { egui::CursorIcon::Grabbing } else { egui::CursorIcon::PointingHand }); }
             if dragging {

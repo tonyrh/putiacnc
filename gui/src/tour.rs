@@ -1,5 +1,6 @@
 //! The quick tour: a few steps that dim the window, outline one part of it and say what it is for. It runs from the end of the setup
 //! assistant and from Help → Quick tour. It changes nothing in the project: it only shows panels that are hidden and the drawing tab.
+use putiacnc_core::i18n::{n_, tr, tr_f};
 use crate::app::App;
 use eframe::egui::{self, Color32, Pos2, Rect, Vec2};
 use std::collections::HashMap;
@@ -17,14 +18,14 @@ impl Tour {
 struct Step { target: Option<&'static str>, title: &'static str, body: &'static str }
 
 const STEPS: [Step; 8] = [
-    Step { target: None, title: "Welcome to PutiaCNC", body: "A two-minute look at where things are. Use Next, or press Esc to leave at any time. Help \u{2192} Quick tour shows it again." },
-    Step { target: Some("tools"), title: "Draw or import", body: "Draw lines, rectangles, circles, polygons and text here, or bring in an SVG, DXF, bitmap or 3D model from the File menu. Select shapes to move, resize or edit their points, and right-click a selection for Mirror, Move to layer, Fillet and more. The Draw, Modify and Generate menus hold the rest (arrays, offsets, boxes, finger joints)." },
-    Step { target: Some("left"), title: "Your material", body: "Set the size and thickness of the stock, where zero is, and add clamps for the places the tool must keep out of. Layers (hide, lock, colour) and the imported drawings and text are listed below." },
-    Step { target: Some("right"), title: "Make operations", body: "Select shapes in the drawing, then add an operation: Profile cuts along or round them, Pocket clears the inside, V-carve engraves, Drill makes holes, and 3D relief carves a model or shapes you raised to a height. Each operation has its own tool, depth and options." },
-    Step { target: Some("tabs"), title: "2D, 3D and split", body: "Switch between the drawing, a 3D preview and a split view. The preview replays the real G-code, so you see what the machine will do before it does it." },
-    Step { target: Some("status"), title: "Time and checks", body: "The estimated time and the cut length are here. Warnings about the toolpath (too deep, a clamp in the way, a part too small for the tool) appear in a bar under the view tabs." },
-    Step { target: Some("right"), title: "G-code", body: "The G-code tab shows the program. File \u{2192} Export G-code\u{2026} saves it, split per tool or per operation if you like. Do an air cut first." },
-    Step { target: None, title: "That's it", body: "Help \u{2192} Keyboard shortcuts (F1) lists the keys. The setup assistant and this tour are both in the Help menu." },
+    Step { target: None, title: n_("Welcome to PutiaCNC"), body: n_("A two-minute look at where things are. Use Next, or press Esc to leave at any time. Help \u{2192} Quick tour shows it again.") },
+    Step { target: Some("tools"), title: n_("Draw or import"), body: n_("Draw lines, rectangles, circles, polygons and text here, or bring in an SVG, DXF, bitmap or 3D model from the File menu. Select shapes to move, resize or edit their points, and right-click a selection for Mirror, Move to layer, Fillet and more. The Draw, Modify and Generate menus hold the rest (arrays, offsets, boxes, finger joints).") },
+    Step { target: Some("left"), title: n_("Your material"), body: n_("Set the size and thickness of the stock, where zero is, and add clamps for the places the tool must keep out of. Layers (hide, lock, colour) and the imported drawings and text are listed below.") },
+    Step { target: Some("right"), title: n_("Make operations"), body: n_("Select shapes in the drawing, then add an operation: Profile cuts along or round them, Pocket clears the inside, V-carve engraves, Drill makes holes, and 3D relief carves a model or shapes you raised to a height. Each operation has its own tool, depth and options.") },
+    Step { target: Some("tabs"), title: n_("2D, 3D and split"), body: n_("Switch between the drawing, a 3D preview and a split view. The preview replays the real G-code, so you see what the machine will do before it does it.") },
+    Step { target: Some("status"), title: n_("Time and checks"), body: n_("The estimated time and the cut length are here. Warnings about the toolpath (too deep, a clamp in the way, a part too small for the tool) appear in a bar under the view tabs.") },
+    Step { target: Some("right"), title: n_("G-code"), body: n_("The G-code tab shows the program. File \u{2192} Export G-code\u{2026} saves it, split per tool or per operation if you like. Do an air cut first.") },
+    Step { target: None, title: n_("That's it"), body: n_("Help \u{2192} Keyboard shortcuts (F1) lists the keys. The setup assistant and this tour are both in the Help menu.") },
 ];
 
 fn key() -> egui::Id { egui::Id::new("tour_rects") }
@@ -86,19 +87,19 @@ pub fn window(ctx: &egui::Context, app: &mut App) {
     egui::Area::new(card_id()).order(egui::Order::Foreground).fixed_pos(place(screen, target, size_hint)).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(16.0).rounding(12.0).show(ui, |ui| {
             ui.set_width(CARD_W);
-            ui.label(egui::RichText::new(format!("{} of {}", step + 1, STEPS.len())).small().weak());
+            ui.label(egui::RichText::new(tr_f("{n} of {total}", &[("n", &(step + 1)), ("total", &STEPS.len())])).small().weak());
             ui.add_space(2.0);
-            ui.label(egui::RichText::new(s.title).size(19.0).strong());
+            ui.label(egui::RichText::new(tr(s.title)).size(19.0).strong());
             ui.add_space(6.0);
-            ui.add(egui::Label::new(s.body).wrap(true));
+            ui.add(egui::Label::new(tr(s.body)).wrap(true));
             ui.add_space(14.0);
             ui.horizontal(|ui| {
-                if step + 1 < STEPS.len() && ui.button("Skip tour").clicked() { close = true; }
+                if step + 1 < STEPS.len() && ui.button(tr("Skip tour")).clicked() { close = true; }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let last = step + 1 >= STEPS.len();
-                    let go = egui::Button::new(egui::RichText::new(if last { "  Done  " } else { "  Next \u{2192}  " }).color(Color32::WHITE).strong()).fill(acc).min_size(Vec2::new(86.0, 28.0));
+                    let go = egui::Button::new(egui::RichText::new(if last { tr("  Done  ") } else { tr("  Next \u{2192}  ") }).color(Color32::WHITE).strong()).fill(acc).min_size(Vec2::new(86.0, 28.0));
                     if ui.add(go).clicked() { if last { close = true; } else { next = true; } }
-                    if step > 0 && ui.add(egui::Button::new("\u{2190} Back").min_size(Vec2::new(64.0, 28.0))).clicked() { back = true; }
+                    if step > 0 && ui.add(egui::Button::new(tr("\u{2190} Back")).min_size(Vec2::new(64.0, 28.0))).clicked() { back = true; }
                 });
             });
         });
