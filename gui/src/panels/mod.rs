@@ -71,7 +71,9 @@ pub(super) fn dl_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &
 
 pub(super) fn combo_w2(ui: &mut Ui, w: f32, id: &str, cur: &mut String, opts: &[(&str, &str)], prefix: &str, tip: &str) -> (bool, egui::Rect) {
     let mut ch = false;
-    let r = egui::ComboBox::from_id_source(id).width(w - 10.0).selected_text(format!("{prefix}{}", label_of(opts, cur))).show_ui(ui, |ui| {
+    // a long name is cut short to the box, rather than the box growing past the card
+    let shown = elide(ui, &format!("{prefix}{}", label_of(opts, cur)), (w - 30.0).max(40.0));
+    let r = egui::ComboBox::from_id_source(id).width(w - 10.0).selected_text(shown).show_ui(ui, |ui| {
         for (k, l) in opts {
             if ui.selectable_label(cur == k, putiacnc_core::i18n::tr_dyn(l)).clicked() && cur != k { *cur = k.to_string(); ch = true; }
         }

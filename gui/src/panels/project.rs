@@ -273,8 +273,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let (pad, sp) = (ui.spacing().button_padding.x, ui.spacing().item_spacing.x);
         let widths: Vec<f32> = labels.iter().map(|l| 2.0 * pad + 26.0 + super::tw(ui, l)).collect();
         let avail = ui.available_width();
-        for (group, with_fold) in [(0..4, true), (4..7, false)] {
-            let reserve = if with_fold && !d.ops.is_empty() { 22.0 } else { 0.0 };
+        let fold_w = if d.ops.is_empty() { 0.0 } else { 22.0 };
+        let group_fits = |r: std::ops::Range<usize>, reserve: f32| widths[r].iter().map(|w| w + sp).sum::<f32>() + reserve <= avail + 6.0;
+        // the usual two lines; when either does not fit, all seven buttons are packed line by line instead (full lines first, the last one partly filled)
+        let groups: Vec<(std::ops::Range<usize>, bool)> = if group_fits(0..4, fold_w) && group_fits(4..7, 0.0) { vec![(0..4, true), (4..7, false)] } else { vec![(0..7, true)] };
+        for (group, with_fold) in groups {
+            let reserve = if with_fold { fold_w } else { 0.0 };
             let mut lines: Vec<Vec<usize>> = vec![vec![]];
             let mut used = reserve;
             for i in group {
@@ -487,14 +491,19 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 let l1 = tw_of(ui, tr("Type")).max(tw_of(ui, tr("Tool"))).max(tw_of(ui, tr("Depth"))).max(tw_of(ui, tr("Rough"))).max(tw_of(ui, tr("Finish"))).max(tw_of(ui, tr("Spindle"))).max(tw_of(ui, tr("Stepover"))).max(tw_of(ui, tr("Pen down"))).max(tw_of(ui, tr("Corners"))).max(if p.kind == "vcarve" { tw_of(ui, tr("Flat depth")).max(tw_of(ui, tr("Clear with"))) } else { 0.0 });
                 let l3 = tw_of(ui, tr("Cut")).max(tw_of(ui, tr("Pass")));
                 // fixed widths: the right column never depends on the selected text, so nothing resizes
-                let cw = tw_of(ui, tr("Conventional")) + 44.0;
-                let lc = (ui.available_width() - l1 - l3 - cw - 3.0 * sp - 22.0).max(100.0);
-                egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp, 10.0]).show(ui, |ui| {
+                let cw = tw_of(ui, tr("Conventional")) + 36.0;
+                let lc = (ui.available_width() - l1 - l3 - cw - 3.0 * sp - 34.0).max(100.0);
+                let grid_w = ui.available_width();
+                egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp - 2.0, 10.0]).show(ui, |ui| {
                     rlabel(ui, l1, tr("Type"));
                     let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
                     let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", tr("V-carve")), "drill" => ("drill", tr("Drill")), "inlay" => ("inlay", tr("Inlay pocket")), "plug" => ("plug", tr("Inlay plug")), "relief" => ("relief", tr("3D relief")), "draw" => ("draw", tr("Draw (pen)")), _ => ("pocket", tr("Pocket")) }];
-                    changed |= combo_w(ui, lc + 10.0, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { tr("Profile: cut outside, inside or on the line") } else { tr("Operation type") });
-                    rlabel(ui, l3, tr("Cut"));
+                    // when the name of the type does not fit beside the Cut box (a language with longer words), Cut goes on a line of its own
+                    let type_w = tw_of(ui, &label_of(if profile { PROFILES } else { &single }, &p.kind)) + 46.0;
+                    let split = lc + 10.0 < type_w;
+                    let kind_w = if split { type_w.min(grid_w - l1 - 24.0) } else { lc + 10.0 };
+                    changed |= combo_w(ui, kind_w, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { tr("Profile: cut outside, inside or on the line") } else { tr("Operation type") });
+                    if split { ui.end_row(); rlabel(ui, l1, tr("Cut")); } else { rlabel(ui, l3, tr("Cut")); }
                     ui.add_enabled_ui(p.kind != "drill" && p.kind != "relief" && p.kind != "draw", |ui| {
                         let (c, _) = combo_w2(ui, cw + 2.0, &format!("dir{id}"), &mut p.dir, DIRS, "", tr("Cut direction: climb or conventional"));
                         changed |= c;
@@ -701,7 +710,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let mut on = p.w_leave.is_some();
                             if crate::widgets::check(ui, &mut on, tr("Finishing pass")).tip(tr("Cut the walls 0.2 mm oversize in the depth passes, then to size in one last pass: cleaner walls and a more accurate size, especially in hard materials")).changed() { p.w_leave = if on { Some(0.2) } else { None }; changed = true; }
                             if let Some(v) = p.w_leave.as_mut() {
-                                ui.weak("leave");
+                                ui.weak(tr("leave"));
                                 if dl_w(ui, 48.0, v, 0.0, 2.0, "") { changed = true; }
                                 ui.weak(crate::widgets::len_unit(ui));
                             }
@@ -732,7 +741,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             rlabel(ui, lw3, tr("Repeat"));
                             let mut v = p.repeat.unwrap_or(1) as f64;
                             if dv_r(ui, 48.0, &mut v, 1.0, 20.0, "").tip(tr("How many times the whole drawing is gone over: a darker, more even line from a thin or dry pen. Passes that do not line up exactly make the line a little wider")).changed() { let n = v.round().clamp(1.0, 20.0) as u32; p.repeat = if n > 1 { Some(n) } else { None }; changed = true; }
-                            ui.weak(if p.repeat.unwrap_or(1) == 1 { "time" } else { "times" });
+                            ui.weak(tr_n(p.repeat.unwrap_or(1) as u64, "time", "times"));
                         });
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
@@ -747,7 +756,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, tr("Join gaps"));
                             let mut on = p.join.is_some();
-                            if crate::widgets::check(ui, &mut on, "under").tip(tr("When the next stroke starts this close to where the last one ended, the pen stays down and draws a short line across instead of lifting. Saves time with single-line text and dashed lines; the marks it leaves are as long as the gap")).changed() { p.join = if on { Some(0.5) } else { None }; changed = true; }
+                            if crate::widgets::check(ui, &mut on, tr("under")).tip(tr("When the next stroke starts this close to where the last one ended, the pen stays down and draws a short line across instead of lifting. Saves time with single-line text and dashed lines; the marks it leaves are as long as the gap")).changed() { p.join = if on { Some(0.5) } else { None }; changed = true; }
                             if let Some(v) = p.join.as_mut() {
                                 changed |= dl_r(ui, 48.0, v, 0.05, 20.0, "").changed();
                                 ui.weak(crate::widgets::len_unit(ui));
@@ -766,7 +775,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, lw3, tr("Angle"));
                                 changed |= dv_r(ui, 48.0, &mut h.angle, -180.0, 180.0, "").tip(tr("Direction of the lines: 0 runs along X, 90 along Y")).changed();
-                                ui.weak("degrees");
+                                ui.weak(tr("degrees"));
                             });
                             ui.add_space(4.0);
                             ui.horizontal(|ui| {
@@ -820,7 +829,10 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 let mut g = p.fit.unwrap_or(0.05);
                                 if dl_w(ui, 54.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
                                 ui.weak(crate::widgets::len_unit(ui)).tip(tr("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue."));
-                                ui.weak(tr("smaller than the pocket, for glue"));
+                                let hint = tr("smaller than the pocket, for glue");
+                                let shown = elide(ui, hint, (ui.available_width() - 8.0).max(30.0));
+                                let r = ui.weak(&shown);
+                                if shown != hint { r.on_hover_text(hint); }
                             });
                             // the plug can be cut from a piece of its own (a second G-code file, its own work zero)
                             ui.add_space(2.0);
@@ -900,11 +912,14 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         // short fields; whatever width is left is shared out as gaps between the three groups
                         let fw0: f32 = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
                         // in a language with longer words the fields give way a little, rather than the row pushing the card wider than the panel
-                        let rest = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * sp;
-                        let fw = fw0.min(((ui.available_width() - rest - 8.0) / 2.0).max(30.0));
+                        let mut rest = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * sp;
+                        let mut sp = sp;
+                        if rest + 2.0 * 30.0 + 8.0 > (ui.available_width() - 16.0) { sp = 4.0; ui.spacing_mut().item_spacing.x = sp; rest = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * sp; }
+                        let fw = fw0.min((((ui.available_width() - 16.0) - rest - 8.0) / 2.0).max(26.0));
                         let fixed = rest + 2.0 * fw;
-                        let gap = ((ui.available_width() - fixed) / 2.0).max(4.0);
+                        let gap = (((ui.available_width() - 16.0) - fixed) / 2.0).max(4.0);
                         rlabel(ui, l1, tr("Depth"));
+                        if sp < 8.0 { ui.add_space(4.0); }
                         changed |= dl_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
                         ui.weak(crate::widgets::len_unit(ui));
                         ui.add_space(gap);
@@ -979,6 +994,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let labels = tw_of(ui, tr("Width")) + tw_of(ui, tr("Height")) + if manual { 0.0 } else { tw_of(ui, tr("Count")) };
                             let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, crate::widgets::len_unit(ui)) + (3.0 * groups + 0.0) * sp;
                             // with all three fields the spare width is spread between them; with two they sit together
+                            // in a language with longer words the two fields give way a little, rather than the row running past the card
+                            let over = fixed - ui.available_width();
+                            let (fw, fixed) = if over > 0.0 { let dd = ((over + 2.0) / 2.0).min(fw - 24.0).max(0.0); (fw - dd, fixed - 2.0 * dd) } else { (fw, fixed) };
                             let gap = if manual { 24.0 } else { ((ui.available_width() - fixed) / (groups - 1.0)).max(4.0) };
                             if !manual {
                                 ui.label(tr("Count")).tip(tr("Number of holding tabs, spread evenly along the outline"));
@@ -1099,7 +1117,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     if let Some(msg) = p.pause.as_mut() {
                         ui.horizontal(|ui| {
                             ui.add_space(26.0);
-                            changed |= ui.add(egui::TextEdit::singleline(msg).hint_text(tr("Message, e.g. Flip the stock")).desired_width(ui.available_width() - 6.0)).changed();
+                            changed |= ui.add(egui::TextEdit::singleline(msg).hint_text(tr("Message, e.g. Flip the stock")).desired_width((ui.available_width() - 22.0).max(60.0))).changed();
                         });
                     }
                 }

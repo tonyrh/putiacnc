@@ -28,7 +28,7 @@ You do not need to know Rust to translate. You edit one file, `locales/<code>.js
    ```rust
    ("de", "Deutsch", include_str!("../locales/de.json")),
    ```
-   If its words are much longer or shorter than English, give it a width in `width_factor` in the same file (Italian has 1.25): the side panels and the windows are made that much wider.
+   If its words are much longer or shorter than English, give it a width in `width_factor` in the same file (Italian has 1.25): the windows are made that much wider (the side panels keep their width: rows that do not fit must be made to give way, as in `panels/project.rs`).
 3. Translate. Either edit `locales/de.json` directly, or use a spreadsheet (next section).
 4. Check it:
    ```sh
