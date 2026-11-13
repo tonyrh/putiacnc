@@ -16,15 +16,22 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
         let _ = (&text_w, sp);
         let stock_frame = egui::Frame::group(ui.style()).inner_margin(egui::Margin::same(10.0)).show(ui, |ui| {
             ui.set_max_width(stock_w - 34.0);
-            let fw = 62.0_f32;
             let l1 = tw(ui, tr("Thickness")).max(tw(ui, tr("XY zero"))).max(tw(ui, tr("Appearance"))).max(tw(ui, tr("Material")));
-            let l3 = tw(ui, tr("Height")).max(tw(ui, tr("Safe Z")));
+            let l3 = tw(ui, tr("Height")).max(tw(ui, tr("Z zero")));
+            // where the Z block starts when it is not pushed right (kept from the last frame), so the Height label can be widened to line up with it
+            let nat_id = egui::Id::new("stock_z_nat");
+            let nat: f32 = ui.data(|x| x.get_temp(nat_id)).unwrap_or(0.0);
+            let left0 = ui.min_rect().left();
+            // the number boxes shrink when the labels are long, so the row never passes the card
+            let unit_w = tw(ui, crate::widgets::len_unit(ui)).max(tw(ui, "mm"));
+            let fw = ((stock_w - 34.0 - l1 - l3 - 2.0 * unit_w - 5.0 * 8.0 - 8.0) / 2.0).clamp(36.0, 62.0);
             let mut col4_x = 0.0_f32;
             egui::Grid::new("stock_grid").num_columns(6).spacing([8.0, 10.0]).show(ui, |ui| {
                 rlabel(ui, l1, tr("Width"));
                 *changed |= dl_w(ui, fw, &mut d.stock.w, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui));
                 col4_x = ui.next_widget_position().x;
-                rlabel(ui, l3, tr("Height"));
+                let lh = l3 + (nat - (col4_x - left0)).max(0.0);
+                rlabel(ui, lh, tr("Height"));
                 *changed |= dl_w(ui, fw, &mut d.stock.h, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
                 rlabel(ui, l1, tr("Thickness"));
                 *changed |= dl_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); ui.weak(crate::widgets::len_unit(ui));
@@ -37,10 +44,14 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
                 // the Z block lines up with the Height / Safe Z column above
                 let gap = col4_x - ui.next_widget_position().x - 3.0 * ui.spacing().item_spacing.x;
                 ui.add_space(gap.max(6.0));
+                // the natural start of the Z block (relative to the card), for the next frame
+                let here = ui.next_widget_position().x - left0 + ui.spacing().item_spacing.x;
+                let want = if gap >= 6.0 { 0.0 } else { here };
+                if (want - nat).abs() > 0.5 { ui.data_mut(|x| x.insert_temp(nat_id, want)); ui.ctx().request_repaint(); }
                 egui::Grid::new("stock_z").num_columns(2).spacing([8.0, 10.0]).show(ui, |ui| {
                     let lz = l3;
                     rlabel(ui, lz, tr("Z zero"));
-                    let zm_w = crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                    let zm_w = (crate::widgets::combo_fit(ui, &ZMODES.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0).min((stock_w - 34.0 - (ui.next_widget_position().x - ui.min_rect().left()) - l3 - 24.0).max(60.0));
                     let (c, _) = combo_w2(ui, zm_w, "zm", &mut d.stock.zm, ZMODES, "", tr("Where Z0 is measured from"));
                     *changed |= c; ui.end_row();
                     if d.stock.zm != "top" {
@@ -101,7 +112,7 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             ui.set_max_width(stock_w - 34.0);
             ui.set_min_width(clamp_inner_w);
             let mut del = None;
-            if d.clamps.is_empty() { ui.weak(tr("None. Add one for each clamp or screw on the table.")); }
+            if d.clamps.is_empty() { ui.add(egui::Label::new(egui::RichText::new(tr("None. Add one for each clamp or screw on the table.")).weak()).wrap(true)); }
             let n_clamps = d.clamps.len();
             let fw = 62.0_f32;
             let (lc1, lc2) = (tw(ui, tr("Width")).max(tw(ui, tr("Rise"))).max(tw(ui, "X")), tw(ui, tr("Length")).max(tw(ui, "Y")));

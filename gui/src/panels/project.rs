@@ -27,14 +27,22 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
         ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
     }));
     ui.add_space(8.0);
+    // the check boxes and the button share a line when they fit; otherwise the button goes below
+    let sp = ui.spacing().item_spacing.x;
+    let need = (if aspect_fixed { 0.0 } else { tw(ui, tr("Keep proportions")) + 28.0 + sp })
+        + (if lock.is_some() { tw(ui, tr("Lock")) + 28.0 + sp } else { 0.0 })
+        + tw(ui, tr("Fit to stock")) + 20.0 + 14.0;
+    let one_line = need <= ui.available_width();
+    let mut fit_btn = |ui: &mut Ui| {
+        ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
+        if ui.add_enabled(!locked, egui::Button::new(tr("Fit to stock"))).tip(tr("Scale to the stock if it is bigger, and centre it")).clicked() { *fit = true; }
+    };
     ui.horizontal(|ui| {
         if !aspect_fixed && crate::widgets::check_if(ui, !locked, &mut keep, tr("Keep proportions")).changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
         if let Some(l) = lock.as_mut() { crate::widgets::check(ui, l, tr("Lock")).tip(tr("Stops this drawing being moved, resized, rotated or flipped by accident")); }
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
-            if ui.add_enabled(!locked, egui::Button::new(tr("Fit to stock"))).tip(tr("Scale to the stock if it is bigger, and centre it")).clicked() { *fit = true; }
-        });
+        if one_line { ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| fit_btn(ui)); }
     });
+    if !one_line { ui.add_space(4.0); ui.horizontal(|ui| fit_btn(ui)); }
     if moved || sized { Some([x + zero.0, y + zero.1, w, h]) } else { None }
 }
 
