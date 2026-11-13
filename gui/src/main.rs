@@ -293,6 +293,7 @@ impl App {
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
         imagechoice::dialog(ctx, self);
+        canvas::scale_dialog(ctx, self);
         model3d::dialog(ctx, self);
         csd::tab_skip(ctx);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }

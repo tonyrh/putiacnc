@@ -5,7 +5,7 @@ use crate::widgets::Tip;
 use super::*;
 
 #[derive(Clone, Copy, PartialEq)]
-pub(super) enum GroupAct { Delete, EditText, ToOutlines }
+pub(super) enum GroupAct { Delete, EditText, ToOutlines, SetScale }
 
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
 /// `zero` is the XY zero of the stock: X and Y are shown (and typed) relative to it, like the rulers.
@@ -215,7 +215,11 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 ui.spacing_mut().slider_width = (ui.available_width() - 150.0).max(60.0);
                 if ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).suffix(" %")).tip(tr("How strongly the picture shows")).changed() { bd.opacity = pct / 100.0; *changed = true; }
             });
-            if crate::widgets::check(ui, &mut bd.visible, tr("Show")).tip(tr("Hide the picture without removing it")).changed() { *changed = true; }
+            ui.horizontal(|ui| {
+                if crate::widgets::check(ui, &mut bd.visible, tr("Show")).tip(tr("Hide the picture without removing it")).changed() { *changed = true; }
+                if crate::widgets::check(ui, &mut bd.locked, tr("Lock")).tip(tr("Unlocked, you can drag the picture to move it and its corners to resize it")).changed() { *changed = true; }
+            });
+            if ui.button(tr("Set scale from two points")).tip(tr("Click two points on the picture whose real distance you know, then type that distance")).clicked() { *act = Some((Some(-1), GroupAct::SetScale)); }
         });
     }
     if let Some(rel) = d.relief.as_mut() {
@@ -1307,6 +1311,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     }
     if let Some((g, act)) = group_act {
         match (g, act) {
+            (Some(-1), GroupAct::SetScale) => { app.measure.clear(); app.bd_scale = Some(0.0); app.choose_tool(crate::app::Mode::Measure); }
             (Some(-1), GroupAct::Delete) => { app.hist.record(&app.project.data); app.project.data.backdrop = None; app.backdrop_tex = None; app.touch(); }
             (Some(id), GroupAct::Delete) => {
                 app.sel = app.project.data.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(id)).map(|(i, _)| i).collect();
@@ -1315,6 +1320,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             }
             (Some(id), GroupAct::EditText) => app.edit_text(id),
             (Some(id), GroupAct::ToOutlines) => app.text_to_outlines(id),
+            (Some(_), GroupAct::SetScale) => {}
             (None, GroupAct::Delete) => { app.hist.record(&app.project.data); app.project.data.relief = None; app.touch(); }
             (None, _) => {}
         }

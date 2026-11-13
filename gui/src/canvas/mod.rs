@@ -7,6 +7,7 @@ use putiacnc_core::shapes;
 mod draw;
 mod handles;
 mod measure;
+mod backdrop;
 mod nodes;
 mod palette;
 mod rulers;
@@ -16,6 +17,7 @@ mod tabs;
 mod trim;
 use self::draw::*;
 use self::measure::*;
+use self::backdrop::*;
 use self::handles::*;
 use self::nodes::*;
 use self::palette::*;
@@ -163,6 +165,7 @@ impl App {
     pub fn choose_tool(&mut self, m: Mode) { set_mode(self, m); }
 }
 
+pub use self::backdrop::scale_dialog;
 pub fn canvas(ui: &mut Ui, app: &mut App) {
     let ctx = ui.ctx().clone();
     let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
@@ -300,6 +303,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                             let cl = &app.project.data.clamps[idx];
                             app.drag = Drag::Clamp { idx, start: w, orig: [cl.x, cl.y] };
                         }
+                        None if bd_press(app, &view, w, ctx.input(|i| i.pointer.press_origin()).unwrap_or_default(), shift) => {}
                         None => {
                             let over_model = app.project.data.relief.as_ref().filter(|_| !shift).filter(|r| { let (mw, mh) = r.size(); w[0] >= r.x && w[0] <= r.x + mw && w[1] >= r.y && w[1] <= r.y + mh }).map(|r| [r.x, r.y]);
                             app.drag = match over_model { Some(orig) => Drag::Relief { start: w, orig }, None => Drag::Box { start: w } };
@@ -334,6 +338,27 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                     shapes::rotate_selection(&mut d.loops, &mut d.ops, &sel, pivot, deg, &tabs0);
                     app.drag = Drag::Rotate { pivot, a0, orig, tabs0, total: deg };
                     app.touch();
+                }
+                if let (Drag::Backdrop { start, orig }, Some(cur)) = (&app.drag, pointer_w) {
+                    let t = app.snap([orig[0] + cur[0] - start[0], orig[1] + cur[1] - start[1]]);
+                    if app.project.data.backdrop.as_ref().is_some_and(|b| (b.x - t[0]).abs() > 1e-9 || (b.y - t[1]).abs() > 1e-9) {
+                        app.hist.record_once(&app.project.data);
+                        if let Some(b) = app.project.data.backdrop.as_mut() { b.x = t[0]; b.y = t[1]; }
+                        app.touch();
+                    }
+                }
+                if let (Drag::BackdropSize { anchor, sx, sy }, Some(cur)) = (&app.drag, pointer_w) {
+                    let (anchor, sx, sy) = (*anchor, *sx, *sy);
+                    let t = app.snap(cur);
+                    if let Some(aspect) = app.project.data.backdrop.as_ref().map(|b| b.aspect) {
+                        let w = ((t[0] - anchor[0]) * sx).max((t[1] - anchor[1]) * sy / aspect).max(1.0);
+                        let (x, y) = (if sx > 0.0 { anchor[0] } else { anchor[0] - w }, if sy > 0.0 { anchor[1] } else { anchor[1] - w * aspect });
+                        if app.project.data.backdrop.as_ref().is_some_and(|b| (b.w - w).abs() > 1e-9 || (b.x - x).abs() > 1e-9 || (b.y - y).abs() > 1e-9) {
+                            app.hist.record_once(&app.project.data);
+                            if let Some(b) = app.project.data.backdrop.as_mut() { b.w = w; b.x = x; b.y = y; }
+                            app.touch();
+                        }
+                    }
                 }
                 if let (Drag::Relief { start, orig }, Some(cur)) = (&app.drag, pointer_w) {
                     let t = app.snap([orig[0] + cur[0] - start[0], orig[1] + cur[1] - start[1]]);
@@ -549,7 +574,8 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
 
     if app.mode == Mode::Select && editing_tabs.is_none() && editing_nodes.is_none() {
         if let Drag::Resize { handle, .. } = &app.drag { ctx.set_cursor_icon(handle_cursor(*handle)); }
-        else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot | Drag::Relief { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
+        else if matches!(app.drag, Drag::Rotate { .. } | Drag::Pivot | Drag::Relief { .. } | Drag::Backdrop { .. }) { ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
+        else if matches!(app.drag, Drag::BackdropSize { .. }) { ctx.set_cursor_icon(egui::CursorIcon::ResizeNeSw); }
         else if matches!(app.drag, Drag::Move { .. }) { ctx.set_cursor_icon(egui::CursorIcon::AllScroll); }
         else if let Drag::Clamp { idx, .. } = &app.drag { clamp_hot = Some(*idx); ctx.set_cursor_icon(egui::CursorIcon::Grabbing); }
         else if matches!(app.drag, Drag::None) && resp.hovered() && hover_w.and_then(|w| clamp_at(app, w, tol)).is_some() {
@@ -622,6 +648,12 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         if let Some((_, tex)) = &app.backdrop_tex {
             let r = Rect::from_two_pos(to_s([bd.x, bd.y]), to_s([bd.x + bd.w, bd.y + bd.h()]));
             painter.image(tex.id(), r, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::from_white_alpha((bd.opacity.clamp(0.05, 1.0) * 255.0) as u8));
+            // an unlocked backdrop shows its frame and corner handles (drag the picture to move it, a corner to resize it)
+            if !bd.locked && app.mode == Mode::Select {
+                let c = Color32::from_rgb(90, 170, 255);
+                painter.rect_stroke(r, 0.0, Stroke::new(1.0_f32, c));
+                for k in 0..4 { painter.rect(Rect::from_center_size(bd_corner(&view, bd, k), Vec2::splat(9.0)), 1.0, c, Stroke::new(1.0_f32, Color32::WHITE)); }
+            }
         }
     }
     // separate pieces of stock (inlay plugs), beside the main one
