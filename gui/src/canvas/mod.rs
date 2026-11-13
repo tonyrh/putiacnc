@@ -613,6 +613,17 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
     let mat = th.material(&d.stock.mat);
     painter.rect_filled(sr, 0.0, mat.fill);
     painter.rect_stroke(sr, 0.0, Stroke::new(1.5_f32, mat.stroke));
+    // the backdrop: a picture to draw over, on the stock and under everything else
+    if let Some(bd) = d.backdrop.as_ref().filter(|b| b.visible) {
+        let key = std::sync::Arc::as_ptr(&bd.img) as *const u8 as usize ^ bd.img.len();
+        if app.backdrop_tex.as_ref().is_none_or(|(k, _)| *k != key) {
+            app.backdrop_tex = bd.rgba().map(|(w, h, px)| (key, ctx.load_texture("backdrop", egui::ColorImage::from_rgba_unmultiplied([w, h], &px), egui::TextureOptions::LINEAR)));
+        }
+        if let Some((_, tex)) = &app.backdrop_tex {
+            let r = Rect::from_two_pos(to_s([bd.x, bd.y]), to_s([bd.x + bd.w, bd.y + bd.h()]));
+            painter.image(tex.id(), r, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::from_white_alpha((bd.opacity.clamp(0.05, 1.0) * 255.0) as u8));
+        }
+    }
     // separate pieces of stock (inlay plugs), beside the main one
     for (k, o) in d.ops.iter().enumerate() {
         let Some(pc) = o.p.piece.as_ref().filter(|_| o.p.kind == "plug").map(|p| p.effective(&d.stock)) else { continue };

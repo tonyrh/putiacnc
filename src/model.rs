@@ -33,6 +33,8 @@ pub struct ProjectData {
     #[serde(default, skip_serializing_if = "Vec::is_empty")] pub groups: Vec<ShapeGroup>,
     /// Clamps and other things on the table that the tool must keep away from.
     #[serde(default, skip_serializing_if = "Vec::is_empty")] pub clamps: Vec<Clamp>,
+    /// A picture shown behind the drawing as a reference (never cut, never in the G-code).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub backdrop: Option<crate::backdrop::Backdrop>,
     /// A 3D model (height map) for relief operations.
     #[serde(default, skip_serializing_if = "Option::is_none")] pub relief: Option<Relief>,
     #[serde(default)] pub gcode: String,

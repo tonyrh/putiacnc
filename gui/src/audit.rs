@@ -178,7 +178,7 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
             a.checks = vec![putiacnc_core::checks::Finding { kind: putiacnc_core::checks::Kind::OutOfArea, op: Some(0), mv: Some(0), at: [0.0; 3], count: 3, msg: "The toolpath goes past the edge of the machine by 12 mm in X.".into(), clamps: vec![] }];
             a.check_parts = vec![0]; a.checks_ver = a.out_ver; a.export_warn_open = true;
         }),
-        ("import bitmap", |a| a.import_bitmap(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data/sketch.png"))),
+        ("import bitmap", |a| a.import_trace(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data/sketch.png"), None)),
         ("import 3d model", |a| {
             // a pyramid, as an ASCII STL
             let p = std::env::temp_dir().join("putiacnc_audit_pyramid.stl");

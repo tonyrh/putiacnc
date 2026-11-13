@@ -5,6 +5,7 @@
 pub mod arcs;
 pub mod i18n;
 pub mod i18n_tools;
+pub mod backdrop;
 pub mod bitmap;
 pub mod checks;
 pub mod history;

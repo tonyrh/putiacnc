@@ -10,7 +10,7 @@ description = "PutiaCNC core: project model, geometry and G-code generation"
 members = ["gui"]
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 clipper-sys = "0.8"
 usvg = "0.45"

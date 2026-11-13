@@ -28,6 +28,8 @@ pub struct TraceTool {
     pub err: Option<String>,
     /// The settings to remember for next time (see `Settings::trace`).
     pub remember: Option<Opts>,
+    /// Tracing a picture that is also the backdrop: its (x, y, width in mm). The shapes then land exactly on it, so the width is not free.
+    pub link: Option<(f64, f64, f64)>,
 }
 
 impl TraceTool {
@@ -46,6 +48,7 @@ impl TraceTool {
                 self.rx = None; self.started = None; // an answer still on its way for the previous picture is dropped
                 self.dirty = true;
                 self.err = None;
+                self.link = None;
                 self.open = true;
             }
             Err(e) => self.err = Some(tr_f("Could not open {path}: {e}", &[("path", &path), ("e", &e)])),
@@ -89,6 +92,12 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if t.tex.is_none() {
             let px = bm.luma.iter().map(|&v| Color32::from_gray(v)).collect();
             t.tex = Some(ctx.load_texture("trace_src", egui::ColorImage { size: [bm.w, bm.h], pixels: px }, egui::TextureOptions::LINEAR));
+        }
+        // on top of a backdrop the traced area has the backdrop's scale
+        if let Some((_, _, bw)) = t.link {
+            let (x0, _, x1, _) = bm.region(&t.opts);
+            let want = (x1 - x0) as f64 * bw / bm.w as f64;
+            if (t.opts.width_mm - want).abs() > 1e-6 { t.opts.width_mm = want; t.dirty = true; }
         }
         t.pump(ctx);
     }
@@ -164,7 +173,8 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         egui::Grid::new("trace_grid2").num_columns(4).spacing([10.0, 8.0]).show(ui, |ui| {
             let (_, hmm) = t.bm.as_ref().map(|b| b.size_mm(&t.opts)).unwrap_or((0.0, 0.0));
             crate::toolmgr::rlabel(ui, col1, tr("Width"));
-            ui.horizontal(|ui| { changed |= crate::widgets::len(ui, [66.0, 24.0], &mut t.opts.width_mm, 1.0, 5000.0, 0.5, 2, "").changed(); ui.weak(crate::widgets::len_unit(ui)); });
+            if t.link.is_some() { ui.weak(crate::widgets::fmt_len(ui, t.opts.width_mm)).tip(tr("The shapes are placed on the backdrop at its scale")); }
+            else { ui.horizontal(|ui| { changed |= crate::widgets::len(ui, [66.0, 24.0], &mut t.opts.width_mm, 1.0, 5000.0, 0.5, 2, "").changed(); ui.weak(crate::widgets::len_unit(ui)); }); }
             crate::toolmgr::rlabel(ui, col3, tr("Height"));
             ui.weak(crate::widgets::fmt_len(ui, hmm));
             ui.end_row();
@@ -206,7 +216,14 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if place {
         if let Some(Ok(imp)) = app.trace.result.take() {
             let name = app.trace.name.clone();
+            if let (Some((bx, by, bw)), Some(bm)) = (app.trace.link, app.trace.bm.clone()) {
+                // the lower-left corner of the traced area, on the backdrop
+                let (x0, _, _, y1) = bm.region(&app.trace.opts);
+                let k = bw / bm.w as f64;
+                app.place_origin = Some([bx + x0 as f64 * k, by + (bm.h - y1) as f64 * k]);
+            }
             app.place_import(imp, name);
+            app.place_origin = None;
         }
         app.trace.open = false;
         app.trace.tex = None;

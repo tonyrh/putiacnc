@@ -19,7 +19,7 @@ pub(crate) fn b64_encode(d: &[u8]) -> String {
     s
 }
 
-fn b64_decode(s: &str) -> Option<Vec<u8>> {
+pub(crate) fn b64_decode(s: &str) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(s.len() / 4 * 3);
     let mut buf = 0u32;
     let mut bits = 0;

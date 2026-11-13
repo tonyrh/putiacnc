@@ -109,11 +109,11 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
     // forget drawings whose shapes are all gone
     let alive: Vec<i64> = d.groups.iter().filter(|g| d.loops.iter().any(|l| l.grp == Some(g.id))).map(|g| g.id).collect();
     if alive.len() != d.groups.len() { d.groups.retain(|g| alive.contains(&g.id)); }
-    if d.groups.is_empty() && d.relief.is_none() { return; }
+    if d.groups.is_empty() && d.relief.is_none() && d.backdrop.is_none() { return; }
     ui.separator();
     // a 3D model counts as imported (with only a model and no drawings, "all groups are text" would be true of nothing and say Text)
     let has_text = d.groups.iter().any(|g| g.text.is_some());
-    let has_import = d.relief.is_some() || d.groups.iter().any(|g| g.text.is_none());
+    let has_import = d.relief.is_some() || d.backdrop.is_some() || d.groups.iter().any(|g| g.text.is_none());
     ui.heading(match (has_text, has_import) { (true, false) => tr("Text"), (true, true) => tr("Imported and text"), _ => tr("Imported") });
     let (sw, sh) = (d.stock.w, d.stock.h);
     let zero = (match d.stock.zr.as_str() { "lr" | "ur" => sw, "c" => sw / 2.0, _ => 0.0 }, match d.stock.zr.as_str() { "ul" | "ur" => sh, "c" => sh / 2.0, _ => 0.0 });
@@ -186,6 +186,36 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 }
                 *changed = true;
             }
+        });
+    }
+    if let Some(bd) = d.backdrop.as_mut() {
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_width(ui.available_width() - 4.0);
+            ui.horizontal(|ui| {
+                long_name(ui, &tr_f("Backdrop: {name}", &[("name", &bd.name)]));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if small_icon_button(ui, Icon::Trash, true, tr("Remove the backdrop")).clicked() { *act = Some((Some(-1), GroupAct::Delete)); }
+                });
+            });
+            let b = [bd.x, bd.y, bd.x + bd.w, bd.y + bd.h()];
+            let mut fit = false;
+            if let Some(nb) = placement_fields(ui, egui::Id::new("backdrop_box"), b, zero, true, &mut fit, None) {
+                bd.x = nb[0]; bd.y = nb[1]; bd.w = nb[2].max(0.1);
+                *changed = true;
+            }
+            if fit {
+                bd.w = sw.min(sh / bd.aspect);
+                bd.x = (sw - bd.w) / 2.0; bd.y = (sh - bd.h()) / 2.0;
+                *changed = true;
+            }
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label(tr("Opacity"));
+                let mut pct = (bd.opacity * 100.0).round();
+                ui.spacing_mut().slider_width = (ui.available_width() - 150.0).max(60.0);
+                if ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).suffix(" %")).tip(tr("How strongly the picture shows")).changed() { bd.opacity = pct / 100.0; *changed = true; }
+            });
+            if crate::widgets::check(ui, &mut bd.visible, tr("Show")).tip(tr("Hide the picture without removing it")).changed() { *changed = true; }
         });
     }
     if let Some(rel) = d.relief.as_mut() {
@@ -1277,6 +1307,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
     }
     if let Some((g, act)) = group_act {
         match (g, act) {
+            (Some(-1), GroupAct::Delete) => { app.hist.record(&app.project.data); app.project.data.backdrop = None; app.backdrop_tex = None; app.touch(); }
             (Some(id), GroupAct::Delete) => {
                 app.sel = app.project.data.loops.iter().enumerate().filter(|(_, l)| l.grp == Some(id)).map(|(i, _)| i).collect();
                 app.delete_selection();

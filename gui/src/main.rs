@@ -38,6 +38,7 @@ mod shortcuts;
 mod theme;
 mod model3d;
 mod trace;
+mod imagechoice;
 mod toolmgr;
 mod toolpick;
 mod update;
@@ -291,6 +292,7 @@ impl App {
         boxgen::dialog(ctx, self);
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
+        imagechoice::dialog(ctx, self);
         model3d::dialog(ctx, self);
         csd::tab_skip(ctx);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }

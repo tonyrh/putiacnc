@@ -158,11 +158,33 @@ impl App {
 
     pub fn is_bitmap(path: &str) -> bool { let p = path.to_lowercase(); p.ends_with(".png") || p.ends_with(".jpg") || p.ends_with(".jpeg") || p.ends_with(".bmp") }
 
+    /// A picture was chosen: ask what it is for (trace, backdrop or both).
+    pub fn import_bitmap(&mut self, path: &str) { self.pic.load(path); }
+
     /// Open the picture in the trace dialog; the shapes are placed when the user accepts.
-    pub fn import_bitmap(&mut self, path: &str) {
+    pub fn import_trace(&mut self, path: &str, link: Option<(f64, f64, f64)>) {
         let st = (self.project.data.stock.w, self.project.data.stock.h);
         let saved = self.prefs.trace.clone();
         self.trace.load(path, st, saved);
+        self.trace.link = link;
+    }
+
+    /// Put the picture behind the drawing, as large as fits on the stock and centred. Returns where it went (x, y, width).
+    pub fn place_backdrop(&mut self, path: &str) -> Option<(f64, f64, f64)> {
+        let name = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "picture".into());
+        let bytes = match std::fs::read(path) { Ok(b) => b, Err(e) => { self.say(Level::Error, tr_f("Could not open {path}: {e}", &[("path", &path), ("e", &e)])); return None } };
+        let st = &self.project.data.stock;
+        let probe = match putiacnc_core::backdrop::Backdrop::from_bytes(&name, &bytes, st.w, 0.0, 0.0) { Ok(b) => b, Err(e) => { self.say(Level::Error, e); return None } };
+        let w = ((st.w).min(st.h / probe.aspect) * 10.0).floor() / 10.0;
+        let mut bd = probe;
+        bd.w = w;
+        bd.x = ((st.w - w) / 2.0 * 10.0).round() / 10.0;
+        bd.y = ((st.h - bd.h()) / 2.0 * 10.0).round() / 10.0;
+        let at = (bd.x, bd.y, bd.w);
+        self.hist.record(&self.project.data);
+        self.project.data.backdrop = Some(bd);
+        self.touch();
+        Some(at)
     }
 
     pub fn is_model(path: &str) -> bool { let p = path.to_lowercase(); p.ends_with(".stl") || p.ends_with(".obj") }
@@ -219,7 +241,8 @@ impl App {
         let Some(b) = shapes::bbox_many(imp.loops.iter()) else { return };
         let (bw, bh) = (b[2] - b[0], b[3] - b[1]);
         let st = &self.project.data.stock;
-        let (ox, oy) = if bw <= st.w && bh <= st.h { ((st.w - bw) / 2.0 - b[0], (st.h - bh) / 2.0 - b[1]) } else { (-b[0], -b[1]) };
+        let (ox, oy) = if let Some(o) = self.place_origin.take() { (o[0], o[1]) }
+            else if bw <= st.w && bh <= st.h { ((st.w - bw) / 2.0 - b[0], (st.h - bh) / 2.0 - b[1]) } else { (-b[0], -b[1]) };
         let mut note = imp.warnings.clone();
         let mut sentences: Vec<(super::NoteUntil, String)> = Vec::new();
         let gid = self.project.data.groups.iter().map(|g| g.id).max().unwrap_or(0) + 1;
