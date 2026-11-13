@@ -89,6 +89,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             }
             ui.separator();
             if item(ui, tr("Trim / extend"), "X", true) { app.choose_tool(Mode::Trim); }
+            if item(ui, tr("Measure"), "M", true) { app.choose_tool(Mode::Measure); }
         });
         ui.menu_button(tr("Modify"), |ui| {
             ui.style_mut().wrap = Some(false);

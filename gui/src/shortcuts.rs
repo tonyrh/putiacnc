@@ -17,6 +17,7 @@ const LEFT: &[Section] = &[
         ("P", n_("Polygon or star (Shift: point straight up)")),
         ("T", n_("Text")),
         ("X", n_("Trim and extend")),
+        ("M", n_("Measure")),
         (n_("Esc or right-click"), n_("Cancel, deselect, back to Select (right-click on a shape: its menu)")),
     ]),
     (n_("Project"), &[

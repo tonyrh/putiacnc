@@ -6,6 +6,7 @@ use eframe::egui::{self, Color32, Key, Modifiers, PointerButton, Pos2, Rect, Sen
 use putiacnc_core::shapes;
 mod draw;
 mod handles;
+mod measure;
 mod nodes;
 mod palette;
 mod rulers;
@@ -14,6 +15,7 @@ pub(crate) fn rulers_tick_step(scale: f32, k: f64) -> (f64, usize) { rulers::tic
 mod tabs;
 mod trim;
 use self::draw::*;
+use self::measure::*;
 use self::handles::*;
 use self::nodes::*;
 use self::palette::*;
@@ -86,6 +88,10 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
         set_mode(app, Mode::Trim);
         return;
     }
+    if ctx.input(|i| i.key_pressed(Key::M) && !i.modifiers.command && !i.modifiers.alt) {
+        set_mode(app, Mode::Measure);
+        return;
+    }
     let (v, l, r, e, pg, dp, del, esc, enter, c, up, down, left, right, shift) = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
         (
@@ -109,6 +115,7 @@ pub fn handle_keys(ctx: &egui::Context, app: &mut App) {
             app.corners.open = false; app.offset_open = false; app.combine_open = false; app.array.open = false; app.clean.open = false;
         }
         else if !app.poly.is_empty() { app.poly.clear(); }
+        else if !app.measure.is_empty() { app.measure.clear(); }
         else if !matches!(app.drag, Drag::None) { app.drag = Drag::None; }
         else if app.rotate_mode { app.rotate_mode = false; app.rot_pivot = None; } // leaves rotate handles, keeps the selection
         else if !app.sel.is_empty() { app.sel.clear(); }
@@ -410,6 +417,20 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
                 if let Some(h) = hover_w.and_then(|w| app.pick_shape(w, tol)) { enter_node_edit(app, h); }
             }
             if hover_w.is_some_and(|w| app.pick_shape(w, tol).is_some()) { ctx.set_cursor_icon(egui::CursorIcon::PointingHand); }
+        }
+        Some(Mode::Measure) => {
+            if resp.clicked_by(prim) {
+                if let Some(w) = hover_w {
+                    let mut q = app.snap(w);
+                    if let (true, Some(a)) = (shift, app.measure.first().filter(|_| app.measure.len() == 1)) {
+                        // Shift locks the second point to the horizontal or the vertical through the first
+                        if (q[0] - a[0]).abs() >= (q[1] - a[1]).abs() { q[1] = a[1]; } else { q[0] = a[0]; }
+                    }
+                    if app.measure.len() >= 2 { app.measure.clear(); }
+                    app.measure.push(q);
+                }
+            }
+            ctx.set_cursor_icon(egui::CursorIcon::Crosshair);
         }
         Some(Mode::Trim) => {
             if resp.clicked_by(prim) {
@@ -1024,6 +1045,7 @@ let (sw, sh) = (app.project.data.stock.w, app.project.data.stock.h);
         }
         painter.text(c + Vec2::new(10.0, 10.0), egui::Align2::LEFT_TOP, m.kind.label(), egui::FontId::proportional(11.0), th.shape_selected());
     }
+    if app.mode == Mode::Measure { paint_measure(app, &painter, &view, hover_w, shift); }
     if app.mode == Mode::Trim {
         if let Some(w) = hover_w {
             match trim_hover(app, w, 8.0 / app.scale as f64) {

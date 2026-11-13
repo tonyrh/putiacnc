@@ -3,7 +3,7 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 #[derive(Clone, Copy)]
-pub enum Icon { Pen, Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, Check, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Lock, Minus, Persp, Ortho, Offset, Array }
+pub enum Icon { Pen, Relief, Point, Polygon, Inlay, Drill, Fillet, Trim, Measure, AlignMenu, Combine, Select, Node, Line, Rect, Ellipse, Text, Undo, Redo, Profile, Pocket, VCarve, Up, Down, Trash, Add, Fit, Copy, Export, Import, Save, Close, Check, AlignL, AlignHC, AlignR, AlignT, AlignVC, AlignB, CenterBoth, DistH, DistV, ChevR, ChevD, Fold, Unfold, Eye, EyeOff, Lock, Minus, Persp, Ortho, Offset, Array }
 
 /// Paint an icon centred on `c`. `s` scales it: 1.0 fits a 36 px button.
 pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: f32) {
@@ -54,6 +54,14 @@ pub fn paint_icon(painter: &egui::Painter, icon: Icon, c: Pos2, fg: Color32, s: 
             let dim = Stroke::new(st.width, fg.gamma_multiply(0.45));
             painter.line_segment([p(3.0, 0.0), p(5.0, 0.0)], dim);
             painter.line_segment([p(8.0, 0.0), p(10.0, 0.0)], dim);
+        }
+        Icon::Measure => {
+            // a ruler line with a tick at each end and a small arrow head
+            painter.line_segment([p(-9.0, 5.0), p(9.0, -5.0)], st);
+            painter.line_segment([p(-9.0, 1.0), p(-9.0, 9.0)], st);
+            painter.line_segment([p(9.0, -9.0), p(9.0, -1.0)], st);
+            painter.line_segment([p(-3.0, 2.0), p(-1.0, 4.0)], Stroke::new(1.0_f32, fg.gamma_multiply(0.5)));
+            painter.line_segment([p(2.0, -1.0), p(4.0, 1.0)], Stroke::new(1.0_f32, fg.gamma_multiply(0.5)));
         }
         Icon::Combine => {
             // two overlapping squares, the shared part filled

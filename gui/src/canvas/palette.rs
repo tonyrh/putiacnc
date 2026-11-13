@@ -91,7 +91,7 @@ pub(super) fn palette_divider(ui: &mut Ui) {
 pub(super) fn palette_group(ui: &mut Ui, app: &mut App, g: usize, fillet: bool) {
     let tools: &[(Mode, Icon, &str)] = match g {
         0 => &[(Mode::Select, Icon::Select, tr("Select / move (V)")), (Mode::Node, Icon::Node, tr("Edit points (N)"))],
-        1 => &[(Mode::Line, Icon::Line, tr("Line / polyline (L)")), (Mode::Rect, Icon::Rect, tr("Rectangle (R, Shift = square)")), (Mode::Ellipse, Icon::Ellipse, tr("Ellipse / circle (E, Shift = circle)")), (Mode::Polygon, Icon::Polygon, tr("Polygon or star (P)")), (Mode::Point, Icon::Point, tr("Drill point (D): click to place, use with a Drill operation")), (Mode::Text, Icon::Text, tr("Text (T)")), (Mode::Trim, Icon::Trim, tr("Trim and extend (X): click the part of a line to remove, or switch to Extend to run a line out to the next shape"))],
+        1 => &[(Mode::Line, Icon::Line, tr("Line / polyline (L)")), (Mode::Rect, Icon::Rect, tr("Rectangle (R, Shift = square)")), (Mode::Ellipse, Icon::Ellipse, tr("Ellipse / circle (E, Shift = circle)")), (Mode::Polygon, Icon::Polygon, tr("Polygon or star (P)")), (Mode::Point, Icon::Point, tr("Drill point (D): click to place, use with a Drill operation")), (Mode::Text, Icon::Text, tr("Text (T)")), (Mode::Measure, Icon::Measure, tr("Measure (M): click two points to see the distance and angle")), (Mode::Trim, Icon::Trim, tr("Trim and extend (X): click the part of a line to remove, or switch to Extend to run a line out to the next shape"))],
         _ => &[],
     };
     for &(m, icon, tip) in tools {
@@ -166,6 +166,7 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
         Mode::Point => tr("Click to place a drill point \u{b7} Grid and Bolt circle above"),
         Mode::Polygon => tr("Drag from the centre \u{b7} Shift points it up \u{b7} sides above"),
         Mode::Text => tr("Type the text, then click where it starts"),
+        Mode::Measure => tr("Click two points \u{b7} Shift locks to X or Y \u{b7} Esc clears"),
         Mode::Trim => if app.trim_extend { tr("Click near an open end to run it on to the next shape") } else { tr("Click the part to remove, up to the nearest crossings") },
     } };
     if app.trace.open || app.clean.open { return; } // a dialog covers that part of the canvas

@@ -15,7 +15,7 @@ pub(super) fn set_mode(app: &mut App, m: Mode) {
     app.node_edit = None;
     app.node_drag = NodeDrag::None;
     // the drawing tools start from a clean slate: nothing stays selected behind the new shape
-    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Point | Mode::Text | Mode::Trim) { app.sel.clear(); }
+    if matches!(m, Mode::Line | Mode::Rect | Mode::Ellipse | Mode::Polygon | Mode::Point | Mode::Text | Mode::Trim | Mode::Measure) { app.sel.clear(); }
     // the text window opens with the tool, so a position can be typed without clicking first
     if m == Mode::Text { app.text.open = true; }
     if m == Mode::Node && app.sel.len() == 1 { let i = *app.sel.iter().next().unwrap(); enter_node_edit(app, i); }
@@ -58,7 +58,7 @@ pub(super) fn node_keys(ctx: &egui::Context, app: &mut App) {
     // other tool shortcuts leave point editing
     let tool = ctx.input(|i| {
         let free = !i.modifiers.command && !i.modifiers.alt;
-        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::P, Mode::Polygon), (Key::D, Mode::Point), (Key::T, Mode::Text), (Key::X, Mode::Trim)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
+        [(Key::V, Mode::Select), (Key::L, Mode::Line), (Key::R, Mode::Rect), (Key::E, Mode::Ellipse), (Key::P, Mode::Polygon), (Key::D, Mode::Point), (Key::T, Mode::Text), (Key::X, Mode::Trim), (Key::M, Mode::Measure)].into_iter().find(|(k, _)| free && i.key_pressed(*k)).map(|(_, m)| m)
     });
     if let Some(m) = tool { set_mode(app, m); return; }
     if del && !app.node_sel.is_empty() {
