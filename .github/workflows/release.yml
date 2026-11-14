@@ -59,7 +59,10 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      # objc2 0.4 (through eframe 0.27 / winit 0.29) does not compile with Rust 1.100: stay on 1.99 until eframe is updated
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
       - name: Build the dmg
         run: sh ./packaging/build-dmg.sh
       - uses: actions/upload-artifact@v6
