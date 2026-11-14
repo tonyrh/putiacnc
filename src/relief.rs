@@ -207,6 +207,47 @@ impl Relief {
         Mesh::parse(bytes)?.relief(name, max_cells, Orient::default())
     }
 
+    /// A picture (PNG, JPEG or BMP) read as a height map, light = high: the shading of a portrait becomes the depth of the carving. The grid is as
+    /// fine as the picture allows but never finer than 0.2 mm or more than `max_cells` on a side. See [`PicParams`].
+    pub fn from_picture(bytes: &[u8], name: &str, p: &PicParams, max_cells: usize) -> Result<Relief, String> {
+        let img = image::load_from_memory(bytes).map_err(|e| crate::i18n::tr_f("Could not read the picture: {e}", &[("e", &e)]))?;
+        let (w, h) = (img.width() as usize, img.height() as usize);
+        if w < 2 || h < 2 { return Err(tr("The picture is too small.").into()); }
+        if !(p.width_mm > 0.0 && p.zmax > 0.0) { return Err(tr("The width and the height of the relief must be above zero.").into()); }
+        // a transparent picture is laid on white, as a viewer shows it
+        let rgba = img.to_rgba8();
+        let gray = |px: &image::Rgba<u8>| -> f32 {
+            let a = px[3] as f32 / 255.0;
+            let l = (0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32) / 255.0;
+            l * a + (1.0 - a)
+        };
+        let aspect = h as f64 / w as f64;
+        // as fine as the picture and 0.2 mm allow, then both sides scaled down together when the longer one is over the limit
+        let nx0 = w.min((p.width_mm / 0.2).ceil() as usize).max(2);
+        let ny0 = ((nx0 as f64 * aspect).round() as usize).max(2);
+        let k = (max_cells.max(2) as f64 / nx0.max(ny0) as f64).min(1.0);
+        let nx = ((nx0 as f64 * k).round() as usize).max(2);
+        let ny = ((ny0 as f64 * k).round() as usize).max(2);
+        let small = image::imageops::resize(&rgba, nx as u32, ny as u32, image::imageops::FilterType::Triangle);
+        let res = p.width_mm / nx as f64;
+        // rows from the bottom: the picture's first row is its top
+        let mut g = vec![0f32; nx * ny];
+        for j in 0..ny { for i in 0..nx { g[(ny - 1 - j) * nx + i] = gray(small.get_pixel(i as u32, j as u32)); } }
+        if p.smooth_mm > 0.0 { gauss(&mut g, nx, ny, p.smooth_mm / res); }
+        // levels: the darkest and the lightest 1% are cut off so one speck does not decide the range, then the range is stretched to 0..1
+        if p.levels {
+            let mut v = g.clone();
+            v.sort_by(|a, b| a.total_cmp(b));
+            let (lo, hi) = (v[v.len() / 100], v[v.len() - 1 - v.len() / 100]);
+            if hi - lo > 1e-4 { for x in g.iter_mut() { *x = ((*x - lo) / (hi - lo)).clamp(0.0, 1.0); } }
+        }
+        if p.gamma > 0.0 && (p.gamma - 1.0).abs() > 1e-9 { for x in g.iter_mut() { *x = x.powf(p.gamma as f32); } }
+        if p.invert { for x in g.iter_mut() { *x = 1.0 - *x; } }
+        let top = g.iter().cloned().fold(0.0f32, f32::max).max(1e-6);
+        let bytes: Vec<u8> = g.iter().flat_map(|&z| (((z / top) as f64 * 65535.0).round().clamp(0.0, 65535.0) as u16).to_le_bytes()).collect();
+        Ok(Relief { name: name.into(), nx, ny, res, zmax: p.zmax, hm: b64_encode(&bytes), x: 0.0, y: 0.0, scale: 1.0 })
+    }
+
     /// Model size on the stock, mm.
     pub fn size(&self) -> (f64, f64) { (self.nx as f64 * self.res * self.scale, self.ny as f64 * self.res * self.scale) }
 
@@ -217,6 +258,55 @@ impl Relief {
         v.resize(self.nx * self.ny, 0.0);
         v
     }
+}
+
+/// How a picture is turned into a relief (see [`Relief::from_picture`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PicParams {
+    /// Width of the relief on the stock; the length follows the picture.
+    pub width_mm: f64,
+    /// Height of the relief (the depth of the carving from the top to the darkest place, light being the top).
+    pub zmax: f64,
+    /// Dark is high instead of light (a lithophane is thick where it is dark).
+    pub invert: bool,
+    /// Stretch the tones to use the whole height (the darkest and lightest 1% are ignored).
+    pub levels: bool,
+    /// Tone curve: below 1 lifts the shadows, above 1 deepens them.
+    pub gamma: f64,
+    /// Blur the picture by this much (mm) before carving: it hides the grain and the noise a cutter would only follow.
+    pub smooth_mm: f64,
+}
+
+impl Default for PicParams { fn default() -> Self { PicParams { width_mm: 60.0, zmax: 3.0, invert: false, levels: true, gamma: 1.0, smooth_mm: 0.3 } } }
+
+/// A picture reduced to at most `max_side` pixels on the long side and kept as a PNG, so a dialog that makes the relief again at every change of a
+/// setting does not decode a large photograph each time. A picture that is small enough is returned as it is.
+pub fn shrink_picture(bytes: &[u8], max_side: u32) -> Result<Vec<u8>, String> {
+    use image::ImageEncoder;
+    let img = image::load_from_memory(bytes).map_err(|e| crate::i18n::tr_f("Could not read the picture: {e}", &[("e", &e)]))?;
+    if img.width().max(img.height()) <= max_side { return Ok(bytes.to_vec()); }
+    let small = img.thumbnail(max_side, max_side).to_rgba8();
+    let mut out = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut out).write_image(small.as_raw(), small.width(), small.height(), image::ExtendedColorType::Rgba8).map_err(|e| e.to_string())?;
+    Ok(out)
+}
+
+/// A gaussian blur with a standard deviation of `sigma` cells, on a grid of `nx` x `ny` (edges repeat).
+fn gauss(g: &mut [f32], nx: usize, ny: usize, sigma: f64) {
+    if sigma < 0.3 { return; }
+    let r = (sigma * 3.0).ceil() as i64;
+    let k: Vec<f32> = { let w: Vec<f64> = (-r..=r).map(|i| (-(i * i) as f64 / (2.0 * sigma * sigma)).exp()).collect(); let t: f64 = w.iter().sum(); w.iter().map(|x| (x / t) as f32).collect() };
+    let mut tmp = vec![0f32; nx * ny];
+    for j in 0..ny { for i in 0..nx {
+        let mut a = 0.0;
+        for (d, w) in k.iter().enumerate() { let x = (i as i64 + d as i64 - r).clamp(0, nx as i64 - 1) as usize; a += w * g[j * nx + x]; }
+        tmp[j * nx + i] = a;
+    } }
+    for j in 0..ny { for i in 0..nx {
+        let mut a = 0.0;
+        for (d, w) in k.iter().enumerate() { let y = (j as i64 + d as i64 - r).clamp(0, ny as i64 - 1) as usize; a += w * tmp[y * nx + i]; }
+        g[j * nx + i] = a;
+    } }
 }
 
 // ------------------------------------------------------------------ the surface and the tool paths over it
@@ -288,7 +378,7 @@ impl Field {
 }
 
 /// Simplify a profile (x, z) so that no point is further than `tol` (in z) from the straight line.
-fn simplify(pts: &[(f64, f32)], tol: f32) -> Vec<usize> {
+pub(crate) fn simplify(pts: &[(f64, f32)], tol: f32) -> Vec<usize> {
     let n = pts.len();
     if n < 3 { return (0..n).collect(); }
     let mut keep = vec![false; n];
@@ -552,6 +642,67 @@ mod tests {
             out.extend([0u8; 2]);
         }
         out
+    }
+
+    /// A PNG of `w` x `h` made from a function of (x, y) giving gray 0..255 (y = 0 is the top row).
+    fn png(w: u32, h: u32, f: impl Fn(u32, u32) -> u8) -> Vec<u8> {
+        use image::ImageEncoder;
+        let mut px = Vec::new();
+        for y in 0..h { for x in 0..w { let v = f(x, y); px.extend([v, v, v]); } }
+        let mut out = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut out).write_image(&px, w, h, image::ExtendedColorType::Rgb8).unwrap();
+        out
+    }
+
+    #[test]
+    fn a_picture_becomes_a_height_map_light_is_high() {
+        // dark on the left, light on the right; a light top row, so the bottom of the map is darker than its top
+        let b = png(100, 50, |x, y| (x * 2) as u8 / 2 + if y < 25 { 40 } else { 0 });
+        let p = PicParams { width_mm: 50.0, zmax: 4.0, smooth_mm: 0.0, levels: false, ..Default::default() };
+        let r = Relief::from_picture(&b, "ramp", &p, 600).unwrap();
+        assert_eq!((r.nx, r.ny), (100, 50));
+        assert!((r.res - 0.5).abs() < 1e-9 && r.zmax == 4.0 && r.scale == 1.0);
+        let h = r.heights();
+        assert!(h[10] < h[90], "the right side is lighter, so higher");
+        // rows run from the bottom: the picture's top row (lighter here) is the last row of the map
+        assert!(h[49 * 100 + 50] > h[50], "the top of the picture is the end of the map");
+        assert!((h.iter().cloned().fold(0.0f32, f32::max) - 1.0).abs() < 1e-4, "the highest cell holds the top value");
+    }
+
+    #[test]
+    fn invert_levels_and_smoothing() {
+        let b = png(60, 60, |x, _| if x < 30 { 80 } else { 120 });
+        let base = PicParams { width_mm: 30.0, zmax: 2.0, smooth_mm: 0.0, levels: false, ..Default::default() };
+        let norm = Relief::from_picture(&b, "a", &base, 600).unwrap().heights();
+        let inv = Relief::from_picture(&b, "a", &PicParams { invert: true, ..base }, 600).unwrap().heights();
+        assert!(norm[5] < norm[55] && inv[5] > inv[55], "invert swaps light and dark");
+        // levels stretch two close tones to the whole range
+        let lv = Relief::from_picture(&b, "a", &PicParams { levels: true, ..base }, 600).unwrap().heights();
+        assert!(lv[5] < 0.05 && lv[55] > 0.95 && norm[5] > 0.5);
+        // a blur softens the step
+        let sm = Relief::from_picture(&b, "a", &PicParams { levels: true, smooth_mm: 3.0, ..base }, 600).unwrap().heights();
+        assert!(sm[29] > lv[29] - 1e-6 && (sm[28] - sm[31]).abs() < (lv[28] - lv[31]).abs());
+        // a flat picture is a flat relief, not a crash
+        let flat = Relief::from_picture(&png(20, 20, |_, _| 200), "f", &base, 600).unwrap();
+        assert!(flat.heights().iter().all(|&v| (v - 1.0).abs() < 1e-4));
+    }
+
+    #[test]
+    fn a_big_picture_is_reduced_and_a_bad_one_is_refused() {
+        let b = png(2000, 1000, |x, _| (x / 8) as u8);
+        let r = Relief::from_picture(&b, "big", &PicParams { width_mm: 400.0, ..Default::default() }, 300).unwrap();
+        assert_eq!((r.nx, r.ny), (300, 150));
+        assert!((r.size().0 - 400.0).abs() < 1e-6 && (r.size().1 - 200.0).abs() < 1e-6, "the length follows the picture");
+        // never finer than 0.2 mm
+        let r = Relief::from_picture(&b, "small", &PicParams { width_mm: 20.0, ..Default::default() }, 600).unwrap();
+        assert_eq!(r.nx, 100);
+        // a tall picture keeps its shape when the grid is limited
+        let tall = png(400, 800, |_, y| (y / 4) as u8);
+        let r = Relief::from_picture(&tall, "tall", &PicParams { width_mm: 100.0, ..Default::default() }, 300).unwrap();
+        assert_eq!((r.nx, r.ny), (150, 300));
+        assert!((r.size().1 / r.size().0 - 2.0).abs() < 0.01);
+        assert!(Relief::from_picture(b"not a picture", "x", &PicParams::default(), 600).is_err());
+        assert!(Relief::from_picture(&b, "x", &PicParams { zmax: 0.0, ..Default::default() }, 600).is_err());
     }
 
     #[test]

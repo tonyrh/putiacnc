@@ -170,6 +170,13 @@ impl App {
     /// A picture was chosen: ask what it is for (trace, backdrop or both).
     pub fn import_bitmap(&mut self, path: &str) { self.pic.load(path); }
 
+    /// Open the picture dialog of a Photo V-carve: the picture is the tone map of a Photo V-carve operation.
+    pub fn import_picture_photo(&mut self, path: &str) {
+        let st = &self.project.data.stock;
+        let stock = (st.w, st.h, st.t);
+        self.picrelief.load(path, stock);
+    }
+
     /// Open the picture in the trace dialog; the shapes are placed when the user accepts.
     pub fn import_trace(&mut self, path: &str, link: Option<(f64, f64, f64)>) {
         let st = (self.project.data.stock.w, self.project.data.stock.h);

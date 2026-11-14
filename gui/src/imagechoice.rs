@@ -1,5 +1,5 @@
 //! The question asked when a picture is imported: trace its outlines into shapes, show it behind the drawing as a
-//! backdrop, or both (the traced shapes then land exactly on the backdrop).
+//! backdrop, or V-carve it as a photo.
 use crate::app::App;
 use crate::widgets::Tip;
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Vec2};
@@ -17,7 +17,7 @@ pub struct ImageChoice {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Pick { Trace, Backdrop, Both }
+enum Pick { Trace, Backdrop, Photo }
 
 impl ImageChoice {
     pub fn load(&mut self, path: &str) {
@@ -62,7 +62,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         for (p, name, text, tip) in [
             (Pick::Trace, tr("Trace outlines"), tr("Turns the dark parts into shapes you can cut."), tr("Opens the trace settings; the picture itself is not kept")),
             (Pick::Backdrop, tr("Use as backdrop"), tr("Shows it behind the drawing, to draw over it. It is never cut."), tr("The picture is kept in the project; set its size and see-through level in the left panel")),
-            (Pick::Both, tr("Both"), tr("The backdrop first, then the traced shapes land exactly on it."), tr("For copying a drawing or a photo of a piece you will recreate")),
+            (Pick::Photo, tr("V-carve as photo"), tr("Etched with a V-bit: wider, deeper lines where it is darker."), tr("Opens the photo settings; a V-carve photo operation is added with the picture")),
         ] {
             let w = dw - 4.0;
             let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, 50.0), Sense::click());
@@ -85,7 +85,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         match p {
             Pick::Trace => app.import_trace(&path, None),
             Pick::Backdrop => { app.place_backdrop(&path); }
-            Pick::Both => { let at = app.place_backdrop(&path); if at.is_some() { app.import_trace(&path, at); } }
+            Pick::Photo => app.import_picture_photo(&path),
         }
     } else if cancel { app.pic.close(); }
 }

@@ -1675,6 +1675,68 @@ fn sanity(data: &ProjectData) -> Result<(), String> {
     Ok(())
 }
 
+/// Photo V-carve: the picture etched with a V-bit along parallel lines, deeper where it is darker (see `photo.rs`).
+fn photo_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, machine: &Machine, o: &Operation, k: usize, mach: bool) -> Result<(), String> {
+    use crate::photo::{lines, Tones};
+    let pre = format!("Op {}: ", k + 1);
+    let un = if e.imp { "in" } else { "mm" };
+    let ku = e.ku;
+    let Some(rel) = &data.relief else { return Err(tr_f("Operation {n}: import a picture first (File menu, Import picture)", &[("n", &(k + 1))])); };
+    let tool = data.tools.iter().find(|t| t.id == o.p.tool).ok_or_else(|| tr_f("Operation {n}: choose a tool (Manage… to create one)", &[("n", &(k + 1))]))?;
+    if !matches!(tool.shape.as_str(), "vbit" | "engrave" | "taper") { return Err(tr_f("Operation {n}: Photo V-carve needs a V-bit or an engraving bit", &[("n", &(k + 1))])); }
+    let tool_own;
+    let tool = match &o.p.custom { Some(cf) => { tool_own = custom_tool(cf, tool, machine, notes, &pre, ""); &tool_own } None => tool };
+    let depth = o.p.depth;
+    if !(tool.dia > 0.0 && depth > 0.0 && tool.feed > 0.0 && tool.plunge > 0.0) { return Err(tr_f("Operation {n}: check tool, depth and feed values", &[("n", &(k + 1))])); }
+    let z0 = if o.p.air || data.job.air { air_lift(depth) } else { 0.0 };
+    let sz = data.job.safe + z0;
+    let hop = data.job.safe.min(1.0);
+    let geo = ToolGeo::new(tool);
+    // the groove at full depth is as wide as the lines are far apart (at 100 %), so black leaves no flat wood between them
+    let wmax = 2.0 * geo.r_at(depth);
+    if !(wmax > 0.0) { return Err(tr_f("Operation {n}: check tool, depth and feed values", &[("n", &(k + 1))])); }
+    let pct = o.p.f_so.filter(|v| *v > 0.0).unwrap_or(100.0).clamp(20.0, 400.0);
+    let spacing = wmax * pct / 100.0;
+    let st = &data.stock;
+    if depth > st.t + 1e-6 { notes.push(tr_f("⚠ {pre}depth exceeds stock thickness.", &[("pre", &pre)])); }
+    let (mw, mh) = rel.size();
+    if rel.x < -1e-6 || rel.y < -1e-6 || rel.x + mw > st.w + 1e-6 || rel.y + mh > st.h + 1e-6 {
+        notes.push(tr_f("⚠ {pre}the picture ({mw} x {mh} mm) extends beyond the stock.", &[("pre", &pre), ("mw", &format!("{:.0}", mw)), ("mh", &format!("{:.0}", mh))]));
+    }
+    if spacing < 0.15 { notes.push(tr_f("⚠ {pre}the lines are only {v} {un} apart: that is finer than most machines can follow; use a bigger depth or a wider bit.", &[("pre", &pre), ("v", &format!("{:.2}", spacing / ku)), ("un", &un)])); }
+    let dec = if e.imp { 4 } else { 3 };
+    let fnum = move |v: f64| num(to_fixed(v / ku, dec));
+    let tones = Tones::new(rel);
+    let dir = o.p.f_dir.as_deref().unwrap_or("x");
+    let mut sets = Vec::new();
+    if dir == "x" || dir == "xy" { sets.push(lines(&tones, depth, spacing, true, 0.01)); }
+    if dir == "y" || dir == "xy" { sets.push(lines(&tones, depth, spacing, false, 0.01)); }
+    select_tool(e, ts, mach, tool, sz, &fnum(tool.dia), un);
+    e.g.push(format!("(Operation {}: photo V-carve, {} {} {}, lines {} {} apart, up to {} {} deep)", k + 1, geo.shape.label(), fnum(tool.dia), un, fnum(spacing), un, fnum(depth), un));
+    let mut count = 0usize;
+    let mut first = true;
+    for (si, set) in sets.iter().enumerate() {
+        if si == 1 { e.g.push(format!("(Operation {}: photo V-carve, second direction)", k + 1)); }
+        for line in set {
+            count += 1;
+            e.pn = count;
+            for run in line {
+                let a = run[0];
+                e.go("G0", None, None, Some(if first { sz } else { z0 + hop }), 0.0);
+                e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+                e.go("G0", None, None, Some(z0 + hop.min(0.5)), 0.0);
+                e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
+                first = false;
+                for p in &run[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), tool.feed); }
+            }
+        }
+    }
+    e.go("G0", None, None, Some(sz), 0.0);
+    if count == 0 { notes.push(tr_f("{pre}the picture is too light: nothing is cut.", &[("pre", &pre)])); }
+    if dir == "xy" { notes.push(tr_f("{pre}cutting in both directions takes twice as long and makes the picture darker.", &[("pre", &pre)])); }
+    Ok(())
+}
+
 pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
     sanity(data)?;
     let ku = units.factor();
@@ -1753,6 +1815,12 @@ pub fn generate(data: &ProjectData, units: Units) -> Result<Output, String> {
         let pre = format!("Op {}: ", k + 1);
         if o.p.kind == "relief" {
             relief_op(&mut e, &mut ts, &mut notes, data, &machine, o, k, mach, sz_init)?;
+            any = true;
+            continue;
+        }
+        if o.p.kind == "photo" {
+            photo_op(&mut e, &mut ts, &mut notes, data, &machine, o, k, mach)?;
+            op_pause(&mut e, &mut ts, o, k, mach, data.job.safe + if o.p.air || data.job.air { air_lift(o.p.depth) } else { 0.0 });
             any = true;
             continue;
         }

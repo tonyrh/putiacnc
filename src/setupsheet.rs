@@ -18,7 +18,7 @@ fn esc(s: &str) -> String { s.replace('&', "&amp;").replace('<', "&lt;").replace
 
 fn kind_name(k: &str) -> &str {
     match k { "outside" => tr("Profile outside"), "inside" => tr("Profile inside"), "online" => tr("On line"), "pocket" => tr("Pocket"), "vcarve" => tr("V-carve"), "drill" => tr("Drill"),
-        "inlay" => tr("Inlay pocket"), "plug" => tr("Inlay plug"), "relief" => tr("3D relief"), "draw" => tr("Draw (pen)"), other => other }
+        "inlay" => tr("Inlay pocket"), "plug" => tr("Inlay plug"), "relief" => tr("3D relief"), "photo" => tr("Photo V-carve"), "draw" => tr("Draw (pen)"), other => other }
 }
 
 fn shape_name(s: &str) -> &str { crate::toollib::SHAPES.iter().find(|(k, _)| *k == s).map_or(s, |(_, n)| tr(n)) }
@@ -56,7 +56,7 @@ fn tools_in_order(data: &ProjectData) -> Vec<(&Tool, Vec<usize>)> {
         }
     };
     for (i, o) in data.ops.iter().enumerate() {
-        if !data.loops.iter().any(|l| l.op == o.id) && o.p.kind != "relief" { continue; }
+        if !data.loops.iter().any(|l| l.op == o.id) && !matches!(o.p.kind.as_str(), "relief" | "photo") { continue; }
         if o.p.kind == "relief" {
             if !o.p.r_off { if let Some(t) = &o.p.tool2 { add(t, i + 1); } }
             if !o.p.f_off { add(&o.p.tool, i + 1); }

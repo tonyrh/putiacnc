@@ -91,7 +91,7 @@ pub fn tool_of(d: &ProjectData, op: usize, which: usize) -> Option<&Tool> {
 }
 
 fn op_name(d: &ProjectData, op: usize) -> String {
-    let kind = d.ops.get(op).map(|o| match o.p.kind.as_str() { "outside" => tr("Profile outside"), "inside" => tr("Profile inside"), "online" => tr("Profile on the line"), "pocket" => tr("Pocket"), "vcarve" => tr("V-carve"), "drill" => tr("Drill"), "inlay" => tr("Inlay pocket"), "plug" => tr("Inlay plug"), "relief" => tr("3D relief"), "draw" => tr("Draw (pen)"), _ => tr("Operation") }).unwrap_or(tr("Operation"));
+    let kind = d.ops.get(op).map(|o| match o.p.kind.as_str() { "outside" => tr("Profile outside"), "inside" => tr("Profile inside"), "online" => tr("Profile on the line"), "pocket" => tr("Pocket"), "vcarve" => tr("V-carve"), "drill" => tr("Drill"), "inlay" => tr("Inlay pocket"), "plug" => tr("Inlay plug"), "relief" => tr("3D relief"), "photo" => tr("Photo V-carve"), "draw" => tr("Draw (pen)"), _ => tr("Operation") }).unwrap_or(tr("Operation"));
     tr_f("Operation {n} ({kind})", &[("n", &(op + 1)), ("kind", &kind)])
 }
 

@@ -39,7 +39,7 @@ impl App {
     /// A 3D relief works on the model, not on shapes, so it is never counted.
     pub(super) fn note_empty_ops(&mut self) {
         let d = &self.project.data;
-        let empty: Vec<i64> = d.ops.iter().filter(|o| o.p.kind != "relief" && !d.loops.iter().any(|l| l.op == o.id)).map(|o| o.id).collect();
+        let empty: Vec<i64> = d.ops.iter().filter(|o| o.p.kind != "relief" && o.p.kind != "photo" && !d.loops.iter().any(|l| l.op == o.id)).map(|o| o.id).collect();
         let fresh: Vec<i64> = empty.iter().copied().filter(|id| !self.empty_ops.contains(id)).collect();
         if !fresh.is_empty() {
             let name = |id: i64| d.ops.iter().position(|o| o.id == id).map(|k| format!("{} ({})", k + 1, crate::panels::label_of(crate::panels::KINDS, &d.ops[k].p.kind))).unwrap_or_default();
