@@ -579,6 +579,53 @@ impl Rough {
     }
 }
 
+/// What the roughing has taken away so far: the height of the stock (mm, from the top) at each cell of the roughing grid.
+/// Layer by layer the cutter cannot get close to the high parts of the model, so it leaves ledges of uncut stock beside them;
+/// this tells the roughing how far down it may drop in a rapid move without the edge of the cutter meeting one.
+pub struct Cleared {
+    ox: f64, oy: f64, gc: f64,
+    nx: usize, ny: usize,
+    z: Vec<f32>,
+}
+
+impl Cleared {
+    pub fn new(rp: &Rough) -> Cleared { Cleared { ox: rp.ox, oy: rp.oy, gc: rp.gc, nx: rp.nx, ny: rp.ny, z: vec![0.0; rp.nx * rp.ny] } }
+
+    fn cells(&self, p: [f64; 2], r: f64, mut f: impl FnMut(usize, f64)) {
+        let (cx, cy) = ((p[0] - self.ox) / self.gc, (p[1] - self.oy) / self.gc);
+        let rc = r / self.gc;
+        let (i0, i1) = ((cx - rc).floor().max(0.0) as usize, ((cx + rc).ceil().max(-1.0) as i64).min(self.nx as i64 - 1));
+        let (j0, j1) = ((cy - rc).floor().max(0.0) as usize, ((cy + rc).ceil().max(-1.0) as i64).min(self.ny as i64 - 1));
+        if i1 < 0 || j1 < 0 { return; }
+        for j in j0..=j1 as usize { for i in i0..=i1 as usize {
+            let rho = ((i as f64 - cx).powi(2) + (j as f64 - cy).powi(2)).sqrt() * self.gc;
+            if rho <= r { f(j * self.nx + i, rho); }
+        } }
+    }
+
+    /// The cutter (radius `r`, profile `rise`: the height of its edge above the tip at each distance from the axis) moved
+    /// from `a` to `b` with its tip at `z`. Only cells well inside its reach count as cleared, so the guess errs on the safe side.
+    pub fn cut(&mut self, a: [f64; 2], b: [f64; 2], z: f64, r: f64, rise: &dyn Fn(f64) -> f64) {
+        let reach = (r - 0.5 * self.gc).max(0.0);
+        let n = (((b[0] - a[0]).hypot(b[1] - a[1])) / (self.gc * 0.5)).ceil().max(1.0) as usize;
+        for s in 0..=n {
+            let f = s as f64 / n as f64;
+            let p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+            let mut hit: Vec<(usize, f32)> = Vec::new();
+            self.cells(p, reach, |ix, rho| hit.push((ix, (z + rise(rho)) as f32)));
+            for (ix, v) in hit { if v < self.z[ix] { self.z[ix] = v; } }
+        }
+    }
+
+    /// The height the tip can drop to at `p` without the cutter meeting uncut stock: the highest stock under its footprint,
+    /// less the rise of its edge there. (Beyond the roughing grid the stock is at the top, but nothing is planned there.)
+    pub fn tip_height(&self, p: [f64; 2], r: f64, rise: &dyn Fn(f64) -> f64) -> f64 {
+        let mut h = f64::NEG_INFINITY;
+        self.cells(p, r + 0.5 * self.gc, |ix, rho| h = h.max(self.z[ix] as f64 - rise(rho.min(r))));
+        h
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -725,5 +772,23 @@ mod tests {
         assert!((f.tip(0, 0, &fp, 0.0) + 10.0).abs() < 1e-3);
         let lines = finish_lines(&f, &fp, 2, 2, 0.01);
         assert!(!lines.is_empty() && lines.iter().all(|l| l.len() >= 2));
+    }
+
+    #[test]
+    fn the_cleared_grid_remembers_ledges_and_what_the_cutter_took() {
+        let rp = Rough { ox: 0.0, oy: 0.0, gc: 1.0, nx: 30, ny: 30, t: vec![0.0; 900], min_t: 0.0 };
+        let flat = |_: f64| 0.0;
+        let mut c = Cleared::new(&rp);
+        // nothing cut yet: the stock is at the top everywhere
+        assert!((c.tip_height([15.0, 15.0], 3.0, &flat) - 0.0).abs() < 1e-9);
+        // a cut along a row at -2 lowers the stock under the cutter, but not 3 mm to the side of it
+        c.cut([5.0, 15.0], [25.0, 15.0], -2.0, 3.0, &flat);
+        assert!((c.tip_height([15.0, 15.0], 2.0, &flat) + 2.0).abs() < 1e-6, "{}", c.tip_height([15.0, 15.0], 2.0, &flat));
+        // a start whose cutter reaches the uncut stock beside the cut has to stay above it
+        assert!((c.tip_height([15.0, 18.0], 3.0, &flat) - 0.0).abs() < 1e-9);
+        // a ball-shaped edge rises with the distance, so the tip may go lower than the stock it is next to
+        let ball = |rho: f64| 3.0 - (9.0 - rho * rho).max(0.0).sqrt();
+        assert!(c.tip_height([15.0, 16.0], 3.0, &ball) < -0.5);
+        assert!((c.tip_height([15.0, 16.0], 3.0, &flat) - 0.0).abs() < 1e-9);
     }
 }

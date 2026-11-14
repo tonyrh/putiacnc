@@ -1416,7 +1416,7 @@ pub fn relief_depth(data: &ProjectData, p: &crate::model::OpParams) -> f64 {
 }
 
 fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, machine: &Machine, o: &Operation, k: usize, mach: bool, sz_init: f64) -> Result<(), String> {
-    use crate::relief::{finish_lines, Field, Footprint, Rough};
+    use crate::relief::{finish_lines, Cleared, Field, Footprint, Rough};
     let pre = format!("Op {}: ", k + 1);
     let un = if e.imp { "in" } else { "mm" };
     let ku = e.ku;
@@ -1483,6 +1483,8 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
             e.alt = true;
             e.g.push(format!("(Operation {}: relief, roughing in {} layers, {} {} {}, leaving {} {})", k + 1, n, rg.shape.label(), fnum(rt.dia), un, fnum(leave), un));
             let mut first = true;
+            let (rr, rise) = (rt.dia / 2.0, |rho: f64| rg.rise(rho));
+            let mut cleared = Cleared::new(&rp);
             for li in 0..n {
                 let z = -dz * (li as f64 + 1.0);
                 e.pn = li + 1;
@@ -1519,14 +1521,19 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
                 for (a, b) in segs {
                     let linked = prev.is_some_and(|p| (p[0] - a[0]).hypot(p[1] - a[1]) < 3.0 * rt.dia && rp.open_line(p, a, z as f32));
                     if linked {
+                        if let Some(p) = prev { cleared.cut(p, a, z, rr, &rise); }
                         e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + z), rt.feed);
                     } else {
                         e.go("G0", None, None, Some(if first { sz } else { z0 + hop }), 0.0);
                         e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
-                        e.go("G0", None, None, Some(z0 + (z + dz + 0.3).min(hop)), 0.0);
+                        // down in a rapid move only to just above the highest stock under the cutter: the layers above leave ledges
+                        // beside the high parts of the model, and a start next to one is under the cutter's edge
+                        let drop = (cleared.tip_height(a, rr, &rise).max(z) + 0.3).min(hop);
+                        e.go("G0", None, None, Some(z0 + drop), 0.0);
                         e.go("G1", None, None, Some(z0 + z), rt.plunge);
                     }
                     first = false;
+                    cleared.cut(a, b, z, rr, &rise);
                     e.go("G1", Some(b[0]), Some(b[1]), Some(z0 + z), rt.feed);
                     prev = Some(b);
                 }
