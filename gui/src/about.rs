@@ -72,8 +72,14 @@ fn memory_gib() -> Option<f64> {
     { None }
 }
 
+/// A folder as it is shown in a window: under the user's home folder it starts with "~", as in a Linux or macOS shell (a Windows path is shown whole).
+pub fn home_short(path: &str) -> String {
+    if cfg!(windows) { return path.to_string(); }
+    hide_home(path, std::env::var("HOME").ok().as_deref())
+}
+
 /// A path with the user's home folder written as "~", so a pasted report does not carry the user name.
-fn hide_home(path: &str, home: Option<&str>) -> String {
+pub(crate) fn hide_home(path: &str, home: Option<&str>) -> String {
     let Some(h) = home.map(|h| h.trim_end_matches(['/', '\\'])).filter(|h| !h.is_empty()) else { return path.to_string() };
     match path.strip_prefix(h) {
         Some(rest) if rest.is_empty() || rest.starts_with(['/', '\\']) => format!("~{rest}"),

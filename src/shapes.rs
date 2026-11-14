@@ -721,6 +721,7 @@ pub fn add_operation(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize
     let base_was_draw = p.kind == "draw";
     p.kind = match kind {
         "relief" => "relief".into(),
+        "photo" => "photo".into(),
         "pocket" => "pocket".into(),
         "vcarve" => "vcarve".into(),
         "drill" => "drill".into(),
@@ -746,11 +747,18 @@ pub fn add_operation(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize
     if kind == "vcarve" {
         if let Some(t) = d.tools.iter().find(|t| ["vbit", "engrave", "taper"].contains(&t.shape.as_str())) { p.tool = t.id.clone(); }
     }
+    if kind == "photo" {
+        // the narrowest V-bit makes the finest lines; a depth that gives lines about a millimetre apart
+        let cone = |t: &&Tool| ["vbit", "engrave", "taper"].contains(&t.shape.as_str());
+        if let Some(t) = d.tools.iter().filter(cone).min_by(|a, b| a.angle.partial_cmp(&b.angle).unwrap_or(std::cmp::Ordering::Equal)) { p.tool = t.id.clone(); }
+        p.depth = 1.5; p.pass_depth = None; p.tabs = false; p.lead = None; p.tool2 = None; p.rest = None; p.flat = None;
+        p.d_man = false; p.r_off = false; p.f_off = false; p.f_so = None; p.f_dir = None; p.custom2 = None;
+    }
     d.oid = d.oid.max(d.ops.iter().map(|o| o.id).max().unwrap_or(0)) + 1;
     let id = d.oid;
     d.ops.push(Operation { id, p });
     let mut from = Vec::new();
-    if kind != "relief" {
+    if kind != "relief" && kind != "photo" {
         from = sel.iter().filter_map(|&i| d.loops.get(i)).map(|l| l.op).filter(|&o| o != 0 && o != id).collect();
         for &i in sel.iter() { if let Some(l) = d.loops.get_mut(i) { l.op = id; } }
     }

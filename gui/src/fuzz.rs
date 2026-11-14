@@ -131,7 +131,7 @@ fn sequence(seed: u64, frames: bool, skip: &[usize]) -> Result<(), String> {
             11 => { a.group_selection(); "group" }
             12 => { a.ungroup_selection(); "ungroup" }
             13 | 14 => {
-                let kinds: Vec<&str> = KINDS.iter().map(|k| k.0).filter(|k| *k != "relief").collect(); // not the 3D relief: it needs a model
+                let kinds: Vec<&str> = KINDS.iter().map(|k| k.0).filter(|k| *k != "relief" && *k != "photo").collect(); // not the 3D relief: it needs a model
                 let kind = kinds[r.below(kinds.len())];
                 a.hist.record(&a.project.data);
                 let sel = a.sel.clone();

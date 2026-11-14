@@ -266,8 +266,10 @@ pub fn anchor(app: &crate::app::App) -> Pos2 {
     Pos2::new(app.canvas_left + 10.0, app.bars_bottom + 8.0)
 }
 
-/// A dialog's width in the language in use: `base` is the English width (see `i18n::width_factor`).
-pub fn dialog_w(base: f32) -> f32 { (base * putiacnc_core::i18n::width_factor()).round() }
+/// A dialog's width: the same in every language. The side panels are widened for a language with longer words (`i18n::width_factor`) because
+/// their layouts are fixed, but a dialog's controls fit in the English width in Italian too (the dialog audit checks it), and a window that
+/// changed its size with the language would only waste room. A dialog whose content really is wider grows by itself.
+pub fn dialog_w(base: f32) -> f32 { base.round() }
 
 /// Where a dialog may be as a whole: the whole window below the header. 
 pub fn dialog_bounds(ctx: &egui::Context) -> Rect {
