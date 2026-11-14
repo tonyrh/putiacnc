@@ -374,6 +374,7 @@ impl App {
         // PUTIACNC_TOOL_SEL=text selects the first tool of the current library whose name contains it (for screenshots)
         if let Ok(q) = std::env::var("PUTIACNC_TOOL_SEL") { if let Some(t) = a.tool_libs.current().tools.iter().find(|t| t.name.to_lowercase().contains(&q.to_lowercase())) { a.tool_sel = t.id.clone(); } }
         if std::env::var_os("PUTIACNC_SHOW_MACHINES").is_some() { a.machines_open = true; }
+        if std::env::var_os("PUTIACNC_SHOW_NEST").is_some() { a.nest.open = true; }
         if std::env::var_os("PUTIACNC_SHOW_UPDATE").is_some() { a.updater.open = true; a.updater.check(false); }
         else if a.updater.auto { a.updater.check(true); }
         if let Some(p) = arg {
