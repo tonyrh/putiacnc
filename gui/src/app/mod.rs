@@ -66,7 +66,7 @@ pub enum Drag {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DlgKind { Open, SaveAs, Import, Model, Bitmap, ExportGcode, SetupSheet, LibExport, LibImport, MachExport, MachImport }
+pub enum DlgKind { Open, SaveAs, Import, Model, Bitmap, ExportGcode, SetupSheet, LibExport, LibImport, MachExport, MachImport, DirProject, DirImport, DirGcode }
 
 pub struct Dlg { pub kind: DlgKind, rx: std::sync::mpsc::Receiver<Option<std::path::PathBuf>> }
 

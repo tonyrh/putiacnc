@@ -55,8 +55,17 @@ impl App {
     }
 
     pub(crate) fn finish_dialog(&mut self, kind: DlgKind, mut p: std::path::PathBuf) {
+        // a folder chosen in Preferences is the folder itself (the others remember the folder a file is in)
+        let chosen = Some(p.display().to_string());
+        match kind {
+            DlgKind::DirProject => { self.prefs.dir_project = chosen; return; }
+            DlgKind::DirImport => { self.prefs.dir_svg = chosen; return; }
+            DlgKind::DirGcode => { self.prefs.dir_gcode = chosen; return; }
+            _ => {}
+        }
         self.remember_dir(kind, &p);
         match kind {
+            DlgKind::DirProject | DlgKind::DirImport | DlgKind::DirGcode => {}
             DlgKind::Open => self.request(Action::Open(p.display().to_string())),
             DlgKind::SaveAs => {
                 if p.extension().is_none() { p.set_extension("json"); }

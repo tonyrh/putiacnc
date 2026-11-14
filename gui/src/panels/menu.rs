@@ -173,10 +173,6 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             if ui.add(egui::Button::new(tr("Keyboard shortcuts")).shortcut_text("F1")).clicked() { app.shortcuts_open = true; ui.close_menu(); }
             ui.separator();
             if ui.button(tr("Check for updates…")).on_hover_text(tr("Asks GitHub for the latest release; nothing is contacted unless you ask")).clicked() { app.updater.open = true; app.updater.check(false); ui.close_menu(); }
-            if ui.button(tr("Open config folder")).on_hover_text(tr("Where your tool libraries, machines and settings are saved")).clicked() {
-                if let Some(d) = crate::toolmgr::config_dir() { let _ = std::fs::create_dir_all(&d); let _ = open::that_detached(d); }
-                ui.close_menu();
-            }
             ui.separator();
             if ui.button(tr("About PutiaCNC…")).clicked() { app.about_open = true; ui.close_menu(); }
         });
