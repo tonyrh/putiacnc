@@ -24,7 +24,7 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
             let left0 = ui.min_rect().left();
             // the number boxes shrink when the labels are long, so the row never passes the card
             let unit_w = tw(ui, crate::widgets::len_unit(ui)).max(tw(ui, "mm"));
-            let fw = ((stock_w - 34.0 - l1 - l3 - 2.0 * unit_w - 5.0 * 8.0 - 8.0) / 2.0).clamp(36.0, 62.0);
+            let fw = ((stock_w - 34.0 - l1 - l3 - 2.0 * unit_w - 5.0 * 8.0 - 24.0) / 2.0).clamp(36.0, 62.0);
             let mut col4_x = 0.0_f32;
             egui::Grid::new("stock_grid").num_columns(6).spacing([8.0, 10.0]).show(ui, |ui| {
                 rlabel(ui, l1, tr("Width"));
@@ -69,7 +69,7 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
                 rlabel(ui, l1, tr("Appearance"));
                 if !MATERIALS.iter().any(|(k, _)| *k == d.stock.mat) { d.stock.mat = "wood".into(); }
                 // as wide as the longest name, so the box does not change size with the choice
-                let mat_w = crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                let mat_w = (crate::widgets::combo_fit(ui, &MATERIALS.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0).min(ui.available_width() - 4.0);
                 let (c, _) = combo_w2(ui, mat_w, "stock_mat", &mut d.stock.mat, MATERIALS, "", tr("How the stock looks in the drawing and the 3D preview"));
                 *changed |= c;
             });
@@ -79,7 +79,7 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
                 let mut opts: Vec<(&str, &str)> = vec![("", tr("Not set"))];
                 opts.extend(putiacnc_core::feeds::MATERIALS.iter().map(|m| (m.id, m.label)));
                 if !opts.iter().any(|(k, _)| *k == d.stock.cut) { d.stock.cut.clear(); }
-                let w = crate::widgets::combo_fit(ui, &opts.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0;
+                let w = (crate::widgets::combo_fit(ui, &opts.iter().map(|(_, l)| *l).collect::<Vec<_>>()) + 10.0).min(ui.available_width() - 4.0);
                 let (c, _) = combo_w2(ui, w, "stock_cut", &mut d.stock.cut, &opts, "", tr("What you are cutting. An operation's Suggest button uses it to fill in spindle speed, feeds, stepover and depth per pass. The stock's look changes to match; change Appearance afterwards if you like"));
                 // choosing a material gives the stock the matching look
                 if c { if let Some(m) = putiacnc_core::feeds::material(&d.stock.cut) { d.stock.mat = m.look.into(); } }
@@ -114,8 +114,9 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             let mut del = None;
             if d.clamps.is_empty() { ui.add(egui::Label::new(egui::RichText::new(tr("None. Add one for each clamp or screw on the table.")).weak()).wrap(true)); }
             let n_clamps = d.clamps.len();
-            let fw = 62.0_f32;
             let (lc1, lc2) = (tw(ui, tr("Width")).max(tw(ui, tr("Rise"))).max(tw(ui, "X")), tw(ui, tr("Length")).max(tw(ui, "Y")));
+            let (sp, uw, h) = (8.0_f32, tw(ui, "mm"), ui.spacing().interact_size.y);
+            let fw = ((stock_w - 34.0 - lc1 - lc2 - 2.0 * uw - 5.0 * sp) / 2.0).clamp(30.0, 62.0);
             // which clamps are folded away (a view setting: kept for the session, not in the project)
             let fold_key = egui::Id::new("clamp_folded");
             let mut folded: Vec<bool> = ui.data(|x| x.get_temp(fold_key)).unwrap_or_default();
@@ -130,13 +131,20 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
                     });
                 });
                 if !folded[i] {
-                egui::Grid::new(("clamp_grid", i)).num_columns(6).spacing([8.0, 8.0]).show(ui, |ui| {
-                    rlabel(ui, lc1, "X"); *changed |= dv_w(ui, fw, &mut c.x, -10000.0, 10000.0, ""); ui.weak("mm");
-                    rlabel(ui, lc2, "Y"); *changed |= dv_w(ui, fw, &mut c.y, -10000.0, 10000.0, ""); ui.weak("mm"); ui.end_row();
-                    rlabel(ui, lc1, tr("Width")); *changed |= dv_w(ui, fw, &mut c.w, 0.1, 10000.0, ""); ui.weak("mm");
-                    rlabel(ui, lc2, tr("Length")); *changed |= dv_w(ui, fw, &mut c.h, 0.1, 10000.0, ""); ui.weak("mm"); ui.end_row();
-                    rlabel(ui, lc1, tr("Rise")); *changed |= dv_w(ui, fw, &mut c.height, 0.1, 10000.0, ""); ui.weak("mm");
-                    ui.end_row();
+                // rows with fixed column widths (a Grid takes its columns from the last frame and can push the panel wider): the number
+                // boxes shrink when the labels are long
+                ui.spacing_mut().item_spacing = egui::vec2(sp, 8.0);
+                let unit_cell = |ui: &mut Ui| { ui.allocate_ui_with_layout(egui::vec2(uw, h), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.weak("mm"); }); };
+                ui.horizontal(|ui| {
+                    rlabel(ui, lc1, "X"); *changed |= dv_w(ui, fw, &mut c.x, -10000.0, 10000.0, ""); unit_cell(ui);
+                    rlabel(ui, lc2, "Y"); *changed |= dv_w(ui, fw, &mut c.y, -10000.0, 10000.0, ""); unit_cell(ui);
+                });
+                ui.horizontal(|ui| {
+                    rlabel(ui, lc1, tr("Width")); *changed |= dv_w(ui, fw, &mut c.w, 0.1, 10000.0, ""); unit_cell(ui);
+                    rlabel(ui, lc2, tr("Length")); *changed |= dv_w(ui, fw, &mut c.h, 0.1, 10000.0, ""); unit_cell(ui);
+                });
+                ui.horizontal(|ui| {
+                    rlabel(ui, lc1, tr("Rise")); *changed |= dv_w(ui, fw, &mut c.height, 0.1, 10000.0, ""); unit_cell(ui);
                 });
                 }
                 if i + 1 < n_clamps { ui.add_space(4.0); ui.separator(); ui.add_space(4.0); }

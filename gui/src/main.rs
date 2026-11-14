@@ -163,6 +163,17 @@ fn main() -> eframe::Result<()> {
     }))
 }
 
+impl App {
+    /// The left panel; the value is the rectangle the content took (with its margin), which must never be wider than the panel.
+    fn show_left(&mut self, ctx: &egui::Context) -> egui::InnerResponse<egui::Rect> {
+        egui::SidePanel::left("left").resizable(false).exact_width(left_w()).frame(side_frame(ctx)).show(ctx, |ui| egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)).response.rect)
+    }
+    /// The right panel (see `show_left`).
+    fn show_right(&mut self, ctx: &egui::Context) -> egui::InnerResponse<egui::Rect> {
+        egui::SidePanel::right("right").resizable(false).exact_width(right_w()).frame(side_frame(ctx)).show(ctx, |ui| egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)).response.rect)
+    }
+}
+
 impl eframe::App for App {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] { [0.0, 0.0, 0.0, 0.0] }
 
@@ -225,12 +236,12 @@ impl App {
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(min_w.max(640.0), MIN_H)));
         }
         if fit_left {
-            let r = egui::SidePanel::left("left").resizable(false).exact_width(left_w()).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::left_panel(ui, self)); });
+            let r = self.show_left(ctx);
             tour::note(ctx, "left", r.response.rect);
             csd::allow_tab(ctx, r.response.rect);
         }
         if fit_right {
-            let r = egui::SidePanel::right("right").resizable(false).exact_width(right_w()).frame(side_frame(ctx)).show(ctx, |ui| { egui::Frame::none().inner_margin(8.0).show(ui, |ui| panels::right_panel(ui, self)); });
+            let r = self.show_right(ctx);
             tour::note(ctx, "right", r.response.rect);
             csd::allow_tab(ctx, r.response.rect);
         }
@@ -363,5 +374,98 @@ mod icon_tests {
         let i = super::window_icon().expect("icon");
         assert_eq!((i.width, i.height), (256, 256));
         assert_eq!(i.rgba.len(), 256 * 256 * 4);
+    }
+}
+
+/// The side panels keep their width whatever the language, the units, the project and the operation being edited: a card that is too
+/// wide for its panel would push the panel wider. The check runs the real panels without a window, once per language in a process of
+/// its own (the language is a global setting).
+#[cfg(test)]
+mod layout_tests {
+    use super::*;
+    use putiacnc_core::backdrop::Backdrop;
+    use putiacnc_core::model::{Clamp, Operation};
+
+    const KINDS: [&str; 9] = ["outside", "inside", "online", "pocket", "drill", "vcarve", "relief", "inlay", "draw"];
+
+    /// Runs a few frames (layouts settle over two) and returns the panel and content widths of the last one.
+    fn widths(ctx: &egui::Context, app: &mut App) -> [f32; 4] {
+        let mut out = [0.0; 4];
+        for _ in 0..4 {
+            let input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1876.0, 1500.0))), ..Default::default() };
+            let _ = ctx.run(input, |ctx| {
+                widgets::set_inches(ctx, app.disp_in);
+                let l = app.show_left(ctx);
+                let r = app.show_right(ctx);
+                out = [l.response.rect.width(), l.inner.width(), r.response.rect.width(), r.inner.width()];
+            });
+        }
+        out
+    }
+
+    fn check(ctx: &egui::Context, app: &mut App, what: &str) {
+        let w = widths(ctx, app);
+        let lang = putiacnc_core::i18n::language();
+        assert!((w[0] - LEFT_W).abs() < 0.5 && w[1] <= LEFT_W + 0.5, "left panel is {:.1} wide with content {:.1} (should be {LEFT_W}): {what} [{lang}, inches {}]", w[0], w[1], app.disp_in);
+        assert!((w[2] - RIGHT_W).abs() < 0.5 && w[3] <= RIGHT_W + 0.5, "right panel is {:.1} wide with content {:.1} (should be {RIGHT_W}): {what} [{lang}, inches {}]", w[2], w[3], app.disp_in);
+    }
+
+    /// A busy project: clamps, a backdrop, and every kind of operation.
+    fn busy(app: &mut App) {
+        let d = &mut app.project.data;
+        for i in 0..3 { d.clamps.push(Clamp { x: -30.0 - i as f64, y: 60.0, w: 30.0, h: 30.0, height: 20.0 }); }
+        d.backdrop = Some(Backdrop { name: "a long picture name for a backdrop.jpg".into(), x: 0.0, y: 0.0, w: 150.0, aspect: 0.7, opacity: 0.4, visible: true, locked: false, img: "".into() });
+        let tool = d.tools[0].id.clone();
+        for k in KINDS {
+            let mut p = putiacnc_core::shapes::default_op_params(&tool);
+            p.kind = k.into();
+            d.oid += 1;
+            let id = d.oid;
+            d.ops.push(Operation { id, p });
+        }
+    }
+
+    fn run_language(code: &str) {
+        putiacnc_core::i18n::set_language(code);
+        let ctx = egui::Context::default();
+        theme::apply_style(&ctx, &theme::Theme { dark: true, accent: egui::Color32::from_rgb(0x35, 0x84, 0xe4), size: 14.0 });
+        for inches in [false, true] {
+            use putiacnc_core::sample::Kind;
+            for kind in [None, Some(Kind::NamePlate), Some(Kind::Box), Some(Kind::Relief), Some(Kind::ShapedRelief), Some(Kind::Oval)] {
+                let mut app = App::new(None);
+                app.disp_in = inches;
+                if let Some(k) = kind { app.load_sample(k); }
+                for busy_too in [false, true] {
+                    if busy_too { busy(&mut app); }
+                    let what = format!("{:?} sample, busy {busy_too}", kind.map(|k| k.title()));
+                    // every operation in turn, with all the shapes selected, on each tab of the right panel
+                    let ops: Vec<i64> = app.project.data.ops.iter().map(|o| o.id).collect();
+                    app.sel = (0..app.project.data.loops.len()).collect();
+                    for tab in [app::RightTab::Ops, app::RightTab::Gcode, app::RightTab::Info] {
+                        app.tab = tab;
+                        check(&ctx, &mut app, &format!("{what}, no operation, tab {tab:?}"));
+                        for id in &ops {
+                            app.project.data.act = *id;
+                            check(&ctx, &mut app, &format!("{what}, operation {id}, tab {tab:?}"));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The child process of `panels_keep_their_width`: does nothing unless it is told which language to try.
+    #[test]
+    fn panel_width_in_one_language() {
+        if let Ok(code) = std::env::var("PUTIACNC_LAYOUT_LANG") { run_language(&code); }
+    }
+
+    #[test]
+    fn panels_keep_their_width() {
+        let exe = std::env::current_exe().unwrap();
+        for code in ["en", "it", "pseudo"] {
+            let out = std::process::Command::new(&exe).args(["--exact", "layout_tests::panel_width_in_one_language", "--nocapture"]).env("PUTIACNC_LAYOUT_LANG", code).env("PUTIACNC_CONFIG_DIR", std::env::temp_dir().join(format!("putia-layout-test-{code}"))).output().unwrap();
+            assert!(out.status.success(), "{code}: {}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        }
     }
 }

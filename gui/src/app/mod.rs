@@ -12,7 +12,7 @@ pub use putiacnc_core::history::{History, Scope};
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum Mode { Select, Node, Line, Rect, Ellipse, Polygon, Point, Text, Trim, Measure }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum RightTab { Ops, Gcode, Info }
 
 /// Screen <-> world (mm, Y up) mapping.

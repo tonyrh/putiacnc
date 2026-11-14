@@ -20,7 +20,7 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
     // labels are long (Italian), so the card never pushes the panel wider
     let sp = 6.0_f32;
     let uw = tw(ui, crate::widgets::len_unit(ui)).max(10.0);
-    let room = crate::LEFT_W - 34.0;
+    let room = ui.available_width() - 1.0; // what the card has, with or without the panel's scroll bar
     let fw = ((room - 2.0 * (lw + uw) - 5.0 * sp) / 2.0).clamp(30.0, 62.0);
     let unit = crate::widgets::len_unit(ui);
     // room left over when the labels are short (English): it goes between the two pairs so the second pair sits where it does in Italian
@@ -174,7 +174,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
             ui.set_width(ui.available_width() - 4.0);
             let mut fit = false;
             ui.horizontal(|ui| {
-                long_name_r(ui, &tr_f("Backdrop: {name}", &[("name", &bd.name)]), 154.0);
+                long_name_r(ui, &tr_f("Backdrop: {name}", &[("name", &bd.name)]), 164.0);
                 // from the right: remove, lock, show, set the scale, fit to stock
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if small_icon_button(ui, Icon::Trash, true, tr("Remove the backdrop")).clicked() { *act = Some((Some(-1), GroupAct::Delete)); }
@@ -198,8 +198,12 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
             ui.horizontal(|ui| {
                 ui.label(tr("Opacity"));
                 let mut pct = (bd.opacity * 100.0).round();
-                ui.spacing_mut().slider_width = (ui.available_width() - tw(ui, tr("Opacity")) - 2.0 * ui.spacing().item_spacing.x - 6.0).max(60.0);
-                if ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).suffix(" %")).tip(tr("How strongly the picture shows")).changed() { bd.opacity = pct / 100.0; *changed = true; }
+                // the rail takes what the label and a value box of fixed width leave (the slider's own value box has no fixed width)
+                let vw = 70.0;
+                ui.spacing_mut().slider_width = (ui.available_width() - 2.0 * ui.spacing().item_spacing.x - vw - 6.0).max(60.0);
+                let moved = ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).show_value(false)).tip(tr("How strongly the picture shows")).changed();
+                let typed = dv_w(ui, vw, &mut pct, 5.0, 100.0, " %");
+                if moved || typed { bd.opacity = (pct / 100.0).clamp(0.05, 1.0); *changed = true; }
             });
         });
     }
@@ -334,7 +338,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         ui.separator();
         ui.horizontal(|ui| {
             ui.heading(tr("Machine"));
-            let mw = (ui.available_width() - 6.0).max(80.0);
+            let mw = (ui.available_width() - 10.0).max(80.0);
             egui::ComboBox::from_id_source("project_machine").width(mw).selected_text(elide(ui, &mach_name, mw - 30.0)).show_ui(ui, |ui| {
                 for (id, name) in &mach_names {
                     if ui.selectable_label(*id == mach_cur, name).clicked() && *id != mach_cur { mach_pick = Some(id.clone()); }
