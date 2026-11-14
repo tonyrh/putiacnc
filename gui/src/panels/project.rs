@@ -1,5 +1,6 @@
 //! The project panel: stock, imports, shapes and operations.
 use putiacnc_core::i18n::{tr, tr_f, tr_n};
+use crate::icons::small_toggle_button;
 use crate::csd::ShowFollowing;
 use crate::widgets::Tip;
 use super::*;
@@ -9,41 +10,45 @@ pub(super) enum GroupAct { Delete, EditText, ToOutlines, SetScale }
 
 /// X, Y, width and height of an imported thing. Returns the new (x, y, width, height) when a field was edited.
 /// `zero` is the XY zero of the stock: X and Y are shown (and typed) relative to it, like the rulers.
-pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f64, f64), aspect_fixed: bool, fit: &mut bool, mut lock: Option<&mut bool>) -> Option<[f64; 4]> {
-    let locked = lock.as_ref().is_some_and(|l| **l);
-    let (mut x, mut y, mut w, mut h) = (b[0] - zero.0, b[1] - zero.1, b[2] - b[0], b[3] - b[1]);
+pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f64, f64), aspect_fixed: bool, locked: bool) -> Option<[f64; 4]> {
+    let (mut x, mut y, mut w, mut hh) = (b[0] - zero.0, b[1] - zero.1, b[2] - b[0], b[3] - b[1]);
     let keep_id = key.with("keep");
     let mut keep = aspect_fixed || ui.data(|d| d.get_temp::<bool>(keep_id)).unwrap_or(true);
     let (mut moved, mut sized) = (false, false);
     let lw = tw(ui, tr("Width")).max(tw(ui, tr("Height"))) + 8.0;
-    ui.add_enabled_ui(!locked, |ui| egui::Grid::new(key.with("grid")).num_columns(5).spacing([6.0, 6.0]).show(ui, |ui| {
-        rlabel(ui, lw, "X"); moved |= dl_w(ui, 62.0, &mut x, -100000.0, 100000.0, ""); ui.weak(crate::widgets::len_unit(ui));
-        rlabel(ui, lw, "Y"); moved |= dl_w(ui, 62.0, &mut y, -100000.0, 100000.0, ""); ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
-        rlabel(ui, lw, tr("Width"));
-        if dl_w(ui, 62.0, &mut w, 0.1, 100000.0, "") { sized = true; if keep && b[2] - b[0] > 1e-9 { h = w * (b[3] - b[1]) / (b[2] - b[0]); } }
-        ui.weak(crate::widgets::len_unit(ui));
-        rlabel(ui, lw, tr("Height"));
-        if dl_w(ui, 62.0, &mut h, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = h * (b[2] - b[0]) / (b[3] - b[1]); } }
-        ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
-    }));
-    ui.add_space(8.0);
-    // the check boxes and the button share a line when they fit; otherwise the button goes below
-    let sp = ui.spacing().item_spacing.x;
-    let need = (if aspect_fixed { 0.0 } else { tw(ui, tr("Keep proportions")) + 28.0 + sp })
-        + (if lock.is_some() { tw(ui, tr("Lock")) + 28.0 + sp } else { 0.0 })
-        + tw(ui, tr("Fit to stock")) + 20.0 + 14.0;
-    let one_line = need <= ui.available_width();
-    let mut fit_btn = |ui: &mut Ui| {
-        ui.spacing_mut().button_padding = egui::vec2(10.0, 4.0);
-        if ui.add_enabled(!locked, egui::Button::new(tr("Fit to stock"))).tip(tr("Scale to the stock if it is bigger, and centre it")).clicked() { *fit = true; }
-    };
-    ui.horizontal(|ui| {
-        if !aspect_fixed && crate::widgets::check_if(ui, !locked, &mut keep, tr("Keep proportions")).changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
-        if let Some(l) = lock.as_mut() { crate::widgets::check(ui, l, tr("Lock")).tip(tr("Stops this drawing being moved, resized, rotated or flipped by accident")); }
-        if one_line { ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| fit_btn(ui)); }
+    // two rows with fixed column widths (no Grid, whose columns follow what was drawn last frame): the number boxes shrink when the
+    // labels are long (Italian), so the card never pushes the panel wider
+    let sp = 6.0_f32;
+    let uw = tw(ui, crate::widgets::len_unit(ui)).max(10.0);
+    let room = crate::LEFT_W as f32 - 34.0;
+    let fw = ((room - 2.0 * (lw + uw) - 5.0 * sp) / 2.0).clamp(30.0, 62.0);
+    let unit = crate::widgets::len_unit(ui);
+    // room left over when the labels are short (English): it goes between the two pairs so the second pair sits where it does in Italian
+    let extra = (room - 2.0 * (lw + uw + fw) - 5.0 * sp).max(0.0);
+    let h = ui.spacing().interact_size.y;
+    ui.add_enabled_ui(!locked, |ui| {
+        let unit_cell = |ui: &mut Ui| { ui.allocate_ui_with_layout(egui::vec2(uw, h), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.weak(unit); }); };
+        ui.spacing_mut().item_spacing = egui::vec2(sp, 6.0);
+        ui.horizontal(|ui| {
+            rlabel(ui, lw, "X"); moved |= dl_w(ui, fw, &mut x, -100000.0, 100000.0, ""); unit_cell(ui);
+            ui.add_space(extra);
+            rlabel(ui, lw, "Y"); moved |= dl_w(ui, fw, &mut y, -100000.0, 100000.0, ""); unit_cell(ui);
+        });
+        ui.horizontal(|ui| {
+            rlabel(ui, lw, tr("Width"));
+            if dl_w(ui, fw, &mut w, 0.1, 100000.0, "") { sized = true; if keep && b[2] - b[0] > 1e-9 { hh = w * (b[3] - b[1]) / (b[2] - b[0]); } }
+            unit_cell(ui);
+            ui.add_space(extra);
+            rlabel(ui, lw, tr("Height"));
+            if dl_w(ui, fw, &mut hh, 0.1, 100000.0, "") { sized = true; if keep && b[3] - b[1] > 1e-9 { w = hh * (b[2] - b[0]) / (b[3] - b[1]); } }
+            unit_cell(ui);
+        });
     });
-    if !one_line { ui.add_space(4.0); ui.horizontal(|ui| fit_btn(ui)); }
-    if moved || sized { Some([x + zero.0, y + zero.1, w, h]) } else { None }
+    if !aspect_fixed {
+        ui.add_space(6.0);
+        if crate::widgets::check_if(ui, !locked, &mut keep, tr("Keep proportions")).changed() { ui.data_mut(|d| d.insert_temp(keep_id, keep)); }
+    }
+    if moved || sized { Some([x + zero.0, y + zero.1, w, hh]) } else { None }
 }
 
 /// The Spindle / Feed / Plunge / Stepover rows of a custom feeds block. A value that differs from the tool's turns blue (a lighter blue in
@@ -121,38 +126,39 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
     for g in groups {
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.set_width(ui.available_width() - 4.0);
+            let mut lock_now = g.locked;
+            let mut fit = false;
             ui.horizontal(|ui| {
-                long_name(ui, &g.name);
+                long_name_r(ui, &g.name, if g.text.is_some() { 64.0 } else { 94.0 });
+                // from the right: delete, lock, then fit to stock (not for a text, whose size is in the selection bar)
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if small_icon_button(ui, Icon::Trash, true, if g.text.is_some() { tr("Delete this text") } else { tr("Delete this drawing (all its shapes)") }).clicked() { *act = Some((Some(g.id), GroupAct::Delete)); }
+                    if small_toggle_button(ui, Icon::Lock, g.locked, if g.locked { tr("Unlock this drawing") } else { tr("Lock this drawing: it cannot be moved, resized, rotated or flipped by accident") }).clicked() { lock_now = !g.locked; }
+                    if g.text.is_none() && small_icon_button(ui, Icon::Fit, !g.locked, tr("Fit to stock: scale it down to the stock if it is bigger, and centre it")).clicked() { fit = true; }
                 });
             });
+            if lock_now != g.locked {
+                if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
+            }
             if g.text.is_some() {
                 // a placed text: its place and size are in the selection bar, turning is the rotate handles; only what is not
                 // available elsewhere is here
-                let mut lock_now = g.locked;
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
                     if ui.add_enabled(!lock_now, egui::Button::new(tr("Edit text"))).tip(tr("Change the words, font, size or place (double-click the text does the same)")).clicked() { *act = Some((Some(g.id), GroupAct::EditText)); }
                     if ui.add_enabled(!lock_now, egui::Button::new(tr("To outlines"))).tip(tr("The letters become ordinary shapes you can edit point by point")).clicked() { *act = Some((Some(g.id), GroupAct::ToOutlines)); }
-                    crate::widgets::check(ui, &mut lock_now, tr("Lock")).tip(tr("Stops this text being moved, resized, rotated or flipped by accident"));
                 });
-                if lock_now != g.locked {
-                    if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
-                }
                 return;
             }
             let Some(b) = shapes::bbox_many(d.loops.iter().filter(|l| l.grp == Some(g.id))) else { return };
-            let mut fit = false;
-            let mut lock_now = g.locked;
-            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, zero, false, &mut fit, Some(&mut lock_now)) {
+            if let Some(nb) = placement_fields(ui, egui::Id::new(("grp", g.id)), b, zero, false, lock_now) {
                 let new = [nb[0], nb[1], nb[0] + nb[2], nb[1] + nb[3]];
                 let mut refs: Vec<&mut putiacnc_core::model::LoopData> = d.loops.iter_mut().filter(|l| l.grp == Some(g.id)).collect();
                 shapes::fit_to_bbox(&mut refs, b, new);
                 *changed = true;
             }
-            if fit {
+            if fit && !lock_now {
                 let (w, h) = (b[2] - b[0], b[3] - b[1]);
                 let k = (sw / w).min(sh / h).min(1.0);
                 let (nw, nh) = (w * k, h * k);
@@ -161,45 +167,25 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 shapes::fit_to_bbox(&mut refs, b, new);
                 *changed = true;
             }
-            if lock_now != g.locked {
-                if let Some(x) = d.groups.iter_mut().find(|x| x.id == g.id) { x.locked = lock_now; *changed = true; }
-            }
-            // turn and flip about the drawing's centre
-            let (cx, cy) = ((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0);
-            let mut turn = 0.0;
-            let mut flip = (false, false);
-            ui.add_space(4.0);
-            ui.add_enabled_ui(!lock_now, |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
-                    if ui.button("↺ 90°").tip(tr("Rotate 90° counter-clockwise")).clicked() { turn = 90.0; }
-                    if ui.button("↻ 90°").tip(tr("Rotate 90° clockwise")).clicked() { turn = -90.0; }
-                    if ui.button(tr("Flip H")).tip(tr("Mirror left to right")).clicked() { flip.0 = true; }
-                    if ui.button(tr("Flip V")).tip(tr("Mirror top to bottom")).clicked() { flip.1 = true; }
-                });
-            });
-            if turn != 0.0 || flip.0 || flip.1 {
-                for l in d.loops.iter_mut().filter(|l| l.grp == Some(g.id)) {
-                    if turn != 0.0 { shapes::rotate_about(l, cx, cy, turn); }
-                    if flip.0 { shapes::mirror_x(l, cx); }
-                    if flip.1 { shapes::mirror_y(l, cy); }
-                }
-                *changed = true;
-            }
         });
     }
     if let Some(bd) = d.backdrop.as_mut() {
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.set_width(ui.available_width() - 4.0);
+            let mut fit = false;
             ui.horizontal(|ui| {
-                long_name(ui, &tr_f("Backdrop: {name}", &[("name", &bd.name)]));
+                long_name_r(ui, &tr_f("Backdrop: {name}", &[("name", &bd.name)]), 154.0);
+                // from the right: remove, lock, show, set the scale, fit to stock
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if small_icon_button(ui, Icon::Trash, true, tr("Remove the backdrop")).clicked() { *act = Some((Some(-1), GroupAct::Delete)); }
+                    if small_toggle_button(ui, Icon::Lock, bd.locked, if bd.locked { tr("Unlock the picture: then you can drag it to move it and its corners to resize it") } else { tr("Lock the picture so a drag does not move it") }).clicked() { bd.locked = !bd.locked; *changed = true; }
+                    if small_toggle_button(ui, if bd.visible { Icon::Eye } else { Icon::EyeOff }, !bd.visible, if bd.visible { tr("Hide the picture without removing it") } else { tr("Show the picture") }).clicked() { bd.visible = !bd.visible; *changed = true; }
+                    if small_icon_button(ui, Icon::Measure, true, tr("Set the scale: click two points on the picture whose real distance you know, then type that distance")).clicked() { *act = Some((Some(-1), GroupAct::SetScale)); }
+                    if small_icon_button(ui, Icon::Fit, true, tr("Fit to stock: as large as fits, centred")).clicked() { fit = true; }
                 });
             });
             let b = [bd.x, bd.y, bd.x + bd.w, bd.y + bd.h()];
-            let mut fit = false;
-            if let Some(nb) = placement_fields(ui, egui::Id::new("backdrop_box"), b, zero, true, &mut fit, None) {
+            if let Some(nb) = placement_fields(ui, egui::Id::new("backdrop_box"), b, zero, true, false) {
                 bd.x = nb[0]; bd.y = nb[1]; bd.w = nb[2].max(0.1);
                 *changed = true;
             }
@@ -215,26 +201,22 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 ui.spacing_mut().slider_width = (ui.available_width() - 150.0).max(60.0);
                 if ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).suffix(" %")).tip(tr("How strongly the picture shows")).changed() { bd.opacity = pct / 100.0; *changed = true; }
             });
-            ui.horizontal(|ui| {
-                if crate::widgets::check(ui, &mut bd.visible, tr("Show")).tip(tr("Hide the picture without removing it")).changed() { *changed = true; }
-                if crate::widgets::check(ui, &mut bd.locked, tr("Lock")).tip(tr("Unlocked, you can drag the picture to move it and its corners to resize it")).changed() { *changed = true; }
-            });
-            if ui.button(tr("Set scale from two points")).tip(tr("Click two points on the picture whose real distance you know, then type that distance")).clicked() { *act = Some((Some(-1), GroupAct::SetScale)); }
         });
     }
     if let Some(rel) = d.relief.as_mut() {
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.set_width(ui.available_width() - 4.0);
+            let mut fit = false;
             ui.horizontal(|ui| {
-                long_name(ui, &tr_f("3D model: {name}", &[("name", &rel.name)]));
+                long_name_r(ui, &tr_f("3D model: {name}", &[("name", &rel.name)]), 64.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if small_icon_button(ui, Icon::Trash, true, tr("Remove the 3D model (its relief operations stop working)")).clicked() { *act = Some((None, GroupAct::Delete)); }
+                    if small_icon_button(ui, Icon::Fit, true, tr("Fit to stock: as large as fits, centred")).clicked() { fit = true; }
                 });
             });
             let (w, h) = rel.size();
             let b = [rel.x, rel.y, rel.x + w, rel.y + h];
-            let mut fit = false;
-            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, zero, true, &mut fit, None) {
+            if let Some(nb) = placement_fields(ui, egui::Id::new("relief_box"), b, zero, true, false) {
                 rel.x = nb[0]; rel.y = nb[1];
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
@@ -1340,8 +1322,9 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
 
 /// A bold name (of an imported file) on one line that stops short of the delete button at the right, cut with an ellipsis when it is
 /// too long (the whole name is the tooltip), so a long file name never makes the panel wider than it is.
-fn long_name(ui: &mut Ui, text: &str) {
-    let w = (ui.available_width() - 30.0).max(40.0);
+/// A bold name that is cut short to leave `reserve` px at the right for icon buttons.
+fn long_name_r(ui: &mut Ui, text: &str, reserve: f32) {
+    let w = (ui.available_width() - reserve).max(40.0);
     ui.allocate_ui_with_layout(egui::vec2(w, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
         ui.set_width(w);
         ui.add(egui::Label::new(egui::RichText::new(text).strong()).truncate(true)).on_hover_text(text);

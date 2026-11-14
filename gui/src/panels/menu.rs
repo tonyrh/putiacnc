@@ -105,6 +105,14 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
                     if item(ui, tr("Top to bottom"), "", true) { app.mirror_selection(false); }
                 }).response.on_disabled_hover_text(if some { tr("This drawing is locked") } else { pick });
             });
+            ui.add_enabled_ui(free, |ui| {
+                ui.menu_button(tr("Rotate"), |ui| {
+                    ui.style_mut().wrap = Some(false);
+                    if item(ui, tr("90° counter-clockwise"), "", true) { app.rotate_selection_by(90.0); }
+                    if item(ui, tr("90° clockwise"), "", true) { app.rotate_selection_by(-90.0); }
+                    if item(ui, tr("Any angle…"), "", true) { app.start_rotate(); }
+                }).response.on_disabled_hover_text(if some { tr("This drawing is locked") } else { pick });
+            });
             if item_why(ui, tr("Align…"), "", free, if some { tr("This drawing is locked") } else { pick }) { app.open_tool_window(ToolWin::Align); }
             if item_why(ui, tr("Array and copy…"), "", some, pick) { app.open_tool_window(ToolWin::Array); }
             if item_why(ui, tr("Nest on the stock…"), "", some, pick) { app.open_tool_window(ToolWin::Nest); }

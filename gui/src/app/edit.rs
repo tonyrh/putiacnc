@@ -311,6 +311,30 @@ impl App {
         if shapes::mirror_selection(&mut d.loops, &mut d.ops, &sel, left_right, &tabs0) { self.touch(); }
     }
 
+    /// Turns the selection by `deg` degrees (counter-clockwise is positive) about the centre of its box (Modify menu).
+    pub fn rotate_selection_by(&mut self, deg: f64) {
+        if self.sel.is_empty() || self.sel_locked() { return; }
+        let d = &self.project.data;
+        let Some(b) = shapes::bbox_many(self.sel.iter().filter_map(|&i| d.loops.get(i))) else { return };
+        self.rotate_mode = false;
+        self.rot_pivot = None;
+        self.hist.record(&self.project.data);
+        let sel = self.sel.clone();
+        let d = &mut self.project.data;
+        let tabs0 = shapes::tab_positions(&d.loops, &d.ops, &sel);
+        shapes::rotate_selection(&mut d.loops, &mut d.ops, &sel, [(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0], deg, &tabs0);
+        self.touch();
+    }
+
+    /// Shows the rotate handles and the angle field for the selection, like a double click on it (Modify menu).
+    pub fn start_rotate(&mut self) {
+        if self.sel.is_empty() || self.sel_locked() { return; }
+        self.mode = Mode::Select;
+        self.rot_sel = self.sel.clone();
+        self.rot_pivot = None;
+        self.rotate_mode = true;
+    }
+
     pub fn nudge(&mut self, dx: f64, dy: f64) {
         if self.sel.is_empty() || self.sel_locked() { return; }
         self.rotate_mode = false;
