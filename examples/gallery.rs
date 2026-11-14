@@ -152,7 +152,8 @@ fn main() {
         }
     }
     let only = args.iter().position(|a| a == "--only").and_then(|i| args.get(i + 1)).cloned();
-    let drawn: [(&str, &str, fn(&mut ProjectData)); 5] = [("inlay-coaster", "Inlay coaster", coaster), ("phone-stand", "Phone stand", phone_stand), ("cutting-board", "Cutting board", cutting_board), ("pen-holder", "Pen holder", pen_holder), ("photo-portrait", "Photo portrait", portrait)];
+    type Build = fn(&mut ProjectData);
+    let drawn: [(&str, &str, Build); 5] = [("inlay-coaster", "Inlay coaster", coaster), ("phone-stand", "Phone stand", phone_stand), ("cutting-board", "Cutting board", cutting_board), ("pen-holder", "Pen holder", pen_holder), ("photo-portrait", "Photo portrait", portrait)];
     for (id, name, build) in drawn {
         if only.as_ref().is_some_and(|o| o != id) { continue; }
         let mut f = shapes::blank_project();
