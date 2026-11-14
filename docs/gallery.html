@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PutiaCNC gallery – example projects for a CNC router</title>
+<meta name="description" content="Example projects for PutiaCNC, the free CNC toolpath studio: a name plate, a finger-joint box, an oval sign, two 3D reliefs, an inlay coaster, a phone stand, a cutting board, a pen holder and a photo portrait. Download the project files and open them in the program.">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" href="favicon-48.png" sizes="48x48">
+<link rel="icon" type="image/png" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="canonical" href="https://tonyrh.github.io/putiacnc/gallery.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PutiaCNC gallery – example projects">
+<meta property="og:description" content="Example projects for PutiaCNC: download them and open them in the program.">
+<meta property="og:url" content="https://tonyrh.github.io/putiacnc/gallery.html">
+<meta property="og:image" content="https://tonyrh.github.io/putiacnc/social-preview.png">
+<style>
+  :root {
+    --bg: #fafaf8; --fg: #1d1f23; --muted: #5b6068; --card: #ffffff; --line: #dcdcd6;
+    --accent: #1f5fb5; --accent-fg: #ffffff; --code: #efefea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --fg: #e8e8e4; --muted: #a2a6ad; --card: #202225; --line: #34373b;
+      --accent: #7cb7ff; --accent-fg: #0e1a2b; --code: #26282b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 40px 0 8px; }
+  header img { display: block; width: min(480px, 100%); height: auto; }
+  h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.2; margin: 24px 0 12px; }
+  h2 { font-size: 1.4rem; margin: 48px 0 12px; }
+  h3 { font-size: 1.05rem; margin: 0 0 6px; }
+  p { margin: 0 0 14px; }
+  .lead { font-size: 1.15rem; color: var(--muted); max-width: 46em; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 8px; }
+  .btn { display: inline-block; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); }
+  .btn.secondary { color: var(--accent); }
+  .btn svg { width: 18px; height: 18px; fill: currentColor; vertical-align: -3px; margin-right: 8px; }
+  .note { color: var(--muted); font-size: 0.95rem; }
+  figure { margin: 28px 0; }
+  figure img, video { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .player { position: relative; }
+  .player .play { position: absolute; left: 50%; top: 50%; width: 84px; height: 60px; margin: -30px 0 0 -42px; border: 0; border-radius: 16px; background: rgba(20,20,20,.82); cursor: pointer; padding: 0; transition: background .15s, transform .15s; }
+  .player .play::after { content: ""; position: absolute; left: 50%; top: 50%; margin: -13px 0 0 -9px; border-style: solid; border-width: 13px 0 13px 22px; border-color: transparent transparent transparent #fff; }
+  .player .play:hover, .player .play:focus-visible { background: var(--accent); transform: scale(1.06); outline: none; }
+  .player.playing .play { display: none; }
+  figcaption { color: var(--muted); font-size: 0.95rem; margin-top: 8px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.97rem; }
+  a { color: var(--accent); }
+  pre { background: var(--code); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.92rem; line-height: 1.5; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 24px 0 48px; color: var(--muted); font-size: 0.95rem; }
+  footer a { margin-right: 16px; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .thumb { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; margin-bottom: 12px; }
+  .card h3 { margin-top: 0; }
+  .card .ops { color: var(--muted); font-size: 0.92rem; margin: 8px 0 12px; padding-left: 1.1em; }
+  .card .dl { font-size: 0.95rem; }
+  .grid.gallery { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <a href="./"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="banner-dark.png">
+    <img src="banner-light.png" alt="PutiaCNC" width="960" height="240">
+  </picture></a>
+  <h1>Gallery</h1>
+  <p class="lead">Example projects, each cut out and previewed in PutiaCNC. Download a project file and open it with File → Open project; the operations, tools and depths are already set.</p>
+  <p class="note">The projects are made for a 300 × 200 × 60 mm machine with the starter tools. Open one, then check the machine and tools in the left panel and change them to yours before you cut. The pictures show the 3D preview after the last operation.</p>
+</header>
+
+<main class="wrap">
+  <div class="grid gallery">
+    <div class="card">
+      <img class="thumb" src="gallery/name-plate.png" alt="Name plate: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>Name plate</h3>
+      <p>A rounded plate cut out of the stock, with a shallow recess and the name engraved in its floor.</p>
+      <ul class="ops"><li>Profile (outside) with holding tabs, 1/8″ flat end mill</li><li>Pocket, 2 mm deep</li><li>On the line: the lettering, 30° engraving bit</li><li>Stock 200 × 150 × 12 mm</li></ul>
+      <p class="dl"><a href="gallery/name-plate.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/finger-joint-box.png" alt="Finger-joint box: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>Finger-joint box</h3>
+      <p>The five plates of an open box with interlocking fingers, laid out on one piece of 6 mm stock and cut in a single operation.</p>
+      <ul class="ops"><li>Profile (outside) with four holding tabs, 1/8″ flat end mill</li><li>Stock 200 × 150 × 6 mm</li></ul>
+      <p class="dl"><a href="gallery/finger-joint-box.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/oval-sign.png" alt="Oval sign: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>Oval sign</h3>
+      <p>An oval sign with V-carved lettering, text along the top and bottom of the oval, and a fine engraved border.</p>
+      <ul class="ops"><li>V-carve: the name, 60° V-bit</li><li>V-carve: curved text, 30° engraving bit</li><li>On the line: border; Profile (outside) for the oval</li><li>Stock 260 × 170 × 15 mm</li></ul>
+      <p class="dl"><a href="gallery/oval-sign.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/relief-rosette.png" alt="3D relief: rosette: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>3D relief: rosette</h3>
+      <p>A six-petal rosette carved as a 3D relief. The model is made by the program; your own STL or OBJ files work the same way.</p>
+      <ul class="ops"><li>3D relief: roughing, then a finishing pass that follows the surface, 1/4″ ball nose</li><li>Stock 90 × 90 × 12 mm</li></ul>
+      <p class="dl"><a href="gallery/relief-rosette.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/relief-from-shapes.png" alt="3D relief from shapes: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>3D relief from shapes</h3>
+      <p>A cushion with a round groove and a button, made from three drawn shapes with Generate → Relief from shapes: no model file needed.</p>
+      <ul class="ops"><li>3D relief: roughing and finishing, 1/4″ ball nose</li><li>Stock 90 × 90 × 12 mm</li></ul>
+      <p class="dl"><a href="gallery/relief-from-shapes.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/inlay-coaster.png" alt="Inlay coaster: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>Inlay coaster</h3>
+      <p>A round coaster with an eight-point star inlaid in it: the star is V-carved as a pocket, its plug is cut from a darker wood and glued in.</p>
+      <ul class="ops"><li>Inlay pocket and plug, 60° V-bit with a 1/8″ flat end mill</li><li>Profile (outside) with holding tabs</li><li>Stock 120 × 120 × 18 mm, plug piece 6 mm</li></ul>
+      <p class="dl"><a href="gallery/inlay-coaster.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/phone-stand.png" alt="Phone stand: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>Phone stand</h3>
+      <p>A phone or tablet stand that goes together without glue: two side plates and two crossbars whose ends fit slots with dogbone corners, cut from one sheet of plywood.</p>
+      <ul class="ops"><li>Profile (outside) with holding tabs, 1/8″ flat end mill</li><li>Dogbone reliefs in the slots</li><li>Stock 200 × 150 × 9 mm</li></ul>
+      <p class="dl"><a href="gallery/phone-stand.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/cutting-board.png" alt="Cutting board: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>Cutting board</h3>
+      <p>A hardwood cutting board with a round-bottomed juice groove, a hanging hole and a line of lettering.</p>
+      <ul class="ops"><li>On the line: juice groove, 6 mm ball nose</li><li>On the line: lettering, 30° engraving bit</li><li>Profile (inside) for the hanging hole, Profile (outside) for the board, 6 mm flat end mill</li><li>Stock 270 × 190 × 20 mm</li></ul>
+      <p class="dl"><a href="gallery/cutting-board.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/pen-holder.png" alt="Pen holder: the finished cut in the 3D preview" width="765" height="420" loading="lazy">
+      <h3>Pen holder</h3>
+      <p>A desk pen holder cut from a thick block: three round pen holes, a slot for cards and a rounded outline.</p>
+      <ul class="ops"><li>Pocket: three 12 mm holes, 30 mm deep, entered in a spiral, 4 mm flat end mill</li><li>Pocket: card slot, 22 mm deep</li><li>Profile (outside) with holding tabs, 1/8″ flat end mill</li><li>Stock 120 × 90 × 40 mm</li></ul>
+      <p class="dl"><a href="gallery/pen-holder.project.json" download>Download the project</a></p>
+    </div>
+    <div class="card">
+      <img class="thumb" src="gallery/photo-portrait.png" alt="Photo V-carve portrait of the head of David: the lines as the V-bit will etch them, seen from above" width="765" height="420" loading="lazy">
+      <h3>Photo portrait</h3>
+      <p>The head of Michelangelo's David etched with a V-bit along parallel lines that are wider and deeper where the photograph is darker, as in Photo V-Carve. The picture shows the toolpath as it will be cut. Photo: Jörg Bittner Unna, Wikimedia Commons, <a href="https://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>; cropped, the background lightened and converted to lines.</p>
+      <ul class="ops"><li>Photo V-carve: a 30° engraving bit, lines 0.8 mm apart, up to 1.5 mm deep</li><li>93 × 140 mm, about 28 minutes, made with Import picture → V-carve as photo</li><li>Stock 110 × 155 × 12 mm</li></ul>
+      <p class="dl"><a href="gallery/photo-portrait.project.json" download>Download the project</a></p>
+    </div>
+  </div>
+
+  <p style="margin-top:24px">Not installed yet? <a href="https://github.com/tonyrh/putiacnc/releases">Download PutiaCNC</a>. The first five projects are also in the program under Generate → Sample projects, made to fit your own machine and tools.</p>
+</main>
+
+<footer class="wrap">
+  <a href="./">PutiaCNC</a>
+  <a href="https://github.com/tonyrh/putiacnc">Source on GitHub</a>
+  <a href="https://github.com/tonyrh/putiacnc/blob/main/docs/features.md">Feature guide</a>
+</footer>
+</body>
+</html>
