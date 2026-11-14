@@ -1,12 +1,24 @@
 //! Writes the projects of the gallery on the project page (docs/gallery.html), as plain project files that fit a 300 x 200 x 60 mm machine
 //! with the starter tools: the program's sample projects, and some more that are drawn here with the same functions the program's own
 //! buttons use. Every run gives the tools new ids, so a project that is already in the gallery is only written again with `--all`.
-//! Usage: cargo run --release --example gallery -- docs/gallery [--all]
+//! Usage: cargo run --release --example gallery -- docs/gallery [--all] [--only id]
 use putiacnc_core::joints::{reliefs, Cut, Relief};
 use putiacnc_core::model::{LoopData, Operation, PlugPiece, ProjectData, ShapeGroup, TextSpec, Tool};
 use putiacnc_core::sample::Kind;
 use putiacnc_core::text::{Align, TextStyle};
 use putiacnc_core::{generate, linetext, pieces, sample, save_project, shapes, Units};
+
+/// Standard base64 (the project file keeps height maps in it).
+fn b64(d: &[u8]) -> String {
+    const A: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut s = String::new();
+    for c in d.chunks(3) {
+        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        s.push(A[(n >> 18) as usize & 63] as char); s.push(A[(n >> 12) as usize & 63] as char);
+        s.push(if c.len() > 1 { A[(n >> 6) as usize & 63] as char } else { '=' }); s.push(if c.len() > 2 { A[n as usize & 63] as char } else { '=' });
+    }
+    s
+}
 
 fn tool<'a>(d: &'a ProjectData, name: &str) -> &'a Tool { d.tools.iter().find(|t| t.name == name).unwrap_or_else(|| panic!("no tool {name}")) }
 
@@ -98,6 +110,22 @@ fn cutting_board(d: &mut ProjectData) {
     d.notes = "CUTTING BOARD\nA hardwood cutting board 250 x 170 mm, 20 mm thick, with a juice groove, a hanging hole and a line of lettering.\n\nOperations\n1. On the line: the juice groove, 6 mm deep, with the 6 mm ball nose, so the channel has a round bottom.\n2. On the line: \"Buon appetito\" engraved 1 mm deep with the 30° engraving bit. Change the words with \"Edit text\" in the Text card.\n3. Profile (inside): the hole to hang the board by, cut through.\n4. Profile (outside): cuts the board out with rounded corners, leaving 4 small holding tabs.\n\nBefore cutting for real\n- Use a hardwood that is safe for food (maple, beech, walnut) and a food-safe oil to finish; sand all the edges and the groove.\n- Set X0 Y0 at the lower-left corner and Z0 on the top of the stock, and tick \"Air cut\" in each operation for a first run.".into();
 }
 
+/// A relief portrait, lithophane style: the height map is a stylised face drawn for this example (examples/projects/portrait-relief.hm, 220 x 270 cells of
+/// 16-bit heights, row by row from the bottom). It is roughed with a flat end mill and finished with a 3 mm ball nose, and a 1.5 mm ball nose
+/// goes over the eyes, nose and lips.
+fn portrait(d: &mut ProjectData) {
+    let (nx, ny, res, zmax) = (220usize, 270usize, 0.28, 5.0);
+    stock(d, 90.0, 100.0, 12.0);
+    let (ball, detail, flat) = (tool(d, "3 mm ball nose").id.clone(), tool(d, "1.5 mm ball nose").id.clone(), tool(d, "6 mm flat end mill").id.clone());
+    let hm = b64(include_bytes!("projects/portrait-relief.hm"));
+    d.relief = Some(putiacnc_core::model::Relief { name: "Portrait".into(), nx, ny, res, zmax, hm, x: (d.stock.w - nx as f64 * res) / 2.0, y: (d.stock.h - ny as f64 * res) / 2.0, scale: 1.0 });
+    let id = op(d, "relief", zmax, &ball, zmax / 3.0);
+    let p = &mut d.ops.last_mut().unwrap().p;
+    p.d_man = true; p.f_so = Some(15.0); p.d_so = Some(35.0); p.tool2 = Some(flat); p.rest = Some(detail);
+    let _ = id;
+    d.notes = "RELIEF PORTRAIT\nA portrait carved as a 3D relief, 62 x 76 mm and 5 mm high, in the manner of a lithophane: the shading of a face comes from how deep each place is cut.\n\nThe face is a stylised drawing made for this example and stored in the project as a height map. The program does not import a photograph as a relief yet; your own STL or OBJ model works the same way (File menu, Import 3D model).\n\nOperations\n1. Roughing: the 6 mm flat end mill takes most of the material away in layers, leaving a little for the finishing.\n2. Finishing: the 3 mm ball nose follows the surface line by line.\n3. Detail: the 1.5 mm ball nose finishes only the places the 3 mm one could not reach (eyes, nostrils, the line of the mouth).\n\nBefore cutting for real\n- A fine surface takes time: check the Estimated time, and try a larger Stepover in the Finishing step for a first run.\n- Set X0 Y0 at the lower-left corner and Z0 on the top of the stock, and tick \"Air cut\" for a first run.\n- Seen from the side light of a window, a pale wood with a clear finish shows the shading best.".into();
+}
+
 /// A pen holder cut from a thick block: three pen holes and a slot for cards, then the outline.
 fn pen_holder(d: &mut ProjectData) {
     stock(d, 120.0, 90.0, 40.0);
@@ -126,8 +154,10 @@ fn main() {
             write(&out, id, &f);
         }
     }
-    let drawn: [(&str, &str, fn(&mut ProjectData)); 4] = [("inlay-coaster", "Inlay coaster", coaster), ("phone-stand", "Phone stand", phone_stand), ("cutting-board", "Cutting board", cutting_board), ("pen-holder", "Pen holder", pen_holder)];
+    let only = args.iter().position(|a| a == "--only").and_then(|i| args.get(i + 1)).cloned();
+    let drawn: [(&str, &str, fn(&mut ProjectData)); 5] = [("inlay-coaster", "Inlay coaster", coaster), ("phone-stand", "Phone stand", phone_stand), ("cutting-board", "Cutting board", cutting_board), ("pen-holder", "Pen holder", pen_holder), ("relief-portrait", "Relief portrait", portrait)];
     for (id, name, build) in drawn {
+        if only.as_ref().is_some_and(|o| o != id) { continue; }
         let mut f = shapes::blank_project();
         f.name = name.into();
         build(&mut f.data);
