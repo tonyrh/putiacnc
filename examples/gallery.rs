@@ -114,20 +114,20 @@ fn cutting_board(d: &mut ProjectData) {
 /// 16-bit heights, row by row from the bottom). It is roughed with a flat end mill and finished with a 3 mm ball nose, and a 1.5 mm ball nose
 /// goes over the eyes, nose and lips.
 fn portrait(d: &mut ProjectData) {
-    let (nx, ny, res, zmax) = (245usize, 300usize, 0.2694, 5.0);
-    stock(d, 90.0, 100.0, 12.0);
+    let (nx, ny, res, zmax) = (300usize, 268usize, 0.2467, 5.0);
+    stock(d, 90.0, 85.0, 12.0);
     // a finer cutter does the finishing, and a 1 mm ball (made from the 1.5 mm one) the fine detail of the eyes and the lips
     let mut fine = tool(d, "1.5 mm ball nose").clone();
     fine.id = "tfineball1mm".into(); fine.name = "1 mm ball nose".into(); fine.dia = 1.0; fine.feed *= 0.8; fine.plunge *= 0.8;
     d.tools.push(fine);
     let (ball, detail, flat) = (tool(d, "1.5 mm ball nose").id.clone(), "tfineball1mm".to_string(), tool(d, "6 mm flat end mill").id.clone());
     let hm = b64(include_bytes!("projects/portrait-relief.hm"));
-    d.relief = Some(putiacnc_core::model::Relief { name: "Girl with a Pearl Earring".into(), nx, ny, res, zmax, hm, x: (d.stock.w - nx as f64 * res) / 2.0, y: (d.stock.h - ny as f64 * res) / 2.0, scale: 1.0 });
+    d.relief = Some(putiacnc_core::model::Relief { name: "David".into(), nx, ny, res, zmax, hm, x: (d.stock.w - nx as f64 * res) / 2.0, y: (d.stock.h - ny as f64 * res) / 2.0, scale: 1.0 });
     let id = op(d, "relief", zmax, &ball, zmax / 3.0);
     let p = &mut d.ops.last_mut().unwrap().p;
     p.d_man = true; p.f_so = Some(12.0); p.d_so = Some(30.0); p.tool2 = Some(flat); p.rest = Some(detail);
     let _ = id;
-    d.notes = "RELIEF PORTRAIT\nA portrait carved as a 3D relief, 66 x 81 mm and 5 mm high, in the manner of a lithophane: the shading of a face comes from how deep each place is cut.\n\nThe picture is a detail of Johannes Vermeer's painting Girl with a Pearl Earring (about 1665, public domain), brought in with Import picture, Carve as relief: light parts of the picture become high, dark parts low. Try the same with your own pictures; portraits with a dark background work best. A 3D model (STL or OBJ) works the same way (File menu, Import 3D model).\n\nOperations\n1. Roughing: the 6 mm flat end mill takes most of the material away in layers, leaving a little for the finishing.\n2. Finishing: the 1.5 mm ball nose follows the surface line by line.\n3. Detail: the 1 mm ball nose finishes only the places the 1.5 mm one could not reach (the corners of the eyes, the nostril, the line of the lips).\n\nBefore cutting for real\n- A fine surface takes time: check the Estimated time, and try a larger Stepover in the Finishing step for a first run.\n- Set X0 Y0 at the lower-left corner and Z0 on the top of the stock, and tick \"Air cut\" for a first run.\n- Seen from the side light of a window, a pale wood with a clear finish shows the shading best.".into();
+    d.notes = "RELIEF PORTRAIT\nThe head of Michelangelo's David (1501-04) carved as a 3D relief, 74 x 66 mm and 5 mm high, in the manner of a lithophane: the shading of the marble comes from how deep each place is cut.\n\nThe picture is a detail of a photograph of the statue by Jörg Bittner Unna (Wikimedia Commons), brought in with Import picture, Carve as relief: light parts of the picture become high, dark parts low. Pictures of one even material, like marble or plaster, lit from the side, work best; a painting or a photograph of a face with dark eyes and lips does not, because the dark colour is carved as a hollow. A 3D model (STL or OBJ) works the same way (File menu, Import 3D model)\n\nOperations\n1. Roughing: the 6 mm flat end mill takes most of the material away in layers, leaving a little for the finishing.\n2. Finishing: the 1.5 mm ball nose follows the surface line by line.\n3. Detail: the 1 mm ball nose finishes only the places the 1.5 mm one could not reach (the corners of the eyes, the nostril, the line of the lips).\n\nBefore cutting for real\n- A fine surface takes time: check the Estimated time, and try a larger Stepover in the Finishing step for a first run.\n- Set X0 Y0 at the lower-left corner and Z0 on the top of the stock, and tick \"Air cut\" for a first run.\n- Seen from the side light of a window, a pale wood with a clear finish shows the shading best.".into();
 }
 
 /// A pen holder cut from a thick block: three pen holes and a slot for cards, then the outline.
