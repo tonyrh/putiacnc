@@ -17,7 +17,7 @@ pub struct ImageChoice {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Pick { Trace, Backdrop, Both }
+enum Pick { Trace, Backdrop, Both, Relief }
 
 impl ImageChoice {
     pub fn load(&mut self, path: &str) {
@@ -62,6 +62,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         for (p, name, text, tip) in [
             (Pick::Trace, tr("Trace outlines"), tr("Turns the dark parts into shapes you can cut."), tr("Opens the trace settings; the picture itself is not kept")),
             (Pick::Backdrop, tr("Use as backdrop"), tr("Shows it behind the drawing, to draw over it. It is never cut."), tr("The picture is kept in the project; set its size and see-through level in the left panel")),
+            (Pick::Relief, tr("Carve as relief"), tr("Light parts are high, dark parts low: for portraits and shaded pictures."), tr("Opens the relief settings; the picture is turned into a height map for a 3D relief operation")),
             (Pick::Both, tr("Both"), tr("The backdrop first, then the traced shapes land exactly on it."), tr("For copying a drawing or a photo of a piece you will recreate")),
         ] {
             let w = dw - 4.0;
@@ -85,6 +86,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         match p {
             Pick::Trace => app.import_trace(&path, None),
             Pick::Backdrop => { app.place_backdrop(&path); }
+            Pick::Relief => app.import_picture_relief(&path),
             Pick::Both => { let at = app.place_backdrop(&path); if at.is_some() { app.import_trace(&path, at); } }
         }
     } else if cancel { app.pic.close(); }

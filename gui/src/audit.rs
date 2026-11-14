@@ -180,6 +180,7 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
             a.check_parts = vec![0]; a.checks_ver = a.out_ver; a.export_warn_open = true;
         }),
         ("import bitmap", |a| a.import_trace(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data/sketch.png"), None)),
+        ("carve picture as relief", |a| a.import_picture_relief(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data/sketch.png"))),
         ("import 3d model", |a| {
             // a pyramid, as an ASCII STL
             let p = std::env::temp_dir().join("putiacnc_audit_pyramid.stl");
@@ -350,4 +351,25 @@ fn operation_cards_do_not_run_out_of_the_panel() {
     }
     problems.sort(); problems.dedup();
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
+}
+
+/// A dialog is as wide in Italian as in English: only the side panels are widened for the language (`i18n::width_factor`, used in main.rs).
+/// A dialog's controls fit at the English width in every language (the dialog audit checks them), so a window that grew with the language
+/// would only be empty room. (The language is a global, so this reads the source instead of switching it under the other tests.)
+#[test]
+fn dialogs_are_not_widened_for_the_language() {
+    fn walk(dir: &std::path::Path, bad: &mut Vec<String>) {
+        for e in std::fs::read_dir(dir).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() { walk(&p, bad); continue; }
+            let name = p.file_name().unwrap().to_string_lossy().into_owned();
+            if !name.ends_with(".rs") || ["main.rs", "audit.rs"].contains(&name.as_str()) { continue; }
+            for (n, l) in std::fs::read_to_string(&p).unwrap().lines().enumerate() {
+                if l.contains("width_factor") && !l.trim_start().starts_with("//") { bad.push(format!("{name}:{}", n + 1)); }
+            }
+        }
+    }
+    let mut bad = Vec::new();
+    walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut bad);
+    assert!(bad.is_empty(), "a dialog must not change its width with the language: {bad:?}");
 }

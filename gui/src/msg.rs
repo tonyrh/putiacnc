@@ -76,8 +76,8 @@ mod tests {
                 let p = e.path();
                 if p.is_dir() { walk(&p, bad); continue; }
                 let name = p.file_name().unwrap().to_string_lossy().into_owned();
-                // `say` itself, the preview that puts the banner back as it was, and the model tool's own field are the exceptions
-                if !name.ends_with(".rs") || ["msg.rs", "edit.rs", "preview.rs", "model3d.rs"].contains(&name.as_str()) { continue; }
+                // `say` itself, the preview that puts the banner back as it was, and the model and picture tools' own fields are the exceptions
+                if !name.ends_with(".rs") || ["msg.rs", "edit.rs", "preview.rs", "model3d.rs", "picrelief.rs"].contains(&name.as_str()) { continue; }
                 for (n, l) in std::fs::read_to_string(&p).unwrap().lines().enumerate() {
                     if l.contains("app.error = Some(") || l.contains("self.error = Some(") || l.contains("a.error = Some(") { bad.push(format!("{name}:{}", n + 1)); }
                 }

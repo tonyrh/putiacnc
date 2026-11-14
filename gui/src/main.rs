@@ -37,6 +37,7 @@ mod text;
 mod shortcuts;
 mod theme;
 mod model3d;
+mod picrelief;
 mod trace;
 mod imagechoice;
 mod prefwin;
@@ -127,6 +128,10 @@ fn main() -> eframe::Result<()> {
             app.setup.step = std::env::var("PUTIACNC_SETUP_STEP").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
         }
         else if first_run && std::env::var_os("PUTIACNC_SKIP_SETUP").is_none() { app.setup.start(true); }
+        // PUTIACNC_SHOW_PICRELIEF=picture: the dialog that carves a picture as a relief
+        if let Ok(p) = std::env::var("PUTIACNC_SHOW_PICRELIEF") { app.import_picture_relief(&p); }
+        // PUTIACNC_NO_PATHS: the 3D preview without the toolpath lines (the sample projects do the same with PUTIACNC_SHOW_SAMPLE)
+        if std::env::var_os("PUTIACNC_NO_PATHS").is_some() { app.show_toolpath = false; }
         // PUTIACNC_SHOW_TOUR=n: the quick tour at step n
         if let Ok(v) = std::env::var("PUTIACNC_SHOW_TOUR") { app.tour.start(); app.tour.step = v.parse().unwrap_or(0); }
         // PUTIACNC_SHOW_SAMPLE: the sample project
@@ -308,6 +313,7 @@ impl App {
         prefwin::dialog(ctx, self);
         canvas::scale_dialog(ctx, self);
         model3d::dialog(ctx, self);
+        picrelief::dialog(ctx, self);
         csd::tab_skip(ctx);
         if self.machines_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_machines(); }
         if self.libs_dirty && !ctx.input(|i| i.pointer.any_down()) { self.save_tool_libs(); }

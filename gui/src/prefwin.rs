@@ -79,7 +79,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     ui.spacing_mut().item_spacing.x = 10.0;
                     crate::toolmgr::rlabel(ui, lw, name);
                     let path_w = (ui.available_width() - btn_w - 28.0 - 2.0 * 10.0).max(60.0);
-                    let shown = dir.as_deref().map(|d| crate::widgets::elide_text(ui, d, path_w)).unwrap_or_else(|| tr("Not set yet").to_string());
+                    let shown = dir.as_deref().map(|d| crate::widgets::elide_text(ui, &crate::about::home_short(d), path_w)).unwrap_or_else(|| tr("Not set yet").to_string());
                     ui.allocate_ui_with_layout(egui::vec2(path_w, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.set_width(path_w); ui.add(egui::Label::new(egui::RichText::new(shown).weak()).truncate(true)).on_hover_text(dir.clone().unwrap_or_default()); });
                     if ui.add_sized([btn_w, ui.spacing().interact_size.y], egui::Button::new(tr("Choose…"))).clicked() {
                         let start = crate::prefs::existing_dir(&dir);
