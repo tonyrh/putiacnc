@@ -20,7 +20,7 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
     // labels are long (Italian), so the card never pushes the panel wider
     let sp = 6.0_f32;
     let uw = tw(ui, crate::widgets::len_unit(ui)).max(10.0);
-    let room = crate::LEFT_W as f32 - 34.0;
+    let room = crate::LEFT_W - 34.0;
     let fw = ((room - 2.0 * (lw + uw) - 5.0 * sp) / 2.0).clamp(30.0, 62.0);
     let unit = crate::widgets::len_unit(ui);
     // room left over when the labels are short (English): it goes between the two pairs so the second pair sits where it does in Italian
@@ -198,7 +198,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
             ui.horizontal(|ui| {
                 ui.label(tr("Opacity"));
                 let mut pct = (bd.opacity * 100.0).round();
-                ui.spacing_mut().slider_width = (ui.available_width() - 150.0).max(60.0);
+                ui.spacing_mut().slider_width = (ui.available_width() - tw(ui, tr("Opacity")) - 2.0 * ui.spacing().item_spacing.x - 6.0).max(60.0);
                 if ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).suffix(" %")).tip(tr("How strongly the picture shows")).changed() { bd.opacity = pct / 100.0; *changed = true; }
             });
         });
