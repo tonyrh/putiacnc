@@ -153,6 +153,7 @@ fn dialogs() -> Vec<(&'static str, Setup)> {
     fn all_sel(a: &mut App) { a.sel = (0..a.project.data.loops.len()).collect(); }
     vec![
         ("about", |a| a.about_open = true),
+        ("preferences", |a| a.prefs_open = true),
         ("array", |a| { all_sel(a); a.array.open = true; }),
         ("array circle", |a| { all_sel(a); a.array.open = true; a.array.circular = true; }),
         ("box", |a| a.boxgen.open = true),

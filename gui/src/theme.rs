@@ -29,9 +29,13 @@ fn parse_font(s: &str) -> (String, f32) {
     (parts.join(" "), size.unwrap_or(11.0))
 }
 
-pub fn detect() -> Theme {
-    // PUTIACNC_THEME=light|dark overrides the desktop setting (handy for testing)
-    let forced = std::env::var("PUTIACNC_THEME").ok();
+/// The theme the desktop asks for.
+pub fn detect() -> Theme { detect_mode("system") }
+
+/// The theme for the Preferences choice: "light" or "dark" as chosen, anything else ("system") follows the desktop. The accent and
+/// the font size always come from the desktop. PUTIACNC_THEME=light|dark overrides everything (handy for testing).
+pub fn detect_mode(mode: &str) -> Theme {
+    let forced = std::env::var("PUTIACNC_THEME").ok().or_else(|| match mode { "light" | "dark" => Some(mode.to_string()), _ => None });
     let dark = match forced.as_deref().or(gsetting("color-scheme").as_deref()) {
         Some(s) if s.contains("dark") => true,
         Some(s) if s.contains("light") || s == "default" => false,

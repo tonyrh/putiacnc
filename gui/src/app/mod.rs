@@ -297,6 +297,10 @@ pub struct App {
     pub want_quit: bool,
     pub theme: crate::theme::Theme,
     pub theme_checked: std::time::Instant,
+    /// The Preferences choice of theme: "system", "light" or "dark".
+    pub theme_mode: String,
+    /// The Preferences window is open.
+    pub prefs_open: bool,
     // tool manager
     pub tool_libs: putiacnc_core::toollib::ToolLibs,
     pub tools_open: bool,
@@ -344,7 +348,7 @@ impl App {
             grid_on: true, snap_on: true, snap_mm: 1.0, osnap_on: true, snap_tol_mm: 0.5, snap_skip: Vec::new(), trim_extend: false, align_open: false, palette_extra: 0.0, fit_extra: 0.0, view_touched: false, canvas_right: 0.0, canvas_left: 0.0, ghost: Default::default(), preview_on: true, bars_bottom: 0.0, align_btn: None, ctx_menu: None, circle_mode: false, circle_diam: false, dyn_in: None, snap_hit: std::cell::Cell::new(None), rect_radius: 0.0, relief_tex: None, pic: Default::default(), backdrop_tex: None, place_origin: None, bd_scale: None, poly_sides: 6.0, poly_star: false, point_ring: false, point_grid: false, grid_cols: 4.0, grid_rows: 3.0, point_count: 6.0, point_sweep: 360.0, poly_inner: 50.0,
             scale: 2.0, offset: Vec2::ZERO, fit_pending: true, fit3d_pending: false, split_rect: None, drag: Drag::None, rotate_mode: false, rot_pivot: None, rot_sel: Default::default(), poly: vec![], measure: vec![], last_title: String::new(),
             show_left: true, show_right: true, squeezed: (false, false), last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
-            theme: crate::theme::detect(), theme_checked: std::time::Instant::now(),
+            theme: crate::theme::detect(), theme_checked: std::time::Instant::now(), theme_mode: "system".into(), prefs_open: false,
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
             disp_in: false, frac_in: false, grid_units_in: None, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
@@ -395,6 +399,7 @@ impl App {
         if std::env::var_os("PUTIACNC_ROTATE").is_some() { a.rotate_mode = true; a.rot_sel = a.sel.clone(); }
         if std::env::var_os("PUTIACNC_SHOW_SHORTCUTS").is_some() { a.shortcuts_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ABOUT").is_some() { a.about_open = true; }
+        if std::env::var_os("PUTIACNC_SHOW_PREFS").is_some() { a.prefs_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ARRAY").is_some() { a.array.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }
         if let Ok(v) = std::env::var("PUTIACNC_ARRAY_PATH") { if let Ok(i) = v.parse() { a.array.along = true; a.array.path = Some(i); a.sel = [0].into_iter().collect(); } }
         if std::env::var_os("PUTIACNC_SHOW_CORNERS").is_some() { a.corners.open = true; a.sel = (0..a.project.data.loops.len()).collect(); }

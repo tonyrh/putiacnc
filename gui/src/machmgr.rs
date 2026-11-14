@@ -75,7 +75,7 @@ impl App {
 
     /// The machine's G-code units become the current choice (the G-code tab can still change it for the session).
     fn apply_machine_units(&mut self) {
-        // the machine's units are the units of everything: the G-code, and the lengths and speeds the app shows (View > Units can still
+        // the machine's units are the units of everything: the G-code, and the lengths and speeds the app shows (File > Preferences > Units can still
         // change the display afterwards)
         if let Some(i) = self.project.data.machine.as_ref().and_then(|m| m.inches) { self.imperial = i; self.disp_in = i; }
         // test hook: the display units win (see `PUTIACNC_UNITS`)

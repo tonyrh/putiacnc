@@ -39,6 +39,7 @@ mod theme;
 mod model3d;
 mod trace;
 mod imagechoice;
+mod prefwin;
 mod toolmgr;
 mod toolpick;
 mod update;
@@ -212,7 +213,7 @@ impl App {
         // follow GNOME's dark/light, accent and font-size settings while running
         if self.theme_checked.elapsed().as_secs() >= 3 {
             self.theme_checked = std::time::Instant::now();
-            let t = theme::detect();
+            let t = theme::detect_mode(&self.theme_mode);
             if t != self.theme { self.theme = t; theme::apply_style(ctx, &t); }
         }
         // slow idle wake-ups (theme check); even slower while the window is in the background
@@ -304,6 +305,7 @@ impl App {
         text::dialog(ctx, self);
         trace::dialog(ctx, self);
         imagechoice::dialog(ctx, self);
+        prefwin::dialog(ctx, self);
         canvas::scale_dialog(ctx, self);
         model3d::dialog(ctx, self);
         csd::tab_skip(ctx);
