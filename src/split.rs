@@ -51,7 +51,7 @@ pub fn groups(data: &ProjectData, mode: Split) -> Vec<Vec<usize>> {
     let (main, _) = pieces::split(data);
     let active: Vec<usize> = (0..main.ops.len()).filter(|&k| {
         let o = &main.ops[k];
-        !pieces::is_piece_op(o) && (if o.p.kind == "relief" { main.relief.is_some() } else { main.loops.iter().any(|l| l.op == o.id) })
+        !pieces::is_piece_op(o) && (if matches!(o.p.kind.as_str(), "relief" | "photo") { main.relief.is_some() } else { main.loops.iter().any(|l| l.op == o.id) })
     }).collect();
     match mode {
         Split::One => if active.is_empty() { vec![] } else { vec![active] },

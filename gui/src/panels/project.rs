@@ -276,18 +276,19 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let has_sel = sel.iter().any(|&k| k < d.loops.len());
         let all_folded = d.ops.iter().all(|o| collapsed.contains(&o.id));
         let has_model = d.relief.is_some();
-        // the seven buttons: Profile, Pocket, V-carve, Drill, then Inlay, Draw, 3D relief
-        let labels = [tr("Profile"), tr("Pocket"), tr("V-carve"), tr("Drill"), tr("Inlay"), tr("Draw"), tr("3D relief")];
+        // the eight buttons: Profile, Pocket, V-carve, Drill, then Inlay, Draw, 3D relief, Photo
+        let labels = [tr("Profile"), tr("Pocket"), tr("V-carve"), tr("Drill"), tr("Inlay"), tr("Draw"), tr("3D relief"), tr("Photo")];
         let mut button = |ui: &mut Ui, i: usize| {
-            let (icon, kind, enabled) = [(Icon::Profile, "outside", has_sel), (Icon::Pocket, "pocket", has_sel), (Icon::VCarve, "vcarve", has_sel), (Icon::Drill, "drill", has_sel), (Icon::Inlay, "inlay", has_sel), (Icon::Pen, "draw", has_sel), (Icon::Relief, "relief", has_model)][i];
+            let (icon, kind, enabled) = [(Icon::Profile, "outside", has_sel), (Icon::Pocket, "pocket", has_sel), (Icon::VCarve, "vcarve", has_sel), (Icon::Drill, "drill", has_sel), (Icon::Inlay, "inlay", has_sel), (Icon::Pen, "draw", has_sel), (Icon::Relief, "relief", has_model), (Icon::VCarve, "photo", has_model)][i];
             let tip = match i {
                 4 => tr("Add an inlay: a pocket operation and a matching plug operation (a mirrored copy of the selection beside it)").to_string(),
                 5 => tr("Add a Draw operation: a pen follows the outlines of the selected shapes (for a plotter: choose a pen tool)").to_string(),
                 6 => tr("Carve the imported 3D model: roughing, then a finishing pass that follows the surface").to_string(),
+                7 => tr("Photo V-carve: etch the imported picture with a V-bit, deeper where it is darker").to_string(),
                 _ => tr_f("Add a {label} operation for the selected shapes", &[("label", &labels[i])]),
             };
             let r = ui.add_enabled_ui(enabled, |ui| icon_text_button(ui, icon, labels[i], &tip, None)).inner;
-            if !enabled { r.on_disabled_hover_text(if i == 6 { tr("Import a 3D model first (File > Import 3D model)") } else { tr("Select the shapes first") }); } else if r.clicked() { add_kind = Some(kind); }
+            if !enabled { r.on_disabled_hover_text(if i == 6 { tr("Import a 3D model first (File > Import 3D model)") } else if i == 7 { tr("Import a picture first (File > Import picture)") } else { tr("Select the shapes first") }); } else if r.clicked() { add_kind = Some(kind); }
         };
         let mut fold = |ui: &mut Ui| {
             let (icon, tip) = if all_folded { (Icon::Unfold, tr("Expand all operations")) } else { (Icon::Fold, tr("Collapse all operations")) };
@@ -295,7 +296,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 if all_folded { collapsed.clear(); } else { *collapsed = d.ops.iter().map(|o| o.id).collect(); }
             }
         };
-        // two groups, each on its own line (the plain operations with the collapse button at the right edge; then Inlay, Draw, 3D relief), but a group
+        // two groups, each on its own line (the plain operations with the collapse button at the right edge; then Inlay, Draw, 3D relief, Photo), but a group
         // whose buttons are wider than the panel (a language with longer words) is split over as many lines as it needs: a button that does not fit
         // would push the whole panel wider
         let (pad, sp) = (ui.spacing().button_padding.x, ui.spacing().item_spacing.x);
@@ -303,8 +304,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
         let avail = ui.available_width();
         let fold_w = if d.ops.is_empty() { 0.0 } else { 22.0 };
         let group_fits = |r: std::ops::Range<usize>, reserve: f32| widths[r].iter().map(|w| w + sp).sum::<f32>() + reserve <= avail + 6.0;
-        // the usual two lines; when either does not fit, all seven buttons are packed line by line instead (full lines first, the last one partly filled)
-        let groups: Vec<(std::ops::Range<usize>, bool)> = if group_fits(0..4, fold_w) && group_fits(4..7, 0.0) { vec![(0..4, true), (4..7, false)] } else { vec![(0..7, true)] };
+        // the usual two lines; when either does not fit, all eight buttons are packed line by line instead (full lines first, the last one partly filled)
+        let groups: Vec<(std::ops::Range<usize>, bool)> = if group_fits(0..4, fold_w) && group_fits(4..8, 0.0) { vec![(0..4, true), (4..8, false)] } else { vec![(0..8, true)] };
         for (group, with_fold) in groups {
             let reserve = if with_fold { fold_w } else { 0.0 };
             let mut lines: Vec<Vec<usize>> = vec![vec![]];
@@ -405,7 +406,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             // shapes on a hidden layer are still cut: the subtitle says how many of them are hidden
             let nh = putiacnc_core::model::ProjectData::object_count(d.loops.iter().filter(|l| l.op == o.id && d.shape_hidden(l)));
             let hid = if nh == 0 { String::new() } else if nh == n { tr(", hidden").to_string() } else { tr_f(", {n} hidden", &[("n", &nh)]) };
-            let sub = if o.p.kind == "relief" { tool.clone() } else { tr_f("{tool} · {shapes}{hidden}", &[("tool", &tool), ("shapes", &tr_n(n as u64, "{n} shape", "{n} shapes")), ("hidden", &hid)]) };
+            let sub = if matches!(o.p.kind.as_str(), "relief" | "photo") { tool.clone() } else { tr_f("{tool} · {shapes}{hidden}", &[("tool", &tool), ("shapes", &tr_n(n as u64, "{n} shape", "{n} shapes")), ("hidden", &hid)]) };
             let id = o.id;
             let o_kind = o.p.kind.clone();
             let n_ops = d.ops.len();
@@ -500,7 +501,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 ui.set_width(lw - 15.0);
                 let p = &mut o.p;
                 // an operation without shapes keeps its settings; the selected shapes can be put into it (a relief works on the model)
-                if p.kind != "relief" {
+                if !matches!(p.kind.as_str(), "relief" | "photo") {
                     let mine = loops.iter().filter(|l| l.op == id).count();
                     let to_move = sel.iter().filter(|&&k| loops.get(k).is_some_and(|l| l.op != id)).count();
                     if mine == 0 {
@@ -525,14 +526,14 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                 egui::Grid::new(("op_grid", id)).num_columns(4).spacing([sp - 2.0, 10.0]).show(ui, |ui| {
                     rlabel(ui, l1, tr("Type"));
                     let profile = PROFILES.iter().any(|(k, _)| *k == p.kind);
-                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", tr("V-carve")), "drill" => ("drill", tr("Drill")), "inlay" => ("inlay", tr("Inlay pocket")), "plug" => ("plug", tr("Inlay plug")), "relief" => ("relief", tr("3D relief")), "draw" => ("draw", tr("Draw (pen)")), _ => ("pocket", tr("Pocket")) }];
+                    let single: [(&str, &str); 1] = [match p.kind.as_str() { "vcarve" => ("vcarve", tr("V-carve")), "drill" => ("drill", tr("Drill")), "inlay" => ("inlay", tr("Inlay pocket")), "plug" => ("plug", tr("Inlay plug")), "photo" => ("photo", tr("Photo V-carve")), "relief" => ("relief", tr("3D relief")), "draw" => ("draw", tr("Draw (pen)")), _ => ("pocket", tr("Pocket")) }];
                     // when the name of the type does not fit beside the Cut box (a language with longer words), Cut goes on a line of its own
                     let type_w = tw_of(ui, &label_of(if profile { PROFILES } else { &single }, &p.kind)) + 46.0;
                     let split = lc + 10.0 < type_w;
                     let kind_w = if split { type_w.min(grid_w - l1 - 24.0) } else { lc + 10.0 };
                     changed |= combo_w(ui, kind_w, &format!("kind{id}"), &mut p.kind, if profile { PROFILES } else { &single }, "", if profile { tr("Profile: cut outside, inside or on the line") } else { tr("Operation type") });
                     if split { ui.end_row(); rlabel(ui, l1, tr("Cut")); } else { rlabel(ui, l3, tr("Cut")); }
-                    ui.add_enabled_ui(p.kind != "drill" && p.kind != "relief" && p.kind != "draw", |ui| {
+                    ui.add_enabled_ui(p.kind != "drill" && p.kind != "relief" && p.kind != "photo" && p.kind != "draw", |ui| {
                         let (c, _) = combo_w2(ui, cw + 2.0, &format!("dir{id}"), &mut p.dir, DIRS, "", tr("Cut direction: climb or conventional"));
                         changed |= c;
                     });
@@ -540,7 +541,50 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.end_row();
                 });
                 ui.add_space(4.0);
-                if p.kind == "relief" {
+                if p.kind == "photo" {
+                    ui.add_space(4.0);
+                    // the picture is etched with a V-bit along parallel lines, deeper where it is darker
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        let tool_w = (ui.available_width() - l1 - 2.0 * sp - 8.0).max(100.0);
+                        rlabel(ui, l1, tr("Tool"));
+                        let cur = tools.iter().find(|t| t.id == p.tool).map(|t| clean(&t.name)).unwrap_or_else(|| tr("none").into());
+                        let cur = elide(ui, &cur, tool_w - 30.0);
+                        let (r, pk) = crate::toolpick::picker(ui, ("optool", id), tool_w, cur, Some(p.tool.as_str()), &job_tools, &tools, |t| matches!(t.shape.as_str(), "vbit" | "engrave" | "taper"));
+                        r.tip(tr("A V-bit or an engraving bit: the narrower its angle, the finer the lines"));
+                        match pk { Some(crate::toolpick::Picked::Tool(t)) => { p.tool = t; changed = true; } Some(crate::toolpick::Picked::Manage) => open_tools = true, None => {} }
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        rlabel(ui, l1, tr("Depth"));
+                        if dl_w(ui, 48.0, &mut p.depth, 0.05, 50.0, "") { changed = true; }
+                        ui.weak(crate::widgets::len_unit(ui));
+                        ui.weak(tr("for black"));
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        rlabel(ui, l1, tr("Spacing"));
+                        let mut v = p.f_so.unwrap_or(100.0);
+                        if dv_w(ui, 48.0, &mut v, 20.0, 400.0, "") { p.f_so = if (v - 100.0).abs() < 1e-9 { None } else { Some(v) }; changed = true; }
+                        ui.weak("%");
+                        ui.weak(tr("of the groove width"));
+                        if p.f_so.is_some() && reset_button(ui, tr("Lines as far apart as the grooves are wide at full depth")) { p.f_so = None; changed = true; }
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = sp;
+                        rlabel(ui, l1, tr("Lines"));
+                        let cur = p.f_dir.clone().unwrap_or_else(|| "x".into());
+                        let name = |d: &str| match d { "y" => tr("Along Y"), "xy" => tr("Along X, then Y"), _ => tr("Along X") };
+                        egui::ComboBox::from_id_source(("pdir", id)).width(150.0).selected_text(name(&cur)).show_ui(ui, |ui| {
+                            for d in ["x", "y", "xy"] {
+                                if ui.selectable_label(cur == d, name(d)).clicked() && cur != d { p.f_dir = if d == "x" { None } else { Some(d.into()) }; changed = true; }
+                            }
+                        }).response.on_hover_text(tr("The direction of the lines. Both directions (twice the time) give a denser, darker picture"));
+                    });
+                } else if p.kind == "relief" {
                     ui.add_space(4.0);
                     // total depth, shared by both steps
                     ui.horizontal(|ui| {

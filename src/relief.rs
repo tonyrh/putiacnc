@@ -378,7 +378,7 @@ impl Field {
 }
 
 /// Simplify a profile (x, z) so that no point is further than `tol` (in z) from the straight line.
-fn simplify(pts: &[(f64, f32)], tol: f32) -> Vec<usize> {
+pub(crate) fn simplify(pts: &[(f64, f32)], tol: f32) -> Vec<usize> {
     let n = pts.len();
     if n < 3 { return (0..n).collect(); }
     let mut keep = vec![false; n];

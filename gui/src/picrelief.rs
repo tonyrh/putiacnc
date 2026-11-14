@@ -23,6 +23,8 @@ pub struct PicRelief {
     dirty: bool,
     /// Pending message for the main window (a file that could not be read).
     pub error: Option<String>,
+    /// The picture is for a Photo V-carve: no height is asked and a photo operation is added with the picture.
+    pub photo: bool,
 }
 
 impl PicRelief {
@@ -34,6 +36,7 @@ impl PicRelief {
         self.aspect = probe.ny as f64 / probe.nx as f64;
         self.name = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "picture".into());
         self.bytes = bytes;
+        self.photo = false;
         if !self.used { self.p = PicParams::default(); }
         // as large as the stock allows with 5 mm all round, so the finishing cutter, which runs past the edge of the relief, stays on the stock
         self.p.width_mm = (((stock.0 - 10.0).min((stock.1 - 10.0) / self.aspect).max(1.0)) * 10.0).floor() / 10.0;
@@ -42,6 +45,11 @@ impl PicRelief {
         self.err = None;
         self.dirty = true;
         self.open = true;
+    }
+    /// Photo mode: a light smoothing is enough, the height means nothing (the depth is the operation's).
+    pub fn set_photo(&mut self, on: bool) {
+        self.photo = on;
+        if on { self.p.smooth_mm = 0.15; self.p.zmax = 1.0; self.dirty = true; }
     }
     fn close(&mut self) { self.open = false; self.bytes = Vec::new(); self.tex = None; }
 }
@@ -69,11 +77,11 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             }
         }
     }
-    egui::Window::new("Carve picture as relief").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
+    egui::Window::new(if app.picrelief.photo { "V-carve picture as photo" } else { "Carve picture as relief" }).frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(false)
         .current_pos(crate::csd::spot(ctx, "Carve picture as relief", egui::pos2(560.0, 150.0))).show(ctx, crate::csd::trapped(|ui| {
         let dw = crate::csd::dialog_w(380.0);
         ui.set_width(dw);
-        if crate::csd::dialog_header_help(ui, tr("Carve picture as relief"), true, |ui| { ui.label(tr("Light parts of the picture are high and dark parts are low. The picture below is the height map that will be carved.")); }) { cancel = true; }
+        if crate::csd::dialog_header_help(ui, if app.picrelief.photo { tr("V-carve picture as photo") } else { tr("Carve picture as relief") }, true, |ui| { ui.label(tr("Light parts of the picture are high and dark parts are low. The picture below is the height map that will be carved.")); }) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.picrelief;
         // the dialog is wider in a language with longer words: the picture and the slider take the width there is
@@ -99,12 +107,14 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.weak(crate::widgets::localize(ui, &tr_f("× {h} mm", &[("h", &format!("{:.1}", t.p.width_mm * aspect))])));
             });
             ui.end_row();
-            crate::toolmgr::rlabel(ui, lw, tr("Height"));
-            ui.horizontal(|ui| {
-                if crate::widgets::len(ui, [66.0, 24.0], &mut t.p.zmax, 0.1, 100.0, 0.1, 2, "").tip(tr("The depth of the carving, from the top of the relief to its lowest place")).changed() { changed = true; }
-                ui.weak(crate::widgets::len_unit(ui));
-            });
-            ui.end_row();
+            if !t.photo {
+                crate::toolmgr::rlabel(ui, lw, tr("Height"));
+                ui.horizontal(|ui| {
+                    if crate::widgets::len(ui, [66.0, 24.0], &mut t.p.zmax, 0.1, 100.0, 0.1, 2, "").tip(tr("The depth of the carving, from the top of the relief to its lowest place")).changed() { changed = true; }
+                    ui.weak(crate::widgets::len_unit(ui));
+                });
+                ui.end_row();
+            }
             crate::toolmgr::rlabel(ui, lw, tr("Midtones"));
             ui.spacing_mut().slider_width = (cw - lw - 10.0 - 64.0 - 8.0).max(80.0);
             if ui.add(egui::Slider::new(&mut t.p.gamma, 0.3..=3.0).logarithmic(true)).tip(tr("Below 1 lifts the shadows, above 1 deepens them")).changed() { changed = true; }
@@ -127,6 +137,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         if changed { t.dirty = true; }
         ui.add_space(4.0);
         if let Some(e) = &t.err { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
+        else if t.photo { ui.weak(crate::widgets::localize(ui, &tr_f("{w} × {h} mm.", &[("w", &format!("{:.1}", t.p.width_mm)), ("h", &format!("{:.1}", t.p.width_mm * t.aspect))]))); }
         else { ui.weak(crate::widgets::localize(ui, &tr_f("{w} × {h} mm, {z} mm high.", &[("w", &format!("{:.1}", t.p.width_mm)), ("h", &format!("{:.1}", t.p.width_mm * t.aspect)), ("z", &format!("{:.1}", t.p.zmax))]))); }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
@@ -137,11 +148,20 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     }));
     if place {
         let t = &mut app.picrelief;
+        let photo = t.photo;
         let rel = Relief::from_picture(&t.bytes, &t.name, &t.p, 600);
-        t.used = true;
+        t.used = !photo;
         t.close();
         match rel {
-            Ok(r) => app.place_relief(r),
+            Ok(r) => {
+                app.place_relief(r);
+                if photo {
+                    let sel = Default::default();
+                    app.hist.record(&app.project.data);
+                    putiacnc_core::shapes::add_operation(&mut app.project.data, &sel, "photo");
+                    app.touch();
+                }
+            }
             Err(e) => app.say(crate::app::Level::Error, tr_f("Could not import the picture: {e}", &[("e", &e)])),
         }
     }

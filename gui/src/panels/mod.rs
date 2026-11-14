@@ -20,7 +20,7 @@ use self::stock::*;
 /// The default font has no ″ glyph; show a plain quote instead.
 pub(super) fn clean(s: &str) -> String { s.replace('″', "\"") }
 
-pub const KINDS: &[(&str, &str)] = &[("outside", n_("Profile outside")), ("inside", n_("Profile inside")), ("online", n_("On line")), ("pocket", n_("Pocket")), ("vcarve", n_("V-carve")), ("drill", n_("Drill")), ("inlay", n_("Inlay pocket")), ("plug", n_("Inlay plug")), ("relief", n_("3D relief")), ("draw", n_("Draw (pen)"))];
+pub const KINDS: &[(&str, &str)] = &[("outside", n_("Profile outside")), ("inside", n_("Profile inside")), ("online", n_("On line")), ("pocket", n_("Pocket")), ("vcarve", n_("V-carve")), ("drill", n_("Drill")), ("inlay", n_("Inlay pocket")), ("plug", n_("Inlay plug")), ("relief", n_("3D relief")), ("photo", n_("Photo V-carve")), ("draw", n_("Draw (pen)"))];
 pub(super) const PROFILES: &[(&str, &str)] = &[("outside", n_("Outside")), ("inside", n_("Inside")), ("online", n_("On"))];
 pub(super) const DIRS: &[(&str, &str)] = &[("climb", n_("Climb")), ("conv", n_("Conventional"))];
 pub(super) const ZEROS: &[(&str, &str)] = &[("ll", n_("Lower-left")), ("lr", n_("Lower-right")), ("ul", n_("Upper-left")), ("ur", n_("Upper-right")), ("c", n_("Center"))];

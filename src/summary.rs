@@ -39,7 +39,7 @@ pub fn duration(min: f64) -> String {
 /// Whether the operation writes anything: it has shapes, or it is a relief. An operation with no shapes is skipped by the generator (as it is
 /// in a file of a split program, where the other operations keep their place in the list but have no shapes), so the summary leaves it out.
 fn runs(data: &ProjectData, o: &crate::model::Operation) -> bool {
-    if o.p.kind == "relief" { data.relief.is_some() } else { data.loops.iter().any(|l| l.op == o.id) }
+    if matches!(o.p.kind.as_str(), "relief" | "photo") { data.relief.is_some() } else { data.loops.iter().any(|l| l.op == o.id) }
 }
 
 pub fn describe(data: &ProjectData, out: &Output, units: Units, piece: bool) -> Vec<Row> {

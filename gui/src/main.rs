@@ -128,8 +128,9 @@ fn main() -> eframe::Result<()> {
             app.setup.step = std::env::var("PUTIACNC_SETUP_STEP").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
         }
         else if first_run && std::env::var_os("PUTIACNC_SKIP_SETUP").is_none() { app.setup.start(true); }
-        // PUTIACNC_SHOW_PICRELIEF=picture: the dialog that carves a picture as a relief
-        if let Ok(p) = std::env::var("PUTIACNC_SHOW_PICRELIEF") { app.import_picture_relief(&p); }
+        // PUTIACNC_SHOW_PHOTO=picture: the same dialog for a Photo V-carve; PUTIACNC_SHOW_PICCHOICE=picture: the question asked on import
+        if let Ok(p) = std::env::var("PUTIACNC_SHOW_PHOTO") { app.import_picture_photo(&p); }
+        if let Ok(p) = std::env::var("PUTIACNC_SHOW_PICCHOICE") { app.pic.load(&p); }
         // PUTIACNC_NO_PATHS: the 3D preview without the toolpath lines (the sample projects do the same with PUTIACNC_SHOW_SAMPLE)
         if std::env::var_os("PUTIACNC_NO_PATHS").is_some() { app.show_toolpath = false; }
         // PUTIACNC_SHOW_TOUR=n: the quick tour at step n
@@ -394,7 +395,7 @@ mod layout_tests {
     use putiacnc_core::backdrop::Backdrop;
     use putiacnc_core::model::{Clamp, Operation};
 
-    const KINDS: [&str; 9] = ["outside", "inside", "online", "pocket", "drill", "vcarve", "relief", "inlay", "draw"];
+    const KINDS: [&str; 10] = ["outside", "inside", "online", "pocket", "drill", "vcarve", "relief", "photo", "inlay", "draw"];
 
     /// Runs a few frames (layouts settle over two) and returns the panel and content widths of the last one.
     fn widths(ctx: &egui::Context, app: &mut App) -> [f32; 4] {
