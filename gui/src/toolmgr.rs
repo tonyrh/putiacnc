@@ -492,7 +492,7 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 if t.shape == "arc" {
                     rlabel(ui, lw, tr("Arc radius"));
                     let mut r = t.arc / k;
-                    if crate::widgets::num(ui, [72.0, 22.0], &mut r, if t.concave { t.dia / 2.0 / k } else { 0.1 / k }, 100.0 / k, 0.1 / k, 3, uname).changed() { t.arc = (r * k).max(if t.concave { t.dia / 2.0 } else { 0.1 }); changed = true; }
+                    if ui.horizontal(|ui| { let c = crate::widgets::num(ui, [60.0, 22.0], &mut r, if t.concave { t.dia / 2.0 / k } else { 0.1 / k }, 100.0 / k, 0.1 / k, 3, "").changed(); ui.weak(uname); c }).inner { t.arc = (r * k).max(if t.concave { t.dia / 2.0 } else { 0.1 }); changed = true; }
                     side!(false);
                     rlabel(ui, lw, tr("Edge"));
                     let (c, _) = crate::zoomcard::seg2(ui, [tr("Convex"), tr("Concave")], ["", ""], t.concave as usize);
@@ -501,11 +501,11 @@ fn tool_form(ui: &mut Ui, app: &mut App) {
                 }
                 if has_angle(&t.shape) {
                     rlabel(ui, lw, tr("Angle"));
-                    changed |= crate::widgets::num(ui, [60.0, 22.0], &mut t.angle, 10.0, 150.0, 0.5, 3, "°").changed();
+                    changed |= ui.horizontal(|ui| { let c = crate::widgets::num(ui, [52.0, 22.0], &mut t.angle, 10.0, 150.0, 0.5, 3, "").changed(); ui.weak("°"); c }).inner;
                     side!(false);
                     rlabel(ui, lw, tr("Tip radius"));
                     let mut r = t.tip / k;
-                    if crate::widgets::num(ui, [72.0, 22.0], &mut r, 0.0, 50.0 / k, 0.05 / k, 3, uname).changed() { t.tip = (r * k).max(0.0); changed = true; }
+                    if ui.horizontal(|ui| { let c = crate::widgets::num(ui, [60.0, 22.0], &mut r, 0.0, 50.0 / k, 0.05 / k, 3, "").changed(); ui.weak(uname); c }).inner { t.tip = (r * k).max(0.0); changed = true; }
                     side!(false);
                 }
                 if pen {

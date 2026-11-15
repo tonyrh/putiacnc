@@ -57,8 +57,8 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
                     if d.stock.zm != "top" {
                         rlabel(ui, lz, "Z0");
                         ui.horizontal(|ui| {
-                            *changed |= dv_w(ui, fw, &mut d.stock.zh, 0.0, 1000.0, "");
-                            ui.weak("mm");
+                            *changed |= dl_w(ui, fw, &mut d.stock.zh, 0.0, 1000.0, "");
+                            ui.weak(crate::widgets::len_unit(ui));
                         });
                         ui.end_row();
                     }
@@ -115,9 +115,11 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             if d.clamps.is_empty() { ui.add(egui::Label::new(egui::RichText::new(tr("None. Add one for each clamp or screw on the table.")).weak()).wrap(true)); }
             let n_clamps = d.clamps.len();
             let (lc1, lc2) = (tw(ui, tr("Width")).max(tw(ui, tr("Rise"))).max(tw(ui, "X")), tw(ui, tr("Length")).max(tw(ui, "Y")));
-            let (sp, uw, h) = (8.0_f32, tw(ui, "mm"), ui.spacing().interact_size.y);
+            let (sp, uw, h) = (8.0_f32, tw(ui, crate::widgets::len_unit(ui)), ui.spacing().interact_size.y);
             let fw = ((stock_w - 34.0 - lc1 - lc2 - 2.0 * uw - 5.0 * sp) / 2.0).clamp(30.0, 62.0);
             // which clamps are folded away (a view setting: kept for the session, not in the project)
+            let (inch, frac) = (crate::widgets::inches(ui), crate::widgets::fractions(ui));
+            let lnum = |mm: f64| if inch { crate::widgets::fmt_inch(mm / 25.4, 3, frac) } else { fnum(mm) };
             let fold_key = egui::Id::new("clamp_folded");
             let mut folded: Vec<bool> = ui.data(|x| x.get_temp(fold_key)).unwrap_or_default();
             folded.resize(n_clamps, false);
@@ -125,7 +127,7 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
                 ui.horizontal(|ui| {
                     if small_icon_button(ui, if folded[i] { Icon::ChevR } else { Icon::ChevD }, true, if folded[i] { tr("Show this clamp's settings") } else { tr("Hide this clamp's settings") }).clicked() { folded[i] = !folded[i]; }
                     ui.label(egui::RichText::new(tr_f("Clamp {n}", &[("n", &(i + 1))])).strong());
-                    if folded[i] { ui.weak(tr_f("X {x} · Y {y} · {w} × {h} · rise {rise}", &[("x", &fnum(c.x)), ("y", &fnum(c.y)), ("w", &fnum(c.w)), ("h", &fnum(c.h)), ("rise", &fnum(c.height))])); }
+                    if folded[i] { ui.weak(tr_f("X {x} · Y {y} · {w} × {h} · rise {rise}", &[("x", &lnum(c.x)), ("y", &lnum(c.y)), ("w", &lnum(c.w)), ("h", &lnum(c.h)), ("rise", &lnum(c.height))])); }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if small_icon_button(ui, Icon::Trash, true, tr("Remove this clamp")).clicked() { del = Some(i); }
                     });
@@ -134,17 +136,17 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
                 // rows with fixed column widths (a Grid takes its columns from the last frame and can push the panel wider): the number
                 // boxes shrink when the labels are long
                 ui.spacing_mut().item_spacing = egui::vec2(sp, 8.0);
-                let unit_cell = |ui: &mut Ui| { ui.allocate_ui_with_layout(egui::vec2(uw, h), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.weak("mm"); }); };
+                let unit_cell = |ui: &mut Ui| { ui.allocate_ui_with_layout(egui::vec2(uw, h), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.weak(crate::widgets::len_unit(ui)); }); };
                 ui.horizontal(|ui| {
-                    rlabel(ui, lc1, "X"); *changed |= dv_w(ui, fw, &mut c.x, -10000.0, 10000.0, ""); unit_cell(ui);
-                    rlabel(ui, lc2, "Y"); *changed |= dv_w(ui, fw, &mut c.y, -10000.0, 10000.0, ""); unit_cell(ui);
+                    rlabel(ui, lc1, "X"); *changed |= dl_w(ui, fw, &mut c.x, -10000.0, 10000.0, ""); unit_cell(ui);
+                    rlabel(ui, lc2, "Y"); *changed |= dl_w(ui, fw, &mut c.y, -10000.0, 10000.0, ""); unit_cell(ui);
                 });
                 ui.horizontal(|ui| {
-                    rlabel(ui, lc1, tr("Width")); *changed |= dv_w(ui, fw, &mut c.w, 0.1, 10000.0, ""); unit_cell(ui);
-                    rlabel(ui, lc2, tr("Length")); *changed |= dv_w(ui, fw, &mut c.h, 0.1, 10000.0, ""); unit_cell(ui);
+                    rlabel(ui, lc1, tr("Width")); *changed |= dl_w(ui, fw, &mut c.w, 0.1, 10000.0, ""); unit_cell(ui);
+                    rlabel(ui, lc2, tr("Length")); *changed |= dl_w(ui, fw, &mut c.h, 0.1, 10000.0, ""); unit_cell(ui);
                 });
                 ui.horizontal(|ui| {
-                    rlabel(ui, lc1, tr("Rise")); *changed |= dv_w(ui, fw, &mut c.height, 0.1, 10000.0, ""); unit_cell(ui);
+                    rlabel(ui, lc1, tr("Rise")); *changed |= dl_w(ui, fw, &mut c.height, 0.1, 10000.0, ""); unit_cell(ui);
                 });
                 }
                 if i + 1 < n_clamps { ui.add_space(4.0); ui.separator(); ui.add_space(4.0); }
@@ -154,7 +156,7 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             ui.add_space(if n_clamps > 0 { 8.0 } else { 4.0 });
             if let Some(i) = del { d.clamps.remove(i); *changed = true; }
             ui.horizontal(|ui| {
-                if icon_text_button(ui, Icon::Add, tr("Add clamp"), tr("A clamp on the left edge, 20 mm tall; edit X, Y, width (X size), length (Y size) and rise (how far it stands above the stock top), all in mm"), None).clicked() {
+                if icon_text_button(ui, Icon::Add, tr("Add clamp"), tr("A clamp on the left edge, 20 mm tall; edit X, Y, width (X size), length (Y size) and rise (how far it stands above the stock top), in the shown unit"), None).clicked() {
                     d.clamps.push(putiacnc_core::model::Clamp { x: -30.0, y: d.stock.h / 2.0 - 15.0, w: 30.0, h: 30.0, height: 20.0 });
                     *changed = true;
                 }

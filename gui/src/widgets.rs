@@ -22,7 +22,7 @@ pub fn fmt_speed(ui: &Ui, mm_min: f64) -> String {
 
 /// Whether inch fields show fractions (see `fmt_inch`).
 pub fn set_fractions(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_fractions"), on)); }
-fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_fractions"))).unwrap_or(false) }
+pub fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_fractions"))).unwrap_or(false) }
 
 /// A message written in mm, with its lengths in the shown unit (see `units::localize`).
 pub fn localize(ui: &Ui, text: &str) -> String { crate::units::localize(text, inches(ui), fractions(ui)) }
@@ -62,6 +62,7 @@ pub fn len_k(ui: &Ui) -> f64 { if inches(ui) { 25.4 } else { 1.0 } }
 
 /// A length field: `v` is in mm, the field shows and takes mm or inches as the Display units say. `lo`, `hi`, `speed` and `dec` are
 /// given for mm; in inches the field gets two more decimals (a thousandth of an inch is 0.0254 mm).
+#[track_caller]
 pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
     let k = len_k(ui);
     if k == 1.0 { return num_with(ui, size, v, lo, hi, speed, dec, suffix, Some(1.0)); }
@@ -119,6 +120,7 @@ pub const FIELD_W: f32 = 70.0;
 
 /// A numeric field like egui's `DragValue` (drag to change, click to type) but with the text
 /// right-aligned. `speed` is the change per dragged pixel, `dec` the maximum decimals shown.
+#[track_caller]
 pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
     num_with(ui, size, v, lo, hi, speed, dec, suffix, None)
 }
@@ -126,7 +128,10 @@ pub fn num(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
 /// [`num`] for a length: `unit_mm` is the size of the shown unit in mm (1 or 25.4), so that typed text with a unit (`3 mm`, `1/8"`,
 /// `2.5cm`) is converted to it.
 #[allow(clippy::too_many_arguments)]
+#[track_caller]
 pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str, unit_mm: Option<f64>) -> Response {
+    #[cfg(test)]
+    numlog::push(ui, std::panic::Location::caller(), size[0], hi, dec, unit_mm, suffix);
     // while the field is being typed in, the box under the text is not a stop for the Tab key (the text is), so Shift+Tab goes to the field
     // before and not to this field's own box
     let typing = ui.data(|d| d.get_temp::<String>(ui.next_auto_id().with("edit"))).is_some();
@@ -134,7 +139,6 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     let (rect, mut resp) = ui.allocate_exact_size(egui::vec2(size[0], size[1]), sense);
     let id = resp.id;
     let frac = unit_mm.is_some_and(|k| k > 25.0) && fractions(ui);
-    let shown = |x: f64| if frac { fmt_inch(x, dec, true) } else { fmt_val(x, dec) };
     let edit_id = id.with("edit");
     let mut editing: Option<String> = ui.data(|d| d.get_temp(edit_id));
     let start_edit = |ui: &mut Ui, v: f64| {
@@ -186,11 +190,31 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     let vis = *ui.style().interact(&resp);
     ui.painter().rect(rect, vis.rounding, vis.weak_bg_fill, vis.bg_stroke);
     let font = egui::TextStyle::Button.resolve(ui.style());
-    let text = format!("{}{}", shown(*v), suffix);
     let col = ui.visuals().override_text_color.unwrap_or(vis.fg_stroke.color);
-    let g = ui.painter().layout_no_wrap(text, font, col);
-    ui.painter().galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, col);
+    let room = (rect.width() - 14.0).max(8.0);
+    let (text, g) = fit_text(ui, &font, col, room, |d| format!("{}{}", if frac && d == dec { fmt_inch(*v, d, true) } else { fmt_val(*v, d) }, suffix), dec);
+    ui.painter().with_clip_rect(rect).galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, col);
+    let _ = text;
     resp
+}
+
+/// The text of a number field made to fit `room` points: the text is made smaller (down to 50 %), and when it still does not fit,
+/// decimals are dropped one by one (the value itself keeps them; clicking the field shows them). A fraction that does not fit becomes a decimal (the closure gets `d == dec` only for the first try). `text_for(d)` is the text with `d` decimals.
+pub fn fit_text(ui: &Ui, font: &egui::FontId, col: egui::Color32, room: f32, text_for: impl Fn(usize) -> String, dec: usize) -> (String, std::sync::Arc<egui::Galley>) {
+    let mut d = dec;
+    loop {
+        let text = text_for(d);
+        let mut g = ui.painter().layout_no_wrap(text.clone(), font.clone(), col);
+        if g.size().x <= room { return (text, g); }
+        // the size is made smaller step by step: the width does not follow the size exactly (glyphs are placed on whole pixels)
+        let mut f = 1.0f32;
+        while g.size().x > room && f > 0.5 {
+            f *= 0.94;
+            g = ui.painter().layout_no_wrap(text.clone(), egui::FontId::new(font.size * f, font.family.clone()), col);
+        }
+        if g.size().x <= room || d == 0 { return (text, g); }
+        d -= 1;
+    }
 }
 
 /// egui closes a combo box popup on any click inside it. A click that does not pick anything (a search box, a heading) should leave it
@@ -344,6 +368,30 @@ pub fn tip_rect(ui: &mut Ui, rect: egui::Rect, salt: &str, text: impl Into<egui:
     r.on_hover_text(text)
 }
 
+/// What the survey of number fields needs: where each field is made, how wide it is and how much room its longest likely text needs
+/// (in the decimals the field shows and, for inches, as a fraction).
+#[cfg(test)]
+pub mod numlog {
+    use super::*;
+    #[derive(Clone, Debug)]
+    pub struct Entry { pub at: String, pub width: f32, pub need_dec: f32, pub need_frac: Option<f32>, pub inches: bool, pub hi: f64, pub suffix: String }
+    fn id() -> egui::Id { egui::Id::new("num_log_for_tests") }
+    pub fn push(ui: &Ui, at: &std::panic::Location, width: f32, hi: f64, dec: usize, unit_mm: Option<f64>, suffix: &str) {
+        let inch = unit_mm.is_some_and(|k| k > 25.0);
+        let digits = |x: f64| (x.abs().max(1.0).log10().floor() as usize) + 1;
+        let ndig = digits(hi).min(if inch { 2 } else { 3 });
+        let int: f64 = (0..ndig).map(|i| 9.0 * 10f64.powi(i as i32)).sum();
+        let v = int + 0.87654321;
+        let font = egui::TextStyle::Button.resolve(ui.style());
+        let w = |t: String| ui.painter().layout_no_wrap(t, font.clone(), egui::Color32::WHITE).size().x + 14.0;
+        let need_dec = w(format!("{}{}", fmt_val(v, dec), suffix));
+        let need_frac = inch.then(|| w(format!("{} 63/64{}", int, suffix)));
+        let e = Entry { at: format!("{}:{}", at.file(), at.line()), width, need_dec, need_frac, inches: inch, hi, suffix: suffix.to_string() };
+        ui.ctx().data_mut(|d| d.get_temp_mut_or_default::<Vec<Entry>>(id()).push(e));
+    }
+    pub fn take(ctx: &egui::Context) -> Vec<Entry> { ctx.data_mut(|d| d.remove_temp::<Vec<Entry>>(id())).unwrap_or_default() }
+}
+
 /// What the tests need to know: every label, every control with help and which label got that help too.
 #[cfg(test)]
 pub mod tiplog {
@@ -371,6 +419,29 @@ mod unit_tests {
             egui::CentralPanel::default().show(ctx, |ui| { if let Some(f) = f.take() { out = Some(f(ui)); } });
         });
         out.unwrap()
+    }
+
+    /// Long numbers in inches (decimals with the two extra places, fractions above 1) and a larger scale must stay inside the field.
+    #[test]
+    fn long_inch_values_fit_the_field() {
+        for ppp in [1.0f32, 1.3, 2.0] {
+            let ctx = egui::Context::default();
+            let _ = ctx.run(Default::default(), |ctx| {
+                ctx.set_pixels_per_point(ppp);
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let font = egui::TextStyle::Button.resolve(ui.style());
+                    for w in [70.0f32, 54.0, 46.0] {
+                        let room = w - 14.0;
+                        for v in [10.1875, 123.456789, 3.0 / 7.0 * 25.0, 99.9999, 1234.5678] {
+                            for frac in [false, true] {
+                                let (t, g) = fit_text(ui, &font, egui::Color32::WHITE, room, |d| format!("{} in", if frac && d == 4 { fmt_inch(v, d, true) } else { fmt_val(v, d) }), 4);
+                                assert!(g.size().x <= room + 0.5, "{t:?} is {} wide in {room} (field {w}, scale {ppp})", g.size().x);
+                            }
+                        }
+                    }
+                });
+            });
+        }
     }
 
     #[test]
