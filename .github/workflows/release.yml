@@ -1,17 +1,47 @@
 name: Release builds
 
-# Runs when a version tag (v0.2.0 ...) is pushed, e.g. by publishing a release on GitHub,
-# and can be started by hand from the Actions tab (the files are then kept as workflow artifacts).
+# Started by hand from the Actions tab (Run workflow, on main). It builds the AppImage, the dmg and the Windows zip and puts them on a DRAFT
+# release named after the version in gui/Cargo.toml, on the commit that was built. Nothing is public until the draft is published on the
+# releases page, which creates the tag on that commit. A failed build leaves only a draft to delete. Untick "Make a draft release" to
+# build without a release (the files are then kept as workflow artifacts).
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      draft:
+        description: "Make a draft release with the files"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
 
 jobs:
+  draft:
+    if: ${{ inputs.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Make the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)
+          TAG="v$VER"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::The tag $TAG already exists. Bump the version in Cargo.toml, or delete that tag and its release first."; exit 1
+          fi
+          # a release of this version that is already public is left alone; an old draft of it is replaced
+          found=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.tag_name == \"$TAG\") | [.id, .draft] | @tsv")
+          if [ -n "$found" ]; then
+            if [ "$(echo "$found" | head -1 | cut -f2)" = true ]; then
+              echo "$found" | cut -f1 | while read -r id; do gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"; done
+            else echo "::error::$TAG is already published."; exit 1; fi
+          fi
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$TAG" \
+            --notes "Draft made by the Release builds workflow from commit $GITHUB_SHA. Replace this text with the changelog, check the files, then publish."
   linux-appimage:
+    needs: draft
+    if: ${{ !cancelled() && needs.draft.result != 'failure' }}
     # the oldest runner on purpose: an AppImage runs on systems with the same glibc or newer
     runs-on: ubuntu-22.04
     steps:
@@ -47,15 +77,25 @@ jobs:
           path: |
             putiacnc-*-x86_64.AppImage
             putiacnc-*-x86_64.AppImage.zsync
-      - name: Attach to the release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Version
+        id: ver
+        if: ${{ inputs.draft }}
+        shell: bash
+        run: echo "tag=v$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)" >> "$GITHUB_OUTPUT"
+      - name: Attach to the draft release
+        if: ${{ inputs.draft }}
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          draft: true
+          target_commitish: ${{ github.sha }}
           files: |
             putiacnc-*-x86_64.AppImage
             putiacnc-*-x86_64.AppImage.zsync
 
   macos-dmg:
+    needs: draft
+    if: ${{ !cancelled() && needs.draft.result != 'failure' }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
@@ -69,13 +109,24 @@ jobs:
         with:
           name: macos-dmg
           path: PutiaCNC-*-macos.dmg
-      - name: Attach to the release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Version
+        id: ver
+        if: ${{ inputs.draft }}
+        shell: bash
+        run: echo "tag=v$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)" >> "$GITHUB_OUTPUT"
+      - name: Attach to the draft release
+        if: ${{ inputs.draft }}
         uses: softprops/action-gh-release@v3
         with:
-          files: PutiaCNC-*-macos.dmg
+          tag_name: ${{ steps.ver.outputs.tag }}
+          draft: true
+          target_commitish: ${{ github.sha }}
+          files: |
+            PutiaCNC-*-macos.dmg
 
   windows-zip:
+    needs: draft
+    if: ${{ !cancelled() && needs.draft.result != 'failure' }}
     runs-on: windows-latest
     defaults:
       run:
@@ -97,8 +148,17 @@ jobs:
         with:
           name: windows-zip
           path: PutiaCNC-*-windows-x86_64.zip
-      - name: Attach to the release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Version
+        id: ver
+        if: ${{ inputs.draft }}
+        shell: bash
+        run: echo "tag=v$(sed -n 's/^version = "\(.*\)"/\1/p' gui/Cargo.toml | head -1)" >> "$GITHUB_OUTPUT"
+      - name: Attach to the draft release
+        if: ${{ inputs.draft }}
         uses: softprops/action-gh-release@v3
         with:
-          files: PutiaCNC-*-windows-x86_64.zip
+          tag_name: ${{ steps.ver.outputs.tag }}
+          draft: true
+          target_commitish: ${{ github.sha }}
+          files: |
+            PutiaCNC-*-windows-x86_64.zip

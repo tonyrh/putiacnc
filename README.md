@@ -94,9 +94,9 @@ The program is called `putiacnc`. Your tool and machine libraries are stored per
 
 ### Packaging (for maintainers)
 
-- **Linux AppImage:** built by the release workflow on a `v*` tag (on Ubuntu 22.04, so it runs on any distribution with that glibc or newer); to build it by hand, run `packaging/build-appimage.sh`. It bundles `LICENSE` and `THIRD-PARTY-LICENSES.txt` (regenerate the latter with `cargo about generate --workspace about.hbs`) and needs a glibc as new as the machine that built it.
+- **Linux AppImage:** built by the release workflow (on Ubuntu 22.04, so it runs on any distribution with that glibc or newer); to build it by hand, run `packaging/build-appimage.sh`. It bundles `LICENSE` and `THIRD-PARTY-LICENSES.txt` (regenerate the latter with `cargo about generate --workspace about.hbs`) and needs a glibc as new as the machine that built it.
 - **macOS disk image** (universal, Apple silicon and Intel): `packaging/build-dmg.sh` on a Mac.
-- **Windows zip** and the other release files are built by the GitHub Actions workflow in `.github/workflows/release.yml` when a `v*` tag is pushed.
+- **Windows zip** and the other release files are built by the GitHub Actions workflow in `.github/workflows/release.yml`. To release: bump the version (`Cargo.toml`, `gui/Cargo.toml`, `Cargo.lock`) on `main`, then run **Release builds** from the Actions tab (Run workflow, on `main`). It builds the three files and puts them on a **draft** release `v<version>` on that commit. Check the files, paste the changelog, and click **Publish release** on the releases page: publishing creates the tag. A failed build leaves only a draft to delete.
 - The app icon is in `assets/` (`putiacnc.svg`, PNGs from 16 to 512 px, and `putiacnc.ico`, which is embedded in the Windows exe). It is also set as the window icon on every platform.
 - `cargo run --release --example sign` builds a sample sign and times toolpath generation and the 3D replay.
 
