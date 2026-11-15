@@ -54,17 +54,21 @@ pub(super) fn spin_arrows(ui: &mut Ui, v: &mut f64, lo: f64, hi: f64) -> bool {
     changed
 }
 
+#[track_caller]
 pub(super) fn dv_w(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> bool {
     dv_r(ui, w, v, lo, hi, suffix).changed()
 }
 
 /// Like [`dv_w`], returning the field's response (to give it help).
+#[track_caller]
 pub(super) fn dv_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> egui::Response {
     crate::widgets::num(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix)
 }
 
 /// Length versions of `dv_w` / `dv_r`: the value is in mm, the field shows the Display units.
+#[track_caller]
 pub(super) fn dl_w(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> bool { dl_r(ui, w, v, lo, hi, suffix).changed() }
+#[track_caller]
 pub(super) fn dl_r(ui: &mut Ui, w: f32, v: &mut f64, lo: f64, hi: f64, suffix: &str) -> egui::Response {
     crate::widgets::len(ui, [w, ui.spacing().interact_size.y], v, lo, hi, 0.25, 2, suffix)
 }

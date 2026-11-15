@@ -202,7 +202,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 let vw = 70.0;
                 ui.spacing_mut().slider_width = (ui.available_width() - 2.0 * ui.spacing().item_spacing.x - vw - 6.0).max(60.0);
                 let moved = ui.add(egui::Slider::new(&mut pct, 5.0..=100.0).show_value(false)).tip(tr("How strongly the picture shows")).changed();
-                let typed = dv_w(ui, vw, &mut pct, 5.0, 100.0, " %");
+                let typed = dv_w(ui, vw - 18.0, &mut pct, 5.0, 100.0, ""); ui.weak("%");
                 if moved || typed { bd.opacity = (pct / 100.0).clamp(0.05, 1.0); *changed = true; }
             });
         });
@@ -797,7 +797,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, tr("Pen down"));
-                            changed |= dv_r(ui, 48.0, &mut p.depth, 0.0, 20.0, "").tip(tr("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press")).changed();
+                            changed |= dl_r(ui, 48.0, &mut p.depth, 0.0, 20.0, "").tip(tr("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press")).changed();
                             ui.weak(tr_f("{unit} below Z0", &[("unit", &crate::widgets::len_unit(ui))]));
                         });
                         ui.add_space(4.0);
@@ -805,7 +805,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, tr("Pen up"));
                             let mut v = p.lift.unwrap_or(2.0);
-                            if dv_r(ui, 48.0, &mut v, 0.1, 50.0, "").tip(tr("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it")).changed() { p.lift = Some(v); changed = true; }
+                            if dl_r(ui, 48.0, &mut v, 0.1, 50.0, "").tip(tr("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it")).changed() { p.lift = Some(v); changed = true; }
                             ui.weak(tr_f("{unit} above Z0", &[("unit", &crate::widgets::len_unit(ui))]));
                             if p.lift.is_some() && reset_button(ui, tr("Back to 2 mm")) { p.lift = None; changed = true; }
                         });
@@ -1080,12 +1080,17 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 ui.add_space(gap);
                             }
-                            ui.label(tr("Width")).tip(tr("Length of each tab along the outline"));
-                            if dl_w(ui, fw, &mut w, 0.5, 100.0, "") { p.tab_w = Some(w); changed = true; }
+                            let wl = ui.label(tr("Width")).tip(tr("Length of each tab along the outline"));
+                            let wr = dl_r(ui, fw, &mut w, 0.5, 100.0, "");
+                            if wr.changed() { p.tab_w = Some(w); changed = true; }
                             ui.weak(crate::widgets::len_unit(ui));
                             ui.add_space(gap);
-                            ui.label(tr("Height")).tip(tr("How tall each tab is, measured up from the bottom of the cut"));
-                            if dl_w(ui, fw, &mut h, 0.2, 100.0, "") { p.tab_h = Some(h); changed = true; }
+                            let hl = ui.label(tr("Height")).tip(tr("How tall each tab is, measured up from the bottom of the cut"));
+                            let hr = dl_r(ui, fw, &mut h, 0.2, 100.0, "");
+                            if hr.changed() { p.tab_h = Some(h); changed = true; }
+                            // the helical entry's Circle and Angle sit below as a grid with Width and Height: the right edges of the labels, the left
+                            // edges and the widths of the fields
+                            ui.data_mut(|x| x.insert_temp(egui::Id::new(("tab_columns", id)), [(wl.rect.max.x, wr.rect.min.x, wr.rect.width()), (hl.rect.max.x, hr.rect.min.x, hr.rect.width())]));
                             ui.weak(crate::widgets::len_unit(ui));
                         });
                         if let Some(tp) = p.tab_pts.as_mut() {
@@ -1114,12 +1119,26 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             .tip(if p.kind == "pocket" { tr("Enters the first ring of the pocket in a spiral down instead of ramping along it or plunging: a smoother entry for an end mill that does not cut at its centre. It takes priority over Ramp in on that ring; Ramp in still applies to the rings inside it, and where the spiral does not fit") } else { tr("Enters the cut in a spiral down on the waste side, next to the start of the path, instead of ramping along it or plunging. It takes priority over Ramp in (which is used where the spiral does not fit) and leaves a round hole in the waste about two tool diameters wide: lower the Circle size, or untick this and use Ramp in, if that material matters") }).changed();
                         if p.helix {
                             let (mut d, mut a) = (p.helix_d.unwrap_or(100.0), p.helix_a.unwrap_or(3.0));
-                            ui.add_space(10.0);
-                            ui.label(tr("Circle"));
-                            if dl_w(ui, 54.0, &mut d, 20.0, 400.0, "%") { p.helix_d = Some(d); changed = true; }
-                            ui.add_space(6.0);
-                            ui.label(tr("Angle"));
-                            if dl_w(ui, 36.0, &mut a, 0.5, 45.0, "°") { p.helix_a = Some(a); changed = true; }
+                            // a label and a field in the column of the tab row's Width or Height (when the tabs are on and the labels before leave room),
+                            // else one after the other; returns the field's width
+                            let cols = if p.tabs { ui.data(|x| x.get_temp::<[(f32, f32, f32); 2]>(egui::Id::new(("tab_columns", id)))) } else { None };
+                            // the same space between a label and its field as in the tab row, or the fields would sit a little off the columns
+                            if cols.is_some() { ui.spacing_mut().item_spacing.x = 5.0; }
+                            let column = |ui: &mut Ui, k: usize, label: &str, dflt: f32| -> f32 {
+                                let Some(c) = cols.map(|c| c[k]) else { ui.add_space(10.0); ui.label(label); return dflt };
+                                let gap = c.0 - tw(ui, label) - ui.next_widget_position().x;
+                                if gap > 0.0 { ui.add_space(gap); }
+                                ui.label(label);
+                                let gap = c.1 - ui.next_widget_position().x;
+                                if gap > 0.0 { ui.add_space(gap); }
+                                c.2
+                            };
+                            let cw = column(ui, 0, tr("Circle"), 46.0);
+                            if dv_w(ui, cw, &mut d, 20.0, 400.0, "") { p.helix_d = Some(d); changed = true; }
+                            ui.weak("%");
+                            let aw = column(ui, 1, tr("Angle"), 36.0);
+                            if dv_w(ui, aw, &mut a, 0.5, 45.0, "") { p.helix_a = Some(a); changed = true; }
+                            ui.weak("°");
                         }
                     });
                 }
@@ -1139,13 +1158,15 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             let mut a = p.adaptive_so.unwrap_or(12.0);
                             ui.add_space(10.0);
                             ui.label(tr("Stepover"));
-                            if dl_w(ui, 42.0, &mut a, 2.0, 40.0, "%") { p.adaptive_so = Some(a); changed = true; }
+                            if dv_w(ui, 38.0, &mut a, 2.0, 40.0, "") { p.adaptive_so = Some(a); changed = true; }
+                            ui.weak("%");
                         }
                         if p.troch {
                             let mut a = p.troch_so.unwrap_or(20.0);
                             ui.add_space(10.0);
                             ui.label(tr("Step"));
-                            if dl_w(ui, 56.0, &mut a, 3.0, 60.0, "%") { p.troch_so = Some(a); changed = true; }
+                            if dv_w(ui, 44.0, &mut a, 3.0, 60.0, "") { p.troch_so = Some(a); changed = true; }
+                            ui.weak("%");
                         }
                     });
                 }
@@ -1160,7 +1181,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if let Some(v) = p.cslow.as_mut() {
                             ui.add_space(10.0);
                             ui.label(tr("Feed"));
-                            if dl_w(ui, 56.0, v, 10.0, 95.0, "%") { changed = true; }
+                            if dv_w(ui, 44.0, v, 10.0, 95.0, "") { changed = true; }
+                            ui.weak("%");
                         }
                     });
                 }

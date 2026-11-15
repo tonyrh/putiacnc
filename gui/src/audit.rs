@@ -373,3 +373,98 @@ fn dialogs_are_not_widened_for_the_language() {
     walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut bad);
     assert!(bad.is_empty(), "a dialog must not change its width with the language: {bad:?}");
 }
+
+/// Survey (run with `--ignored --nocapture`): every number field drawn in the dialogs and operation cards, in mm and in inches, with the
+/// width it has and the width its longest likely text needs. Prints the fields whose text does not fit.
+#[test]
+#[ignore]
+fn survey_of_number_fields() {
+    use std::collections::BTreeMap;
+    let mut suffixed: BTreeMap<String, String> = BTreeMap::new();
+    let mut seen: BTreeMap<(String, bool), (f32, f32, f32, f64)> = BTreeMap::new(); // (at, inches) -> (min width, need dec, need frac, hi)
+    let mut run = |a: &mut App, screen: egui::Vec2| {
+        let ctx = egui::Context::default();
+        for i in 0..8 {
+            let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, screen)), time: Some(0.1 * (i + 1) as f64), ..Default::default() };
+            let _ = ctx.run(input, |ctx| a.ui_frame(ctx));
+            if i < 7 { crate::widgets::numlog::take(&ctx); }
+        }
+        for e in crate::widgets::numlog::take(&ctx) {
+            if !e.suffix.is_empty() { suffixed.insert(e.at.clone(), e.suffix.clone()); }
+            let k = (e.at.clone(), e.inches);
+            let cur = seen.entry(k).or_insert((f32::MAX, 0.0, 0.0, e.hi));
+            cur.0 = cur.0.min(e.width); cur.1 = cur.1.max(e.need_dec); cur.2 = cur.2.max(e.need_frac.unwrap_or(0.0));
+        }
+    };
+    for inches in [false, true] {
+        for (sw, sh) in [(1500.0_f32, 1000.0_f32), (1354.0, 640.0)] {
+            for (_, setup) in dialogs() {
+                let mut a = project(); a.disp_in = inches; a.frac_in = inches; setup(&mut a);
+                run(&mut a, egui::vec2(sw, sh));
+            }
+            for kind in ["outside", "inside", "online", "pocket", "vcarve", "drill", "inlay", "plug", "relief", "photo", "draw"] {
+                let mut a = project(); a.disp_in = inches; a.frac_in = inches;
+                {
+                    let d = &mut a.project.data;
+                    let id = |shape: &str| d.tools.iter().find(|t| t.shape == shape).map(|t| t.id.clone());
+                    let (flat, vbit, ball) = (id("flat"), id("vbit"), id("ball"));
+                    let o = &mut d.ops[0];
+                    o.p.kind = kind.into();
+                    o.p.tool = match kind { "vcarve" | "photo" => vbit.clone(), "relief" => ball.clone(), _ => flat.clone() }.unwrap_or_default();
+                    o.p.tabs = true; o.p.helix = true; o.p.adaptive = true; o.p.air = true; o.p.pause = Some(String::new());
+                    o.p.lead = Some(2.0); o.p.w_leave = Some(0.3); o.p.flat = Some(1.0);
+                    o.p.tool2 = flat.clone(); o.p.rest = flat.clone();
+                    o.p.custom = Some(putiacnc_core::model::CustomFeeds { rpm: Some(9000.0), feed: Some(700.0), plunge: Some(200.0), so: Some(30.0) });
+                    o.p.custom2 = o.p.custom.clone();
+                }
+                a.touch(); let _ = crate::fuzz::settle(&mut a);
+                run(&mut a, egui::vec2(sw, sh));
+            }
+            let mut a = project(); a.disp_in = inches; a.frac_in = inches; a.sel = (0..a.project.data.loops.len()).collect();
+            run(&mut a, egui::vec2(sw, sh));
+        }
+    }
+    println!("{:<34} {:>5} {:>7} {:>6}  {:<4} verdict", "field made at", "wide", "needDec", "needFr", "unit");
+    for ((at, inches), (w, nd, nf, hi)) in &seen {
+        let need = if *inches { nd.max(*nf) } else { *nd };
+        let verdict = if *w + 0.5 >= need { "fits" } else if *w + 0.5 >= need * 0.75 { "tight (shrinks)" } else { "SHRINKS MUCH" };
+        if verdict != "fits" { println!("{:<34} {:>5.0} {:>7.0} {:>6.0}  {:<4} {}  (max {hi})", at, w, nd, nf, if *inches { "in" } else { "mm" }, verdict); }
+    }
+    for (at, sfx) in &suffixed { println!("unit or sign inside the field: {at} {sfx:?}"); }
+    println!("{} field sites seen", seen.len());
+}
+
+/// A number field holds only the number: the unit (mm, in, %, °) is a label after it, so that the field has room for the digits.
+/// (Reads the source: a call of `num`, `len`, `dv_w`, `dv_r`, `dl_w` or `dl_r` must end with an empty suffix.)
+#[test]
+fn units_are_outside_the_number_fields() {
+    fn walk(dir: &std::path::Path, bad: &mut Vec<String>) {
+        for e in std::fs::read_dir(dir).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() { walk(&p, bad); continue; }
+            let name = p.file_name().unwrap().to_string_lossy().into_owned();
+            if !name.ends_with(".rs") || ["audit.rs", "widgets.rs"].contains(&name.as_str()) { continue; }
+            for (n, l) in std::fs::read_to_string(&p).unwrap().lines().enumerate() {
+                let t = l.trim_start();
+                if t.starts_with("//") || t.contains("fn ") || t.contains("assert") { continue; }
+                for call in ["widgets::num(", "widgets::len(", "dv_w(", "dv_r(", "dl_w(", "dl_r("] {
+                    let Some(i) = l.find(call) else { continue };
+                    // the call's last argument: what follows the last comma before its closing bracket
+                    let rest = &l[i + call.len()..];
+                    let mut depth = 1;
+                    let mut end = None;
+                    for (j, c) in rest.char_indices() { match c { '(' | '[' | '{' => depth += 1, ')' | ']' | '}' => { depth -= 1; if depth == 0 { end = Some(j); break; } } _ => {} } }
+                    let Some(end) = end else { continue };
+                    let mut depth = 0;
+                    let mut last = 0;
+                    for (j, c) in rest[..end].char_indices() { match c { '(' | '[' | '{' => depth += 1, ')' | ']' | '}' => depth -= 1, ',' if depth == 0 => last = j + 1, _ => {} } }
+                    let arg = rest[last..end].trim();
+                    if arg != "\"\"" && arg != "suffix" { bad.push(format!("{name}:{}: last argument {arg}", n + 1)); }
+                }
+            }
+        }
+    }
+    let mut bad = Vec::new();
+    walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut bad);
+    assert!(bad.is_empty(), "a unit goes after the number field, not inside it: {bad:#?}");
+}
