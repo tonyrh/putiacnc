@@ -1677,7 +1677,7 @@ fn sanity(data: &ProjectData) -> Result<(), String> {
 
 /// Photo V-carve: the picture etched with a V-bit along parallel lines, deeper where it is darker (see `photo.rs`).
 fn photo_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &ProjectData, machine: &Machine, o: &Operation, k: usize, mach: bool) -> Result<(), String> {
-    use crate::photo::{lines, Tones};
+    use crate::photo::{lines, Pass, Tones};
     let pre = format!("Op {}: ", k + 1);
     let un = if e.imp { "in" } else { "mm" };
     let ku = e.ku;
@@ -1709,8 +1709,10 @@ fn photo_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Project
     let tones = Tones::new(rel);
     let dir = o.p.f_dir.as_deref().unwrap_or("x");
     let mut sets = Vec::new();
-    if dir == "x" || dir == "xy" { sets.push(lines(&tones, depth, spacing, true, 0.01)); }
-    if dir == "y" || dir == "xy" { sets.push(lines(&tones, depth, spacing, false, 0.01)); }
+    let (p1, p2) = if dir == "xy" { (Pass::First, Pass::Second) } else { (Pass::Single, Pass::Single) };
+    if dir == "x" || dir == "xy" { sets.push(lines(&tones, depth, spacing, true, 0.01, p1)); }
+    if dir == "y" { sets.push(lines(&tones, depth, spacing, false, 0.01, p1)); }
+    if dir == "xy" { sets.push(lines(&tones, depth, spacing, false, 0.01, p2)); }
     select_tool(e, ts, mach, tool, sz, &fnum(tool.dia), un);
     e.g.push(format!("(Operation {}: photo V-carve, {} {} {}, lines {} {} apart, up to {} {} deep)", k + 1, geo.shape.label(), fnum(tool.dia), un, fnum(spacing), un, fnum(depth), un));
     let mut count = 0usize;
@@ -1733,7 +1735,7 @@ fn photo_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Project
     }
     e.go("G0", None, None, Some(sz), 0.0);
     if count == 0 { notes.push(tr_f("{pre}the picture is too light: nothing is cut.", &[("pre", &pre)])); }
-    if dir == "xy" { notes.push(tr_f("{pre}cutting in both directions takes twice as long and makes the picture darker.", &[("pre", &pre)])); }
+    if dir == "xy" { notes.push(tr_f("{pre}lines in both directions: the second direction crosses only the darker parts, for deeper blacks.", &[("pre", &pre)])); }
     Ok(())
 }
 

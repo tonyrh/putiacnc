@@ -234,6 +234,8 @@ impl Relief {
         let mut g = vec![0f32; nx * ny];
         for j in 0..ny { for i in 0..nx { g[(ny - 1 - j) * nx + i] = gray(small.get_pixel(i as u32, j as u32)); } }
         if p.smooth_mm > 0.0 { gauss(&mut g, nx, ny, p.smooth_mm / res); }
+        // the background is found on the picture as it is, before the tones are changed
+        let bg = if p.lighten_bg > 0.0 { Some(background(&g, nx, ny, res)) } else { None };
         // levels: the darkest and the lightest 1% are cut off so one speck does not decide the range, then the range is stretched to 0..1
         if p.levels {
             let mut v = g.clone();
@@ -242,7 +244,12 @@ impl Relief {
             if hi - lo > 1e-4 { for x in g.iter_mut() { *x = ((*x - lo) / (hi - lo)).clamp(0.0, 1.0); } }
         }
         if p.gamma > 0.0 && (p.gamma - 1.0).abs() > 1e-9 { for x in g.iter_mut() { *x = x.powf(p.gamma as f32); } }
+        if (p.contrast - 1.0).abs() > 1e-9 || p.brightness.abs() > 1e-9 {
+            for x in g.iter_mut() { *x = ((*x - 0.5) * p.contrast as f32 + 0.5 + p.brightness as f32).clamp(0.0, 1.0); }
+        }
         if p.invert { for x in g.iter_mut() { *x = 1.0 - *x; } }
+        // the background is lightened towards white (the top), all the way at 100 %: nothing is cut there
+        if let Some(m) = bg { let a = p.lighten_bg.clamp(0.0, 1.0) as f32; for (x, m) in g.iter_mut().zip(m) { *x += (1.0 - *x) * m * a; } }
         let top = g.iter().cloned().fold(0.0f32, f32::max).max(1e-6);
         let bytes: Vec<u8> = g.iter().flat_map(|&z| (((z / top) as f64 * 65535.0).round().clamp(0.0, 65535.0) as u16).to_le_bytes()).collect();
         Ok(Relief { name: name.into(), nx, ny, res, zmax: p.zmax, hm: b64_encode(&bytes), x: 0.0, y: 0.0, scale: 1.0 })
@@ -260,6 +267,78 @@ impl Relief {
     }
 }
 
+/// The part of a picture that is its background, as a mask (0 no .. 1 yes, soft at the edge): what can be reached from the top edge and the upper third of
+/// the sides without a sharp step in tone and without drifting far from the tone it started at, a plain or softly shaded backdrop behind a subject.
+/// It starts only from edge pixels that look like the top edge: the lower part of a picture is where the subject is cut off (a bust at the bottom, an
+/// arm at the side), and its shadows can be as dark as the backdrop. Thin bridges into the subject are cut.
+fn background(g: &[f32], nx: usize, ny: usize, res: f64) -> Vec<f32> {
+    let mut s = g.to_vec();
+    gauss(&mut s, nx, ny, 1.0 / res);
+    let step = 0.0043;
+    let tol = 0.0523;
+    let mut origin = vec![f32::NAN; nx * ny];
+    let mut stack: Vec<usize> = Vec::new();
+    let mut top: Vec<f32> = (0..nx).map(|i| s[(ny - 1) * nx + i]).collect();
+    top.sort_by(|a, b| a.total_cmp(b));
+    let reference = top[nx / 2];
+    let seed = |k: usize, origin: &mut Vec<f32>, stack: &mut Vec<usize>| {
+        if origin[k].is_nan() && (s[k] - reference).abs() <= 0.12 { origin[k] = s[k]; stack.push(k); }
+    };
+    let sides = ny * 2 / 3;
+    for i in 0..nx { seed((ny - 1) * nx + i, &mut origin, &mut stack); }
+    for j in sides..ny { for i in [0, nx - 1] { seed(j * nx + i, &mut origin, &mut stack); } }
+    while let Some(k) = stack.pop() {
+        let (i, j) = (k % nx, k / nx);
+        let mut go = |q: usize| {
+            if origin[q].is_nan() && (s[q] - s[k]).abs() <= step && (s[q] - origin[k]).abs() <= tol { origin[q] = origin[k]; stack.push(q); }
+        };
+        if i > 0 { go(k - 1); }
+        if i + 1 < nx { go(k + 1); }
+        if j > 0 { go(k - nx); }
+        if j + 1 < ny { go(k + nx); }
+    }
+    let found: Vec<bool> = origin.iter().map(|o| !o.is_nan()).collect();
+    // thin bridges are cut: what stays joined to the edges after the region is shrunk by 1.5 mm is the backdrop, grown back by as much
+    let r = ((1.5 / res).round() as usize).clamp(1, 12);
+    let core = morph(&found, nx, ny, r, false);
+    let mut keep = vec![false; nx * ny];
+    let mut st: Vec<usize> = Vec::new();
+    for i in 0..nx { let k = (ny - 1) * nx + i; if core[k] && !keep[k] { keep[k] = true; st.push(k); } }
+    for j in sides..ny { for i in [0, nx - 1] { let k = j * nx + i; if core[k] && !keep[k] { keep[k] = true; st.push(k); } } }
+    while let Some(k) = st.pop() {
+        let (i, j) = (k % nx, k / nx);
+        let mut go = |q: usize| { if core[q] && !keep[q] { keep[q] = true; st.push(q); } };
+        if i > 0 { go(k - 1); }
+        if i + 1 < nx { go(k + 1); }
+        if j > 0 { go(k - nx); }
+        if j + 1 < ny { go(k + nx); }
+    }
+    let grown = morph(&keep, nx, ny, r, true);
+    let mut m: Vec<f32> = grown.iter().zip(&found).map(|(g, f)| if *g && *f { 1.0 } else { 0.0 }).collect();
+    gauss(&mut m, nx, ny, 0.4 / res);
+    m
+}
+
+/// A square erosion (`grow` false) or dilation (`grow` true) of a mask by `r` cells, as two passes along the rows and the columns. Outside the picture
+/// counts as inside the mask for an erosion, so the backdrop stays up to the picture's edge.
+fn morph(m: &[bool], nx: usize, ny: usize, r: usize, grow: bool) -> Vec<bool> {
+    let pass = |src: &[bool], horizontal: bool| -> Vec<bool> {
+        let mut out = vec![false; nx * ny];
+        let (len, lines) = if horizontal { (nx, ny) } else { (ny, nx) };
+        for l in 0..lines {
+            let at = |u: usize| if horizontal { l * nx + u } else { u * nx + l };
+            for u in 0..len {
+                let (lo, hi) = (u.saturating_sub(r), (u + r).min(len - 1));
+                let v = if grow { (lo..=hi).any(|q| src[at(q)]) } else { (lo..=hi).all(|q| src[at(q)]) };
+                out[at(u)] = v;
+            }
+        }
+        out
+    };
+    let a = pass(m, true);
+    pass(&a, false)
+}
+
 /// How a picture is turned into a relief (see [`Relief::from_picture`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PicParams {
@@ -275,9 +354,15 @@ pub struct PicParams {
     pub gamma: f64,
     /// Blur the picture by this much (mm) before carving: it hides the grain and the noise a cutter would only follow.
     pub smooth_mm: f64,
+    /// Contrast around the middle grey: 1 leaves the tones as they are, above 1 pulls them apart, below 1 together.
+    pub contrast: f64,
+    /// Brightness: added to every tone (-1 .. 1; 0.1 is a tenth lighter).
+    pub brightness: f64,
+    /// Lighten the background (0 off .. 1 white): the plain backdrop that joins the top of the picture without a sharp step is made lighter, and at 1 white.
+    pub lighten_bg: f64,
 }
 
-impl Default for PicParams { fn default() -> Self { PicParams { width_mm: 60.0, zmax: 3.0, invert: false, levels: true, gamma: 1.0, smooth_mm: 0.3 } } }
+impl Default for PicParams { fn default() -> Self { PicParams { width_mm: 60.0, zmax: 3.0, invert: false, levels: true, gamma: 1.0, smooth_mm: 0.3, contrast: 1.0, brightness: 0.0, lighten_bg: 0.0 } } }
 
 /// A picture reduced to at most `max_side` pixels on the long side and kept as a PNG, so a dialog that makes the relief again at every change of a
 /// setting does not decode a large photograph each time. A picture that is small enough is returned as it is.
@@ -667,6 +752,54 @@ mod tests {
         // rows run from the bottom: the picture's top row (lighter here) is the last row of the map
         assert!(h[49 * 100 + 50] > h[50], "the top of the picture is the end of the map");
         assert!((h.iter().cloned().fold(0.0f32, f32::max) - 1.0).abs() < 1e-4, "the highest cell holds the top value");
+    }
+
+    #[test]
+    fn contrast_and_brightness_change_the_tones() {
+        let b = png(60, 60, |x, _| if x < 30 { 100 } else { 160 });
+        let base = PicParams { width_mm: 30.0, zmax: 2.0, smooth_mm: 0.0, levels: false, ..Default::default() };
+        let h = |p: PicParams| Relief::from_picture(&b, "a", &p, 600).unwrap().heights();
+        let n = h(base);
+        let c = h(PicParams { contrast: 2.0, ..base });
+        // heights are scaled so that the lightest is 1: compare the ratio of the two tones
+        assert!(c[5] / c[55] < n[5] / n[55] - 0.1, "contrast pulls the two tones apart");
+        let l = h(PicParams { brightness: 0.2, ..base });
+        assert!(l[5] / l[55] > n[5] / n[55] + 0.05, "a lighter picture has its tones closer together");
+    }
+
+    #[test]
+    fn the_background_is_lightened_but_the_subject_stays() {
+        // a dark square on a mid-grey, softly shaded backdrop
+        let b = png(120, 120, |x, y| if (40..80).contains(&x) && (40..80).contains(&y) { 30 } else { 150 + (x / 12) as u8 });
+        let base = PicParams { width_mm: 60.0, zmax: 2.0, smooth_mm: 0.0, levels: false, ..Default::default() };
+        let off = Relief::from_picture(&b, "a", &base, 600).unwrap().heights();
+        let on = Relief::from_picture(&b, "a", &PicParams { lighten_bg: 1.0, ..base }, 600).unwrap().heights();
+        let at = |h: &[f32], x: usize, y: usize| h[y * 120 + x];
+        assert!(at(&off, 5, 5) < 0.97, "without it the backdrop is grey");
+        assert!(at(&on, 5, 5) > 0.99 && at(&on, 100, 20) > 0.99, "the backdrop is white");
+        assert!(at(&on, 60, 60) < 0.3, "the dark square is kept: {}", at(&on, 60, 60));
+        // half way is half way between the backdrop's own tone and white, and the subject is still untouched
+        let half = Relief::from_picture(&b, "a", &PicParams { lighten_bg: 0.5, ..base }, 600).unwrap().heights();
+        let (o, h, w) = (at(&off, 5, 5), at(&half, 5, 5), at(&on, 5, 5));
+        assert!(h > o + 0.005 && h < w - 0.005, "{o} {h} {w}");
+        assert!(at(&half, 60, 60) < 0.3, "the dark square is kept");
+    }
+
+    #[test]
+    fn a_subject_cut_by_the_bottom_edge_is_not_taken_for_backdrop() {
+        // a dark backdrop with a light bust that reaches the bottom edge, joined to the backdrop by a soft gradient on its shoulders
+        let b = png(120, 120, |x, y| {
+            let bust = y > 50 && (x as i32 - 60).abs() < 20 + (y as i32 - 50) / 2;
+            if bust { 200 - (y / 10) as u8 } else { 60 }
+        });
+        let base = PicParams { width_mm: 60.0, zmax: 2.0, smooth_mm: 0.0, levels: false, ..Default::default() };
+        let on = Relief::from_picture(&b, "a", &PicParams { lighten_bg: 1.0, ..base }, 600).unwrap().heights();
+        let at = |x: usize, y: usize| on[(119 - y) * 120 + x];
+        assert!(at(5, 5) > 0.99, "the backdrop at the top is cleared");
+        // the bust is not all white: its tones differ from the cleared backdrop's pure white at the top
+        let top_white = (0..120).filter(|&x| at(x, 2) > 0.99).count();
+        let bust_white = (45..75).filter(|&x| at(x, 100) > 0.995).count();
+        assert!(top_white > 100 && bust_white < 10, "{top_white} {bust_white}");
     }
 
     #[test]
