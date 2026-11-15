@@ -21,6 +21,39 @@ fn run(cmd: &str, args: &[&str]) -> Option<String> {
 
 fn gsetting(key: &str) -> Option<String> { run("gsettings", &["get", "org.gnome.desktop.interface", key]) }
 
+fn gsetting_in(schema: &str, key: &str) -> Option<String> { run("gsettings", &["get", schema, key]) }
+
+/// The desktop's dark/light choice. GNOME sets `color-scheme`; other desktops (Cinnamon, Xfce, KDE ...) often leave it at "default", which
+/// means "no preference", not light: then the freedesktop settings portal, and last the name of the GTK theme (`Mint-Y-Dark-Aqua`), say.
+fn desktop_dark() -> bool {
+    let scheme = gsetting("color-scheme");
+    if let Some(d) = decide(scheme.as_deref(), None, &[]) { return d; }
+    let portal = run("gdbus", &["call", "--session", "--dest", "org.freedesktop.portal.Desktop", "--object-path", "/org/freedesktop/portal/desktop",
+        "--method", "org.freedesktop.portal.Settings.Read", "org.freedesktop.appearance", "color-scheme"]);
+    let themes: Vec<String> = [("org.cinnamon.desktop.interface", "gtk-theme"), ("org.gnome.desktop.interface", "gtk-theme")]
+        .iter().filter_map(|(s, k)| gsetting_in(s, k)).collect();
+    match decide(scheme.as_deref(), portal.as_deref(), &themes) {
+        Some(d) => d,
+        // nothing readable at all (no gsettings): dark, as before; a desktop that answered but has no preference: light
+        None => scheme.is_none() && portal.is_none() && themes.is_empty(),
+    }
+}
+
+/// Dark (true), light (false) or no answer, from the `color-scheme` setting, the portal's reply (`(<<uint32 1>>,)`: 1 dark, 2 light,
+/// 0 no preference) and the GTK theme names, in that order.
+fn decide(scheme: Option<&str>, portal: Option<&str>, themes: &[String]) -> Option<bool> {
+    if let Some(s) = scheme {
+        if s.contains("dark") { return Some(true); }
+        if s.contains("light") { return Some(false); }
+    }
+    if let Some(p) = portal {
+        if let Some(i) = p.find("uint32 ") {
+            match p[i + 7..].chars().take_while(|c| c.is_ascii_digit()).collect::<String>().as_str() { "1" => return Some(true), "2" => return Some(false), _ => {} }
+        }
+    }
+    themes.first().map(|t| t.to_lowercase().contains("dark"))
+}
+
 /// "Cantarell 11" -> ("Cantarell", 11.0)
 fn parse_font(s: &str) -> (String, f32) {
     let mut parts: Vec<&str> = s.split_whitespace().collect();
@@ -36,10 +69,9 @@ pub fn detect() -> Theme { detect_mode("system") }
 /// the font size always come from the desktop. PUTIACNC_THEME=light|dark overrides everything (handy for testing).
 pub fn detect_mode(mode: &str) -> Theme {
     let forced = std::env::var("PUTIACNC_THEME").ok().or_else(|| match mode { "light" | "dark" => Some(mode.to_string()), _ => None });
-    let dark = match forced.as_deref().or(gsetting("color-scheme").as_deref()) {
-        Some(s) if s.contains("dark") => true,
-        Some(s) if s.contains("light") || s == "default" => false,
-        _ => true,
+    let dark = match forced.as_deref() {
+        Some(s) => s.contains("dark"),
+        None => desktop_dark(),
     };
     let accent = match gsetting("accent-color").as_deref().unwrap_or("blue") {
         "teal" => Color32::from_rgb(0x21, 0x90, 0xa4),
@@ -196,6 +228,24 @@ pub fn apply_style(ctx: &egui::Context, t: &Theme) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A desktop that leaves `color-scheme` at "default" (Cinnamon, Xfce ...) is asked next: the portal, then the GTK theme's name.
+    #[test]
+    fn the_desktops_dark_choice_is_found_where_it_is_kept() {
+        let t = |names: &[&str]| names.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        // GNOME: color-scheme decides
+        assert_eq!(decide(Some("prefer-dark"), None, &t(&["Adwaita"])), Some(true));
+        assert_eq!(decide(Some("prefer-light"), Some("(<<uint32 1>>,)"), &[]), Some(false));
+        // "default" says nothing: the portal (1 dark, 2 light, 0 none), then the theme name
+        assert_eq!(decide(Some("default"), Some("(<<uint32 1>>,)"), &[]), Some(true));
+        assert_eq!(decide(Some("default"), Some("(<<uint32 2>>,)"), &t(&["Mint-Y-Dark"])), Some(false));
+        assert_eq!(decide(Some("default"), Some("(<<uint32 0>>,)"), &t(&["Mint-Y-Dark-Aqua"])), Some(true));
+        assert_eq!(decide(Some("default"), None, &t(&["Mint-Y-Aqua", "Adwaita-dark"])), Some(false));
+        assert_eq!(decide(Some("default"), None, &t(&["Yaru-DARK"])), Some(true));
+        // nothing to go on
+        assert_eq!(decide(Some("default"), None, &[]), None);
+        assert_eq!(decide(None, Some("garbage"), &[]), None);
+    }
 
     /// Every symbol the windows and menus write (arrows, triangles, quotes, the inch mark ...) can be drawn from the bundled fonts alone, so
     /// it shows on a desktop whose own font lacks it too (the right-click menu once showed an empty box for a triangle).
