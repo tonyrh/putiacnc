@@ -207,14 +207,16 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
             });
         });
     }
+    // a picture (for a Photo V-carve) and a 3D model share the relief data; it is a picture when only photo operations use it
+    let is_picture = d.ops.iter().any(|o| o.p.kind == "photo") && !d.ops.iter().any(|o| o.p.kind == "relief");
     if let Some(rel) = d.relief.as_mut() {
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.set_width(ui.available_width() - 4.0);
             let mut fit = false;
             ui.horizontal(|ui| {
-                long_name_r(ui, &tr_f("3D model: {name}", &[("name", &rel.name)]), 64.0);
+                long_name_r(ui, &if is_picture { tr_f("Picture: {name}", &[("name", &rel.name)]) } else { tr_f("3D model: {name}", &[("name", &rel.name)]) }, 64.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if small_icon_button(ui, Icon::Trash, true, tr("Remove the 3D model (its relief operations stop working)")).clicked() { *act = Some((None, GroupAct::Delete)); }
+                    if small_icon_button(ui, Icon::Trash, true, if is_picture { tr("Remove the picture (its Photo V-carve operations stop working)") } else { tr("Remove the 3D model (its relief operations stop working)") }).clicked() { *act = Some((None, GroupAct::Delete)); }
                     if small_icon_button(ui, Icon::Fit, true, tr("Fit to stock: as large as fits, centred")).clicked() { fit = true; }
                 });
             });
@@ -225,7 +227,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
             }
-            ui.weak(crate::widgets::localize(ui, &tr_f("The model is {h} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", &[("h", &format!("{:.1}", rel.zmax * rel.scale))])));
+            if !is_picture { ui.weak(crate::widgets::localize(ui, &tr_f("The model is {h} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", &[("h", &format!("{:.1}", rel.zmax * rel.scale))]))); }
             if fit {
                 let k = (sw / (rel.nx as f64 * rel.res)).min(sh / (rel.ny as f64 * rel.res));
                 if rel.scale > k { rel.scale = k; }
