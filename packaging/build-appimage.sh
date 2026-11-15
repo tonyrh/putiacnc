@@ -12,7 +12,9 @@ cp "$T/release/putiacnc" "$A/usr/bin/putiacnc" && strip "$A/usr/bin/putiacnc"
 cp LICENSE THIRD-PARTY-LICENSES.txt "$A/usr/share/licenses/putiacnc/"
 cp packaging/putiacnc.desktop "$A/putiacnc.desktop"
 cp packaging/putiacnc.desktop "$A/usr/share/applications/"
-mkdir -p "$A/usr/share/metainfo" && cp packaging/io.github.tonyrh.putiacnc.metainfo.xml "$A/usr/share/metainfo/"
+# appimagetool looks for usr/share/metainfo/<name of the .desktop file>.appdata.xml and warns when it is missing, so the file goes by that name here
+# (the component inside keeps its id io.github.tonyrh.putiacnc, which is what other packaging uses as the file name)
+mkdir -p "$A/usr/share/metainfo" && cp packaging/io.github.tonyrh.putiacnc.metainfo.xml "$A/usr/share/metainfo/putiacnc.appdata.xml"
 cp assets/icons/putiacnc-256.png "$A/putiacnc.png"
 cp assets/icons/putiacnc-256.png "$A/usr/share/icons/hicolor/256x256/apps/putiacnc.png"
 # The windowing libraries the program loads at run time (winit opens them with dlopen, so ldd does not list them).
