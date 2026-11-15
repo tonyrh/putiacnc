@@ -18,6 +18,10 @@ pub struct PicRelief {
     /// The settings were chosen once, so a second picture keeps them (the size is always made to fit the stock).
     used: bool,
     tex: Option<egui::TextureHandle>,
+    /// The size (points) the preview was drawn for; a different width of the dialog draws it again.
+    view: Vec2,
+    /// What the preview shows about the cutter: its description, the lines' distance and the depth.
+    info: Option<(String, f64, f64)>,
     err: Option<String>,
     dirty: bool,
     /// Pending message for the main window (a file that could not be read).
@@ -48,19 +52,31 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
     if let Some(e) = app.picrelief.error.take() { app.say(crate::app::Level::Error, e); }
     if !app.picrelief.open { return; }
     let (mut place, mut cancel) = (false, false);
+    let tools = app.project.data.tools.clone();
+    let tool_name = putiacnc_core::shapes::photo_tool(&tools).map(|t| t.name.clone()).unwrap_or_else(|| tr("a 30° V-bit").to_string());
     {
         let t = &mut app.picrelief;
         if t.dirty {
             t.dirty = false;
-            match Relief::from_picture(&t.bytes, &t.name, &t.p, 300) {
+            match Relief::from_picture(&t.bytes, &t.name, &t.p, 600) {
                 Ok(r) => {
-                    let h = r.heights();
-                    let mut px = vec![Color32::BLACK; r.nx * r.ny];
-                    for y in 0..r.ny { for x in 0..r.nx {
-                        let v = (55.0 + 185.0 * h[y * r.nx + x]) as u8;
-                        px[(r.ny - 1 - y) * r.nx + x] = Color32::from_gray(v);
-                    } }
-                    t.tex = Some(ctx.load_texture("picrelief_preview", egui::ColorImage { size: [r.nx, r.ny], pixels: px }, egui::TextureOptions::LINEAR));
+                    // the etching as it will look, with the bit a new Photo V-carve starts with and its default depth and spacing
+                    let geo = putiacnc_core::shapes::photo_tool(&tools).map(putiacnc_core::toolpath::ToolGeo::new);
+                    let groove = move |d: f64| match geo { Some(g) => g.r_at(d), None => d * (15.0f64).to_radians().tan() };
+                    let depth = 1.5;
+                    let spacing = 2.0 * groove(depth);
+                    let (mw, mh) = r.size();
+                    let ppp = ctx.pixels_per_point() as f64;
+                    // drawn three times finer than shown and then reduced, so the lines blend into tones as they do on the wood
+                    let shown = (t.view.x as f64 * ppp / mw).min(t.view.y as f64 * ppp / mh).max(0.5);
+                    let ppm = (shown * 3.0).min((1.5e6 / (mw * mh)).sqrt());
+                    let (nx, ny, ink) = putiacnc_core::photo::etch_coverage(&r, depth, spacing, &groove, false, ppm);
+                    let (dw, dh) = (((mw * shown).round() as u32).max(1), ((mh * shown).round() as u32).max(1));
+                    let small = putiacnc_core::photo::reduce(nx, ny, &ink, dw as usize, dh as usize);
+                    let (wood, dark) = ([222.0f32, 184.0, 135.0], [70.0f32, 42.0, 24.0]);
+                    let px: Vec<Color32> = small.iter().map(|&k| { let k = k.clamp(0.0, 1.0); let c = |i: usize| (wood[i] + (dark[i] - wood[i]) * k) as u8; Color32::from_rgb(c(0), c(1), c(2)) }).collect();
+                    t.tex = Some(ctx.load_texture("picrelief_preview", egui::ColorImage { size: [dw as usize, dh as usize], pixels: px }, egui::TextureOptions::LINEAR));
+                    t.info = Some((tool_name.clone(), spacing, depth));
                     t.err = None;
                 }
                 Err(e) => { t.tex = None; t.err = Some(e); }
@@ -71,14 +87,16 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         .current_pos(crate::csd::spot(ctx, "V-carve picture as photo", egui::pos2(560.0, 150.0))).show(ctx, crate::csd::trapped(|ui| {
         let dw = crate::csd::dialog_w(380.0);
         ui.set_width(dw);
-        if crate::csd::dialog_header_help(ui, tr("V-carve picture as photo"), true, |ui| { ui.label(tr("The darker a part of the picture, the wider and deeper the groove. The picture below shows the tones that will be etched.")); }) { cancel = true; }
+        if crate::csd::dialog_header_help(ui, tr("V-carve picture as photo"), true, |ui| { ui.label(tr("The darker a part of the picture, the wider and deeper the groove. The picture below shows how it will look etched in wood.")); }) { cancel = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
         let t = &mut app.picrelief;
         // the dialog is wider in a language with longer words: the picture and the slider take the width there is
         let cw = ui.available_width();
-        let (rect, _) = ui.allocate_exact_size(Vec2::new(cw, 230.0), Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(cw, 320.0), Sense::hover());
+        // a different size of the preview is drawn again at the next frame
+        if (rect.size() - t.view).abs().max_elem() > 1.0 { t.view = rect.size(); t.dirty = true; }
         let painter = ui.painter_at(rect);
-        painter.rect_filled(rect, 4.0, ui.visuals().extreme_bg_color);
+        painter.rect_filled(rect, 4.0, Color32::from_rgb(222, 184, 135));
         if let Some(tex) = &t.tex {
             let s = tex.size_vec2();
             let k = (rect.width() / s.x).min(rect.height() / s.y);
@@ -87,7 +105,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         ui.add_space(8.0);
         let mut changed = false;
-        let lw = [tr("Width"), tr("Midtones"), tr("Smoothing")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0, f32::max);
+        let lw = [tr("Width"), tr("Midtones"), tr("Contrast"), tr("Brightness"), tr("Lighten background"), tr("Smoothing")].iter().map(|s| crate::panels::tw(ui, s)).fold(0.0, f32::max);
         egui::Grid::new("picrelief_grid").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             crate::toolmgr::rlabel(ui, lw, tr("Width"));
             ui.horizontal(|ui| {
@@ -100,6 +118,16 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
             crate::toolmgr::rlabel(ui, lw, tr("Midtones"));
             ui.spacing_mut().slider_width = (cw - lw - 10.0 - 64.0 - 8.0).max(80.0);
             if ui.add(egui::Slider::new(&mut t.p.gamma, 0.3..=3.0).logarithmic(true)).tip(tr("Below 1 lifts the shadows, above 1 deepens them")).changed() { changed = true; }
+            ui.end_row();
+            crate::toolmgr::rlabel(ui, lw, tr("Contrast"));
+            if ui.add(egui::Slider::new(&mut t.p.contrast, 0.3..=3.0).logarithmic(true)).tip(tr("Above 1 pulls the light and the dark apart, below 1 brings them together")).changed() { changed = true; }
+            ui.end_row();
+            crate::toolmgr::rlabel(ui, lw, tr("Brightness"));
+            if ui.add(egui::Slider::new(&mut t.p.brightness, -0.5..=0.5)).tip(tr("Lighter pictures are etched less deeply, darker ones more")).changed() { changed = true; }
+            ui.end_row();
+            crate::toolmgr::rlabel(ui, lw, tr("Lighten background"));
+            if ui.add(egui::Slider::new(&mut t.p.lighten_bg, 0.0..=1.0).custom_formatter(|v, _| format!("{:.0} %", v * 100.0)).custom_parser(|s| s.trim().trim_end_matches('%').trim().parse::<f64>().ok().map(|v| v / 100.0)))
+                .tip(tr("Makes the plain backdrop behind the subject lighter, so that it is etched less; at 100 % it is not etched at all. The backdrop is found from the top of the picture, so check the preview")).changed() { changed = true; }
             ui.end_row();
             crate::toolmgr::rlabel(ui, lw, tr("Smoothing"));
             ui.horizontal(|ui| {
@@ -118,6 +146,9 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         }
         if changed { t.dirty = true; }
         ui.add_space(4.0);
+        if let (None, Some((tool, spacing, depth))) = (&t.err, &t.info) {
+            ui.weak(crate::widgets::localize(ui, &tr_f("Shown with {tool}: lines {s} apart, up to {d} deep. Change them in the operation.", &[("tool", tool), ("s", &crate::widgets::fmt_len(ui, *spacing)), ("d", &crate::widgets::fmt_len(ui, *depth))])));
+        }
         if let Some(e) = &t.err { ui.colored_label(Color32::from_rgb(0xe0, 0x30, 0x30), e.as_str()); }
         else { ui.weak(crate::widgets::localize(ui, &tr_f("{w} × {h} mm.", &[("w", &format!("{:.1}", t.p.width_mm)), ("h", &format!("{:.1}", t.p.width_mm * t.aspect))]))); }
         ui.add_space(8.0);

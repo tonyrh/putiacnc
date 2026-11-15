@@ -710,9 +710,15 @@ pub fn tool_missing(d: &ProjectData, kind: &str) -> Option<&'static str> {
     None
 }
 
-/// The Profile, Pocket, V-carve, Drill, Inlay and 3D relief buttons: a new operation (inheriting the settings of the
+/// (see add_operation below) The Profile, Pocket, V-carve, Drill, Inlay and 3D relief buttons: a new operation (inheriting the settings of the
 /// last one) that takes over the selected shapes. Returns the operations those shapes were in before (one entry per
 /// shape that moved), so the caller can say so.
+/// The tool a new Photo V-carve starts with: the V-bit or engraving bit with the narrowest angle (the finest lines).
+pub fn photo_tool(tools: &[Tool]) -> Option<&Tool> {
+    let cone = |t: &&Tool| ["vbit", "engrave", "taper"].contains(&t.shape.as_str());
+    tools.iter().filter(cone).min_by(|a, b| a.angle.partial_cmp(&b.angle).unwrap_or(std::cmp::Ordering::Equal))
+}
+
 pub fn add_operation(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize>, kind: &str) -> Option<Vec<i64>> {
     if kind == "inlay" { add_inlay(d, sel); return None; }
     let base = d.ops.last().map(|o| o.p.clone());
@@ -749,8 +755,7 @@ pub fn add_operation(d: &mut ProjectData, sel: &std::collections::BTreeSet<usize
     }
     if kind == "photo" {
         // the narrowest V-bit makes the finest lines; a depth that gives lines about a millimetre apart
-        let cone = |t: &&Tool| ["vbit", "engrave", "taper"].contains(&t.shape.as_str());
-        if let Some(t) = d.tools.iter().filter(cone).min_by(|a, b| a.angle.partial_cmp(&b.angle).unwrap_or(std::cmp::Ordering::Equal)) { p.tool = t.id.clone(); }
+        if let Some(t) = photo_tool(&d.tools) { p.tool = t.id.clone(); }
         p.depth = 1.5; p.pass_depth = None; p.tabs = false; p.lead = None; p.tool2 = None; p.rest = None; p.flat = None;
         p.d_man = false; p.r_off = false; p.f_off = false; p.f_so = None; p.f_dir = None; p.custom2 = None;
     }
