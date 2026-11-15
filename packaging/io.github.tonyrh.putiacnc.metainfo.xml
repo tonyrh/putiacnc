@@ -9,7 +9,7 @@
     <p>PutiaCNC is a CAM program for small CNC routers. Draw or import shapes, give them operations (profile, pocket, V-carve, drill, inlay, 3D relief) and preview the result in 2D and 3D before it is cut.</p>
     <p>It writes G-code for GRBL, and also for Mach3, LinuxCNC and Marlin.</p>
   </description>
-  <launchable type="desktop-id">putiacnc.desktop</launchable>
+  <launchable type="desktop-id">io.github.tonyrh.putiacnc.desktop</launchable>
   <url type="homepage">https://tonyrh.github.io/putiacnc/</url>
   <url type="bugtracker">https://github.com/tonyrh/putiacnc/issues</url>
   <screenshots>
