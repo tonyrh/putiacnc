@@ -1743,5 +1743,6 @@
   "Zoom level: 100% is the stock framed to fit. Click for sizes": "Livello di zoom: 100% è il materiale inquadrato per intero. Clicca per le dimensioni",
   "Fit": "Adatta",
   "Zoom in (+)": "Ingrandisci (+)",
-  "Fit the stock in view (0 or F)": "Inquadra il materiale (0 o F)"
+  "Fit the stock in view (0 or F)": "Inquadra il materiale (0 o F)",
+  "Decimals and fractions only change how values are shown: what you type is kept in full.": "Decimali e frazioni cambiano solo come sono mostrati i valori: quello che scrivi è conservato per intero."
 }

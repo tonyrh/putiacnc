@@ -68,10 +68,10 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 crate::toolmgr::rlabel(ui, lw, tr("Smallest fraction"));
                 ui.add_enabled_ui(app.disp_in && app.frac_in, |ui| {
                     let nm = |d: u32| format!("1/{d}");
-                    let names = [16, 32, 64, 128].map(nm);
+                    let names = crate::widgets::FRACTION_DENOMS.map(nm);
                     let w = crate::widgets::combo_fit(ui, &names.each_ref().map(|s| s.as_str())).max(70.0);
                     egui::ComboBox::from_id_source("pref_frac_den").width(w).selected_text(nm(app.frac_den)).show_ui(ui, |ui| {
-                        for d in [16, 32, 64, 128] { ui.selectable_value(&mut app.frac_den, d, nm(d)); }
+                        for d in crate::widgets::FRACTION_DENOMS { ui.selectable_value(&mut app.frac_den, d, nm(d)); }
                     }).response.tip(tr("The smallest fraction of an inch that shown values are rounded to. Typed values are never rounded."));
                 });
                 ui.end_row();
@@ -85,6 +85,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 ui.end_row();
             });
             ui.add_space(4.0);
+            ui.label(egui::RichText::new(tr("Decimals and fractions only change how values are shown: what you type is kept in full.")).weak());
             ui.label(egui::RichText::new(tr("The G-code units are set by the machine, not here.")).weak());
             ui.add_space(8.0);
             section(ui, tr("Data"));

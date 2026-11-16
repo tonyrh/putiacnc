@@ -69,7 +69,7 @@ impl App {
         if let Some(v) = p.display_in { self.disp_in = v; }
         if let Some(v) = p.fractions_in { self.frac_in = v; }
         if let Some(v) = p.inch_decimals { self.inch_dec = v.clamp(2, 5); }
-        if let Some(v) = p.fraction_denom { if [16, 32, 64, 128].contains(&v) { self.frac_den = v; } }
+        if let Some(v) = p.fraction_denom { if crate::widgets::FRACTION_DENOMS.contains(&v) { self.frac_den = v; } }
         if let Ok(u) = std::env::var("PUTIACNC_FRACTIONS") { self.frac_in = u == "1"; }
         // test hook: the display units ("in" or "mm")
         if let Ok(u) = std::env::var("PUTIACNC_UNITS") { self.disp_in = u == "in"; }
