@@ -45,6 +45,8 @@ pub struct Settings {
     pub fractions_in: Option<bool>,
     /// Decimals of a typical length field in inches (2 to 5) and the smallest fraction of an inch (16, 32, 64 or 128).
     pub inch_decimals: Option<usize>,
+    /// Decimals shown by a typical length field in millimetres (0 to 2; 2 when not set).
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub mm_decimals: Option<usize>,
     pub fraction_denom: Option<u32>,
     pub tool_len_in: Option<bool>,
     /// Speed unit of the tool library window when the lengths are shown in mm (older versions: the only one).

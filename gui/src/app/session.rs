@@ -69,6 +69,7 @@ impl App {
         if let Some(v) = p.display_in { self.disp_in = v; }
         if let Some(v) = p.fractions_in { self.frac_in = v; }
         if let Some(v) = p.inch_decimals { self.inch_dec = v.clamp(2, 5); }
+        if let Some(v) = p.mm_decimals { self.mm_dec = v.min(2); }
         if let Some(v) = p.fraction_denom { if crate::widgets::FRACTION_DENOMS.contains(&v) { self.frac_den = v; } }
         if let Ok(u) = std::env::var("PUTIACNC_FRACTIONS") { self.frac_in = u == "1"; }
         // test hook: the display units ("in" or "mm")
@@ -110,6 +111,7 @@ impl App {
         s.display_in = Some(self.disp_in);
         s.fractions_in = Some(self.frac_in);
         s.inch_decimals = Some(self.inch_dec);
+        s.mm_decimals = Some(self.mm_dec);
         s.fraction_denom = Some(self.frac_den);
         s.tool_speed_idx = Some(self.tool_speed_mm);
         s.tool_speed_idx_in = Some(self.tool_speed_in);
