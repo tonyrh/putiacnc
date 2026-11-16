@@ -32,9 +32,11 @@ pub fn localize(ui: &Ui, text: &str) -> String { crate::units::localize(text, in
 /// Kept for the whole program, set once per frame by the app.
 static INCH_DECIMALS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(4);
 static FRACTION_DENOM: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(64);
+/// The smallest fractions of an inch that can be chosen.
+pub const FRACTION_DENOMS: [u32; 7] = [2, 4, 8, 16, 32, 64, 128];
 pub fn set_inch_precision(decimals: usize, denom: u32) {
     INCH_DECIMALS.store(decimals.clamp(2, 5), std::sync::atomic::Ordering::Relaxed);
-    FRACTION_DENOM.store(if [16, 32, 64, 128].contains(&denom) { denom as u64 } else { 64 }, std::sync::atomic::Ordering::Relaxed);
+    FRACTION_DENOM.store(if FRACTION_DENOMS.contains(&denom) { denom as u64 } else { 64 }, std::sync::atomic::Ordering::Relaxed);
 }
 /// The decimals of an inch field whose mm version shows `mm_dec` decimals.
 pub fn inch_decimals(mm_dec: usize) -> usize {
@@ -59,11 +61,12 @@ fn fraction_text(v: f64, n: u64, den0: u64) -> String {
 /// it is an exact fraction below that; otherwise (and for the tiny values of tolerances) as a decimal.
 pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String { fmt_inch_with(v, dec, frac, fraction_denom()) }
 
-/// [`fmt_inch`] with the smallest fraction given (16, 32, 64 or 128).
+/// [`fmt_inch`] with the smallest fraction given (one of [`FRACTION_DENOMS`]).
 pub fn fmt_inch_with(v: f64, dec: usize, frac: bool, den: u64) -> String {
     if frac {
         if let Some(t) = exact_fraction(v, den) { return t; }
-        if v.abs() >= 1.0 / 16.0 { return fraction_text(v, (v.abs() * den as f64).round() as u64, den); }
+        // from 1/16 up, and never a value that would round to nothing (0.1 in to the nearest 1/2 stays a decimal)
+        if v.abs() >= (1.0_f64 / 16.0).max(0.5 / den as f64) { return fraction_text(v, (v.abs() * den as f64).round() as u64, den); }
     }
     fmt_val(v, dec)
 }
@@ -479,6 +482,14 @@ mod unit_tests {
         assert_eq!(fmt_inch_with(0.0078125, 4, true, 128), "1/128");
         assert_eq!(fmt_inch_with(0.0078125, 4, true, 64), "0.0078");
         assert_eq!(fmt_inch_with(1.0, 4, true, 128), "1");
+        // coarse fractions: to the nearest half, quarter or eighth, and a small value is not rounded away to nothing
+        assert_eq!(fmt_inch_with(2.2, 4, true, 2), "2");
+        assert_eq!(fmt_inch_with(2.3, 4, true, 2), "2 1/2");
+        assert_eq!(fmt_inch_with(2.3, 4, true, 4), "2 1/4");
+        assert_eq!(fmt_inch_with(0.7, 4, true, 8), "3/4");
+        assert_eq!(fmt_inch_with(0.3, 4, true, 2), "1/2");
+        assert_eq!(fmt_inch_with(0.1181, 4, true, 2), "0.1181");
+        assert_eq!(fmt_inch_with(0.1181, 4, true, 8), "1/8");
         assert_eq!(fmt_inch_with(-1.3125, 4, true, 16), "-1 5/16");
     }
 

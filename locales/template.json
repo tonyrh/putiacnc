@@ -1312,6 +1312,7 @@
   "How many decimals an inch field shows, for a typical length (a field that needs more or fewer keeps the difference). Typed values are never rounded.": "",
   "The smallest fraction of an inch that shown values are rounded to. Typed values are never rounded.": "",
   "The unit of feeds in the tool library and the operations. The G-code units are set by the machine.": "",
+  "Decimals and fractions only change how values are shown: what you type is kept in full.": "",
   "The G-code units are set by the machine, not here.": "",
   "Data": "",
   "Not set yet": "",

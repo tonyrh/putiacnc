@@ -1744,6 +1744,7 @@
   "Fit": "Adatta",
   "Zoom in (+)": "Ingrandisci (+)",
   "Fit the stock in view (0 or F)": "Inquadra il materiale (0 o F)",
+  "Decimals and fractions only change how values are shown: what you type is kept in full.": "Decimali e frazioni cambiano solo come sono mostrati i valori: quello che scrivi è conservato per intero.",
   "Side": "Lato",
   "The text follows the inside of the shape's edge": "Il testo segue l'interno del bordo della forma",
   "The text goes round the outside of the shape": "Il testo gira intorno alla forma, all'esterno",
