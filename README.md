@@ -34,7 +34,7 @@ The workspace has two crates:
 ### Features
 
 **Drawing**
-- Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font or in a built-in single-line font for pen drawing (text stays editable, and can follow an arc or the inside edge of a closed shape).
+- Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids, and text in any installed font or in a built-in single-line font for pen drawing (text stays editable, and can follow an arc, or the edge of a closed shape on the inside or round the outside).
 - Layers, each with a name, colour, eye and lock.
 - Import SVG, DXF, bitmaps (traced into outlines or centre lines), and STL / OBJ models for 3D relief.
 - Build a 3D relief from your own shapes (Generate → Relief from shapes): closed shapes get a height and a flat, rounded, dome or slope profile, and a shape inside another one is a hole in it. No model file needed.

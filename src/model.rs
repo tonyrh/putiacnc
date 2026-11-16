@@ -159,6 +159,8 @@ pub struct TextSpec {
     /// Flow::Shape: the outline (mm) of the shape the text follows, as it was when the text was set; `radius` is then the
     /// distance from its edge to the letters.
     #[serde(default, skip_serializing_if = "Vec::is_empty")] pub path: Vec<[f64; 2]>,
+    /// Flow::Shape: the text goes round the outside of the shape instead of along the inside of its edge.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")] pub outside: bool,
 }
 
 /// A 3D model reduced to a height map (seen from above), carved by relief operations.

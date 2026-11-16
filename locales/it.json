@@ -1550,7 +1550,7 @@
   "Sets the height so the longest line is exactly this wide": "Imposta l'altezza in modo che la riga più lunga sia larga esattamente così",
   "Shape": "Forma",
   "Use the selected shape": "Usa la forma selezionata",
-  "Click a closed shape in the drawing (an oval, a rounded rectangle, any outline), or select it and press this: the text follows the inside of its edge. It is taken as it is now: if the shape changes, press again": "Clicca una forma chiusa nel disegno (un ovale, un rettangolo arrotondato, un contorno qualsiasi), oppure selezionala e premi qui: il testo segue l'interno del suo bordo. Viene presa com'è adesso: se la forma cambia, premi di nuovo",
+  "Click a closed shape in the drawing (an oval, a rounded rectangle, any outline), or select it and press this: the text follows its edge, on the side chosen below. It is taken as it is now: if the shape changes, press again": "Clicca una forma chiusa nel disegno (un ovale, un rettangolo arrotondato, un contorno qualsiasi), oppure selezionala e premi qui: il testo segue il suo bordo, dal lato scelto qui sotto. Viene presa com'è adesso: se la forma cambia, premi di nuovo",
   "none yet": "ancora nessuna",
   "{unit}, from the edge to the letters": "{unit}, dal bordo alle lettere",
   "{unit}, of the baseline": "{unit}, della linea di base",
@@ -1743,5 +1743,9 @@
   "Zoom level: 100% is the stock framed to fit. Click for sizes": "Livello di zoom: 100% è il materiale inquadrato per intero. Clicca per le dimensioni",
   "Fit": "Adatta",
   "Zoom in (+)": "Ingrandisci (+)",
-  "Fit the stock in view (0 or F)": "Inquadra il materiale (0 o F)"
+  "Fit the stock in view (0 or F)": "Inquadra il materiale (0 o F)",
+  "Side": "Lato",
+  "The text follows the inside of the shape's edge": "Il testo segue l'interno del bordo della forma",
+  "The text goes round the outside of the shape": "Il testo gira intorno alla forma, all'esterno",
+  "set": "impostata"
 }
