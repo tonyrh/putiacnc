@@ -46,7 +46,7 @@ pub fn localize(text: &str, inches: bool, frac: bool) -> String {
         if nums.is_empty() { continue; }
         for &(s, e) in &nums {
             let Ok(v) = text[s..e].parse::<f64>() else { continue };
-            let s_new = if area { shown(v / 645.16, 4, false) } else if speed { shown(v / 25.4, 2, false) } else { shown(v / 25.4, 3, frac) };
+            let s_new = if area { shown(v / 645.16, 4, false) } else if speed { shown(v / 25.4, 2, false) } else { shown(v / 25.4, crate::widgets::inch_decimals(1), frac) };
             edits.push((s, e, s_new));
         }
         edits.push((at, at + 2 + tail, new_tail.to_string()));

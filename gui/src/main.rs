@@ -198,6 +198,7 @@ impl App {
     pub(crate) fn ui_frame(&mut self, ctx: &egui::Context) {
         widgets::set_inches(ctx, self.disp_in);
         widgets::set_fractions(ctx, self.frac_in);
+        widgets::set_inch_precision(self.inch_dec, self.frac_den);
         widgets::set_speed_unit(ctx, self.tool_speed());
         self.sync_grid_units();
         csd::tab_regions_reset(ctx);

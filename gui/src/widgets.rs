@@ -27,25 +27,43 @@ pub fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new
 /// A message written in mm, with its lengths in the shown unit (see `units::localize`).
 pub fn localize(ui: &Ui, text: &str) -> String { crate::units::localize(text, inches(ui), fractions(ui)) }
 
-/// An inch value as an exact fraction of an inch (to 1/64: `3/16`, `1 3/16`), when it is one.
-fn exact_fraction(v: f64) -> Option<String> {
-    let n = (v.abs() * 64.0).round();
-    if n > 0.0 && (v.abs() * 64.0 - n).abs() < 0.03 { Some(fraction_text(v, n as u64)) } else { None }
+/// How inch values are shown (Preferences, Units): the decimals of a typical length field (4: 12.3456; a field that shows two decimals in
+/// mm shows this many in inches, one that shows more or fewer keeps the difference) and the smallest fraction of an inch (1/64 ...).
+/// Kept for the whole program, set once per frame by the app.
+static INCH_DECIMALS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(4);
+static FRACTION_DENOM: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(64);
+pub fn set_inch_precision(decimals: usize, denom: u32) {
+    INCH_DECIMALS.store(decimals.clamp(2, 5), std::sync::atomic::Ordering::Relaxed);
+    FRACTION_DENOM.store(if [16, 32, 64, 128].contains(&denom) { denom as u64 } else { 64 }, std::sync::atomic::Ordering::Relaxed);
+}
+/// The decimals of an inch field whose mm version shows `mm_dec` decimals.
+pub fn inch_decimals(mm_dec: usize) -> usize {
+    (INCH_DECIMALS.load(std::sync::atomic::Ordering::Relaxed) as i64 + mm_dec as i64 - 2).clamp(1, 6) as usize
+}
+fn fraction_denom() -> u64 { FRACTION_DENOM.load(std::sync::atomic::Ordering::Relaxed) }
+
+/// An inch value as an exact fraction of an inch (to the smallest fraction: `3/16`, `1 3/16`), when it is one.
+fn exact_fraction(v: f64, den: u64) -> Option<String> {
+    let n = (v.abs() * den as f64).round();
+    if n > 0.0 && (v.abs() * den as f64 - n).abs() < 0.03 * den as f64 / 64.0 { Some(fraction_text(v, n as u64, den)) } else { None }
 }
 
-fn fraction_text(v: f64, n: u64) -> String {
-    let (whole, mut rest, mut den) = (n / 64, n % 64, 64u64);
+fn fraction_text(v: f64, n: u64, den0: u64) -> String {
+    let (whole, mut rest, mut den) = (n / den0, n % den0, den0);
     while rest != 0 && rest % 2 == 0 { rest /= 2; den /= 2; }
     let sign = if v < 0.0 { "-" } else { "" };
     if rest == 0 { format!("{sign}{whole}") } else if whole == 0 { format!("{sign}{rest}/{den}") } else { format!("{sign}{whole} {rest}/{den}") }
 }
 
-/// An inch value for display: with `frac`, as a fraction of an inch to the nearest 1/64 (`3/16`, `2 1/4`) from 1/16 up, and when it is
-/// an exact fraction below that; otherwise (and for the tiny values of tolerances) as a decimal.
-pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String {
+/// An inch value for display: with `frac`, as a fraction of an inch to the nearest smallest fraction (`3/16`, `2 1/4`) from 1/16 up, and when
+/// it is an exact fraction below that; otherwise (and for the tiny values of tolerances) as a decimal.
+pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String { fmt_inch_with(v, dec, frac, fraction_denom()) }
+
+/// [`fmt_inch`] with the smallest fraction given (16, 32, 64 or 128).
+pub fn fmt_inch_with(v: f64, dec: usize, frac: bool, den: u64) -> String {
     if frac {
-        if let Some(t) = exact_fraction(v) { return t; }
-        if v.abs() >= 1.0 / 16.0 { return fraction_text(v, (v.abs() * 64.0).round() as u64); }
+        if let Some(t) = exact_fraction(v, den) { return t; }
+        if v.abs() >= 1.0 / 16.0 { return fraction_text(v, (v.abs() * den as f64).round() as u64, den); }
     }
     fmt_val(v, dec)
 }
@@ -53,7 +71,7 @@ pub fn fmt_inch(v: f64, dec: usize, frac: bool) -> String {
 /// What a field starts with when it is clicked to be typed in: an exact fraction, or else the number to its decimals, so that
 /// leaving it as it is changes nothing.
 fn fmt_inch_edit(v: f64, dec: usize, frac: bool) -> String {
-    if frac { if let Some(t) = exact_fraction(v) { return t; } }
+    if frac { if let Some(t) = exact_fraction(v, fraction_denom()) { return t; } }
     fmt_val(v, dec)
 }
 
@@ -67,13 +85,14 @@ pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
     let k = len_k(ui);
     if k == 1.0 { return num_with(ui, size, v, lo, hi, speed, dec, suffix, Some(1.0)); }
     let mut x = *v / k;
-    let r = num_with(ui, size, &mut x, lo / k, hi / k, speed / k, dec + 2, suffix, Some(k));
+    // inch values are longer (more decimals, fractions): a little more room than the same field in mm
+    let r = num_with(ui, [size[0] + INCH_EXTRA_W, size[1]], &mut x, lo / k, hi / k, speed / k, inch_decimals(dec), suffix, Some(k));
     if r.changed() { *v = (x * k).clamp(lo, hi); }
     r
 }
 
 /// A length for a message or a readout, in the shown unit with its name ("12.5 mm", "0.492 in").
-pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_inch(mm / 25.4, 3, fractions(ui))) } else { format!("{} mm", fmt_val(mm, 2)) } }
+pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_inch(mm / 25.4, inch_decimals(1), fractions(ui))) } else { format!("{} mm", fmt_val(mm, 2)) } }
 
 /// What a number field takes: a decimal (comma or point), a fraction (`1/8`, `3/16`) or a mixed number (`1 3/16`, `1-3/16`), with an
 /// optional minus sign. Spaces round it and a trailing inch mark (`"` or `in`) are ignored.
@@ -114,6 +133,9 @@ fn parse_plain(text: &str) -> Option<f64> {
     };
     Some(if neg { -v } else { v })
 }
+
+/// How much wider a length field is in inches than in mm.
+pub const INCH_EXTRA_W: f32 = 8.0;
 
 /// Width of a number field in the dialogs.
 pub const FIELD_W: f32 = 70.0;
@@ -192,15 +214,15 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     let font = egui::TextStyle::Button.resolve(ui.style());
     let col = ui.visuals().override_text_color.unwrap_or(vis.fg_stroke.color);
     let room = (rect.width() - 14.0).max(8.0);
-    let (text, g) = fit_text(ui, &font, col, room, |d| format!("{}{}", if frac && d == dec { fmt_inch(*v, d, true) } else { fmt_val(*v, d) }, suffix), dec);
+    let (text, g) = fit_text(ui, &font, col, room, |d| format!("{}{}", if frac && d == dec { fmt_inch(*v, d, true) } else { fmt_val(*v, d) }, suffix), dec, if unit_mm.is_some_and(|k| k > 25.0) { 3.min(dec) } else { 0 });
     ui.painter().with_clip_rect(rect).galley(egui::pos2(rect.max.x - 8.0 - g.size().x, rect.center().y - g.size().y / 2.0), g, col);
     let _ = text;
     resp
 }
 
 /// The text of a number field made to fit `room` points: the text is made smaller (down to 50 %), and when it still does not fit,
-/// decimals are dropped one by one (the value itself keeps them; clicking the field shows them). A fraction that does not fit becomes a decimal (the closure gets `d == dec` only for the first try). `text_for(d)` is the text with `d` decimals.
-pub fn fit_text(ui: &Ui, font: &egui::FontId, col: egui::Color32, room: f32, text_for: impl Fn(usize) -> String, dec: usize) -> (String, std::sync::Arc<egui::Galley>) {
+/// decimals are dropped one by one, down to `floor` (3 in inches: XX.XXX is the least anyone wants to lose; below that the text only gets smaller and is clipped), the value itself keeps them; clicking the field shows them. A fraction that does not fit becomes a decimal (the closure gets `d == dec` only for the first try). `text_for(d)` is the text with `d` decimals.
+pub fn fit_text(ui: &Ui, font: &egui::FontId, col: egui::Color32, room: f32, text_for: impl Fn(usize) -> String, dec: usize, floor: usize) -> (String, std::sync::Arc<egui::Galley>) {
     let mut d = dec;
     loop {
         let text = text_for(d);
@@ -212,7 +234,7 @@ pub fn fit_text(ui: &Ui, font: &egui::FontId, col: egui::Color32, room: f32, tex
             f *= 0.94;
             g = ui.painter().layout_no_wrap(text.clone(), egui::FontId::new(font.size * f, font.family.clone()), col);
         }
-        if g.size().x <= room || d == 0 { return (text, g); }
+        if g.size().x <= room || d <= floor { return (text, g); }
         d -= 1;
     }
 }
@@ -432,9 +454,9 @@ mod unit_tests {
                     let font = egui::TextStyle::Button.resolve(ui.style());
                     for w in [70.0f32, 54.0, 46.0] {
                         let room = w - 14.0;
-                        for v in [10.1875, 123.456789, 3.0 / 7.0 * 25.0, 99.9999, 1234.5678] {
+                        for v in [10.1875, 123.456789, 3.0 / 7.0 * 25.0, 99.9999] {
                             for frac in [false, true] {
-                                let (t, g) = fit_text(ui, &font, egui::Color32::WHITE, room, |d| format!("{} in", if frac && d == 4 { fmt_inch(v, d, true) } else { fmt_val(v, d) }), 4);
+                                let (t, g) = fit_text(ui, &font, egui::Color32::WHITE, room, |d| format!("{} in", if frac && d == 4 { fmt_inch(v, d, true) } else { fmt_val(v, d) }), 4, 3);
                                 assert!(g.size().x <= room + 0.5, "{t:?} is {} wide in {room} (field {w}, scale {ppp})", g.size().x);
                             }
                         }
@@ -442,6 +464,29 @@ mod unit_tests {
                 });
             });
         }
+    }
+
+    /// The smallest fraction is a setting; values are rounded to it for display only.
+    #[test]
+    fn the_smallest_fraction_is_a_setting() {
+        assert_eq!(fmt_inch_with(0.1181, 4, true, 16), "1/8"); // 3 mm
+        assert_eq!(fmt_inch_with(0.1181, 4, true, 32), "1/8");
+        assert_eq!(fmt_inch_with(0.1181, 4, true, 64), "1/8");
+        assert_eq!(fmt_inch_with(0.1181, 4, true, 128), "15/128");
+        assert_eq!(fmt_inch_with(0.1875, 4, true, 128), "3/16");
+        assert_eq!(fmt_inch_with(2.2, 4, true, 16), "2 3/16");
+        assert_eq!(fmt_inch_with(2.2, 4, true, 128), "2 13/64");
+        assert_eq!(fmt_inch_with(0.0078125, 4, true, 128), "1/128");
+        assert_eq!(fmt_inch_with(0.0078125, 4, true, 64), "0.0078");
+        assert_eq!(fmt_inch_with(1.0, 4, true, 128), "1");
+        assert_eq!(fmt_inch_with(-1.3125, 4, true, 16), "-1 5/16");
+    }
+
+    /// The decimals setting moves every inch field by the same amount; a field that shows more in mm keeps the difference.
+    #[test]
+    fn inch_decimals_follow_the_mm_decimals() {
+        set_inch_precision(4, 64); // the default: the same as every other test
+        assert_eq!((inch_decimals(1), inch_decimals(2), inch_decimals(3), inch_decimals(0)), (3, 4, 5, 2));
     }
 
     #[test]

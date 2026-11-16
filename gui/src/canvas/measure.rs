@@ -4,7 +4,7 @@ use putiacnc_core::i18n::tr;
 
 /// A length in the unit the app shows.
 fn len(app: &App, v: f64) -> String {
-    if app.disp_in { format!("{} in", crate::widgets::fmt_inch(v / 25.4, 3, app.frac_in)) } else { format!("{} mm", trim_zeros(v)) }
+    if app.disp_in { format!("{} in", crate::widgets::fmt_inch(v / 25.4, crate::widgets::inch_decimals(1), app.frac_in)) } else { format!("{} mm", trim_zeros(v)) }
 }
 fn trim_zeros(v: f64) -> String { let t = format!("{:.2}", v); t.trim_end_matches('0').trim_end_matches('.').to_string() }
 

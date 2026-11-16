@@ -68,6 +68,8 @@ impl App {
         if let Some(v) = p.tool_len_in.or(p.mach_len_in) { self.disp_in = v; }
         if let Some(v) = p.display_in { self.disp_in = v; }
         if let Some(v) = p.fractions_in { self.frac_in = v; }
+        if let Some(v) = p.inch_decimals { self.inch_dec = v.clamp(2, 5); }
+        if let Some(v) = p.fraction_denom { if [16, 32, 64, 128].contains(&v) { self.frac_den = v; } }
         if let Ok(u) = std::env::var("PUTIACNC_FRACTIONS") { self.frac_in = u == "1"; }
         // test hook: the display units ("in" or "mm")
         if let Ok(u) = std::env::var("PUTIACNC_UNITS") { self.disp_in = u == "in"; }
@@ -107,6 +109,8 @@ impl App {
         s.text_sections = Some(self.text.sections.iter().cloned().collect());
         s.display_in = Some(self.disp_in);
         s.fractions_in = Some(self.frac_in);
+        s.inch_decimals = Some(self.inch_dec);
+        s.fraction_denom = Some(self.frac_den);
         s.tool_speed_idx = Some(self.tool_speed_mm);
         s.tool_speed_idx_in = Some(self.tool_speed_in);
         s.export_split = Some(self.export_split.id().to_string());

@@ -23,19 +23,33 @@ pub(super) fn stock_card(ui: &mut Ui, d: &mut ProjectData, changed: &mut bool) -
             let nat: f32 = ui.data(|x| x.get_temp(nat_id)).unwrap_or(0.0);
             let left0 = ui.min_rect().left();
             // the number boxes shrink when the labels are long, so the row never passes the card
-            let unit_w = tw(ui, crate::widgets::len_unit(ui)).max(tw(ui, "mm"));
-            let fw = ((stock_w - 34.0 - l1 - l3 - 2.0 * unit_w - 5.0 * 8.0 - 24.0) / 2.0).clamp(36.0, 62.0);
+            let unit_w = tw(ui, crate::widgets::len_unit(ui));
+            let fw = ((stock_w - 34.0 - l1 - l3 - 2.0 * unit_w - 5.0 * 8.0 + 8.0) / 2.0)
+                .max(36.0);
+            // the length fields are a little wider in inches (`len`): this width is already what the row can take
+            // room left over when the fields are at their largest: it goes before the Height column, so the card stays as wide as the others
+            let spare = (stock_w - 34.0 - l1 - l3 - 2.0 * (fw + unit_w) - 5.0 * 8.0 + 8.0).max(0.0);
+            let fw = if crate::widgets::inches(ui) { fw - crate::widgets::INCH_EXTRA_W } else { fw };
             let mut col4_x = 0.0_f32;
-            egui::Grid::new("stock_grid").num_columns(6).spacing([8.0, 10.0]).show(ui, |ui| {
-                rlabel(ui, l1, tr("Width"));
-                *changed |= dl_w(ui, fw, &mut d.stock.w, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui));
-                col4_x = ui.next_widget_position().x;
-                let lh = l3 + (nat - (col4_x - left0)).max(0.0);
-                rlabel(ui, lh, tr("Height"));
-                *changed |= dl_w(ui, fw, &mut d.stock.h, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
-                rlabel(ui, l1, tr("Thickness"));
-                *changed |= dl_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); ui.weak(crate::widgets::len_unit(ui));
-                ui.end_row();
+            // two rows of fixed cells (no Grid, whose columns follow what was drawn last frame: its unit column would stay as wide as
+            // "mm" for a frame after the units change to inches, and the wider fields would push the panel out)
+            let h = ui.spacing().interact_size.y;
+            let unit_cell = |ui: &mut Ui| { ui.allocate_ui_with_layout(egui::vec2(unit_w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.weak(crate::widgets::len_unit(ui)); }); };
+            ui.scope(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
+                ui.horizontal(|ui| {
+                    rlabel(ui, l1, tr("Width"));
+                    *changed |= dl_w(ui, fw, &mut d.stock.w, 1.0, 10000.0, ""); unit_cell(ui);
+                    ui.add_space(spare);
+                    col4_x = ui.next_widget_position().x;
+                    let lh = l3 + (nat - (col4_x - left0)).max(0.0);
+                    rlabel(ui, lh, tr("Height"));
+                    *changed |= dl_w(ui, fw, &mut d.stock.h, 1.0, 10000.0, ""); unit_cell(ui);
+                });
+                ui.horizontal(|ui| {
+                    rlabel(ui, l1, tr("Thickness"));
+                    *changed |= dl_w(ui, fw, &mut d.stock.t, 0.1, 1000.0, ""); unit_cell(ui);
+                });
             });
             ui.add_space(12.0);
             ui.horizontal_top(|ui| {
@@ -116,10 +130,11 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             let n_clamps = d.clamps.len();
             let (lc1, lc2) = (tw(ui, tr("Width")).max(tw(ui, tr("Rise"))).max(tw(ui, "X")), tw(ui, tr("Length")).max(tw(ui, "Y")));
             let (sp, uw, h) = (8.0_f32, tw(ui, crate::widgets::len_unit(ui)), ui.spacing().interact_size.y);
-            let fw = ((stock_w - 34.0 - lc1 - lc2 - 2.0 * uw - 5.0 * sp) / 2.0).clamp(30.0, 62.0);
+            let fw = ((stock_w - 34.0 - lc1 - lc2 - 2.0 * uw - 5.0 * sp) / 2.0).max(30.0);
+            let fw = if crate::widgets::inches(ui) { fw - crate::widgets::INCH_EXTRA_W } else { fw };
             // which clamps are folded away (a view setting: kept for the session, not in the project)
             let (inch, frac) = (crate::widgets::inches(ui), crate::widgets::fractions(ui));
-            let lnum = |mm: f64| if inch { crate::widgets::fmt_inch(mm / 25.4, 3, frac) } else { fnum(mm) };
+            let lnum = |mm: f64| if inch { crate::widgets::fmt_inch(mm / 25.4, crate::widgets::inch_decimals(1), frac) } else { fnum(mm) };
             let fold_key = egui::Id::new("clamp_folded");
             let mut folded: Vec<bool> = ui.data(|x| x.get_temp(fold_key)).unwrap_or_default();
             folded.resize(n_clamps, false);
