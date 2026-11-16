@@ -1748,5 +1748,7 @@
   "Side": "Lato",
   "The text follows the inside of the shape's edge": "Il testo segue l'interno del bordo della forma",
   "The text goes round the outside of the shape": "Il testo gira intorno alla forma, all'esterno",
-  "set": "impostata"
+  "set": "impostata",
+  "Decimals in millimetres": "Decimali in millimetri",
+  "How many decimals a millimetre field shows, for a typical length (a field that needs more or fewer keeps the difference). Typed values are never rounded.": "Quanti decimali mostra un campo in millimetri, per una lunghezza tipica (un campo che ne richiede di più o di meno mantiene la differenza). I valori digitati non vengono mai arrotondati."
 }

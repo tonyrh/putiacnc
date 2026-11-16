@@ -38,6 +38,17 @@ pub fn set_inch_precision(decimals: usize, denom: u32) {
     INCH_DECIMALS.store(decimals.clamp(2, 5), std::sync::atomic::Ordering::Relaxed);
     FRACTION_DENOM.store(if FRACTION_DENOMS.contains(&denom) { denom as u64 } else { 64 }, std::sync::atomic::Ordering::Relaxed);
 }
+/// How many decimals a typical length field shows in millimetres (Preferences, Units: 0 to 2, 2 unless changed). A field that shows more
+/// or fewer than the typical two keeps the difference. Only what is shown: the value keeps what was typed.
+static MM_DECIMALS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(2);
+pub fn set_mm_decimals(decimals: usize) { MM_DECIMALS.store(decimals.min(2), std::sync::atomic::Ordering::Relaxed); }
+/// The decimals shown in mm by a field made for `dec` of them.
+pub fn mm_decimals(dec: usize) -> usize { mm_decimals_for(MM_DECIMALS.load(std::sync::atomic::Ordering::Relaxed), dec) }
+fn mm_decimals_for(setting: usize, dec: usize) -> usize { (setting.min(2) as i64 + dec as i64 - 2).clamp(0, 5) as usize }
+/// The decimals a mm length field starts with when it is clicked to be typed in: never fewer than it was made for, so that a setting that
+/// shows less does not hide the value while it is edited.
+fn mm_edit_decimals(shown: usize) -> usize { mm_edit_decimals_for(MM_DECIMALS.load(std::sync::atomic::Ordering::Relaxed), shown) }
+fn mm_edit_decimals_for(setting: usize, shown: usize) -> usize { shown + 2usize.saturating_sub(setting) }
 /// The decimals of an inch field whose mm version shows `mm_dec` decimals.
 pub fn inch_decimals(mm_dec: usize) -> usize {
     (INCH_DECIMALS.load(std::sync::atomic::Ordering::Relaxed) as i64 + mm_dec as i64 - 2).clamp(1, 6) as usize
@@ -86,7 +97,7 @@ pub fn len_k(ui: &Ui) -> f64 { if inches(ui) { 25.4 } else { 1.0 } }
 #[track_caller]
 pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f64, dec: usize, suffix: &str) -> Response {
     let k = len_k(ui);
-    if k == 1.0 { return num_with(ui, size, v, lo, hi, speed, dec, suffix, Some(1.0)); }
+    if k == 1.0 { return num_with(ui, size, v, lo, hi, speed, mm_decimals(dec), suffix, Some(1.0)); }
     let mut x = *v / k;
     // inch values are longer (more decimals, fractions): a little more room than the same field in mm
     let r = num_with(ui, [size[0] + INCH_EXTRA_W, size[1]], &mut x, lo / k, hi / k, speed / k, inch_decimals(dec), suffix, Some(k));
@@ -95,7 +106,7 @@ pub fn len(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, speed: f6
 }
 
 /// A length for a message or a readout, in the shown unit with its name ("12.5 mm", "0.492 in").
-pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_inch(mm / 25.4, inch_decimals(1), fractions(ui))) } else { format!("{} mm", fmt_val(mm, 2)) } }
+pub fn fmt_len(ui: &Ui, mm: f64) -> String { if inches(ui) { format!("{} in", fmt_inch(mm / 25.4, inch_decimals(1), fractions(ui))) } else { format!("{} mm", fmt_val(mm, mm_decimals(2))) } }
 
 /// What a number field takes: a decimal (comma or point), a fraction (`1/8`, `3/16`) or a mixed number (`1 3/16`, `1-3/16`), with an
 /// optional minus sign. Spaces round it and a trailing inch mark (`"` or `in`) are ignored.
@@ -167,7 +178,7 @@ pub fn num_with(ui: &mut Ui, size: [f32; 2], v: &mut f64, lo: f64, hi: f64, spee
     let edit_id = id.with("edit");
     let mut editing: Option<String> = ui.data(|d| d.get_temp(edit_id));
     let start_edit = |ui: &mut Ui, v: f64| {
-        ui.data_mut(|d| { let t0 = if frac { fmt_inch_edit(v, dec, true) } else { fmt_val(v, dec) }; d.insert_temp(id.with("orig"), t0.clone()); d.insert_temp(edit_id, t0); d.insert_temp(id.with("first"), true); });
+        ui.data_mut(|d| { let t0 = if frac { fmt_inch_edit(v, dec, true) } else if unit_mm == Some(1.0) { fmt_val(v, mm_edit_decimals(dec)) } else { fmt_val(v, dec) }; d.insert_temp(id.with("orig"), t0.clone()); d.insert_temp(edit_id, t0); d.insert_temp(id.with("first"), true); });
         ui.ctx().request_repaint();
     };
 
@@ -498,6 +509,15 @@ mod unit_tests {
     fn inch_decimals_follow_the_mm_decimals() {
         set_inch_precision(4, 64); // the default: the same as every other test
         assert_eq!((inch_decimals(1), inch_decimals(2), inch_decimals(3), inch_decimals(0)), (3, 4, 5, 2));
+        // millimetres: 2 unless changed, every field moved by the same amount and never below none (the setting itself is not touched
+        // here: other tests read it at the same time)
+        assert_eq!((mm_decimals_for(2, 1), mm_decimals_for(2, 2), mm_decimals_for(2, 3)), (1, 2, 3));
+        assert_eq!((mm_decimals_for(0, 1), mm_decimals_for(0, 2), mm_decimals_for(0, 3)), (0, 0, 1));
+        assert_eq!((mm_decimals_for(1, 1), mm_decimals_for(1, 2), mm_decimals_for(1, 3)), (0, 1, 2));
+        // more than two is not offered (the narrow fields have no room for it)
+        assert_eq!((mm_decimals_for(3, 2), mm_decimals_for(9, 2)), (2, 2));
+        // a field that shows fewer decimals still opens with the ones it was made for
+        assert_eq!((mm_edit_decimals_for(0, 0), mm_edit_decimals_for(1, 1), mm_edit_decimals_for(2, 2)), (2, 2, 2));
     }
 
     #[test]

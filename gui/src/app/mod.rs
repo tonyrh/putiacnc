@@ -315,6 +315,8 @@ pub struct App {
     pub frac_in: bool,
     /// Decimals of a typical length field in inches, and the smallest fraction of an inch (see `widgets::set_inch_precision`).
     pub inch_dec: usize,
+    /// Decimals shown by a typical length field in millimetres (Preferences).
+    pub mm_dec: usize,
     pub frac_den: u32,
     /// The display units the grid size was last set for (see `sync_grid_units`).
     pub grid_units_in: Option<bool>,
@@ -354,7 +356,7 @@ impl App {
             show_left: true, show_right: true, squeezed: (false, false), last_min_w: 0.0, pending: None, dlg: None, after_save: None, quit_ok: false, want_quit: false,
             theme: crate::theme::detect(), theme_checked: std::time::Instant::now(), theme_mode: "system".into(), prefs_open: false,
             tool_libs: crate::toolmgr::load_tool_libs(), tools_open: false, tool_query: String::new(), tool_sel: String::new(), tool_msg: String::new(),
-            disp_in: false, frac_in: false, inch_dec: 4, frac_den: 64, grid_units_in: None, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
+            disp_in: false, frac_in: false, inch_dec: 4, mm_dec: 2, frac_den: 64, grid_units_in: None, tool_speed_mm: 0, tool_speed_in: 3, confirm_tool_del: false, confirm_lib_del: false, ready_open: false, lib_name_buf: String::new(), libs_dirty: false,
             machines: crate::machmgr::load_machines(), machines_open: false, updater: crate::update::Updater::new(), mach_sel: String::new(), mach_msg: String::new(),
             export_open: std::env::var_os("PUTIACNC_SHOW_EXPORT").is_some(), export_split: std::env::var("PUTIACNC_EXPORT_SPLIT").map(|v| putiacnc_core::split::Split::from_id(&v)).unwrap_or_default(), split_job: None, confirm_mach_del: false, grbl_paste: None, machines_dirty: false,
         };
