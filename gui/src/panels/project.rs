@@ -21,10 +21,13 @@ pub(super) fn placement_fields(ui: &mut Ui, key: egui::Id, b: [f64; 4], zero: (f
     let sp = 6.0_f32;
     let uw = tw(ui, crate::widgets::len_unit(ui)).max(10.0);
     let room = ui.available_width() - 1.0; // what the card has, with or without the panel's scroll bar
-    let fw = ((room - 2.0 * (lw + uw) - 5.0 * sp) / 2.0).clamp(30.0, 62.0);
+    let fw = ((room - 2.0 * (lw + uw) - 5.0 * sp) / 2.0).max(30.0);
+    // the length fields get INCH_EXTRA_W more in inches: take it off here so the card stays as wide
+    let fw_shown = fw; // what the field really is wide
+    let fw = if crate::widgets::inches(ui) { fw - crate::widgets::INCH_EXTRA_W } else { fw };
     let unit = crate::widgets::len_unit(ui);
     // room left over when the labels are short (English): it goes between the two pairs so the second pair sits where it does in Italian
-    let extra = (room - 2.0 * (lw + uw + fw) - 5.0 * sp).max(0.0);
+    let extra = (room - 2.0 * (lw + uw + fw_shown) - 5.0 * sp).max(0.0);
     let h = ui.spacing().interact_size.y;
     ui.add_enabled_ui(!locked, |ui| {
         let unit_cell = |ui: &mut Ui| { ui.allocate_ui_with_layout(egui::vec2(uw, h), egui::Layout::left_to_right(egui::Align::Center), |ui| { ui.weak(unit); }); };
@@ -797,7 +800,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, tr("Pen down"));
-                            changed |= dl_r(ui, 48.0, &mut p.depth, 0.0, 20.0, "").tip(tr("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press")).changed();
+                            changed |= dl_r(ui, 42.0, &mut p.depth, 0.0, 20.0, "").tip(tr("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press")).changed();
                             ui.weak(tr_f("{unit} below Z0", &[("unit", &crate::widgets::len_unit(ui))]));
                         });
                         ui.add_space(4.0);
@@ -805,7 +808,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, tr("Pen up"));
                             let mut v = p.lift.unwrap_or(2.0);
-                            if dl_r(ui, 48.0, &mut v, 0.1, 50.0, "").tip(tr("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it")).changed() { p.lift = Some(v); changed = true; }
+                            if dl_r(ui, 42.0, &mut v, 0.1, 50.0, "").tip(tr("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it")).changed() { p.lift = Some(v); changed = true; }
                             ui.weak(tr_f("{unit} above Z0", &[("unit", &crate::widgets::len_unit(ui))]));
                             if p.lift.is_some() && reset_button(ui, tr("Back to 2 mm")) { p.lift = None; changed = true; }
                         });

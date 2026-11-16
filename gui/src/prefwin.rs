@@ -24,7 +24,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.set_width(crate::csd::dialog_w(420.0));
         if crate::csd::dialog_header(ui, tr("Preferences"), true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-            let lw = [tr("Theme"), tr("Language"), tr("Show lengths in"), tr("Speeds in"), tr("Projects"), tr("Imports"), tr("G-code"), tr("Settings")].iter().map(|t| crate::panels::tw(ui, t)).fold(0.0_f32, f32::max);
+            let lw = [tr("Theme"), tr("Language"), tr("Show lengths in"), tr("Speeds in"), tr("Decimals in inches"), tr("Smallest fraction"), tr("Projects"), tr("Imports"), tr("G-code"), tr("Settings")].iter().map(|t| crate::panels::tw(ui, t)).fold(0.0_f32, f32::max);
             // the choices sit in one column, as wide as the widest of them
             let field_w = |ui: &egui::Ui| (ui.available_width() - lw - 10.0).max(120.0);
             section(ui, tr("Appearance"));
@@ -53,7 +53,27 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 if let Some(i) = c { app.disp_in = i == 1; }
                 ui.end_row();
                 ui.label("");
-                ui.add_enabled_ui(app.disp_in, |ui| { crate::widgets::check(ui, &mut app.frac_in, tr("Fractions (3/16)")).tip(tr("Show inch values as fractions of an inch, to 1/64, where they are one")); });
+                ui.add_enabled_ui(app.disp_in, |ui| { crate::widgets::check(ui, &mut app.frac_in, tr("Fractions (3/16)")).tip(tr("Show inch values as fractions of an inch, where they are one")); });
+                ui.end_row();
+                crate::toolmgr::rlabel(ui, lw, tr("Decimals in inches"));
+                ui.add_enabled_ui(app.disp_in, |ui| {
+                    let ex = |n: usize| format!("{n} ({:.*})", n, 12.3456789);
+                    let names: Vec<String> = (2..=5).map(ex).collect();
+                    let w = crate::widgets::combo_fit(ui, &names.iter().map(|s| s.as_str()).collect::<Vec<_>>()).max(90.0);
+                    egui::ComboBox::from_id_source("pref_inch_dec").width(w).selected_text(ex(app.inch_dec)).show_ui(ui, |ui| {
+                        for n in 2..=5 { ui.selectable_value(&mut app.inch_dec, n, ex(n)); }
+                    }).response.tip(tr("How many decimals an inch field shows, for a typical length (a field that needs more or fewer keeps the difference). Typed values are never rounded."));
+                });
+                ui.end_row();
+                crate::toolmgr::rlabel(ui, lw, tr("Smallest fraction"));
+                ui.add_enabled_ui(app.disp_in && app.frac_in, |ui| {
+                    let nm = |d: u32| format!("1/{d}");
+                    let names = [16, 32, 64, 128].map(nm);
+                    let w = crate::widgets::combo_fit(ui, &names.each_ref().map(|s| s.as_str())).max(70.0);
+                    egui::ComboBox::from_id_source("pref_frac_den").width(w).selected_text(nm(app.frac_den)).show_ui(ui, |ui| {
+                        for d in [16, 32, 64, 128] { ui.selectable_value(&mut app.frac_den, d, nm(d)); }
+                    }).response.tip(tr("The smallest fraction of an inch that shown values are rounded to. Typed values are never rounded."));
+                });
                 ui.end_row();
                 crate::toolmgr::rlabel(ui, lw, tr("Speeds in"));
                 let sname = app.tool_speed().0;

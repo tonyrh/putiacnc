@@ -43,6 +43,9 @@ pub struct Settings {
     /// Lengths shown in inches (older versions kept this per window: `tool_len_in`, `mach_len_in`).
     pub display_in: Option<bool>,
     pub fractions_in: Option<bool>,
+    /// Decimals of a typical length field in inches (2 to 5) and the smallest fraction of an inch (16, 32, 64 or 128).
+    pub inch_decimals: Option<usize>,
+    pub fraction_denom: Option<u32>,
     pub tool_len_in: Option<bool>,
     /// Speed unit of the tool library window when the lengths are shown in mm (older versions: the only one).
     pub tool_speed_idx: Option<usize>,
