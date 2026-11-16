@@ -97,7 +97,7 @@ fn cutting_board(d: &mut ProjectData) {
     let gid = 1;
     for lt in &mut letters { shapes::translate(lt, 135.0, 85.0 - size / 2.0); lt.grp = Some(gid); }
     let font = linetext::fonts().into_iter().find(|f| f.0 == "futural").map(|f| f.1.to_string()).unwrap_or_default();
-    let spec = TextSpec { content: text.into(), font, size, spacing: style.spacing_mm, word_spacing: 0.0, kerning: false, align: Align::Center, flow: style.flow, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0], path: vec![] };
+    let spec = TextSpec { content: text.into(), font, size, spacing: style.spacing_mm, word_spacing: 0.0, kerning: false, align: Align::Center, flow: style.flow, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0], path: vec![], outside: false };
     d.groups.push(ShapeGroup { id: gid, name: format!("Text: {text}"), locked: false, text: Some(spec) });
     d.loops.extend(letters);
     // 3. the hole to hang it by, cut right through

@@ -573,18 +573,21 @@ mod tests {
     }
 }
 
-/// Sets text that was made straight (baseline at y = 0, centred or aligned on x = 0) along the inside of a closed shape.
+/// Sets text that was made straight (baseline at y = 0, centred or aligned on x = 0) along the inside of a closed shape, or round its
+/// outside when `outside` is set (the outline is then moved outwards instead).
 /// `path` is the outline of the shape in mm. The baseline follows the outline moved inwards by `gap` mm (the nearest the letters
 /// come to the edge): letters that `face_in` stand towards the middle of the shape and read counter-clockwise (the bottom reads left to
 /// right); the others stand outwards, towards the edge, and read clockwise (over the top). `deg` is where the text sits, seen from the middle of the shape
 /// (0 is the right, 90 the top, 180 the left, 270 the bottom). Every point of every outline is moved: x along the baseline becomes
 /// distance along the curve and the height becomes distance from it, like [`bend`] does for a circle.
-pub fn along_shape(flat: &[LoopData], path: &[[f64; 2]], size: f64, gap: f64, deg: f64, face_in: bool) -> Result<Vec<LoopData>, String> {
+pub fn along_shape(flat: &[LoopData], path: &[[f64; 2]], size: f64, gap: f64, deg: f64, face_in: bool, outside: bool) -> Result<Vec<LoopData>, String> {
     use crate::clip;
     if path.len() < 3 { return Err("Click a closed shape in the drawing to follow it.".into()); }
     let ring: Vec<[i64; 2]> = path.iter().map(|p| [(p[0] * S).round() as i64, (p[1] * S).round() as i64]).collect();
-    let off = gap.max(0.0) + if face_in { 0.0 } else { size };
-    let inner = clip::offset(&[ring], -off * S, S * 0.01);
+    // the baseline is the foot of the letters: on the inside it is the nearer line to the edge for letters that stand towards the middle,
+    // on the outside for letters that stand away from the shape
+    let off = gap.max(0.0) + if face_in != outside { 0.0 } else { size };
+    let inner = clip::offset(&[ring], if outside { off } else { -off } * S, S * 0.01);
     // the biggest piece, if the shape fell into several
     let Some(best) = inner.into_iter().max_by(|a, b| area2(a).abs().partial_cmp(&area2(b).abs()).unwrap_or(std::cmp::Ordering::Equal)) else {
         return Err("The shape is too small for the letters at this distance from its edge.".into());
@@ -704,7 +707,7 @@ mod shape_tests {
     #[test]
     fn letters_facing_out_stand_between_the_edge_gap_and_the_baseline() {
         // a round shape of radius 50, the letters 5 tall, 5 mm from the edge: they fill the ring from radius 40 to 45
-        let out = along_shape(&bar(), &circle(50.0, 50.0, 50.0), 5.0, 5.0, 90.0, false).unwrap();
+        let out = along_shape(&bar(), &circle(50.0, 50.0, 50.0), 5.0, 5.0, 90.0, false, false).unwrap();
         let (lo, hi, mid) = dists(&out, [50.0, 50.0]);
         assert!(lo > 39.8 && hi < 45.2, "{lo} {hi}");
         assert!(mid[1] > 85.0 && (mid[0] - 50.0).abs() < 1.0, "at the top: {mid:?}");
@@ -712,7 +715,7 @@ mod shape_tests {
 
     #[test]
     fn letters_facing_in_sit_at_the_bottom_and_stand_towards_the_middle() {
-        let out = along_shape(&bar(), &circle(50.0, 50.0, 50.0), 5.0, 5.0, 270.0, true).unwrap();
+        let out = along_shape(&bar(), &circle(50.0, 50.0, 50.0), 5.0, 5.0, 270.0, true, false).unwrap();
         let (lo, hi, mid) = dists(&out, [50.0, 50.0]);
         assert!(lo > 39.8 && hi < 45.2, "{lo} {hi}");
         assert!(mid[1] < 15.0 && (mid[0] - 50.0).abs() < 1.0, "at the bottom: {mid:?}");
@@ -723,7 +726,7 @@ mod shape_tests {
         // a long oval: the middle of the text and its two ends are all about the same distance from the edge
         let oval: Vec<[f64; 2]> = (0..720).map(|k| { let a = (k as f64 / 2.0).to_radians(); [110.0 + 100.0 * a.cos(), 70.0 + 60.0 * a.sin()] }).collect();
         let long: Vec<LoopData> = vec![shapes::new_rect([-60.0, 0.0], [60.0, 5.0], 0.0, 0)];
-        let out = along_shape(&long, &oval, 5.0, 8.0, 90.0, false).unwrap();
+        let out = along_shape(&long, &oval, 5.0, 8.0, 90.0, false, false).unwrap();
         for l in &out {
             for p in l.pts.chunks_exact(2) {
                 let (x, y) = (p[0] as f64 / S, p[1] as f64 / S);
@@ -735,10 +738,30 @@ mod shape_tests {
     }
 
     #[test]
+    fn round_the_outside_the_letters_keep_off_the_shape_and_read_left_to_right() {
+        // a bar 5 mm high round a circle of radius 50, 5 mm off its edge: between 55 and 60 mm from the centre
+        let whole: Vec<LoopData> = vec![shapes::new_rect([-10.0, 0.0], [10.0, 5.0], 0.0, 0)];
+        // two marks, one at each end of the text: the first must stay on the left
+        let ends: Vec<LoopData> = vec![shapes::new_rect([-10.0, 0.0], [-8.0, 5.0], 0.0, 0), shapes::new_rect([8.0, 0.0], [10.0, 5.0], 0.0, 0)];
+        // over the top standing away from the shape, and under the bottom standing towards it: both upright, both read left to right
+        for (deg, face_in) in [(90.0, false), (270.0, true)] {
+            let out = along_shape(&whole, &circle(50.0, 50.0, 50.0), 5.0, 5.0, deg, face_in, true).unwrap();
+            let (lo, hi, mid) = dists(&out, [50.0, 50.0]);
+            assert!(lo > 54.8 && hi < 60.2, "{deg}: {lo} {hi}");
+            assert!((mid[0] - 50.0).abs() < 1.0 && if deg == 90.0 { mid[1] > 100.0 } else { mid[1] < 0.0 }, "{deg}: {mid:?}");
+            let out = along_shape(&ends, &circle(50.0, 50.0, 50.0), 5.0, 5.0, deg, face_in, true).unwrap();
+            let (l, r) = (dists(&out[..1], [50.0, 50.0]).2, dists(&out[1..], [50.0, 50.0]).2);
+            assert!(l[0] < 45.0 && r[0] > 55.0, "{deg}: {l:?} {r:?}");
+        }
+        // a shape that is too small on the inside always has room on the outside
+        assert!(along_shape(&bar(), &circle(50.0, 50.0, 8.0), 5.0, 5.0, 90.0, false, true).is_ok());
+    }
+
+    #[test]
     fn text_too_long_or_a_shape_too_small_gives_a_message() {
         let long: Vec<LoopData> = vec![shapes::new_rect([-200.0, 0.0], [200.0, 5.0], 0.0, 0)];
-        assert!(along_shape(&long, &circle(50.0, 50.0, 50.0), 5.0, 5.0, 90.0, false).unwrap_err().contains("long"));
-        assert!(along_shape(&bar(), &circle(50.0, 50.0, 8.0), 5.0, 5.0, 90.0, false).is_err());
-        assert!(along_shape(&bar(), &[[0.0, 0.0], [1.0, 1.0]], 5.0, 5.0, 90.0, false).is_err());
+        assert!(along_shape(&long, &circle(50.0, 50.0, 50.0), 5.0, 5.0, 90.0, false, false).unwrap_err().contains("long"));
+        assert!(along_shape(&bar(), &circle(50.0, 50.0, 8.0), 5.0, 5.0, 90.0, false, false).is_err());
+        assert!(along_shape(&bar(), &[[0.0, 0.0], [1.0, 1.0]], 5.0, 5.0, 90.0, false, false).is_err());
     }
 }

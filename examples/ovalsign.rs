@@ -14,7 +14,7 @@ fn add_text(d: &mut putiacnc_core::ProjectData, gid: i64, op: i64, font: &[u8], 
     for l in &mut t { shapes::translate(l, dx, 0.0); l.grp = Some(gid); }
     d.groups.push(ShapeGroup { id: gid, name: format!("Text: {s}"), locked: false, text: Some(TextSpec {
         content: s.into(), font: label.into(), size, spacing, word_spacing: 0.0, kerning: true, align: text::Align::Center,
-        flow: text::Flow::Straight, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0], path: vec![] }) });
+        flow: text::Flow::Straight, radius: 0.0, arc_deg: 90.0, arc_in: false, fit_width: 0.0, shadow: [0.0, 0.0], path: vec![], outside: false }) });
     d.loops.append(&mut t);
 }
 
@@ -23,11 +23,11 @@ fn add_text(d: &mut putiacnc_core::ProjectData, gid: i64, op: i64, font: &[u8], 
 fn add_shape_text(d: &mut putiacnc_core::ProjectData, gid: i64, op: i64, font: &[u8], label: &str, s: &str, size: f64, spacing: f64, path: &[[f64; 2]], gap: f64, deg: f64, face_in: bool) {
     let style = text::TextStyle { size_mm: size, spacing_mm: spacing, word_spacing_mm: 0.0, kerning: true, align: text::Align::Center, flow: text::Flow::Shape, radius_mm: gap, arc_deg: deg, arc_in: face_in, shadow: [0.0, 0.0] };
     let flat = text::text_loops(font, 0, s, TextStyle_straight(style), [0.0, 0.0], op).unwrap();
-    let mut t = text::along_shape(&flat, path, size, gap, deg, face_in).unwrap();
+    let mut t = text::along_shape(&flat, path, size, gap, deg, face_in, false).unwrap();
     for l in &mut t { l.grp = Some(gid); }
     d.groups.push(ShapeGroup { id: gid, name: format!("Text: {s}"), locked: false, text: Some(TextSpec {
         content: s.into(), font: label.into(), size, spacing, word_spacing: 0.0, kerning: true, align: text::Align::Center,
-        flow: text::Flow::Shape, radius: gap, arc_deg: deg, arc_in: face_in, fit_width: 0.0, shadow: [0.0, 0.0], path: path.to_vec() }) });
+        flow: text::Flow::Shape, radius: gap, arc_deg: deg, arc_in: face_in, fit_width: 0.0, shadow: [0.0, 0.0], path: path.to_vec(), outside: false }) });
     d.loops.append(&mut t);
 }
 

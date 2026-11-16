@@ -31,6 +31,7 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [x] Finishing pass with stock to leave for Profile and Pocket (the Finish row).
 - [x] Rest machining for 3D relief: a smaller ball nose (the Detail row of the Finishing step) finishes only what the finishing ball could not reach. V-carve does not need it (one bit cuts every width).
 - [ ] Check the setup assistant and the quick tour on macOS and Windows (only tested on Linux so far).
+- [ ] Number fields, done properly (issue #11): today a field that is too narrow for its value makes the text smaller and then drops decimals (0.7.2), and the inch fields were widened card by card. A real fix means rethinking the panels so every length field has room for a value like 12.3456 or 12 63/64 at full size in every language: fewer fields per row, or fields that take the row's width as in the Stock, Clamps and Imported cards. Rows still tight in inches: Depth / Pass in Italian, the tabs row.
 - [ ] Update eframe (0.27, with winit 0.29): its macOS dependency objc2 0.4 does not compile with Rust 1.100, so the macOS jobs of the release and screenshots workflows are pinned to Rust 1.99.1 (`.github/workflows/release.yml`, `screenshots.yml`). After the update, go back to `stable` there. A big step: egui and its widgets change between versions, so every panel and the layout test (`layout_tests`) need a look.
 - [x] Grouping (Edit > Group, Ctrl+G; Ungroup, Ctrl+Shift+G): done. Groups are flat (grouping a group with something else merges them); a copy of a group is a group of its own.
 - [x] Layers (name, colour, eye, lock; hidden layers still get cut, as in Aspire): done. DXF and SVG layers by name on import: done too. (Done: the operation's subtitle says "1 shape, hidden", or "3 shapes, 1 hidden" when only some are.)
@@ -43,7 +44,8 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [x] Text along an arc at any angle (done).
 - [x] Text arc: warn when the text is longer than the circle (done).
 - [x] Text along a shape (an oval, any closed outline), at a fixed distance inside its edge; placed once, editable again (done).
-- [ ] Text along an open path or the outside of a shape.
+- [x] Text round the outside of a closed shape (Side: Inside / Outside in the text window).
+- [ ] Text along an open path.
 - [x] Rest machining for pockets: a smaller flat end mill (the Corners row of a Pocket operation) clears only what the main cutter could not reach (corners and parts narrower than it).
 - [ ] Bezier and arc node editing (0.4.0).
 - [ ] Marlin output (a third G-code style next to GRBL and Mach3): `;` comments instead of `( )`, no `M2` (end with `M5` and a lift), tool change and spindle `S` scaling as the machine's build needs, arcs optional. First ask the maintainer: is it a CNC build with a spindle, are `G2`/`G3` enabled, how are tools changed. Not checked against Marlin itself yet.
