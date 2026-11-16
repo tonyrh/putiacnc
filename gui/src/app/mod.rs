@@ -453,6 +453,18 @@ impl App {
             a.mode = Mode::Text; a.text.open = true; a.text.pos = Some([10.0, 20.0]); a.text.content = s.replace("\\n", "\n");
             // PUTIACNC_TEXT_FONT picks a font of the list by its label (for screenshots)
             if let Ok(l) = std::env::var("PUTIACNC_TEXT_FONT") { a.text.select_font(&l); }
+            // PUTIACNC_TEXT_SHAPE=inside|outside: the text follows the first closed shape of the drawing, on that side (for screenshots)
+            if let Ok(side) = std::env::var("PUTIACNC_TEXT_SHAPE") {
+                if let Some(p) = (0..a.project.data.loops.len()).find_map(|i| crate::text::shape_path(&a.project.data, i)) {
+                    a.text.flow = putiacnc_core::text::Flow::Shape; a.text.path = p; a.text.outside = side == "outside";
+                    a.text.sections.insert("layout".into());
+                    // PUTIACNC_TEXT_DEG / PUTIACNC_TEXT_IN: where the text sits and which way the letters face; PUTIACNC_TEXT_PLACE: place it at once
+                    if let Some(v) = std::env::var("PUTIACNC_TEXT_DEG").ok().and_then(|v| v.parse().ok()) { a.text.arc_deg = v; }
+                    a.text.arc_in = std::env::var_os("PUTIACNC_TEXT_IN").is_some();
+                    a.text.align = putiacnc_core::text::Align::Center;
+                    if std::env::var_os("PUTIACNC_TEXT_PLACE").is_some() { crate::text::place(&mut a); a.text.open = false; a.mode = Mode::Select; }
+                }
+            }
         }
         if let Ok(s) = std::env::var("PUTIACNC_PLACE_TEXT") {
             // places a text, turned a little, and optionally opens it for editing (for screenshots)

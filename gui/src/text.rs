@@ -44,6 +44,8 @@ pub struct TextTool {
     /// Along a shape: the outline of the shape (mm), and the distance from its edge to the letters.
     pub path: Vec<[f64; 2]>,
     pub gap: f64,
+    /// Along a shape: round its outside instead of along the inside of its edge.
+    pub outside: bool,
     /// Fit the text to a width: the height follows from it.
     pub fit_on: bool,
     pub fit_w: f64,
@@ -91,7 +93,7 @@ impl Default for TextTool {
         let first_outline = fonts.len();
         fonts.extend([FontEntry { label: "Hack".into(), id: None, line: None }, FontEntry { label: "Ubuntu Light".into(), id: None, line: None }]);
         TextTool {
-            open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, arc_deg: 90.0, arc_in: false, path: vec![], gap: 6.0, fit_on: false, fit_w: 100.0, fit_key: String::new(), shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
+            open: false, focus: false, pos: None, content: String::new(), size: 10.0, letter_pct: 0.0, word_pct: 0.0, kerning: true, align: Align::Left, flow: Flow::Straight, radius: 60.0, arc_deg: 90.0, arc_in: false, path: vec![], gap: 6.0, outside: false, fit_on: false, fit_w: 100.0, fit_key: String::new(), shadow: [0.0, 0.0], sections: Default::default(), angle: 0.0, rest: [1.0, 0.0, 0.0, 1.0], edit: None, edit_req: None,
             fonts, sel: first_outline, picked: false, filter: String::new(), found: None, preview: vec![], err: None, db: None, rx: None, loading: false, key: String::new(), bytes_for: None, bytes: None, previews: Default::default(),
         }
     }
@@ -186,7 +188,7 @@ impl TextTool {
                 text_loops(&data, idx, text, flat, [0.0, 0.0], 0)
             };
             return Some(r.and_then(|l| {
-                let mut out = putiacnc_core::text::along_shape(&l, &self.path, style.size_mm, style.radius_mm, style.arc_deg, style.arc_in)?;
+                let mut out = putiacnc_core::text::along_shape(&l, &self.path, style.size_mm, style.radius_mm, style.arc_deg, style.arc_in, self.outside)?;
                 if style.shadow != [0.0, 0.0] {
                     let (dx, dy) = ((style.shadow[0] * shapes::S).round() as i64, (style.shadow[1] * shapes::S).round() as i64);
                     let mut sh: Vec<LoopData> = out.iter().map(|l| LoopData { pts: l.pts.chunks(2).flat_map(|p| [p[0] + dx, p[1] + dy]).collect(), ..l.clone() }).collect();
@@ -242,7 +244,7 @@ impl TextTool {
 
     fn refresh(&mut self) {
         self.fit();
-        let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}|{}|{}|{}|{}|{:?}|{:?}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow, self.arc_deg, self.arc_in, self.fit_on, self.gap, self.path.len(), self.path.first().zip(self.path.get(self.path.len() / 2)));
+        let key = format!("{}|{}|{}|{}|{}|{}|{:?}|{:?}|{}|{:?}|{:?}|{}|{:?}|{}|{}|{}|{}|{:?}|{:?}|{}", self.content, self.sel, self.size, self.letter_pct, self.word_pct, self.kerning, self.align, self.pos, self.angle, self.rest, self.flow, self.radius, self.shadow, self.arc_deg, self.arc_in, self.fit_on, self.gap, self.path.len(), self.path.first().zip(self.path.get(self.path.len() / 2)), self.outside);
         if key == self.key { return; }
         self.key = key;
         self.preview.clear();
@@ -291,7 +293,7 @@ pub fn place(app: &mut App) {
     if loops.is_empty() { return; }
     let t = &app.text;
     let spec = putiacnc_core::model::TextSpec {
-        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.size * t.letter_pct / 100.0, word_spacing: t.size * t.word_pct / 100.0, kerning: t.kerning, align: t.align, flow: t.flow, radius: if t.flow == Flow::Shape { t.gap } else { t.radius }, arc_deg: t.arc_deg, arc_in: t.arc_in, fit_width: if t.fit_on && t.flow == Flow::Straight { t.fit_w } else { 0.0 }, shadow: t.shadow, path: if t.flow == Flow::Shape { t.path.clone() } else { vec![] },
+        content: t.content.clone(), font: t.fonts.get(t.sel).map(|f| f.label.clone()).unwrap_or_default(), size: t.size, spacing: t.size * t.letter_pct / 100.0, word_spacing: t.size * t.word_pct / 100.0, kerning: t.kerning, align: t.align, flow: t.flow, radius: if t.flow == Flow::Shape { t.gap } else { t.radius }, arc_deg: t.arc_deg, arc_in: t.arc_in, fit_width: if t.fit_on && t.flow == Flow::Straight { t.fit_w } else { 0.0 }, shadow: t.shadow, path: if t.flow == Flow::Shape { t.path.clone() } else { vec![] }, outside: t.flow == Flow::Shape && t.outside,
     };
     let first = t.content.lines().find(|l| !l.trim().is_empty()).unwrap_or("").trim().chars().take(24).collect::<String>();
     let name = format!("Text: {first}");
@@ -431,6 +433,7 @@ fn begin_edit(app: &mut App, gid: i64) -> bool {
     app.text.picked = true;
     app.text.bytes_for = None;
     app.text.path = spec.path.clone();
+    app.text.outside = spec.outside;
     let style = TextStyle { size_mm: spec.size, spacing_mm: spec.spacing, word_spacing_mm: spec.word_spacing, kerning: spec.kerning, align: spec.align, flow: spec.flow, radius_mm: spec.radius, arc_deg: spec.arc_deg, arc_in: spec.arc_in, shadow: spec.shadow };
     let g0 = app.text.loops(&spec.content, style).and_then(|r| r.ok()).unwrap_or_default();
     let now: Vec<&LoopData> = app.project.data.loops.iter().filter(|l| l.grp == Some(gid)).collect();
@@ -663,9 +666,15 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                 if t.flow == Flow::Shape {
                     crate::toolmgr::rlabel(ui, lw, tr("Shape"));
                     ui.horizontal(|ui| {
-                        let b = ui.add_enabled(pick_shape.is_some(), egui::Button::new(tr("Use the selected shape"))).on_hover_text(tr("Click a closed shape in the drawing (an oval, a rounded rectangle, any outline), or select it and press this: the text follows the inside of its edge. It is taken as it is now: if the shape changes, press again"));
+                        let b = ui.add_enabled(pick_shape.is_some(), egui::Button::new(tr("Use the selected shape"))).on_hover_text(tr("Click a closed shape in the drawing (an oval, a rounded rectangle, any outline), or select it and press this: the text follows its edge, on the side chosen below. It is taken as it is now: if the shape changes, press again"));
                         if b.clicked() { if let Some(p) = &pick_shape { t.path = p.clone(); } }
-                        ui.weak(if t.path.len() >= 3 { "set" } else { tr("none yet") });
+                        ui.weak(if t.path.len() >= 3 { tr("set") } else { tr("none yet") });
+                    });
+                    ui.end_row();
+                    crate::toolmgr::rlabel(ui, lw, tr("Side"));
+                    ui.horizontal(|ui| {
+                        let (c, _) = crate::zoomcard::seg2(ui, [tr("Inside"), tr("Outside")], [tr("The text follows the inside of the shape's edge"), tr("The text goes round the outside of the shape")], t.outside as usize);
+                        if let Some(i) = c { t.outside = i == 1; }
                     });
                     ui.end_row();
                     crate::toolmgr::rlabel(ui, lw, tr("Distance"));
@@ -1023,6 +1032,25 @@ mod tests {
         assert_eq!(a.text.flow, Flow::Shape);
         assert!((a.text.gap - 8.0).abs() < 1e-9);
         assert!(a.text.path.len() > 50);
+        place(&mut a);
+        let after = bbox(&a, g.id);
+        for k in 0..4 { assert!((before[k] - after[k]).abs() < 0.05, "{before:?} {after:?}"); }
+    }
+
+    #[test]
+    fn text_round_the_outside_of_a_shape_is_saved_and_stays_editable() {
+        // the oval is 200 x 120 mm with its top at y = 130: round the outside, the letters are above it
+        let mut a = oval_app();
+        a.text.outside = true;
+        place(&mut a);
+        let g = a.project.data.groups[0].clone();
+        assert!(g.text.as_ref().unwrap().outside, "the side is saved");
+        let before = bbox(&a, g.id);
+        assert!(before[1] > 130.0, "{before:?}");
+        a.text.outside = false;
+        a.edit_text(g.id);
+        assert!(begin_edit(&mut a, g.id));
+        assert!(a.text.outside, "and comes back when the text is edited");
         place(&mut a);
         let after = bbox(&a, g.id);
         for k in 0..4 { assert!((before[k] - after[k]).abs() < 0.05, "{before:?} {after:?}"); }
