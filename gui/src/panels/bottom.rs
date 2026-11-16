@@ -47,7 +47,7 @@ pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     let two_rows = split && ui.available_width() < 800.0;
     ui.horizontal(|ui| {
         crate::widgets::check(ui, &mut app.grid_on, tr("Grid"));
-        { let r = crate::widgets::len(ui, [54.0, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, ""); ui.weak(crate::widgets::len_unit(ui)); r }.on_hover_text(tr("Grid size (also the snap step)"));
+        { let r = crate::widgets::len(ui, [if crate::widgets::inches(ui) { 56.0 } else { 54.0 }, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, ""); ui.weak(crate::widgets::len_unit(ui)); r }.on_hover_text(tr("Grid size (also the snap step)"));
         dropup(ui, app, "snap_menu", tr("Snap"), |ui, app| {
             ui.set_width(checks_width(ui, &[tr("To the grid"), tr("To shapes")]));
             crate::widgets::check(ui, &mut app.snap_on, tr("To the grid")).on_hover_text(tr("The pointer jumps to the grid; the grid size is the snap step"));

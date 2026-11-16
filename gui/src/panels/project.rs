@@ -595,7 +595,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = sp;
                         rlabel(ui, l1, tr("Depth"));
-                        if dl_w(ui, 48.0, &mut p.depth, 0.01, 1000.0, "") { p.d_man = true; changed = true; }
+                        if dl_w(ui, if crate::widgets::inches(ui) { 56.0 } else { 48.0 }, &mut p.depth, 0.01, 1000.0, "") { p.d_man = true; changed = true; }
                         ui.weak(crate::widgets::len_unit(ui));
                         if p.d_man {
                             if reset_button(ui, tr("Follow the model's height again")) { p.d_man = false; changed = true; }
@@ -650,7 +650,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 ui.spacing_mut().item_spacing.x = sp;
                                 rlabel(ui, lw2, tr("Pass"));
                                 let mut v = p.pass_depth.or(tool_pd).unwrap_or(1.0);
-                                if dl_r(ui, 48.0, &mut v, 0.01, 1000.0, "").tip(tr("Maximum depth of a single pass of the clearing and cut-out tool: it goes down in passes of this depth until the full depth is reached")).changed() { p.pass_depth = Some(v); changed = true; }
+                                if dl_r(ui, if crate::widgets::inches(ui) { 56.0 } else { 48.0 }, &mut v, 0.01, 1000.0, "").tip(tr("Maximum depth of a single pass of the clearing and cut-out tool: it goes down in passes of this depth until the full depth is reached")).changed() { p.pass_depth = Some(v); changed = true; }
                                 ui.weak(crate::widgets::len_unit(ui));
                                 let n = ((p.depth / p.pass_depth.or(tool_pd).unwrap_or(1.0).max(0.001)) - 1e-9).ceil().max(1.0) as usize;
                                 ui.weak(tr_n(n as u64, "{n} layer", "{n} layers"));
@@ -800,7 +800,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, tr("Pen down"));
-                            changed |= dl_r(ui, 42.0, &mut p.depth, 0.0, 20.0, "").tip(tr("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press")).changed();
+                            changed |= dl_r(ui, if crate::widgets::inches(ui) { 56.0 } else { 42.0 }, &mut p.depth, 0.0, 20.0, "").tip(tr("How far below Z0 the pen goes. 0 puts the tip on the paper; a spring-loaded pen holder can go a little lower to press")).changed();
                             ui.weak(tr_f("{unit} below Z0", &[("unit", &crate::widgets::len_unit(ui))]));
                         });
                         ui.add_space(4.0);
@@ -808,7 +808,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             ui.spacing_mut().item_spacing.x = sp;
                             rlabel(ui, lw3, tr("Pen up"));
                             let mut v = p.lift.unwrap_or(2.0);
-                            if dl_r(ui, 42.0, &mut v, 0.1, 50.0, "").tip(tr("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it")).changed() { p.lift = Some(v); changed = true; }
+                            if dl_r(ui, if crate::widgets::inches(ui) { 56.0 } else { 42.0 }, &mut v, 0.1, 50.0, "").tip(tr("How high the pen lifts between strokes. A small lift saves time; it must clear the paper and anything on it")).changed() { p.lift = Some(v); changed = true; }
                             ui.weak(tr_f("{unit} above Z0", &[("unit", &crate::widgets::len_unit(ui))]));
                             if p.lift.is_some() && reset_button(ui, tr("Back to 2 mm")) { p.lift = None; changed = true; }
                         });
@@ -993,7 +993,19 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         let mut sp = sp;
                         if rest + 2.0 * 30.0 + 8.0 > (ui.available_width() - 16.0) { sp = 4.0; ui.spacing_mut().item_spacing.x = sp; rest = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * sp; }
                         let fw = fw0.min((((ui.available_width() - 16.0) - rest - 8.0) / 2.0).max(26.0));
-                        let fixed = rest + 2.0 * fw;
+                        // in inches the fields are wider than asked (`len`) and the values longer: where the row has the room (short words),
+                        // the two fields share all of it, up to what a value like 12.3456 needs
+                        let ex = if crate::widgets::inches(ui) { crate::widgets::INCH_EXTRA_W } else { 0.0 };
+                        let avail = ui.available_width();
+                        let room = |rest: f32| (((avail - 4.0) - rest - 2.0 * ex - 8.0) / 2.0).min(64.0 - ex);
+                        let mut grow = room(rest);
+                        // not enough with the usual gaps: closer items give the fields the rest (only where the words are short enough for it to help)
+                        if ex > 0.0 && sp >= 8.0 && grow < 64.0 - ex {
+                            let rest5 = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * 5.0;
+                            if room(rest5) >= 64.0 - ex - 2.0 { sp = 5.0; ui.spacing_mut().item_spacing.x = sp; rest = rest5; grow = room(rest); }
+                        }
+                        let (fw, ex) = if ex > 0.0 && grow > fw { (grow, ex) } else { (fw, 0.0) };
+                        let fixed = rest + 2.0 * (fw + ex);
                         let gap = (((ui.available_width() - 16.0) - fixed) / 2.0).max(4.0);
                         rlabel(ui, l1, tr("Depth"));
                         if sp < 8.0 { ui.add_space(4.0); }
@@ -1201,7 +1213,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         if let Some(r) = p.lead.as_mut() {
                             ui.add_space(10.0);
                             ui.label(tr("Radius"));
-                            if dl_w(ui, 42.0, r, 0.2, 100.0, "") { changed = true; }
+                            if dl_w(ui, if crate::widgets::inches(ui) { 56.0 } else { 42.0 }, r, 0.2, 100.0, "") { changed = true; }
                             ui.weak(crate::widgets::len_unit(ui));
                         }
                     });

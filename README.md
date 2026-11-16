@@ -41,7 +41,7 @@ The workspace has two crates:
 - Object snap, typed values while drawing, node editing, trim and extend, fillet and chamfer, offset, combine (union, subtract, intersect), mirror (left to right or top to bottom), align, array, nest on the stock, rotate, clean up broken outlines (join loose ends, remove duplicates, and simplify outlines with too many points, with a live preview).
 
 **Operations**
-- Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
+- Profile (outside, inside, on the line), pocket, V-carve, drill, inlay, drawing with a pen, 3D relief and photo V-carve (a picture etched with a V-bit), each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
 - Rest machining: a smaller flat cutter clears only the corners and narrow parts the pocket's main cutter could not reach. A smaller ball nose does the same for the detail of a 3D relief.
 - Finishing pass: leave a little stock on the walls of a profile or pocket and cut them to size in a last pass. For a 3D relief the finishing lines can run along X, along Y or both.
 - Helical entry for pockets and profiles, and adaptive clearing for pockets (a light stepover and rounded inner rings). Nest on the stock packs the selected parts by their outlines, turned as you allow, clear of the clamps. The time estimate can use the machine's acceleration. Tab and Shift+Tab stay inside the operation card you are in.
@@ -59,7 +59,8 @@ The workspace has two crates:
 
 **Everything else**
 - A setup assistant on first run, a quick tour and five sample projects (Generate → Sample projects: name plate, finger-joint box, 3D relief, relief from shapes, oval sign); a printable setup sheet (File → Setup sheet) with the stock, tools in order, operations and a checklist.
-- G-code tab with a time estimate, optional inches and line numbers; project notes; keyboard shortcuts (F1); light and dark themes; check for updates (only when you ask); window and panel layout remembered between sessions.
+- Preferences (File → Preferences): theme (light, dark, or following the desktop), language, lengths in millimetres or inches (decimals or fractions, with the number of decimals and the smallest fraction as settings), speed units, and the folders for projects, imports and G-code.
+- G-code tab with a time estimate, optional inches and line numbers; project notes; keyboard shortcuts (F1); check for updates (only when you ask); window and panel layout remembered between sessions.
 
 Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report (version, system and kernel, desktop session, CPU and memory, window scale, graphics driver, config folder; no user or computer name).
 
@@ -102,7 +103,7 @@ The program is called `putiacnc`. Your tool and machine libraries are stored per
 
 ## Languages
 
-The interface is in English and Italian (View → Language; it follows the system by default). The G-code and its comments are always English. To add a language or fix a translation, see [docs/translating.md](docs/translating.md): you edit one file and need no Rust.
+The interface is in English and Italian (File → Preferences → Language; it follows the system by default). The G-code and its comments are always English. To add a language or fix a translation, see [docs/translating.md](docs/translating.md): you edit one file and need no Rust.
 
 ## Command line
 
