@@ -82,12 +82,17 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
     let Some(btn) = app.align_btn else { return };
     let n = units(app).len();
     let mut pick: Option<(bool, u8)> = None;
-    let resp = egui::Area::new(egui::Id::new("align_pop")).order(egui::Order::Foreground).fixed_pos({ let a = crate::csd::anchor(app); egui::pos2(a.x.min(app.canvas_right - 445.0).max(4.0), a.y.max(btn.bottom() + 4.0)) }).show(ctx, |ui| {
+    let (t_stock, t_each, t_dist) = (tr("To the stock"), if n >= 2 { tr("To each other") } else { tr("To each other (2+)") }, if n >= 3 { tr("Distribute") } else { tr("Distribute (3+)") });
+    // the label column as wide as its longest label, so no label runs out of the panel (a fixed width did with "(2+)" at a larger scale)
+    let lw = { let font = egui::TextStyle::Body.resolve(&ctx.style()); ctx.fonts(|f| [t_stock, t_each, t_dist].iter().map(|t| f.layout_no_wrap(t.to_string(), font.clone(), egui::Color32::WHITE).size().x).fold(0.0_f32, f32::max)) + 4.0 };
+    let pop_id = egui::Id::new("align_pop");
+    // kept inside the drawing area at its real width (from the last frame)
+    let pop_w = ctx.memory(|m| m.area_rect(pop_id)).map_or(445.0, |r| r.width());
+    let resp = egui::Area::new(pop_id).order(egui::Order::Foreground).fixed_pos({ let a = crate::csd::anchor(app); egui::pos2(a.x.min(app.canvas_right - pop_w).max(4.0), a.y.max(btn.bottom() + 4.0)) }).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).inner_margin(egui::Margin::symmetric(8.0, 6.0)).show(ui, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(2.0, 4.0);
             let row = |ui: &mut egui::Ui, title: &str, items: &[(u8, Icon, &str, bool)], each: bool, pick: &mut Option<(bool, u8)>| {
                 ui.horizontal(|ui| {
-                    let lw = 120.0;
                     // labels flush right in one column, so the three rows line up
                     let (r, _) = ui.allocate_exact_size(Vec2::new(lw, 36.0), egui::Sense::hover());
                     ui.painter().text(r.right_center(), egui::Align2::RIGHT_CENTER, title, egui::TextStyle::Body.resolve(ui.style()), ui.visuals().text_color());
@@ -98,16 +103,16 @@ pub fn popover(ctx: &egui::Context, app: &mut App) {
                     }
                 });
             };
-            row(ui, tr("To the stock"), &[
+            row(ui, t_stock, &[
                 (0, Icon::AlignL, tr("Align to the left edge of the stock"), true), (1, Icon::AlignHC, tr("Centre horizontally on the stock"), true), (2, Icon::AlignR, tr("Align to the right edge of the stock"), true),
                 (3, Icon::AlignT, tr("Align to the top edge of the stock"), true), (4, Icon::AlignVC, tr("Centre vertically on the stock"), true), (5, Icon::AlignB, tr("Align to the bottom edge of the stock"), true),
                 (6, Icon::CenterBoth, tr("Centre on the stock"), true),
             ], false, &mut pick);
-            row(ui, if n >= 2 { tr("To each other") } else { tr("To each other (2+)") }, &[
+            row(ui, t_each, &[
                 (0, Icon::AlignL, tr("Align the shapes' left edges"), n >= 2), (1, Icon::AlignHC, tr("Centre the shapes horizontally on each other"), n >= 2), (2, Icon::AlignR, tr("Align the shapes' right edges"), n >= 2),
                 (3, Icon::AlignT, tr("Align the shapes' top edges"), n >= 2), (4, Icon::AlignVC, tr("Centre the shapes vertically on each other"), n >= 2), (5, Icon::AlignB, tr("Align the shapes' bottom edges"), n >= 2),
             ], true, &mut pick);
-            row(ui, if n >= 3 { tr("Distribute") } else { tr("Distribute (3+)") }, &[
+            row(ui, t_dist, &[
                 (6, Icon::DistH, tr("Equal gaps between the shapes, left to right"), n >= 3), (7, Icon::DistV, tr("Equal gaps between the shapes, bottom to top"), n >= 3),
             ], true, &mut pick);
         });
