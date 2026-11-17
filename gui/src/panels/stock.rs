@@ -126,7 +126,7 @@ pub(super) fn clamps_card(ui: &mut Ui, d: &mut ProjectData, show_clamps: &mut bo
             ui.set_max_width(stock_w - 34.0);
             ui.set_min_width(clamp_inner_w);
             let mut del = None;
-            if d.clamps.is_empty() { ui.add(egui::Label::new(egui::RichText::new(tr("None. Add one for each clamp or screw on the table.")).weak()).wrap(true)); }
+            if d.clamps.is_empty() && crate::widgets::card_notes(ui) { ui.add(egui::Label::new(egui::RichText::new(tr("None. Add one for each clamp or screw on the table.")).weak()).wrap(true)); }
             let n_clamps = d.clamps.len();
             let (lc1, lc2) = (tw(ui, tr("Width")).max(tw(ui, tr("Rise"))).max(tw(ui, "X")), tw(ui, tr("Length")).max(tw(ui, "Y")));
             let (sp, uw, h) = (8.0_f32, tw(ui, crate::widgets::len_unit(ui)), ui.spacing().interact_size.y);

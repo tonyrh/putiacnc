@@ -230,7 +230,7 @@ pub(super) fn imports_section(ui: &mut Ui, d: &mut putiacnc_core::model::Project
                 rel.scale = (nb[2] / (rel.nx as f64 * rel.res)).max(0.001);
                 *changed = true;
             }
-            if !is_picture { ui.weak(crate::widgets::localize(ui, &tr_f("The model is {h} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", &[("h", &format!("{:.1}", rel.zmax * rel.scale))]))); }
+            if !is_picture && crate::widgets::card_notes(ui) { ui.weak(crate::widgets::localize(ui, &tr_f("The model is {h} mm tall at this size; the 3D relief operation cuts that deep unless you set another depth.", &[("h", &format!("{:.1}", rel.zmax * rel.scale))]))); }
             if fit {
                 let k = (sw / (rel.nx as f64 * rel.res)).min(sh / (rel.ny as f64 * rel.res));
                 if rel.scale > k { rel.scale = k; }
@@ -870,8 +870,8 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 changed |= crate::widgets::check(ui, &mut h.outline, tr("Outline")).tip(tr("Also draw the edge of each shape")).changed();
                             });
                         }
-                        ui.add_space(2.0);
-                        ui.weak(if p.hatch.is_some() { tr("Open lines are drawn as they are. The lines of the fill are joined into a zigzag.") } else { tr("Draws every outline once (an edge two shapes share too). Set Z0 on the surface of the paper.") });
+                        if crate::widgets::card_notes(ui) { ui.add_space(2.0); }
+                        if crate::widgets::card_notes(ui) { ui.weak(if p.hatch.is_some() { tr("Open lines are drawn as they are. The lines of the fill are joined into a zigzag.") } else { tr("Draws every outline once (an edge two shapes share too). Set Z0 on the surface of the paper.") }); }
                     }
                     if p.kind == "inlay" || p.kind == "plug" || p.kind == "relief" || p.kind == "vcarve" {
                         ui.add_space(4.0);
@@ -906,10 +906,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                 let mut g = p.fit.unwrap_or(0.05);
                                 if dl_w(ui, 54.0, &mut g, 0.0, 2.0, "") { p.fit = Some(g); changed = true; }
                                 ui.weak(crate::widgets::len_unit(ui)).tip(tr("How much smaller the plug is than the pocket, sideways. 0 is a press fit; add a little for glue."));
-                                let hint = tr("smaller than the pocket, for glue");
-                                let shown = elide(ui, hint, (ui.available_width() - 8.0).max(30.0));
-                                let r = ui.weak(&shown);
-                                if shown != hint { r.on_hover_text(hint); }
+                                if crate::widgets::card_notes(ui) {
+                                    let hint = tr("smaller than the pocket, for glue");
+                                    let shown = elide(ui, hint, (ui.available_width() - 8.0).max(30.0));
+                                    let r = ui.weak(&shown);
+                                    if shown != hint { r.on_hover_text(hint); }
+                                }
                             });
                             // the plug can be cut from a piece of its own (a second G-code file, its own work zero)
                             ui.add_space(2.0);
@@ -1367,7 +1369,7 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
             if d.act == id { d.act = d.ops.get(i.saturating_sub(1)).map(|o| o.id).unwrap_or(0); }
             changed = true;
         }
-        if d.ops.is_empty() { ui.weak(tr("Select the shapes, then add an operation for them.")); }
+        if d.ops.is_empty() && crate::widgets::card_notes(ui) { ui.weak(tr("Select the shapes, then add an operation for them.")); }
 
 
         }

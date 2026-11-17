@@ -24,7 +24,7 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
         ui.set_width(crate::csd::dialog_w(420.0));
         if crate::csd::dialog_header(ui, tr("Preferences"), true) { close = true; }
         crate::csd::scroll(ui, 90.0, |ui| {
-            let lw = [tr("Theme"), tr("Language"), tr("Show lengths in"), tr("Speeds in"), tr("Decimals in millimetres"), tr("Decimals in inches"), tr("Smallest fraction"), tr("Projects"), tr("Imports"), tr("G-code"), tr("Settings")].iter().map(|t| crate::panels::tw(ui, t)).fold(0.0_f32, f32::max);
+            let lw = [tr("Theme"), tr("Language"), tr("Show"), tr("Show lengths in"), tr("Speeds in"), tr("Decimals in millimetres"), tr("Decimals in inches"), tr("Smallest fraction"), tr("Projects"), tr("Imports"), tr("G-code"), tr("Settings")].iter().map(|t| crate::panels::tw(ui, t)).fold(0.0_f32, f32::max);
             // the choices sit in one column, as wide as the widest of them
             let field_w = |ui: &egui::Ui| (ui.available_width() - lw - 10.0).max(120.0);
             section(ui, tr("Appearance"));
@@ -43,6 +43,13 @@ pub fn dialog(ctx: &egui::Context, app: &mut App) {
                     for (code, name, _) in putiacnc_core::i18n::LANGUAGES { ui.horizontal(|ui| { crate::widgets::flag(ui, code); if ui.selectable_label(saved == *code, *name).clicked() { lang = Some(code.to_string()); } }); }
                     if std::env::var_os("PUTIACNC_PSEUDO").is_some() && ui.selectable_label(saved == putiacnc_core::i18n::PSEUDO, tr("Pseudo (test)")).clicked() { lang = Some(putiacnc_core::i18n::PSEUDO.into()); }
                 }).response.tip(tr("The language of the menus and windows. Automatic follows the system."));
+                ui.end_row();
+                // two switches, as asked for in issue #24: on a small screen with both views open the hints take room from the drawing
+                crate::toolmgr::rlabel(ui, lw, tr("Show"));
+                crate::widgets::check(ui, &mut app.show_hints, tr("Navigation hints")).tip(tr("The line of hints at the bottom of the 2D and 3D views (\"Drag: orbit · …\"). The instructions a tool shows while you use it stay."));
+                ui.end_row();
+                ui.label("");
+                crate::widgets::check(ui, &mut app.show_card_notes, tr("Explanations in the cards")).tip(tr("Sentences that explain a setting, like the one under the Draw settings or in an empty Clamps card. Warnings, and the words that complete a setting, stay."));
                 ui.end_row();
             });
             ui.add_space(8.0);

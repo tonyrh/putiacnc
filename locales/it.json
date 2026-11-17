@@ -1750,5 +1750,10 @@
   "The text goes round the outside of the shape": "Il testo gira intorno alla forma, all'esterno",
   "set": "impostata",
   "Decimals in millimetres": "Decimali in millimetri",
-  "How many decimals a millimetre field shows, for a typical length (a field that needs more or fewer keeps the difference). Typed values are never rounded.": "Quanti decimali mostra un campo in millimetri, per una lunghezza tipica (un campo che ne richiede di più o di meno mantiene la differenza). I valori digitati non vengono mai arrotondati."
+  "How many decimals a millimetre field shows, for a typical length (a field that needs more or fewer keeps the difference). Typed values are never rounded.": "Quanti decimali mostra un campo in millimetri, per una lunghezza tipica (un campo che ne richiede di più o di meno mantiene la differenza). I valori digitati non vengono mai arrotondati.",
+  "Show": "Mostra",
+  "Navigation hints": "Suggerimenti di navigazione",
+  "The line of hints at the bottom of the 2D and 3D views (\"Drag: orbit · …\"). The instructions a tool shows while you use it stay.": "La riga di suggerimenti in fondo alle viste 2D e 3D (\"Trascina: ruota · …\"). Le istruzioni che uno strumento mostra mentre lo usi restano.",
+  "Explanations in the cards": "Spiegazioni nelle schede",
+  "Sentences that explain a setting, like the one under the Draw settings or in an empty Clamps card. Warnings, and the words that complete a setting, stay.": "Le frasi che spiegano un'impostazione, come quella sotto le impostazioni di Disegna o nella scheda Morsetti vuota. Gli avvisi, e le parole che completano un'impostazione, restano."
 }
