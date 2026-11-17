@@ -927,11 +927,13 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                                     // two columns of label + field + unit that share the width; the left labels line up, and so do the right ones
                                     let (la, lb, mm) = (tw_of(ui, tr("Thickness")).max(tw_of(ui, tr("Position X"))).max(tw_of(ui, tr("Material"))).max(tw_of(ui, tr("XY zero"))), tw_of(ui, tr("Position Y")).max(tw_of(ui, tr("Height"))), tw_of(ui, crate::widgets::len_unit(ui)));
                                     let fw = ((ui.available_width() - la - lb - 2.0 * mm - 6.0 * sp) / 2.0).clamp(46.0, 110.0);
+                                    // a length field is INCH_EXTRA_W wider in inches than asked (`len`): asked for that much less, the row stays as wide
+                                    let fw = if crate::widgets::inches(ui) { fw - crate::widgets::INCH_EXTRA_W } else { fw };
                                     changed |= crate::widgets::check(ui, &mut pc.same, tr("Replaces the main stock")).tip(tr("The main stock is taken off the machine and this piece put in its place: same size and same work zero, so only Z may need setting again. Switch it off to give the piece its own size and zero.")).changed();
                                     ui.add_space(2.0);
                                     let same = pc.same;
                                     let mut col5_x = 0.0_f32;
-                                    egui::Grid::new(("plug_piece", id)).num_columns(6).spacing([sp, 6.0]).show(ui, |ui| {
+                                    egui::Grid::new(("plug_piece", id)).num_columns(6).spacing([sp, 6.0]).min_col_width(0.0).show(ui, |ui| {
                                         if !same {
                                             rlabel(ui, la, tr("Width")); changed |= dl_w(ui, fw, &mut pc.w, 1.0, 10000.0, ""); ui.weak(crate::widgets::len_unit(ui));
                                             rlabel(ui, lb, tr("Height")); let r = ui.scope(|ui| dl_w(ui, fw, &mut pc.h, 1.0, 10000.0, "")); col5_x = r.response.rect.min.x; changed |= r.inner; ui.weak(crate::widgets::len_unit(ui)); ui.end_row();
@@ -987,26 +989,30 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                         // the row fills the panel: both fields share what the fixed parts leave over
                         let (w_mm, w_pass, w_cnt, w_rst) = (tw_of(ui, crate::widgets::len_unit(ui)), tw_of(ui, tr("Pass")), tw_of(ui, tr("00 passes")), 28.0);
                         // short fields; whatever width is left is shared out as gaps between the three groups
-                        let fw0: f32 = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
+                        // as wide as the fields can usefully be (in inches: a value like 12.3456 at full size)
+                        let fw0: f32 = if crate::widgets::inches(ui) { 64.0 } else { 42.0 };
                         // in a language with longer words the fields give way a little, rather than the row pushing the card wider than the panel
                         let mut rest = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * sp;
                         let mut sp = sp;
                         if rest + 2.0 * 30.0 + 8.0 > (ui.available_width() - 16.0) { sp = 4.0; ui.spacing_mut().item_spacing.x = sp; rest = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * sp; }
-                        let fw = fw0.min((((ui.available_width() - 16.0) - rest - 8.0) / 2.0).max(26.0));
-                        // in inches the fields are wider than asked (`len`) and the values longer: where the row has the room (short words),
-                        // the two fields share all of it, up to what a value like 12.3456 needs
+                        // a length field is INCH_EXTRA_W wider in inches than asked (`len`): every width below is what is asked, and the sums
+                        // count the extra
                         let ex = if crate::widgets::inches(ui) { crate::widgets::INCH_EXTRA_W } else { 0.0 };
+                        let fw = (fw0 - ex).min((((ui.available_width() - 8.0) - rest - 2.0 * ex - 8.0) / 2.0).max(26.0));
+                        // in inches the values are longer: where the row has the room (short words), the two fields share all of it, up to
+                        // what a value like 12.3456 needs
                         let avail = ui.available_width();
-                        let room = |rest: f32| (((avail - 4.0) - rest - 2.0 * ex - 8.0) / 2.0).min(64.0 - ex);
+                        let room = |rest: f32| (((avail - 8.0) - rest - 2.0 * ex - 8.0) / 2.0).min(64.0 - ex);
                         let mut grow = room(rest);
-                        // not enough with the usual gaps: closer items give the fields the rest (only where the words are short enough for it to help)
+                        // not enough with the usual gaps: closer items give the fields the rest
                         if ex > 0.0 && sp >= 8.0 && grow < 64.0 - ex {
                             let rest5 = l1 + w_pass + 2.0 * w_mm + w_cnt + w_rst + 7.0 * 5.0;
-                            if room(rest5) >= 64.0 - ex - 2.0 { sp = 5.0; ui.spacing_mut().item_spacing.x = sp; rest = rest5; grow = room(rest); }
+                            // (with a scroll bar beside the cards the row is a little shorter: closer items help even when they do not reach full size)
+                            if room(rest5) > grow { sp = 5.0; ui.spacing_mut().item_spacing.x = sp; rest = rest5; grow = room(rest); }
                         }
-                        let (fw, ex) = if ex > 0.0 && grow > fw { (grow, ex) } else { (fw, 0.0) };
+                        let fw = if ex > 0.0 { fw.max(grow) } else { fw };
                         let fixed = rest + 2.0 * (fw + ex);
-                        let gap = (((ui.available_width() - 16.0) - fixed) / 2.0).max(4.0);
+                        let gap = (((ui.available_width() - 8.0) - fixed) / 2.0).max(4.0);
                         rlabel(ui, l1, tr("Depth"));
                         if sp < 8.0 { ui.add_space(4.0); }
                         changed |= dl_w(ui, fw, &mut p.depth, 0.01, 1000.0, "");
@@ -1078,10 +1084,12 @@ pub(super) fn project_panel(ui: &mut Ui, app: &mut App, ops: bool) {
                             // short fields; the spare width is shared out as gaps between the groups
                             let sp = 5.0;
                             ui.spacing_mut().item_spacing.x = sp;
-                            let fw = if crate::widgets::inches(ui) { 56.0 } else { 42.0 };
+                            // what the fields are asked for; in inches a length field is INCH_EXTRA_W wider (`len`), counted in `fixed`
+                            let ex = if crate::widgets::inches(ui) { crate::widgets::INCH_EXTRA_W } else { 0.0 };
+                            let fw = if crate::widgets::inches(ui) { 56.0 - ex } else { 42.0 };
                             let groups = if manual { 2.0 } else { 3.0 };
                             let labels = tw_of(ui, tr("Width")) + tw_of(ui, tr("Height")) + if manual { 0.0 } else { tw_of(ui, tr("Count")) };
-                            let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, crate::widgets::len_unit(ui)) + (3.0 * groups + 0.0) * sp;
+                            let fixed = labels + (groups - if manual { 0.0 } else { 1.0 }) * fw + 30.0 * if manual { 0.0 } else { 1.0 } + 17.0 * if manual { 0.0 } else { 1.0 } + 2.0 * tw_of(ui, crate::widgets::len_unit(ui)) + (3.0 * groups + 0.0) * sp + 2.0 * ex;
                             // with all three fields the spare width is spread between them; with two they sit together
                             // in a language with longer words the two fields give way a little, rather than the row running past the card
                             let over = fixed - ui.available_width();
