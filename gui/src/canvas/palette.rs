@@ -174,7 +174,8 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
     let hint = if app.dyn_in.is_some() { tr("Typing values: Enter confirms \u{b7} Tab next field \u{b7} Esc cancels") } else { hint };
     egui::Area::new(egui::Id::new("hint")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -28.0)).interactable(false).show(ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
-        ui.add(egui::Label::new(egui::RichText::new(hint).weak()).truncate(true));
+        // wrapped onto more lines in a narrow window, as in the 3D view (it grows upwards from the bottom of the drawing)
+        ui.add(egui::Label::new(egui::RichText::new(hint).weak()).wrap(true));
     });
 }
 
