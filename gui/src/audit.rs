@@ -302,14 +302,31 @@ fn tool_windows_have_the_agreed_buttons() {
 
 /// The operation cards, every kind of operation with its options switched on, must not push text out of the right panel: a row that cannot wrap
 /// (a hint next to a field) used to widen the card past the panel and cut off the text below it.
+/// Since the inch fields were widened, text could also run past a card's own border while staying inside the panel (the unit after the plug
+/// piece's Position Y, issue #11): every text must stay inside the card it is in. Run in English and Italian, each in a process of its own
+/// (the language is global).
 #[test]
 fn operation_cards_do_not_run_out_of_the_panel() {
+    let exe = std::env::current_exe().unwrap();
+    for code in ["en", "it"] {
+        let out = std::process::Command::new(&exe).args(["--exact", "audit::cards_in_one_language", "--nocapture"]).env("PUTIACNC_CARDS_LANG", code)
+            .env("PUTIACNC_CONFIG_DIR", std::env::temp_dir().join(format!("putiacnc-cards-{code}"))).output().unwrap();
+        assert!(out.status.success(), "{code}: {}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    }
+}
+
+/// The child process of `operation_cards_do_not_run_out_of_the_panel`: does nothing unless it is told which language to try.
+#[test]
+fn cards_in_one_language() {
+    let Ok(code) = std::env::var("PUTIACNC_CARDS_LANG") else { return };
+    putiacnc_core::i18n::set_language(&code);
     let mut problems = vec![];
     for kind in ["outside", "inside", "online", "pocket", "vcarve", "drill", "inlay", "plug", "relief", "photo", "draw"] {
-        // 0: plain, 1: every option on, 2: a flat depth with no end mill (an older project; its hint line is the longest text)
-        for state in 0..3 {
-            let (busy, legacy) = (state == 1, state == 2);
-            if legacy && kind != "vcarve" { continue; }
+        // 0: plain, 1: every option on, 2: a flat depth with no end mill (an older project; its hint line is the longest text), 3: a plug cut
+        // from a separate piece (its own size and position fields), 4: the same piece taking the main stock's place
+        for state in 0..5 {
+            let (busy, legacy, piece) = (state == 1, state == 2, state >= 3);
+            if legacy && kind != "vcarve" || piece && kind != "plug" { continue; }
             for inches in [false, true] {
                 for (sw, sh) in [(1500.0_f32, 1000.0_f32), (1354.0, 640.0)] {
                     let mut a = project();
@@ -329,6 +346,9 @@ fn operation_cards_do_not_run_out_of_the_panel() {
                             o.p.custom = Some(putiacnc_core::model::CustomFeeds { rpm: Some(9000.0), feed: Some(700.0), plunge: Some(200.0), so: Some(30.0) });
                             o.p.custom2 = o.p.custom.clone();
                         } else if legacy { o.p.flat = Some(1.0); } else if kind == "vcarve" || kind == "inlay" || kind == "plug" { o.p.tool2 = flat.clone(); }
+                        if piece {
+                            o.p.piece = Some(putiacnc_core::model::PlugPiece { x: 1234.5678, y: -1234.5678, w: 1234.5678, h: 1234.5678, t: 12.3456, mat: "wood".into(), zr: "ll".into(), zm: "top".into(), zh: 0.0, same: state == 4 });
+                        }
                     }
                     a.touch();
                     let _ = crate::fuzz::settle(&mut a);
@@ -339,10 +359,18 @@ fn operation_cards_do_not_run_out_of_the_panel() {
                         last = Some(ctx.run(input, |ctx| a.ui_frame(ctx)));
                     }
                     let out = last.unwrap();
+                    // the cards: the outlined rectangles in the right panel, as wide as most of it
+                    let cards = card_rects(&out.shapes, sw);
                     for t in texts(&out.shapes) {
-                        if t.text.trim().is_empty() || t.rect.min.x < sw - 470.0 || t.rect.min.y < 70.0 || t.rect.min.y > sh - 40.0 { continue; }
+                        // text in the right panel only (a label on the drawing can be drawn under it, clipped to the drawing)
+                        if t.text.trim().is_empty() || t.rect.min.x < sw - 470.0 || t.clip.max.x < sw - 30.0 || t.rect.min.y < 70.0 || t.rect.min.y > sh - 40.0 { continue; }
+                        let what = if busy { " with every option" } else if legacy { " with a flat depth and no end mill" } else if piece { " cut from a separate piece" } else { "" };
+                        let card = cards.iter().filter(|c| c.contains(t.rect.left_center())).min_by(|a, b| a.width().total_cmp(&b.width()));
+                        if let Some(c) = card { if t.rect.max.x > c.max.x - 1.0 && t.rect.max.x <= t.clip.max.x + 0.75 {
+                            problems.push(format!("{kind}{what} ({}, {sw}x{sh}): \"{}\" runs past the card's border ({:.0} > {:.0})", if inches { "in" } else { "mm" }, t.text.chars().take(50).collect::<String>(), t.rect.max.x, c.max.x - 1.0));
+                        } }
                         if t.rect.max.x > t.clip.max.x + 0.75 || t.rect.max.x > sw - 6.0 {
-                            problems.push(format!("{kind}{} ({}, {sw}x{sh}): \"{}\" runs out of the panel ({:.0} > {:.0})", if busy { " with every option" } else if legacy { " with a flat depth and no end mill" } else { "" }, if inches { "in" } else { "mm" }, t.text.chars().take(50).collect::<String>(), t.rect.max.x, t.clip.max.x.min(sw - 6.0)));
+                            problems.push(format!("{kind}{what} ({}, {sw}x{sh}): \"{}\" runs out of the panel ({:.0} > {:.0})", if inches { "in" } else { "mm" }, t.text.chars().take(50).collect::<String>(), t.rect.max.x, t.clip.max.x.min(sw - 6.0)));
                         }
                     }
                 }
@@ -350,7 +378,21 @@ fn operation_cards_do_not_run_out_of_the_panel() {
         }
     }
     problems.sort(); problems.dedup();
-    assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
+    assert!(problems.is_empty(), "{code}: {} problems:\n{}", problems.len(), problems.join("\n"));
+}
+
+/// The outlined rectangles in the right panel at least 150 wide: the operation cards and the frames inside them.
+fn card_rects(shapes: &[egui::epaint::ClippedShape], sw: f32) -> Vec<Rect> {
+    fn walk(s: &egui::Shape, sw: f32, out: &mut Vec<Rect>) {
+        match s {
+            egui::Shape::Rect(r) if r.stroke.width > 0.0 && r.rect.width() >= 150.0 && r.rect.min.x > sw - 480.0 => out.push(r.rect),
+            egui::Shape::Vec(v) => for x in v { walk(x, sw, out); },
+            _ => {}
+        }
+    }
+    let mut out = vec![];
+    for c in shapes { walk(&c.shape, sw, &mut out); }
+    out
 }
 
 /// A dialog is as wide in Italian as in English: only the side panels are widened for the language (`i18n::width_factor`, used in main.rs).
