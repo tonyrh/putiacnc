@@ -327,13 +327,15 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let rect = resp.rect;
     let painter = painter.with_clip_rect(rect);
     let dark = app.theme.dark;
-    // hint line, as wide as the view
-    let hint = egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
+    // hint line, as wide as the view (it can be hidden in Preferences)
+    let show_hint = app.show_hints;
+    let hint = show_hint.then(|| egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.label(egui::RichText::new(tr("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll or pinch: zoom  ·  F: fit  ·  Double-click: reset")).weak());
-    });
-    // where the things drawn over the bottom of the view start: above the hint, however many lines it wraps to in a narrow view
-    let above_hint = hint.response.rect.top().min(rect.bottom() - 34.0);
+    }));
+    // where the things drawn over the bottom of the view start: above the hint, however many lines it wraps to in a narrow view (at the
+    // bottom of the view when it is hidden)
+    let above_hint = hint.map_or(rect.bottom() - 10.0, |h| h.response.rect.top().min(rect.bottom() - 34.0));
 
     // camera controls
     crate::viewcube::step(&mut app.v3, &ctx);

@@ -59,7 +59,7 @@ The workspace has two crates:
 
 **Everything else**
 - A setup assistant on first run, a quick tour and five sample projects (Generate → Sample projects: name plate, finger-joint box, 3D relief, relief from shapes, oval sign); a printable setup sheet (File → Setup sheet) with the stock, tools in order, operations and a checklist.
-- Preferences (File → Preferences): theme (light, dark, or following the desktop), language, lengths in millimetres or inches (decimals or fractions, with the number of decimals and the smallest fraction as settings), speed units, and the folders for projects, imports and G-code.
+- Preferences (File → Preferences): theme (light, dark, or following the desktop), language, whether to show the navigation hints and the explanations in the cards, lengths in millimetres or inches (decimals or fractions, with the number of decimals and the smallest fraction as settings), speed units, and the folders for projects, imports and G-code.
 - G-code tab with a time estimate, optional inches and line numbers; project notes; keyboard shortcuts (F1); check for updates (only when you ask); window and panel layout remembered between sessions.
 
 Help → About shows the version, licence, links, and buttons to open the config folder and copy version info for a bug report (version, system and kernel, desktop session, CPU and memory, window scale, graphics driver, config folder; no user or computer name).

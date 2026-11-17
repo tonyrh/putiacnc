@@ -22,6 +22,9 @@ pub fn fmt_speed(ui: &Ui, mm_min: f64) -> String {
 
 /// Whether inch fields show fractions (see `fmt_inch`).
 pub fn set_fractions(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("display_fractions"), on)); }
+/// Whether the cards (operations, Clamps) show their explanatory sentences (Preferences, Appearance; set once a frame).
+pub fn set_card_notes(ctx: &egui::Context, on: bool) { ctx.data_mut(|d| d.insert_temp(egui::Id::new("card_notes"), on)); }
+pub fn card_notes(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("card_notes"))).unwrap_or(true) }
 pub fn fractions(ui: &Ui) -> bool { ui.data(|d| d.get_temp::<bool>(egui::Id::new("display_fractions"))).unwrap_or(false) }
 
 /// A message written in mm, with its lengths in the shown unit (see `units::localize`).

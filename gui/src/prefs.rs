@@ -18,6 +18,10 @@ pub struct Win {
 #[serde(default)]
 pub struct Settings {
     pub update_check: bool,
+    /// The navigation hints at the bottom of the 2D and 3D views are hidden (Preferences, Appearance).
+    pub hide_hints: bool,
+    /// The explanatory sentences in the operation cards are hidden (Preferences, Appearance).
+    pub hide_card_notes: bool,
     /// The language of the interface: "auto" (the system's), or a code such as "en" or "it".
     pub language: Option<String>,
     /// The colour theme: "system" (the desktop's), "light" or "dark".
