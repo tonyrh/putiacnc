@@ -6,45 +6,33 @@ use super::*;
 /// Fixed toolbar under the menu: undo/redo and view options.
 pub fn tool_bar(ui: &mut Ui, app: &mut App) {
     if app.view_tab == crate::view3d::ViewTab::Preview {
-        // playback on the left; on the right the same spots as in the 2D bar, with the speed box where Guides is
-        let sp = ui.spacing();
-        let (gap, extra) = (sp.item_spacing.x, sp.icon_width + sp.icon_spacing + 2.0 * sp.button_padding.x);
+        // the bar beside the drawing (2D + 3D) without the drawing's own options: every control in the same spot in both views (the place of
+        // Guides is kept empty), on one row or on two in the same windows, so switching views moves nothing
         let slot = guides_size(ui).x;
-        let right_w = slot + 2.0 * extra + tw(ui, tr("Rapids")) + tw(ui, tr("Toolpaths")) + 3.0 * gap;
-        let left_w = ui.available_width() - right_w - gap - 2.0;
         let h = ui.spacing().interact_size.y;
-        if left_w >= 300.0 {
-            // the toggles take their own width from the right; playback gets exactly what is left, so nothing is wasted between them
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    crate::view3d::speed_box(ui, app, slot);
-                    crate::widgets::check(ui, &mut app.show_rapids, tr("Rapids"));
-                    crate::widgets::check(ui, &mut app.show_toolpath, tr("Toolpaths"));
-                    let w = ui.available_width().max(0.0);
-                    ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
-                });
-            });
+        let toggles = |ui: &mut Ui, app: &mut App| {
+            ui.allocate_exact_size(egui::vec2(slot, h), egui::Sense::hover());
+            crate::widgets::check(ui, &mut app.show_rapids, tr("Rapids"));
+            crate::widgets::check(ui, &mut app.show_toolpath, tr("Toolpaths"));
+        };
+        let playback = |ui: &mut Ui, app: &mut App| {
+            crate::view3d::speed_box(ui, app, 64.0);
+            let w = ui.available_width().max(0.0);
+            ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
+        };
+        if !bar_two_rows(ui) {
+            ui.horizontal(|ui| { ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { toggles(ui, app); playback(ui, app); }); });
         } else {
-            // too narrow for the slider to stay useful: playback and speed on one row, the toggles under it
-            ui.horizontal(|ui| {
-                let w = (ui.available_width() - slot - gap).max(120.0);
-                ui.allocate_ui_with_layout(egui::vec2(w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| crate::view3d::play_bar(ui, app));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| crate::view3d::speed_box(ui, app, slot));
-            });
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.allocate_exact_size(egui::vec2(slot, h), egui::Sense::hover());
-                    crate::widgets::check(ui, &mut app.show_rapids, tr("Rapids"));
-                    crate::widgets::check(ui, &mut app.show_toolpath, tr("Toolpaths"));
-                });
-            });
+            // the timeline at the bottom, as beside the drawing
+            ui.horizontal(|ui| { ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| toggles(ui, app)); });
+            ui.horizontal(|ui| { ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| playback(ui, app)); });
         }
         return;
     }
     let split = app.view_tab == crate::view3d::ViewTab::Split;
     // beside the 3D view one bar does both jobs: the drawing's options on the left, playback in the middle, the view toggles on the right
     // (when the window is too narrow for that, playback gets a row of its own under them)
-    let two_rows = split && ui.available_width() < 800.0;
+    let two_rows = split && bar_two_rows(ui);
     ui.horizontal(|ui| {
         crate::widgets::check(ui, &mut app.grid_on, tr("Grid"));
         { let r = crate::widgets::len(ui, [if crate::widgets::inches(ui) { 56.0 } else { 54.0 }, ui.spacing().interact_size.y], &mut app.snap_mm, 0.01, 500.0, 0.1, 2, ""); ui.weak(crate::widgets::len_unit(ui)); r }.on_hover_text(tr("Grid size (also the snap step)"));
@@ -87,6 +75,18 @@ pub(super) fn dropup_size(ui: &Ui, label: &str) -> egui::Vec2 {
 }
 
 pub(super) fn guides_size(ui: &Ui) -> egui::Vec2 { dropup_size(ui, tr("Guides")) }
+
+/// Whether the bar under a 3D view (2D + 3D, or 3D preview) needs two rows: when one row would leave the timeline less than 300 pt.
+/// Both views ask what the 2D + 3D bar needs, the fuller of the two, so the bar has the same rows in both and switching views does not
+/// move it; on two rows the timeline is the bottom one in both.
+fn bar_two_rows(ui: &Ui) -> bool {
+    let sp = ui.spacing();
+    let (gap, extra) = (sp.item_spacing.x, sp.icon_width + sp.icon_spacing + 2.0 * sp.button_padding.x);
+    let field = if crate::widgets::inches(ui) { 56.0 } else { 54.0 };
+    let left = extra + tw(ui, tr("Grid")) + field + tw(ui, crate::widgets::len_unit(ui)) + dropup_size(ui, tr("Snap")).x + 3.0 * gap;
+    let right = guides_size(ui).x + 2.0 * extra + tw(ui, tr("Rapids")) + tw(ui, tr("Toolpaths")) + 64.0 + 4.0 * gap;
+    ui.available_width() - left - right - 2.0 * gap < 300.0
+}
 
 pub(super) fn guides_menu(ui: &mut Ui, app: &mut App) {
     dropup(ui, app, "guides_menu", tr("Guides"), |ui, app| {
