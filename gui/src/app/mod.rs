@@ -402,6 +402,10 @@ impl App {
             d.act = id;
         }
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
+        // PUTIACNC_CTX_MENU=x,y: the selection's right-click menu open at that point of the window (for screenshots; with PUTIACNC_SELECT_ALL)
+        if let Some((x, y)) = std::env::var("PUTIACNC_CTX_MENU").ok().and_then(|v| { let (x, y) = v.split_once(',')?; Some((x.trim().parse::<f32>().ok()?, y.trim().parse::<f32>().ok()?)) }) {
+            a.ctx_menu = Some(eframe::egui::pos2(x, y));
+        }
         if let Ok(v) = std::env::var("PUTIACNC_SELECT") { a.sel = v.split(',').filter_map(|s| s.parse().ok()).collect(); }
         if std::env::var_os("PUTIACNC_ROTATE").is_some() { a.rotate_mode = true; a.rot_sel = a.sel.clone(); }
         if std::env::var_os("PUTIACNC_SHOW_SHORTCUTS").is_some() { a.shortcuts_open = true; }

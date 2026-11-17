@@ -180,6 +180,18 @@ pub(super) fn overlays(ctx: &egui::Context, app: &mut App, rect: Rect, zoom_frac
 
 /// The right-click menu of the selection: the commands used most while shapes are selected, the same names as in the menus.
 /// Commands that do not apply are left out, not greyed.
+/// Where a menu opened at `at` goes so that all of it stays inside the drawing area (the room the side panels and the bars leave, where
+/// egui keeps such menus): up from `at` when there is no room under it, to the left of `left_x` when there is none on the right (a submenu
+/// flips to the other side of its row), and never past the area's top or left edge. The menu's size is the one it had in the last frame
+/// (it does not change while it is open); before that, egui keeps it inside.
+fn menu_pos(ctx: &egui::Context, id: egui::Id, at: Pos2, left_x: f32, up_y: f32) -> Pos2 {
+    let Some(size) = ctx.memory(|m| m.area_rect(id)).map(|r| r.size()) else { return at };
+    let screen = ctx.available_rect();
+    let x = if at.x + size.x > screen.right() { left_x - size.x } else { at.x };
+    let y = if at.y + size.y > screen.bottom() { up_y - size.y } else { at.y };
+    Pos2::new(x.max(screen.left()), y.max(screen.top()))
+}
+
 /// A row that opens a small menu of choices at its right (a drawn arrow marks it: the glyph is not in the font); returns the choice clicked.
 fn submenu(ctx: &egui::Context, ui: &mut Ui, key: &str, label: &str, items: &[&str]) -> Option<usize> {
     let m = ui.add(egui::Button::new(label));
@@ -188,10 +200,15 @@ fn submenu(ctx: &egui::Context, ui: &mut Ui, key: &str, label: &str, items: &[&s
     ui.painter().add(egui::Shape::convex_polygon(vec![Pos2::new(x - 3.0, y - 4.0), Pos2::new(x - 3.0, y + 4.0), Pos2::new(x + 2.5, y)], c, Stroke::NONE));
     let sub_id = egui::Id::new(("sub_open", key));
     let mut open = ctx.data(|d| d.get_temp::<bool>(sub_id)).unwrap_or(false) || m.hovered() || m.clicked();
+    if std::env::var("PUTIACNC_SUBMENU").is_ok_and(|v| v == key) { open = true; } // for screenshots
     let mut chosen = None;
     if open {
         let w = items.iter().map(|s| crate::panels::tw(ui, s)).fold(0.0_f32, f32::max) + 28.0;
-        let sub = egui::Area::new(egui::Id::new(("sub_area", key))).order(egui::Order::Foreground).fixed_pos(Pos2::new(r.right() - 2.0, r.top() - 6.0)).show(ctx, |ui| {
+        let sub_area = egui::Id::new(("sub_area", key));
+        // on the right of its row, or on the left when the window has no room there; its last row level with this one when it would run
+        // off the bottom
+        let at = menu_pos(ctx, sub_area, Pos2::new(r.right() - 2.0, r.top() - 6.0), r.left() + 2.0, r.bottom() + 6.0);
+        let sub = egui::Area::new(sub_area).order(egui::Order::Foreground).fixed_pos(at).constrain(true).show(ctx, |ui| {
             egui::Frame::menu(ui.style()).show(ui, |ui| {
                 ui.style_mut().wrap = Some(false);
                 { let w = &mut ui.style_mut().visuals.widgets; w.inactive.weak_bg_fill = egui::Color32::TRANSPARENT; w.inactive.bg_stroke = egui::Stroke::NONE; }
@@ -215,7 +232,10 @@ pub(super) fn selection_menu(ctx: &egui::Context, app: &mut App) {
     use crate::app::ToolWin;
     let locked = app.sel_locked();
     let mut close = false;
-    let area = egui::Area::new(egui::Id::new("selection_menu")).order(egui::Order::Foreground).fixed_pos(pos).show(ctx, |ui| {
+    // opened at the pointer, down and to the right; up and to the left of it where the window has no room
+    let menu_id = egui::Id::new("selection_menu");
+    let at = menu_pos(ctx, menu_id, pos, pos.x, pos.y);
+    let area = egui::Area::new(menu_id).order(egui::Order::Foreground).fixed_pos(at).constrain(true).show(ctx, |ui| {
         egui::Frame::menu(ui.style()).show(ui, |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(190.0);
