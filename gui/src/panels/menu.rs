@@ -3,7 +3,8 @@ use putiacnc_core::i18n::tr;
 use super::*;
 use crate::app::ToolWin;
 
-pub fn menu_bar(ui: &mut Ui, app: &mut App) {
+/// The menus; returns where the last one ends, so the window title can keep clear of them.
+pub fn menu_bar(ui: &mut Ui, app: &mut App) -> f32 {
     fn item(ui: &mut Ui, label: &str, shortcut: &str, enabled: bool) -> bool {
         let r = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut));
         if r.clicked() { ui.close_menu(); true } else { false }
@@ -164,7 +165,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             crate::widgets::check(ui, &mut app.show_left, tr("Project panel"));
             crate::widgets::check(ui, &mut app.show_right, tr("Operations / G-code panel"));
         });
-        ui.menu_button(tr("Help"), |ui| {
+        let help = ui.menu_button(tr("Help"), |ui| {
             ui.style_mut().wrap = Some(false);
             ui.set_min_width(200.0);
             if ui.button(tr("Quick tour")).on_hover_text(tr("A two-minute look at where things are")).clicked() { app.tour.start(); ui.close_menu(); }
@@ -176,5 +177,7 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) {
             ui.separator();
             if ui.button(tr("About PutiaCNC…")).clicked() { app.about_open = true; ui.close_menu(); }
         });
-    });
+        // where the last menu ends (the bar itself takes the whole width)
+        help.response.rect.right()
+    }).inner
 }

@@ -33,11 +33,6 @@ pub fn header(ui: &mut Ui, app: &mut App) {
     if drag.drag_started_by(egui::PointerButton::Primary) { ctx.send_viewport_cmd(ViewportCommand::StartDrag); }
     if drag.double_clicked() { ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized)); }
 
-    // title, centred
-    let name = if app.project.name.trim().is_empty() { tr("Untitled") } else { app.project.name.trim() };
-    let title = format!("{}{} - PutiaCNC", name, if app.modified { " •" } else { "" });
-    let font = egui::TextStyle::Body.resolve(ui.style());
-    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, title, font, ui.visuals().strong_text_color());
 
     // window buttons
     let bw = 30.0;
@@ -64,10 +59,24 @@ pub fn header(ui: &mut Ui, app: &mut App) {
 
     // menus, left
     let menus = Rect::from_min_max(rect.min, Pos2::new(ctl.min.x, rect.max.y));
-    ui.allocate_ui_at_rect(menus, |ui| {
+    let menus_right = ui.allocate_ui_at_rect(menus, |ui| {
         ui.set_min_height(HEADER_H);
-        crate::panels::menu_bar(ui, app);
-    });
+        crate::panels::menu_bar(ui, app)
+    }).inner;
+
+    // title, centred on the window; moved right of the menus when they reach it, and cut short with "…" (or left out) when the window
+    // is too narrow for all of it between the menus and the window buttons
+    let name = if app.project.name.trim().is_empty() { tr("Untitled") } else { app.project.name.trim() };
+    let title = format!("{}{} - PutiaCNC", name, if app.modified { " •" } else { "" });
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    let (lo, hi) = (menus_right + 16.0, ctl.min.x - 16.0);
+    if hi - lo >= 60.0 {
+        let mut job = egui::text::LayoutJob::single_section(title, egui::TextFormat { font_id: font, color: ui.visuals().strong_text_color(), ..Default::default() });
+        job.wrap = egui::text::TextWrapping { max_width: hi - lo, max_rows: 1, break_anywhere: true, overflow_character: Some('…') };
+        let g = ui.painter().layout_job(job);
+        let x = (rect.center().x - g.size().x / 2.0).clamp(lo, (hi - g.size().x).max(lo));
+        ui.painter().galley(Pos2::new(x, rect.center().y - g.size().y / 2.0), g, ui.visuals().strong_text_color());
+    }
 }
 
 /// A small window glyph with the left or right strip filled while that panel is visible.

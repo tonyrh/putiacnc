@@ -328,10 +328,12 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     let painter = painter.with_clip_rect(rect);
     let dark = app.theme.dark;
     // hint line, as wide as the view
-    egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
+    let hint = egui::Area::new(egui::Id::new("hint3d")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + egui::Vec2::new(12.0, -10.0)).interactable(false).show(&ctx, |ui| {
         ui.set_max_width((rect.width() - 24.0).max(120.0));
         ui.label(egui::RichText::new(tr("Drag: orbit  ·  Right-drag or Shift-drag: pan  ·  Scroll or pinch: zoom  ·  F: fit  ·  Double-click: reset")).weak());
     });
+    // where the things drawn over the bottom of the view start: above the hint, however many lines it wraps to in a narrow view
+    let above_hint = hint.response.rect.top().min(rect.bottom() - 34.0);
 
     // camera controls
     crate::viewcube::step(&mut app.v3, &ctx);
@@ -537,6 +539,8 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         }
     }
 
+    // where the playback line ends, for the reminder under it
+    let mut label_bottom = rect.top();
     // which operation and pass the replay is on. Retracts and rapids carry no pass, so the last real pass is kept; and at high
     // speed the label changes at most a few times a second and its box keeps one width, so it does not flicker
     if let (o, Some(sim)) = (&*rp_arc, app.v3.sim.as_ref()) {
@@ -580,11 +584,14 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
                 if low.is_finite() { tr_f("Operation {n} · {name}  ·  {what}  ·  to Z {z}", &[("n", &(m.op + 1)), ("name", &name), ("what", &what), ("z", &zfmt(low).replace(|c: char| c.is_ascii_digit(), "8"))]) }
                 else { tr_f("Operation {n} · {name}  ·  {what}", &[("n", &(m.op + 1)), ("name", &name), ("what", &what)]) }
             };
-            let wg = painter.layout_no_wrap(widest, FontId::proportional(13.0), Color32::WHITE);
-            let g = painter.layout_no_wrap(fmt(shown.0, shown.1, shown.2), FontId::proportional(13.0), Color32::WHITE);
+            // no wider than the room left of the view cube: in a narrow view the line wraps instead of running under it
+            let max_w = (rect.width() - 20.0 - 18.0 - 150.0).max(140.0);
+            let wg = painter.layout(widest, FontId::proportional(13.0), Color32::WHITE, max_w);
+            let g = painter.layout(fmt(shown.0, shown.1, shown.2), FontId::proportional(13.0), Color32::WHITE, max_w);
             let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 10.0), Vec2::new(wg.size().x.max(g.size().x), g.size().y) + Vec2::new(18.0, 10.0));
             painter.rect_filled(r, 6.0, Color32::from_black_alpha(150));
             painter.galley(r.min + Vec2::new(9.0, 5.0), g, Color32::WHITE);
+            label_bottom = r.bottom();
         }
     }
 
@@ -609,7 +616,7 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
             let g2 = (!b.is_empty()).then(|| painter.layout_no_wrap(b, FontId::proportional(12.0), Color32::from_white_alpha(200)));
             let w = g1.size().x.max(g2.as_ref().map_or(0.0, |g| g.size().x)) + 24.0;
             let h = g1.size().y + g2.as_ref().map_or(0.0, |g| g.size().y + 2.0) + 14.0;
-            let r = Rect::from_center_size(Pos2::new(rect.center().x, rect.bottom() - 70.0 - h / 2.0), Vec2::new(w, h));
+            let r = Rect::from_center_size(Pos2::new(rect.center().x, rect.bottom().min(above_hint + 34.0) - 70.0 - h / 2.0), Vec2::new(w, h));
             painter.rect_filled(r, 8.0, match amber { 2 => Color32::from_rgba_unmultiplied(170, 25, 30, 230), 1 => Color32::from_rgba_unmultiplied(150, 100, 0, 225), _ => Color32::from_black_alpha(170) });
             let y2 = r.min.y + 7.0 + g1.size().y + 2.0;
             painter.galley(Pos2::new(r.center().x - g1.size().x / 2.0, r.min.y + 7.0), g1, Color32::WHITE);
@@ -621,8 +628,11 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
     if !app.pieces.is_empty() {
         let names: Vec<String> = app.pieces.iter().map(|pp| tr_f("Plug piece (operation {n})", &[("n", &(pp.job.op_index + 1))])).collect();
         let mut part = app.v3.part;
-        egui::Area::new(egui::Id::new("v3_part")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(rect.left_bottom() + Vec2::new(12.0, -44.0)).show(&ctx, |ui| {
-            if names.len() == 1 {
+        egui::Area::new(egui::Id::new("v3_part")).order(egui::Order::Middle).pivot(egui::Align2::LEFT_BOTTOM).fixed_pos(Pos2::new(rect.left() + 12.0, above_hint - 8.0)).show(&ctx, |ui| {
+            // the two tabs, or a list when there are more pieces or the view is too narrow for both tabs (a 2D + 3D view in Italian)
+            let pad = 2.0 * ui.spacing().button_padding.x + 8.0;
+            let tabs_w = crate::panels::tw(ui, tr("Main stock")) + crate::panels::tw(ui, tr("Plug piece")) + 2.0 * pad;
+            if names.len() == 1 && tabs_w <= rect.width() - 24.0 {
                 let (c, _) = crate::zoomcard::seg2(ui, [tr("Main stock"), tr("Plug piece")], [tr("Shows the main stock, where the pocket is cut"), tr("Shows the separate piece of stock the plug is cut from (its own G-code file)")], part.min(1));
                 if let Some(i) = c { part = i; }
             } else {
@@ -635,11 +645,12 @@ pub fn preview(ui: &mut Ui, app: &mut App) {
         app.v3.part = part;
     }
     // a reminder that part of the job is left out of the picture, with a way back
+    // (under the playback line, which can take two lines in a narrow view)
     let n_hid = app.v3.hid.iter().filter(|&&h| h).count();
     if n_hid > 0 {
         let text = putiacnc_core::i18n::tr_n(n_hid as u64, "{n} operation hidden · Show all", "{n} operations hidden · Show all");
         let g = painter.layout_no_wrap(text, FontId::proportional(12.5), Color32::WHITE);
-        let r = Rect::from_min_size(rect.left_top() + Vec2::new(10.0, 50.0), g.size() + Vec2::new(18.0, 8.0));
+        let r = Rect::from_min_size(Pos2::new(rect.left() + 10.0, (rect.top() + 50.0).max(label_bottom + 8.0)), g.size() + Vec2::new(18.0, 8.0));
         let resp = ui.interact(r, ui.id().with("v3_show_all"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
         painter.rect_filled(r, 6.0, Color32::from_black_alpha(if resp.hovered() { 200 } else { 150 }));
         painter.galley(r.min + Vec2::new(9.0, 4.0), g, Color32::WHITE);

@@ -404,6 +404,9 @@ impl App {
         if std::env::var_os("PUTIACNC_SELECT_ALL").is_some() { a.sel = (0..a.project.data.loops.len()).collect(); }
         if let Ok(v) = std::env::var("PUTIACNC_SELECT") { a.sel = v.split(',').filter_map(|s| s.parse().ok()).collect(); }
         if std::env::var_os("PUTIACNC_ROTATE").is_some() { a.rotate_mode = true; a.rot_sel = a.sel.clone(); }
+        // PUTIACNC_SELECT_ONE: only the first shape selected; PUTIACNC_ALIGN: the Align panel open (for screenshots)
+        if std::env::var_os("PUTIACNC_SELECT_ONE").is_some() && !a.project.data.loops.is_empty() { a.sel = [0].into(); }
+        if std::env::var_os("PUTIACNC_ALIGN").is_some() { a.align_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_SHORTCUTS").is_some() { a.shortcuts_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_ABOUT").is_some() { a.about_open = true; }
         if std::env::var_os("PUTIACNC_SHOW_PREFS").is_some() { a.prefs_open = true; }
