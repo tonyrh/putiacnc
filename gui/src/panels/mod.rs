@@ -221,7 +221,11 @@ pub(super) fn notes_panel(ui: &mut Ui, app: &mut App) {
     let rows = (((ui.available_height() - 12.0) / row_h).floor() as usize).max(4);
     let before = app.project.data.clone();
     let mut notes = std::mem::take(&mut app.project.data.notes);
-    let r = ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text(tr("Material, fixtures, jobs to remember…")));
+    // the field fills the panel and grows with its text: a scroll area keeps the rest reachable when the text is longer than the panel (the
+    // field scrolls to the text cursor by itself while typing)
+    let r = egui::ScrollArea::vertical().id_source("notes_scroll").auto_shrink([false, false]).max_height(ui.available_height()).show(ui, |ui| {
+        ui.add(egui::TextEdit::multiline(&mut notes).desired_width(f32::INFINITY).desired_rows(rows).hint_text(tr("Material, fixtures, jobs to remember…")))
+    }).inner;
     app.project.data.notes = notes;
     if r.changed() {
         // one undo step per editing session; while the field has focus, Ctrl+Z undoes the typing itself
