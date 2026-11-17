@@ -14,6 +14,16 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) -> f32 {
         let r = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut)).on_disabled_hover_text(why);
         if r.clicked() { ui.close_menu(); true } else { false }
     }
+    // a menu row that opens a submenu, greyed out (with why, if given) when it does not apply. Only the greyed row is wrapped in a ui of its
+    // own: egui closes an open submenu when another row of the same menu is hovered, and it cannot see the other rows from inside such a
+    // wrapper (the submenu then stayed open)
+    fn sub(ui: &mut Ui, enabled: bool, label: &str, why: Option<&str>, add: impl FnOnce(&mut Ui)) {
+        if enabled { ui.menu_button(label, |ui| { ui.style_mut().wrap = Some(false); add(ui); }); return; }
+        ui.add_enabled_ui(false, |ui| {
+            let r = ui.menu_button(label, |_| {}).response;
+            if let Some(w) = why { r.on_disabled_hover_text(w); }
+        });
+    }
     egui::menu::bar(ui, |ui| {
         // roomier, rounded menu buttons like a GNOME header bar (menu::bar sets tight defaults)
         {
@@ -33,18 +43,15 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) -> f32 {
             if item(ui, tr("New project"), "Ctrl+N", true) { app.request(Action::New); }
             if item(ui, tr("Open project…"), "Ctrl+O", true) { app.open_dialog(); }
             let recent: Vec<String> = app.prefs.recent.iter().filter(|p| std::path::Path::new(p.as_str()).is_file()).cloned().collect();
-            ui.add_enabled_ui(!recent.is_empty(), |ui| {
-                ui.menu_button(tr("Open recent"), |ui| {
-                    ui.style_mut().wrap = Some(false);
-                    for p in &recent {
-                        let path = std::path::Path::new(p);
-                        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.clone());
-                        let dir = path.parent().map(|d| d.display().to_string()).unwrap_or_default();
-                        if ui.button(name).on_hover_text(dir).clicked() { app.request(Action::Open(p.clone())); ui.close_menu(); }
-                    }
-                    ui.separator();
-                    if ui.button(tr("Clear list")).clicked() { app.prefs.recent.clear(); ui.close_menu(); }
-                });
+            sub(ui, !recent.is_empty(), tr("Open recent"), None, |ui| {
+                for p in &recent {
+                    let path = std::path::Path::new(p);
+                    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.clone());
+                    let dir = path.parent().map(|d| d.display().to_string()).unwrap_or_default();
+                    if ui.button(name).on_hover_text(dir).clicked() { app.request(Action::Open(p.clone())); ui.close_menu(); }
+                }
+                ui.separator();
+                if ui.button(tr("Clear list")).clicked() { app.prefs.recent.clear(); ui.close_menu(); }
             });
             ui.separator();
             if item(ui, tr("Import vectors…"), "Ctrl+I", true) { app.import_dialog(); }
@@ -100,20 +107,15 @@ pub fn menu_bar(ui: &mut Ui, app: &mut App) -> f32 {
             let free = some && !app.sel_locked();
             let pick = tr("Select a shape first");
             // move and copy
-            ui.add_enabled_ui(free, |ui| {
-                ui.menu_button(tr("Mirror"), |ui| {
-                    ui.style_mut().wrap = Some(false);
-                    if item(ui, tr("Left to right"), "", true) { app.mirror_selection(true); }
-                    if item(ui, tr("Top to bottom"), "", true) { app.mirror_selection(false); }
-                }).response.on_disabled_hover_text(if some { tr("This drawing is locked") } else { pick });
+            let why = Some(if some { tr("This drawing is locked") } else { pick });
+            sub(ui, free, tr("Mirror"), why, |ui| {
+                if item(ui, tr("Left to right"), "", true) { app.mirror_selection(true); }
+                if item(ui, tr("Top to bottom"), "", true) { app.mirror_selection(false); }
             });
-            ui.add_enabled_ui(free, |ui| {
-                ui.menu_button(tr("Rotate"), |ui| {
-                    ui.style_mut().wrap = Some(false);
-                    if item(ui, tr("90° counter-clockwise"), "", true) { app.rotate_selection_by(90.0); }
-                    if item(ui, tr("90° clockwise"), "", true) { app.rotate_selection_by(-90.0); }
-                    if item(ui, tr("Any angle…"), "", true) { app.start_rotate(); }
-                }).response.on_disabled_hover_text(if some { tr("This drawing is locked") } else { pick });
+            sub(ui, free, tr("Rotate"), why, |ui| {
+                if item(ui, tr("90° counter-clockwise"), "", true) { app.rotate_selection_by(90.0); }
+                if item(ui, tr("90° clockwise"), "", true) { app.rotate_selection_by(-90.0); }
+                if item(ui, tr("Any angle…"), "", true) { app.start_rotate(); }
             });
             if item_why(ui, tr("Align…"), "", free, if some { tr("This drawing is locked") } else { pick }) { app.open_tool_window(ToolWin::Align); }
             if item_why(ui, tr("Array and copy…"), "", some, pick) { app.open_tool_window(ToolWin::Array); }
