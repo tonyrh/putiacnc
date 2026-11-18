@@ -1,5 +1,58 @@
 //! Starting a new project, loading one, and the preferences.
 use super::*;
+use eframe::egui::{self, ViewportCommand};
+
+/// Where the window is put back at start: the saved place, when it is clearly on a screen
+/// (a monitor may have been unplugged).
+pub fn restore_pos(w: &crate::prefs::Win) -> Option<[f32; 2]> {
+    let (x, y) = (w.x?, w.y?);
+    ((0.0..=3000.0).contains(&x) && (0.0..=2000.0).contains(&y)).then_some([x, y])
+}
+
+/// The saved window state while it is being put back. The viewport builder asks for it when the
+/// window is created, but on X11 the window manager can miss that request (maximizing is asked
+/// right after the window is mapped, before the manager has taken it) or place the window itself,
+/// so once the window is up the same is asked again. Until that has settled the window state is
+/// not saved, so a window that came up wrong does not overwrite what was saved.
+#[derive(Debug, Clone)]
+pub struct WinRestore {
+    want: crate::prefs::Win,
+    start: Option<f64>,
+    asked: bool,
+}
+
+/// What the restore wants done this frame.
+#[derive(Debug, PartialEq)]
+pub enum RestoreStep { Wait, Ask(Vec<ViewportCommand>), Done }
+
+impl WinRestore {
+    /// Seconds after the first frame before asking again (the window manager may still be at it).
+    const ASK_AFTER: f64 = 0.25;
+    /// Seconds after the first frame when it gives up and saves whatever the window is.
+    const GIVE_UP: f64 = 1.5;
+
+    pub fn new(want: crate::prefs::Win) -> Self { Self { want, start: None, asked: false } }
+
+    /// One frame: `now` in seconds, whether the window is maximized and where its outer corner is.
+    pub fn step(&mut self, now: f64, maximized: bool, outer: Option<egui::Pos2>) -> RestoreStep {
+        let start = *self.start.get_or_insert(now);
+        let pos = restore_pos(&self.want);
+        let placed = |o: egui::Pos2, p: [f32; 2]| (o.x - p[0]).abs() <= 2.0 && (o.y - p[1]).abs() <= 2.0;
+        let right = if self.want.maximized { maximized } else {
+            match (pos, outer) { (Some(p), Some(o)) => placed(o, p), (None, _) => true, (_, None) => false }
+        };
+        // the first frames can come before the window manager has placed the window, so it is only
+        // judged once the manager has had a moment
+        if now - start < Self::ASK_AFTER { return RestoreStep::Wait; }
+        if right || now - start > Self::GIVE_UP { return RestoreStep::Done; }
+        if self.asked { return RestoreStep::Wait; }
+        self.asked = true;
+        let mut cmds = vec![];
+        if let Some(p) = pos { if !maximized { cmds.push(ViewportCommand::OuterPosition(p.into())); } }
+        if self.want.maximized { cmds.push(ViewportCommand::Maximized(true)); }
+        RestoreStep::Ask(cmds)
+    }
+}
 
 impl App {
     pub fn new_project(&mut self) {
@@ -125,7 +178,16 @@ impl App {
         if let Some(o) = self.model3d.remember_obj { s.model_orient_obj = Some(o); }
         if let Some(o) = self.model3d.remember_stl { s.model_orient_stl = Some(o); }
         let (inner, outer, maximized) = ctx.input(|i| { let v = i.viewport(); (v.inner_rect, v.outer_rect, v.maximized.unwrap_or(false)) });
-        if let Some(r) = inner {
+        let mut settling = false;
+        if let Some(r) = &mut self.win_restore {
+            match r.step(ctx.input(|i| i.time), maximized, outer.map(|o| o.min)) {
+                RestoreStep::Done => self.win_restore = None,
+                RestoreStep::Wait => settling = true,
+                RestoreStep::Ask(cmds) => { settling = true; for c in cmds { ctx.send_viewport_cmd(c); } }
+            }
+            if settling { ctx.request_repaint_after(std::time::Duration::from_millis(50)); }
+        }
+        if let (Some(r), false) = (inner, settling) {
             let mut w = s.window.clone().unwrap_or_default();
             w.maximized = maximized;
             // a maximized window keeps the size it had before
@@ -154,4 +216,46 @@ impl App {
         }
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prefs::Win;
+    fn win(x: f32, y: f32, maximized: bool) -> Win { Win { w: 1000.0, h: 600.0, x: Some(x), y: Some(y), maximized } }
+
+    #[test]
+    fn a_maximized_window_that_came_up_normal_is_maximized_again() {
+        let mut r = WinRestore::new(win(7.0, 8.0, true));
+        assert_eq!(r.step(0.0, false, Some(egui::pos2(25.0, 25.0))), RestoreStep::Wait);
+        assert_eq!(r.step(0.3, false, Some(egui::pos2(25.0, 25.0))),
+            RestoreStep::Ask(vec![ViewportCommand::OuterPosition(egui::pos2(7.0, 8.0)), ViewportCommand::Maximized(true)]));
+        assert_eq!(r.step(0.4, false, None), RestoreStep::Wait, "asked only once");
+        assert_eq!(r.step(0.5, true, None), RestoreStep::Done);
+    }
+
+    #[test]
+    fn a_window_the_manager_placed_elsewhere_is_moved_back() {
+        let mut r = WinRestore::new(win(6.9, 7.7, false));
+        assert_eq!(r.step(10.0, false, Some(egui::pos2(24.6, 24.6))), RestoreStep::Wait);
+        assert_eq!(r.step(10.3, false, Some(egui::pos2(24.6, 24.6))), RestoreStep::Ask(vec![ViewportCommand::OuterPosition(egui::pos2(6.9, 7.7))]));
+        assert_eq!(r.step(10.4, false, Some(egui::pos2(6.9, 7.7))), RestoreStep::Done);
+        // moved by the manager after a first frame that was still in the right place
+        let mut r = WinRestore::new(win(6.9, 7.7, false));
+        assert_eq!(r.step(0.0, false, Some(egui::pos2(6.9, 7.7))), RestoreStep::Wait);
+        assert_eq!(r.step(0.3, false, Some(egui::pos2(24.6, 24.6))), RestoreStep::Ask(vec![ViewportCommand::OuterPosition(egui::pos2(6.9, 7.7))]));
+    }
+
+    #[test]
+    fn a_window_already_in_place_is_left_alone_and_it_gives_up_in_the_end() {
+        let settled = |w: Win, max: bool, at: egui::Pos2| { let mut r = WinRestore::new(w); r.step(0.0, max, Some(at)); r.step(0.3, max, Some(at)) };
+        assert_eq!(settled(win(100.0, 50.0, false), false, egui::pos2(100.5, 50.0)), RestoreStep::Done);
+        assert_eq!(settled(win(100.0, 50.0, true), true, egui::pos2(0.0, 0.0)), RestoreStep::Done);
+        // off every screen: the place is not restored, nothing to wait for
+        assert_eq!(settled(win(-5000.0, 50.0, false), false, egui::pos2(30.0, 30.0)), RestoreStep::Done);
+        let mut r = WinRestore::new(win(100.0, 50.0, true));
+        r.step(0.0, false, None);
+        r.step(0.3, false, None);
+        assert_eq!(r.step(1.6, false, None), RestoreStep::Done);
+    }
 }
