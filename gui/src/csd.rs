@@ -292,6 +292,35 @@ pub fn dialog_bounds(ctx: &egui::Context) -> Rect {
     r
 }
 
+/// The height limits of a dialog the user can make taller or shorter (the tool library, the machines). egui keeps such a window no
+/// taller than its bounds counting only the content, so with the frame's margins it came out a little taller than a small window and
+/// was pushed up under the title bar, where its header was cut off. And a window that was squeezed by a small program window stayed
+/// squeezed when the program window grew again. This keeps the whole dialog inside its bounds and gives it back the height it had
+/// (or the one the user dragged it to) when there is room again.
+pub fn tall_dialog<'a>(ctx: &egui::Context, title: &str, win: egui::Window<'a>, width: f32, default_h: f32) -> egui::Window<'a> {
+    let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::new(title));
+    let frame = dialog_frame(ctx);
+    // the frame around the content: margins, the border, and a point to spare for rounding
+    let edge = frame.inner_margin.top + frame.inner_margin.bottom + 2.0 * frame.stroke.width + 1.0;
+    let max_h = (dialog_bounds(ctx).height() - edge).max(1.0);
+    let (want_key, max_key) = (egui::Id::new(("dialog_want_h", title)), egui::Id::new(("dialog_max_h", title)));
+    let (want, last_max) = ctx.data(|d| (d.get_temp::<f32>(want_key), d.get_temp::<f32>(max_key)));
+    let mut want = want.unwrap_or(default_h);
+    let shown = ctx.memory(|m| m.area_rect(layer.id)).map(|r| r.height() - edge + 1.0);
+    let mut win = win.max_height(max_h);
+    if let (Some(h), Some(last)) = (shown, last_max) {
+        if (last - max_h).abs() < 0.5 {
+            // the program window kept its size: a different height is the user's (or the content's) doing, unless it is the limit
+            if (h - want).abs() > 1.0 && h < max_h - 1.0 { want = h; }
+        } else if max_h > last && h + 1.0 < want.min(max_h) {
+            // the program window grew: back towards the height it had
+            win = win.fixed_size([width, want.min(max_h)]);
+        }
+    }
+    ctx.data_mut(|d| { d.insert_temp(want_key, want); d.insert_temp(max_key, max_h); });
+    win
+}
+
 /// Where a dialog goes: its starting spot plus however far the user has dragged it by the header. The dialog as a whole (its borders,
 /// not its anchor point) stays inside the window below the header, so it can go over the side panels and the 3D half.
 pub fn spot(ctx: &egui::Context, title: &str, base: Pos2) -> Pos2 {
