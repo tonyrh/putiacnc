@@ -41,6 +41,8 @@ jobs:
           [ "$RUNNER_OS" = "Windows" ] && BIN=target/release/putiacnc.exe
           MM="$PWD/docs/screenshot-projects/sign-mm.project.json"
           IN="$PWD/docs/screenshot-projects/sign-in.project.json"
+          # no update check: it would show "checking…" in the status bar
+          mkdir -p "$RUNNER_TEMP/cfg" && echo '{"update_check": false}' > "$RUNNER_TEMP/cfg/settings.json"
           export PUTIACNC_CONFIG_DIR="$RUNNER_TEMP/cfg" PUTIACNC_SKIP_SETUP=1 PUTIACNC_WIN=1876x1077 PUTIACNC_HIDE=machine
 
           capture() {  # $1 = file name
@@ -67,7 +69,7 @@ jobs:
           fi
 
           shoot "${{ matrix.name }}-2d.png" "$MM" PUTIACNC_THEME=dark PUTIACNC_OP=1 PUTIACNC_HIDE=machine,toolpaths
-          shoot "${{ matrix.name }}-3d.png" "$IN" PUTIACNC_THEME=light PUTIACNC_OP=2 PUTIACNC_VIEW=3d PUTIACNC_PLAY=1.0 PUTIACNC_FRACTIONS=1
+          shoot "${{ matrix.name }}-3d.png" "$IN" PUTIACNC_THEME=light PUTIACNC_OP=2 PUTIACNC_VIEW=3d PUTIACNC_PLAY=1.0 PUTIACNC_FRACTIONS=1 PUTIACNC_HIDE=machine,toolpaths
           ls -la shots
 
       - uses: actions/upload-artifact@v6

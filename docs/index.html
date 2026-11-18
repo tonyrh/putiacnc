@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PutiaCNC – free CNC toolpath studio for GRBL</title>
-<meta name="description" content="PutiaCNC is a free, open-source CNC toolpath studio for GRBL, Mach3 and LinuxCNC machines. Draw or import shapes, add profile, pocket, V-carve, drill and inlay operations, preview the cut in 3D and export G-code. Linux, macOS and Windows.">
+<meta name="description" content="PutiaCNC is a free, open-source CNC toolpath studio for GRBL, Mach3, LinuxCNC and Marlin machines. Draw or import shapes, add profile, pocket, V-carve, drill and inlay operations, preview the cut in 3D and export G-code. Linux, macOS and Windows.">
 <link rel="icon" href="favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" href="favicon-48.png" sizes="48x48">
 <link rel="icon" type="image/png" href="icon-192.png" sizes="192x192">
@@ -24,7 +24,7 @@
   "name": "PutiaCNC",
   "applicationCategory": "DesignApplication",
   "operatingSystem": "Linux, macOS, Windows",
-  "description": "CNC toolpath studio for GRBL, Mach3 and LinuxCNC machines: draw or import shapes, add operations, preview the cut in 3D and export G-code.",
+  "description": "CNC toolpath studio for GRBL, Mach3, LinuxCNC and Marlin machines: draw or import shapes, add operations, preview the cut in 3D and export G-code.",
   "url": "https://tonyrh.github.io/putiacnc/",
   "downloadUrl": "https://github.com/tonyrh/putiacnc/releases",
   "license": "https://www.gnu.org/licenses/gpl-3.0.html",
@@ -85,7 +85,7 @@
     <img src="banner-light.png" alt="PutiaCNC" width="960" height="240">
   </picture>
   <h1>A free CNC toolpath studio for GRBL machines</h1>
-  <p class="lead">Draw or import shapes, assign operations (profile, pocket, V-carve, drill, inlay, 3D relief), preview the cut in a simulated 3D view of the machined stock, and export G-code. Mach3 and LinuxCNC output too. Written in Rust, open source.</p>
+  <p class="lead">Draw or import shapes, assign operations (profile, pocket, V-carve, drill, inlay, 3D relief, pen drawing, photo V-carve), preview the cut in a simulated 3D view of the machined stock, and export G-code. Mach3 / LinuxCNC and Marlin output too. Written in Rust, open source.</p>
   <div class="cta">
     <a class="btn primary" href="https://github.com/tonyrh/putiacnc/releases">Download</a>
     <a class="btn secondary" href="https://github.com/tonyrh/putiacnc" aria-label="Source on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>Source</a>
@@ -96,12 +96,12 @@
 <main class="wrap">
   <figure>
     <img src="screenshot-2d.png" alt="PutiaCNC 2D design: a rounded plate with a pocketed name and four drilled holes" width="1876" height="1077">
-    <figcaption>2D design: draw or import shapes, assign them to profile, pocket, V-carve or drill operations, and set depth, tabs and tools.</figcaption>
+    <figcaption>2D design: draw or import shapes, assign them to profile, pocket, V-carve, drill or inlay operations, and set the tool, depth, passes and options such as tabs, ramping and lead-in.</figcaption>
   </figure>
 
   <figure>
     <img src="screenshot-3d.png" alt="PutiaCNC 3D preview: the finished cut in light wood" width="1876" height="1077" loading="lazy">
-    <figcaption>3D preview: the toolpath is replayed on the stock, so you can check the result before sending the G-code to the machine.</figcaption>
+    <figcaption>3D preview: the job is replayed on the stock, so you can check the finished cut before sending the G-code to the machine.</figcaption>
   </figure>
 
   <figure>
@@ -123,12 +123,12 @@
 
   <h2>What it does</h2>
   <div class="grid">
-    <div class="card"><h3>Drawing</h3><p>Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids and editable text in any installed font (straight, on an arc or following a shape), and layers. Import SVG, DXF, bitmaps (traced into outlines or centre lines) and STL / OBJ models for 3D relief, or build a relief from your own shapes with a flat, rounded, dome or slope profile. Mirror, align, array and nest.</p></div>
+    <div class="card"><h3>Drawing</h3><p>Rectangles, ellipses, lines, polygons, stars, bolt circles, point grids and editable text in any installed font or a single-line font for pen drawing (straight, on an arc, or inside or round the outside of a shape), and layers. Import SVG, DXF, bitmaps (traced into outlines or centre lines) and STL / OBJ models for 3D relief, or build a relief from your own shapes with a flat, rounded, dome or slope profile. Mirror, align, array and nest.</p></div>
     <div class="card"><h3>Editing</h3><p>Object snap, typed values, node editing, trim and extend, fillet and chamfer, offset, combine, align, array, rotate, groups, nesting on the stock, and clean-up of broken outlines (join loose ends, simplify outlines with too many points).</p></div>
-    <div class="card"><h3>Operations</h3><p>Profile (outside, inside, on the line), pocket, V-carve, drill, inlay and 3D relief, each with its own tool, depth, passes, ramp-in, holding tabs, lead-in / lead-out and air cut. Rest machining, finishing passes, adaptive clearing, and V-carve with a flat floor.</p></div>
+    <div class="card"><h3>Operations</h3><p>Profile (outside, inside, on the line), pocket, V-carve, drill, inlay, 3D relief, drawing with a pen and photo V-carve, each with its own tool, depth, passes, ramp-in, holding tabs, lead-in / lead-out and air cut. Rest machining, finishing passes, helical entry, pocket clearing in rings, adaptive or trochoidal, slowing down in tight corners, V-carve with a flat floor, and surfacing the stock.</p></div>
     <div class="card"><h3>Preview and checks</h3><p>2D canvas and simulated 3D stock with a play bar. Warnings for cuts too deep, into the table or clamps, outside the machine area, and rapids through material, all in one list. The G-code is always written; the warnings only inform, and exporting with warnings you haven't seen asks first.</p></div>
-    <div class="card"><h3>Tools and machines</h3><p>Tool libraries (imperial and metric, with ready-made CMT, Amana, Bosch, Freud, Whiteside and Diablo sets), chip-load estimate, and machine profiles (GRBL or Mach3 / LinuxCNC, work coordinates G54 to G59, acceleration and top speeds) with your own start and end G-code. Pick your machine from the catalogue or paste Grbl's <code>$$</code> output to fill it in.</p></div>
-    <div class="card"><h3>Everything else</h3><p>G-code tab with time estimate, five sample projects, a printable setup sheet, project notes, keyboard shortcuts, light and dark themes, and projects saved as plain JSON files.</p></div>
+    <div class="card"><h3>Tools and machines</h3><p>Tool libraries (imperial and metric, with ready-made CMT, Amana, Bosch, Freud, Whiteside and Diablo sets), chip-load estimate, and machine profiles (GRBL, Mach3 / LinuxCNC or Marlin, work coordinates G54 to G59, acceleration and top speeds) with your own start and end G-code. Pick your machine from the catalogue or paste Grbl's <code>$$</code> output to fill it in.</p></div>
+    <div class="card"><h3>Everything else</h3><p>G-code tab with time estimate, five sample projects, a printable setup sheet, project notes, keyboard shortcuts, light and dark themes, millimetres or inches (decimals or fractions), English and Italian, and projects saved as plain JSON files.</p></div>
   </div>
   <p style="margin-top:16px">See what it makes in the <a href="gallery.html">gallery</a>. The full list, with every option, is in the <a href="https://github.com/tonyrh/putiacnc/blob/main/docs/features.md">feature guide</a>.</p>
 

@@ -12,10 +12,10 @@ A CNC toolpath studio for GRBL machines (with Mach3 / LinuxCNC and Marlin output
 stock, and export G-code. Projects are saved as JSON files (`"app": "putia-cnc"`).
 
 ![2D design: a rounded plate with a pocketed name and four drilled holes](docs/screenshot-2d.png)
-*2D design: draw or import shapes, assign them to profile, pocket, V-carve or drill operations, and set depth, tabs and tools.*
+*2D design: draw or import shapes, assign them to profile, pocket, V-carve, drill or inlay operations, and set the tool, depth, passes and options such as tabs, ramping and lead-in.*
 
 ![3D preview: the finished cut in light wood](docs/screenshot-3d.png)
-*3D preview, here in inches shown as fractions (millimetres, decimal inches and fractions are a setting): the toolpath is replayed on the stock (shown once every operation has run), so you can check the result before sending the G-code to the machine.*
+*3D preview, here in inches shown as fractions (millimetres, decimal inches and fractions are a setting): the job is replayed on the stock, so you can check the finished cut before sending the G-code to the machine.*
 
 https://github.com/user-attachments/assets/125b44a8-97f7-4a43-9ab0-32ccd8410e06
 
@@ -44,7 +44,7 @@ The workspace has two crates:
 - Profile (outside, inside, on the line), pocket, V-carve, drill, inlay, drawing with a pen, 3D relief and photo V-carve (a picture etched with a V-bit), each with its own tool, depth, pass depth, cut direction, ramp-in, holding tabs, lead-in / lead-out and air cut.
 - Rest machining: a smaller flat cutter clears only the corners and narrow parts the pocket's main cutter could not reach. A smaller ball nose does the same for the detail of a 3D relief.
 - Finishing pass: leave a little stock on the walls of a profile or pocket and cut them to size in a last pass. For a 3D relief the finishing lines can run along X, along Y or both.
-- Helical entry for pockets and profiles, and adaptive clearing for pockets (a light stepover and rounded inner rings). Nest on the stock packs the selected parts by their outlines, turned as you allow, clear of the clamps. The time estimate can use the machine's acceleration. Tab and Shift+Tab stay inside the operation card you are in.
+- Helical entry for pockets and profiles. Pockets are cleared with rings, adaptive clearing (a light stepover and rounded inner rings) or trochoidal circles along the walls, and profiles and pockets can slow down in tight corners. Nest on the stock packs the selected parts by their outlines, turned as you allow, clear of the clamps. The time estimate can use the machine's acceleration. Tab and Shift+Tab stay inside the operation card you are in.
 - V-carve can leave a flat floor at a depth you choose and clear it with a flat end mill, each tool with its own feeds and speeds.
 - Surface the stock or the spoilboard with a wide cutter (Generate → Surface the stock).
 - Flat, bull, ball, V-bit, engraving, tapered ball and arc profile bits, shown with their real shape in the 3D preview.
