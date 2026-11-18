@@ -77,13 +77,14 @@ fn window_icon() -> Option<egui::IconData> {
 fn main() -> eframe::Result<()> {
     let arg = std::env::args().nth(1);
     let saved = prefs::load().window;
+    let saved_restore = saved.clone();
     let mut viewport = egui::ViewportBuilder::default().with_inner_size(start_size(&saved)).with_min_inner_size([MIN_W, MIN_H]).with_title("PutiaCNC")
         .with_app_id("putiacnc").with_decorations(false).with_transparent(true);
     if std::env::var_os("PUTIACNC_WIN").is_none() {
         if let Some(w) = &saved {
             if w.maximized { viewport = viewport.with_maximized(true); }
             // the place is only restored when it is clearly on a screen (a monitor may have been unplugged)
-            if let (Some(x), Some(y)) = (w.x, w.y) { if (0.0..=3000.0).contains(&x) && (0.0..=2000.0).contains(&y) { viewport = viewport.with_position([x, y]); } }
+            if let Some(p) = app::session::restore_pos(w) { viewport = viewport.with_position(p); }
         }
     }
     if let Some(icon) = window_icon() { viewport = viewport.with_icon(icon); }
@@ -97,6 +98,7 @@ fn main() -> eframe::Result<()> {
     };
     eframe::run_native("PutiaCNC", opts, Box::new(move |cc| {
         let mut app = App::new(arg);
+        if std::env::var_os("PUTIACNC_WIN").is_none() { app.win_restore = saved_restore.map(app::session::WinRestore::new); }
         // PUTIACNC_SHOW_ERR[=warning|info]: a sample message in the banner (an error unless said otherwise)
         if let Ok(v) = std::env::var("PUTIACNC_SHOW_ERR") {
             match v.as_str() {
