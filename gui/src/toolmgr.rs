@@ -172,8 +172,8 @@ pub fn tool_manager(ctx: &egui::Context, app: &mut App) {
     if !app.tools_open { return; }
     let mut open = true;
     let mut close = false;
-    egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(true)
-        .default_size([925.0, 650.0]).min_width(925.0).max_width(925.0).min_height(340.0)
+    crate::csd::tall_dialog(ctx, "Tool library", egui::Window::new("Tool library").frame(crate::csd::dialog_frame(ctx)).constrain_to(crate::csd::dialog_bounds(ctx)).title_bar(false).collapsible(false).movable(false).resizable(true)
+        .default_size([925.0, 650.0]).min_width(925.0).max_width(925.0).min_height(340.0), 925.0, 650.0)
         .pivot(egui::Align2::CENTER_CENTER).current_pos(crate::csd::spot(ctx, "Tool library", ctx.screen_rect().center()))
         .show(ctx, crate::csd::trapped(|ui| {
             if crate::csd::dialog_header(ui, tr("Tool library"), true) { close = true; }
