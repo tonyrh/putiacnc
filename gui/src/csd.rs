@@ -36,7 +36,11 @@ pub fn header(ui: &mut Ui, app: &mut App) {
 
     // window buttons
     let bw = 30.0;
-    let ctl = Rect::from_min_max(Pos2::new(rect.max.x - 3.0 * bw - 8.0 - 2.0 * 30.0 - 14.0, rect.min.y), Pos2::new(rect.max.x, rect.min.y + HEADER_H));
+    // in a window too narrow for either panel (half a screen, tiled) the panel toggles could not show one, so they make room for the menus
+    let (sq_l, sq_r) = app.squeezed;
+    let toggles = !((sq_l || !app.show_left) && (sq_r || !app.show_right) && (sq_l || sq_r));
+    let ctl_w = 3.0 * bw + 8.0 + if toggles { 2.0 * 30.0 + 14.0 } else { 0.0 };
+    let ctl = Rect::from_min_max(Pos2::new(rect.max.x - ctl_w, rect.min.y), Pos2::new(rect.max.x, rect.min.y + HEADER_H));
     ui.allocate_ui_at_rect(ctl, |ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if win_button(ui, WinIcon::Close, tr("Close")) { app.request(crate::app::Action::Quit); }
@@ -44,10 +48,10 @@ pub fn header(ui: &mut Ui, app: &mut App) {
                 ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized));
             }
             if win_button(ui, WinIcon::Minimize, tr("Minimize")) { ctx.send_viewport_cmd(ViewportCommand::Minimized(true)); }
+            if !toggles { return; }
             ui.add_space(10.0);
             // panel toggles (listed right-to-left: they read left panel, right panel)
             // a panel hidden because the window is too narrow shows as off; clicking it shows it in place of the other one
-            let (sq_l, sq_r) = app.squeezed;
             if panel_toggle(ui, false, app.show_right && !sq_r, if sq_r { tr("Hidden: the window is too narrow. Click to show it instead of the project panel") } else { tr("Show / hide the operations panel") }) {
                 if sq_r { app.show_left = false; } else { app.show_right = !app.show_right; }
             }
