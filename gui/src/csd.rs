@@ -213,7 +213,9 @@ fn dialog_header_inner(ui: &mut Ui, title: &str, closable: bool, help: Option<im
     let key = ui.layer_id();
     let grab = ui.interact(rect, ui.id().with(("dialog_drag", title)), Sense::drag()).on_hover_cursor(egui::CursorIcon::Grab);
     if grab.dragged() {
-        let off = ui.ctx().data(|d| d.get_temp::<egui::Vec2>(dialog_key(key))).unwrap_or_default() + grab.drag_delta();
+        // a drag moves the dialog from where it is shown, which can differ from where it was put if the window got too small for that
+        let shown = ui.ctx().data(|d| d.get_temp::<egui::Vec2>(shown_key(key)).or_else(|| d.get_temp::<egui::Vec2>(dialog_key(key)))).unwrap_or_default();
+        let off = shown + grab.drag_delta();
         ui.ctx().data_mut(|d| d.insert_temp(dialog_key(key), off));
         ui.ctx().request_repaint();
     }
@@ -266,7 +268,10 @@ pub fn scroll<R>(ui: &mut Ui, reserve: f32, add: impl FnOnce(&mut Ui) -> R) -> R
     }).inner
 }
 
+/// How far the user has moved a dialog from its starting spot: only dragging its header changes it.
 fn dialog_key(layer: egui::LayerId) -> egui::Id { egui::Id::new(("dialog_offset", layer)) }
+/// How far from its starting spot the dialog is shown this frame: where it was put, kept inside the window.
+fn shown_key(layer: egui::LayerId) -> egui::Id { egui::Id::new(("dialog_shown_offset", layer)) }
 
 /// Where the tool dialogs (array, combine, text, fillet, offset, clean up) open: at the top left of the drawing, under the palette and
 /// the option bar that is showing, where the tools' own options appear.
@@ -306,7 +311,9 @@ pub fn spot(ctx: &egui::Context, title: &str, base: Pos2) -> Pos2 {
         let s = b.shrink(30.0);
         p = Pos2::new(p.x.clamp(s.min.x, s.max.x.max(s.min.x)), p.y.clamp(s.min.y, s.max.y.max(s.min.y)));
     }
-    ctx.data_mut(|d| { d.insert_temp(dialog_key(layer), p - base); d.insert_temp(last_key, p); });
+    // only where it is shown is kept: where it was put stays as it was, so a dialog pushed in by a small window goes back to its place when
+    // the window grows again (issue #37: it used to stay pushed in, at the bottom, until the program was restarted)
+    ctx.data_mut(|d| { d.insert_temp(shown_key(layer), p - base); d.insert_temp(last_key, p); });
     p
 }
 
@@ -548,6 +555,30 @@ mod trap_tests {
             for _ in 0..6 { self.frame(vec![], m); }
         }
         fn at(&self) -> Option<usize> { self.ids.iter().position(|i| self.ctx.memory(|m| m.has_focus(*i))) }
+    }
+
+    #[test]
+    fn a_dialog_pushed_in_by_a_small_window_goes_back_when_the_window_grows() {
+        // issue #37: the push used to be kept as if the user had dragged the dialog there, until the program was restarted
+        let ctx = egui::Context::default();
+        let frame = |w: f32, h: f32| {
+            let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(w, h))), ..Default::default() };
+            let mut at = Pos2::ZERO;
+            for _ in 0..3 {
+                let _ = ctx.run(input.clone(), |ctx| {
+                    let p = spot(ctx, "Big dialog", Pos2::new(560.0, 120.0));
+                    let r = egui::Window::new("Big dialog").title_bar(false).resizable(false).constrain_to(dialog_bounds(ctx)).current_pos(p)
+                        .show(ctx, |ui| { ui.allocate_space(egui::vec2(420.0, 500.0)); });
+                    at = r.unwrap().response.rect.min;
+                });
+            }
+            at
+        };
+        let roomy = frame(1500.0, 1000.0);
+        let small = frame(800.0, 520.0);
+        assert!(small.x < roomy.x - 1.0 && small.y < roomy.y - 1.0, "the small window pushes it in: {roomy:?} {small:?}");
+        let again = frame(1500.0, 1000.0);
+        assert!((again - roomy).length() < 1.0, "back where it was: {roomy:?} then {again:?}");
     }
 
     #[test]
