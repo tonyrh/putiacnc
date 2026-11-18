@@ -2379,11 +2379,13 @@ dependencies = [
  "open",
  "png 0.17.16",
  "putiacnc-core",
+ "raw-window-handle 0.6.2",
  "rfd",
  "serde",
  "serde_json",
  "ureq",
  "winresource",
+ "x11rb",
 ]
 
 [[package]]

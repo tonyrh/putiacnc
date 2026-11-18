@@ -58,6 +58,7 @@ mod perf;
 #[cfg(test)]
 mod tips;
 mod tour;
+mod wmstate;
 #[cfg(test)]
 mod audit;
 
@@ -186,12 +187,13 @@ impl App {
 impl eframe::App for App {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] { [0.0, 0.0, 0.0, 0.0] }
 
-    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) { csd::tab_hook(ctx, raw_input); }
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) { wmstate::apply(raw_input); csd::tab_hook(ctx, raw_input); }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.gl_info.is_empty() { if let Some(gl) = frame.gl() { self.gl_info = about::gl_summary(gl); if std::env::var_os("PUTIACNC_PRINT_VERSION_INFO").is_some() { eprintln!("{}", about::version_info(ctx, &self.gl_info)); } } }
         self.ui_frame(ctx);
         csd::focus_ring(ctx);
+        wmstate::find(frame);
     }
 }
 
@@ -241,12 +243,6 @@ impl App {
         egui::TopBottomPanel::top("menu").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, true))).show(ctx, |ui| { ui.set_min_height(csd::HEADER_H); csd::header(ui, self) });
         let r = egui::TopBottomPanel::bottom("status").frame(bar_frame(ctx, self.theme.header()).rounding(csd::corners(ctx, false))).show(ctx, |ui| panels::status_bar(ui, self));
         tour::note(ctx, "status", r.response.rect);
-        // the smallest window depends on which panels are showing
-        let min_w = MIN_CANVAS_W + if self.show_left { left_w() } else { 0.0 } + if self.show_right { right_w() } else { 0.0 };
-        if (self.last_min_w - min_w).abs() > 0.5 {
-            self.last_min_w = min_w;
-            ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(min_w.max(640.0), MIN_H)));
-        }
         if fit_left {
             let r = self.show_left(ctx);
             tour::note(ctx, "left", r.response.rect);
@@ -360,9 +356,12 @@ fn left_w() -> f32 { LEFT_W }
 fn right_w() -> f32 { RIGHT_W }
 /// Smallest canvas that still fits the bottom toolbar (view toggles left and right) and the floating palette.
 const MIN_CANVAS_W: f32 = 520.0;
-/// Smallest window: both panels plus the canvas.
-const MIN_W: f32 = LEFT_W + RIGHT_W + MIN_CANVAS_W;
-const MIN_H: f32 = 640.0;
+/// Smallest window. It used to be both panels plus the smallest canvas (1354 x 640), but a window manager only tiles a window
+/// into half the screen when the window may be that small (issue #43: Cinnamon would not tile it, not even to the top edge, where it
+/// makes a top half). A window too narrow for the panels hides them (`csd::fit_panels`) and their toggles; a short one scrolls the panels. 680 is what
+/// the Italian menus and the window buttons need side by side.
+const MIN_W: f32 = 680.0;
+const MIN_H: f32 = 360.0;
 
 fn start_size(saved: &Option<prefs::Win>) -> [f32; 2] {
     // PUTIACNC_WIN=1354x620 lets us test the smallest layout
