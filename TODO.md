@@ -14,6 +14,8 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [ ] Air cut on the real GRBL 1.1 machine (nothing has been cut yet).
 
 ## Small
+- [ ] Wayland: the maximized state is not read from the compositor (under X11 it is, `gui/src/wmstate.rs`, 0.7.5), so a window the compositor maximizes or restores can show the wrong title-bar button there.
+- [ ] A narrow window (tiled to half the screen, below about 914 points) hides both side panels and cannot show either; a panel could be shown over a narrower drawing.
 - [ ] macOS (the app runs there; checked by the maintainer): fix a few mouse cursor icons (list to come from the maintainer), then a native title bar (planned for about next week; today the window draws its own bar with buttons at the top right).
 - [x] Mark clamp collisions on the 2D drawing too (a clamp the toolpath runs into turns solid red with the same warning sign as the 3D preview).
 - [x] Count the tool holder in the clamp check: Holder dia. in the machine settings (behind a "Tool holder" switch, off by default), Stick-out in the tool manager (0 = unknown, check off). Also drawn in the 3D preview, which turns the clamp and the touching part red during the replay, with a banner. Not done: the holder against the stock itself (a deep cut with a short stick-out) and the shank diameter in the clamp check.
@@ -22,7 +24,7 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [x] Dialog buttons: a window that does its job once (Box generator, Fingers, Combine) has OK (does it and closes) and Cancel; one that is used again and again (Offset, Array, Fillet and chamfer) has Apply (does it, stays open) and Close; Clean up keeps Clean up and Close. The dialog audit checks the labels, the row and the order.
 
 ## Bigger
-- [x] Setup assistant, quick tour, three sample projects (name plate, finger-joint box, 3D relief) that fit the user's machine and tools (0.4.0 to 0.4.3).
+- [x] Setup assistant, quick tour, sample projects (name plate, finger-joint box, 3D relief) that fit the user's machine and tools (0.4.0 to 0.4.3).
 - [x] Setup sheet (File > Setup sheet…): a printable HTML page with the stock and zero, the tools in order, the operations with times, a checklist, the warnings and the notes (0.4.2).
 - [x] Surface the stock or the spoilboard (Generate > Surface the stock…): a Pocket over a rectangle a cutter radius larger than the stock, with a wide cutter (0.4.2).
 - [x] The message when a pocket or inside profile makes no toolpath names the reason (tool wider than the shape, with the widths and a tool that fits; open lines).
@@ -31,7 +33,7 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [x] Finishing pass with stock to leave for Profile and Pocket (the Finish row).
 - [x] Rest machining for 3D relief: a smaller ball nose (the Detail row of the Finishing step) finishes only what the finishing ball could not reach. V-carve does not need it (one bit cuts every width).
 - [ ] Check the setup assistant and the quick tour on macOS and Windows (only tested on Linux so far).
-- [ ] Number fields, done properly (issue #11): today a field that is too narrow for its value makes the text smaller and then drops decimals (0.7.2), and the inch fields were widened card by card. A real fix means rethinking the panels so every length field has room for a value like 12.3456 or 12 63/64 at full size in every language: fewer fields per row, or fields that take the row's width as in the Stock, Clamps and Imported cards. Rows still tight in inches: Depth / Pass in Italian, the tabs row. In mm the same fields are narrow too (3.17 already shows smaller): once they have room, Decimals in millimetres can offer 3.
+- [ ] Number fields, done properly (issue #11, closed by the maintainer; the root fix is still to do): today a field that is too narrow for its value makes the text smaller and then drops decimals (0.7.2), and the inch fields were widened card by card. A real fix means rethinking the panels so every length field has room for a value like 12.3456 or 12 63/64 at full size in every language: fewer fields per row, or fields that take the row's width as in the Stock, Clamps and Imported cards. Rows still tight in inches: Depth / Pass in Italian, the tabs row. In mm the same fields are narrow too (3.17 already shows smaller): once they have room, Decimals in millimetres can offer 3.
 - [ ] Update eframe (0.27, with winit 0.29): its macOS dependency objc2 0.4 does not compile with Rust 1.100, so the macOS jobs of the release and screenshots workflows are pinned to Rust 1.99.1 (`.github/workflows/release.yml`, `screenshots.yml`). After the update, go back to `stable` there. A big step: egui and its widgets change between versions, so every panel and the layout test (`layout_tests`) need a look.
 - [x] Grouping (Edit > Group, Ctrl+G; Ungroup, Ctrl+Shift+G): done. Groups are flat (grouping a group with something else merges them); a copy of a group is a group of its own.
 - [x] Layers (name, colour, eye, lock; hidden layers still get cut, as in Aspire): done. DXF and SVG layers by name on import: done too. (Done: the operation's subtitle says "1 shape, hidden", or "3 shapes, 1 hidden" when only some are.)
@@ -47,12 +49,12 @@ PutiaCNC creates G-code; it does not run the machine. Everything that talks to t
 - [x] Text round the outside of a closed shape (Side: Inside / Outside in the text window).
 - [ ] Text along an open path.
 - [x] Rest machining for pockets: a smaller flat end mill (the Corners row of a Pocket operation) clears only what the main cutter could not reach (corners and parts narrower than it).
-- [ ] Bezier and arc node editing (0.4.0).
-- [ ] Marlin output (a third G-code style next to GRBL and Mach3): `;` comments instead of `( )`, no `M2` (end with `M5` and a lift), tool change and spindle `S` scaling as the machine's build needs, arcs optional. First ask the maintainer: is it a CNC build with a spindle, are `G2`/`G3` enabled, how are tools changed. Not checked against Marlin itself yet.
-- [ ] More G-code styles, in this order: Marlin (item above), then Smoothieware and Duet / RepRapFirmware, then a generic Fanuc-style output (`G54`-`G59`, `G43`, `M6` with `T`, `%` markers; the Haas manuals are free). GRBL-compatible controllers (grblHAL, FluidNC, Carbide Motion, OpenBuilds Blackbox) probably already work: only machine presets. Every new style is marked "untested on a machine" until someone has tried it.
+- [ ] Bezier and arc node editing: on hold. Judged messy for the users PutiaCNC is for; Smooth and Simplify cover the common cases.
+- [x] Marlin output: done (motion only, for boards that do not run the spindle: `;` comments, no M3 / M5 / G54, a stop with a message for tool changes). Not checked against Marlin itself yet.
+- [ ] More G-code styles, in this order: Smoothieware and Duet / RepRapFirmware, then a generic Fanuc-style output (`G54`-`G59`, `G43`, `M6` with `T`, `%` markers; the Haas manuals are free). GRBL-compatible controllers (grblHAL, FluidNC, Carbide Motion, OpenBuilds Blackbox) probably already work: only machine presets. Every new style is marked "untested on a machine" until someone has tried it.
 - [x] (Done: the machine catalogue has 20 machines; the rest are listed under "More machines" below.) Machine presets for popular hobby machines: search the web for the current specs (work area, controller, spindle speed range) of Genmitsu 3018 / 4040 / ProVerXL, Shapeoko, X-Carve, OpenBuilds (WorkBee, LEAD, ACRO), Sienci LongMill, BobsCNC, Snapmaker (CNC mode), Carvera, Onefinity; draft the preset values for the maintainer to check before adding any. Take numbers from the vendors' own pages, not from other programs' files. The usable area can differ from the stated one (clamps, homing offsets), so presets are starting points.
 - [x] Inlay plug on a separate piece of stock: done ("Cut from a separate piece" in the plug operation: size, thickness, position, XY zero, material; two G-code files, "name.nc" and "name-plug.nc"; G-code tab switches between them; 2D and 3D show and simulate the piece). The toolpath checks run on the piece too (warnings are marked "plug piece" and Show in 3D switches to it). Replacing the main stock: a piece that takes the main stock's place (same size and zero, the clamps apply) is the default. A piece that stays beside is checked against the clamps at the place where it is drawn. A new piece looks like a contrasting wood.
-- [ ] Other ideas from the feature comparison: more post-processors, nesting that uses the wasted space of an open pocket (nesting by outline, holes cut through included, exists: Modify → Nest on the stock). (Dogbone and T-bone corners exist: Modify → Fillet and chamfer, and in the box generator.)
+- [ ] Other ideas from the feature comparison: nesting that uses the wasted space of an open pocket (nesting by outline, holes cut through included, exists: Modify → Nest on the stock). (More post-processors: the item above. Dogbone and T-bone corners exist: Modify → Fillet and chamfer, and in the box generator.)
 - [x] Export split: Export G-code asks how to split the program: one file (as now, the default), one file per tool, or one file per operation. Each file is complete on its own (header with spindle on and a first move to safe Z, a safe end, a summary of its own operation, tool and time); names `<project>-<number>-<operation>.nc`; the dialog lists the files with their times before saving. A tool change or "Pause afterwards" at a file boundary becomes the end of that file, not an `M0`; every file after a tool change repeats the "touch off Z0 again" reminder. Operations with the same tool stay separate files. The 3D preview and the time estimate still describe the whole job; plug pieces stay separate files, with the split inside each piece. Mockup agreed 2026-10-30; build after the air cut on the GRBL machine shows how `M0` behaves.
 - [x] Plotter mode, first step: a pen or marker as the tool, to draw outlines on paper. A tool shape "pen" (line width, draw speed, pen-down speed) and a Draw operation (pen down at Z0 or a little below for a spring-loaded holder, lifted a few mm between strokes, nearest stroke first, one pass, no spindle). Draw stays separate from cutting: a pen only works in Draw, a cutter never in Draw. The G-code never starts the spindle, the checker and the 3D simulation know it, and there is a pen test project for a real machine.
 - [x] Single-line text: six built-in single-stroke (Hershey) fonts in the text tool (Sans, Sans bold, Roman, Roman bold, Script, Cursive), listed first as "Single line · …". Letters are open strokes (an o closes on itself) that a Draw operation follows with the pen; Italian and Latin-1 accents are put together from the plain letter and a mark. Straight, stacked, arc, spacing, fit to width and shadow all work; kerning does not apply. Credit in `fonts/hershey/NOTICE.txt`.
@@ -100,22 +102,23 @@ Toolpath quality
 - [x] Better path ordering (fewer and shorter rapids): done, always on.
 - [x] Dogbone corners (Fillet and chamfer window).
 - [x] Helical entry for pockets and profiles.
-- [x] Adaptive clearing, simple form (light stepover, rounded inner rings). A true constant-engagement toolpath (trochoidal loops following the remaining material) is not done.
+- [x] Adaptive clearing, simple form (light stepover, rounded inner rings), and Trochoidal clearing (circles along the wall where the tool would be buried); both in the Pocket's Clearing dropdown. A true constant-engagement toolpath (loops following the remaining material everywhere) is not done.
 - [x] Finger joints on rectangle edges (Modify menu).
 - [x] Box generator (Generate menu).
 - [x] T-bone corners and box dividers.
 - [x] Box dividers in both directions (half-lap crossings).
 - [ ] Box lids that slide or hinge.
-- [ ] Adaptive clearing.
-- [ ] Nesting.
+- [x] Nesting (Modify → Nest on the stock).
 
 Machine side
 - [x] Preview against the real machine limits (acceleration) for more accurate time estimates: done, Acceleration and Corner deviation in the machine editor (off by default). Still to do: check it against the time a real job takes on the machine, and fill the acceleration into the machine catalogue where the makers publish it. Per-axis limits are done (Acceleration Y and Z in the machine editor); per-axis top speeds (`$110` to `$112`) are done too (Top speed X, Y and Z).
 
 Reach and polish
-- [ ] Italian translation and a colour-blind-safe theme.
+- [x] Italian translation (0.7.0): the whole interface, chosen in Preferences or the setup assistant.
+- [ ] A colour-blind-safe theme.
+- [ ] More languages (right-to-left and CJK out of scope for now; see docs/i18n-plan.md).
 - [ ] Distribution: a Windows installer, Flatpak, a notarized Mac build. (The AppImage, the macOS disk image and the portable Windows zip are done.)
-- [ ] More project templates and an example gallery (three samples exist: Generate → Sample projects); a short manual with videos.
+- [ ] More project templates (five samples exist: Generate → Sample projects; the example gallery is on the project page, docs/gallery.html); a short manual with videos.
 - [x] Shared tool and machine preset libraries on GitHub (the ready-made libraries are in `libraries/`; removals and corrections are taken as issues).
 - [x] First-run setup assistant (units, machine, starter tools).
 - [x] Machine catalogue from the makers' published specs (20 machines; setup assistant and Machines → From catalogue).
