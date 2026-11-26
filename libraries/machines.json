@@ -258,6 +258,126 @@
    "rigid": "medium",
    "source": "https://www.nymolabs.com/products/nymolabs-nbs-1290-ultra-cnc-router-machine",
    "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "3018 (60W)",
+   "x": 300,
+   "y": 180,
+   "z": 40,
+   "rpm_max": 11700,
+   "rigid": "light",
+   "source": "https://easel.com/partners/machines/vevor-3018-60w",
+   "note": "Figures from Easel's machine page for this model, not from VEVOR's own page. 60W spindle; speeds are not published. The offline controller is not included in some listings.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "3018-PRO",
+   "x": 300,
+   "y": 180,
+   "z": 45,
+   "rpm_max": 10000,
+   "rigid": "light",
+   "source": "https://www.vevor.com/wood-engraving-machine-c_11142/vevor-cnc-router-machine-3018-pro-engraver-with-grbl-offline-controller-diy-p_010663747241",
+   "note": "Stock spindle is a 60W 775 motor. Some listings of the 3018 / 3018-PRO give 40 or 43 mm of Z travel (the enclosure version says 43 mm); 45 mm is the usual figure. Speeds are not published.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "3018-PRO MAX (500W)",
+   "x": 300,
+   "y": 180,
+   "z": 80,
+   "rapid": 4000,
+   "rpm_max": 12000,
+   "rigid": "light",
+   "source": "https://www.bestbuy.ca/en-ca/product/vevor-3-axis-cnc-router-machine-500w-spindle-wood-engraving-milling-machine-with-300-x-180-x-80-mm-working-area-offline-controller-limit-switch-e-stop-for-carving-cutting/19777303",
+   "note": "From a retailer's copy of VEVOR's specs: X/Y maximum 4000 mm/min (factory preset 2000), Z maximum 1000 mm/min (factory preset 100). Easel's page for the same machine (500W Enhanced) agrees on travel and spindle speed.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "S3020 (60W)",
+   "x": 300,
+   "y": 200,
+   "z": 60,
+   "rigid": "light",
+   "source": "https://vevor.com/category-c_106383/product-p_010573378661",
+   "note": "The listing gives the spindle speed as 1200 RPM, probably a typo for 12000: check the spindle label. Speeds are not published.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "4040 (100W, linear rail)",
+   "x": 400,
+   "y": 400,
+   "z": 95,
+   "rapid": 15000,
+   "rpm_max": 10000,
+   "rigid": "light",
+   "source": "https://www.vevor.com/category-c_10000/product-p_010543661980",
+   "note": "100W spindle, linear rail on Z. Maker's speeds: X/Y maximum 15000 mm/min (factory preset 2000), Z maximum 2000 mm/min (factory preset 200).",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "4040 (300W, Z 60)",
+   "x": 400,
+   "y": 400,
+   "z": 60,
+   "rapid": 1200,
+   "rpm_max": 12400,
+   "rigid": "light",
+   "source": "https://vevor.com/wood-engraving-machine-c_11142/vevor-cnc-router-machine-300w-3-axis-grbl-control-wood-engraving-milling-machine-p_010475658514",
+   "note": "The 300W version with a 2.4 in offline controller and 60 mm of Z. Listed speed is 1200 mm/min on all axes. Some listing titles say 1200 RPM, but the spec lines say 12400.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "S4040 (300W, Z 75)",
+   "x": 400,
+   "y": 400,
+   "z": 75,
+   "rpm_max": 12000,
+   "rigid": "light",
+   "source": "https://vevor.com/category-c_106383/product-p_010811202923",
+   "note": "The 300W version with 75 mm of Z and a 2.4 in offline controller. The listing title says 1200 RPM; the spec table says 12000. Speeds are not published.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "4040 (500W)",
+   "x": 400,
+   "y": 400,
+   "z": 95,
+   "rpm_max": 12000,
+   "rigid": "light",
+   "source": "https://easel.com/partners/machines/vevor-4040-500w",
+   "note": "Figures from Easel's machine page, not from VEVOR's own page: 500W spindle, dual linear rails, ball screw drive, NEMA 23 closed-loop steppers. Speeds are not published.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "4030 (NEMA 23)",
+   "x": 400,
+   "y": 300,
+   "z": 100,
+   "rigid": "light",
+   "source": "https://vevor.com/wood-engraving-machine-c_11142/4030-cnc-router-machine-grbl-control-name23-motor-p_010355224658",
+   "note": "The product text says 15.7 x 11.8 x 4.7 in (about 400 x 300 x 120 mm), but the review page for the same product is titled 400 x 300 x 100 mm; the smaller Z is used here. Spindle and speeds are not published.",
+   "post": ""
+  },
+  {
+   "maker": "VEVOR",
+   "model": "Evolution 4",
+   "x": 813,
+   "y": 813,
+   "z": 86,
+   "rigid": "light",
+   "source": "https://www.vevor.com/wood-engraving-machine-c_11142/vevor-cnc-router-kit-evolution-4-router-32-x-32-cutting-area-3-4-z-travel-p_010509015339",
+   "note": "Converted from the maker's 32 x 32 x 3.4 in. The page says GRBL control; spindle and speeds are not stated.",
+   "post": ""
   }
  ]
 }
