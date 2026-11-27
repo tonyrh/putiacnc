@@ -180,6 +180,10 @@ pub struct Relief {
     pub y: f64,
     /// Scale applied to the model's X and Y size.
     pub scale: f64,
+    /// A picture: its tones go on past its border (the surroundings repeat the border's heights), so the border is not a wall.
+    /// A model keeps its surroundings at the base, because its empty cells really are empty.
+    #[serde(default)]
+    pub edge: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

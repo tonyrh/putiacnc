@@ -199,7 +199,7 @@ impl Relief {
             } }
         }
         let bytes: Vec<u8> = g.iter().flat_map(|&z| ((z as f64 / zmax * 65535.0).round().clamp(0.0, 65535.0) as u16).to_le_bytes()).collect();
-        Ok(Relief { name: name.into(), nx, ny, res, zmax, hm: b64_encode(&bytes), x: 0.0, y: 0.0, scale: 1.0 })
+        Ok(Relief { name: name.into(), nx, ny, res, zmax, hm: b64_encode(&bytes), x: 0.0, y: 0.0, scale: 1.0, edge: false })
     }
 
     /// Like `from_stl`, with the resolution chosen so the height map has about `max_cells` cells (never finer than 0.25 mm).
@@ -252,7 +252,7 @@ impl Relief {
         if let Some(m) = bg { let a = p.lighten_bg.clamp(0.0, 1.0) as f32; for (x, m) in g.iter_mut().zip(m) { *x += (1.0 - *x) * m * a; } }
         let top = g.iter().cloned().fold(0.0f32, f32::max).max(1e-6);
         let bytes: Vec<u8> = g.iter().flat_map(|&z| (((z / top) as f64 * 65535.0).round().clamp(0.0, 65535.0) as u16).to_le_bytes()).collect();
-        Ok(Relief { name: name.into(), nx, ny, res, zmax: p.zmax, hm: b64_encode(&bytes), x: 0.0, y: 0.0, scale: 1.0 })
+        Ok(Relief { name: name.into(), nx, ny, res, zmax: p.zmax, hm: b64_encode(&bytes), x: 0.0, y: 0.0, scale: 1.0, edge: true })
     }
 
     /// Model size on the stock, mm.
@@ -419,6 +419,14 @@ impl Field {
         for j in 0..rel.ny { for i in 0..rel.nx {
             z[(j + pad) * nx + i + pad] = base + h[j * rel.nx + i] * depth as f32;
         } }
+        // a picture goes on past its border at the border's heights: with the base there instead, a light border (a white background) would stand
+        // as a wall over the whole rectangle of the picture, and the tool would cut a trench around it
+        if rel.edge {
+            for j in 0..ny { for i in 0..nx {
+                let (si, sj) = ((i as i64 - pad as i64).clamp(0, rel.nx as i64 - 1) as usize, (j as i64 - pad as i64).clamp(0, rel.ny as i64 - 1) as usize);
+                z[j * nx + i] = base + h[sj * rel.nx + si] * depth as f32;
+            } }
+        }
         Field { ox: rel.x + 0.5 * g - pad as f64 * g, oy: rel.y + 0.5 * g - pad as f64 * g, g, nx, ny, pad, z, base }
     }
     pub fn at(&self, i: i64, j: i64) -> f32 {
@@ -905,6 +913,29 @@ mod tests {
         assert!((f.tip(0, 0, &fp, 0.0) + 10.0).abs() < 1e-3);
         let lines = finish_lines(&f, &fp, 2, 2, 0.01);
         assert!(!lines.is_empty() && lines.iter().all(|l| l.len() >= 2));
+    }
+
+    #[test]
+    fn a_picture_goes_on_past_its_border_and_a_model_does_not() {
+        // a light picture (a white background) with a dark spot: its border is at the top height
+        let b = png(40, 40, |x, y| if (15..25).contains(&x) && (15..25).contains(&y) { 0 } else { 255 });
+        let p = PicParams { width_mm: 20.0, zmax: 3.0, smooth_mm: 0.0, levels: false, ..Default::default() };
+        let r = Relief::from_picture(&b, "spot", &p, 600).unwrap();
+        assert!(r.edge);
+        let f = Field::new(&r, 3.0, 4.0);
+        // all around the picture it is at the top, not at the base: no wall stands at the border and no trench is cut around the picture
+        for (i, j) in [(0, 0), (f.nx - 1, f.ny - 1), (0, f.ny / 2), (f.nx / 2, 0), (f.pad - 1, f.pad - 1)] {
+            assert!(f.z[j * f.nx + i].abs() < 1e-4, "cell {i},{j}: {}", f.z[j * f.nx + i]);
+        }
+        assert!(f.at(f.nx as i64 / 2, f.ny as i64 / 2) < -2.9, "the spot is still deep");
+        // so the finishing lines begin and end at the top, past the picture's border
+        let fp = Footprint::new(f.g, 1.0, |rho| 1.0 - (1.0f64 - rho * rho).max(0.0).sqrt());
+        let lines = finish_lines(&f, &fp, 4, 2, 0.01);
+        assert!(lines.iter().all(|l| l[0][2] > -1e-3 && l[l.len() - 1][2] > -1e-3));
+        // a model keeps the base around it
+        let m = Relief::from_stl(&pyramid_stl(), "pyramid", 0.5).unwrap();
+        assert!(!m.edge);
+        assert!((Field::new(&m, 10.0, 3.0).at(0, 0) + 10.0).abs() < 1e-3);
     }
 
     #[test]
