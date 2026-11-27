@@ -11,7 +11,7 @@ fn project() -> ProjectData {
     let (nx, ny) = (240usize, 160usize);
     let mut b = Vec::new();
     for _ in 0..ny { for i in 0..nx { b.extend(((65535 - i * 65535 / (nx - 1)) as u16).to_le_bytes()); } }
-    d.relief = Some(Relief { name: "gradient".into(), nx, ny, res: 0.25, zmax: 3.0, hm: b64(&b), x: 20.0, y: 30.0, scale: 1.0 });
+    d.relief = Some(Relief { name: "gradient".into(), nx, ny, res: 0.25, zmax: 3.0, hm: b64(&b), x: 20.0, y: 30.0, scale: 1.0, edge: false });
     shapes::add_operation(d, &Default::default(), "photo").unwrap();
     d.clone()
 }

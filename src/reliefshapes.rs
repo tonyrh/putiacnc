@@ -151,7 +151,7 @@ pub fn from_shapes(loops: &[&LoopData], p: &Params, name: &str) -> Result<Relief
         }
     }
     let bytes: Vec<u8> = z.iter().flat_map(|&v| ((v as f64 / p.height * 65535.0).round().clamp(0.0, 65535.0) as u16).to_le_bytes()).collect();
-    Ok(Relief { name: name.into(), nx, ny, res, zmax: p.height, hm: crate::relief::b64_encode(&bytes), x: x0, y: y0, scale: 1.0 })
+    Ok(Relief { name: name.into(), nx, ny, res, zmax: p.height, hm: crate::relief::b64_encode(&bytes), x: x0, y: y0, scale: 1.0, edge: false })
 }
 
 #[cfg(test)]

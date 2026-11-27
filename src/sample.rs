@@ -188,7 +188,7 @@ pub fn fill_relief(d: &mut ProjectData, inches: bool) -> Result<(), String> {
     let zmax = floor_to((d.stock.t * 0.5).clamp(small * 2.0, if inches { 6.35 } else { 6.0 }), small).max(small);
     let mut bytes = Vec::with_capacity(n * n * 2);
     for v in rosette(n) { bytes.extend(v.to_le_bytes()); }
-    d.relief = Some(crate::model::Relief { name: "Rosette".into(), nx: n, ny: n, res: s / n as f64, zmax, hm: crate::relief::b64_encode(&bytes), x: (d.stock.w - s) / 2.0, y: (d.stock.h - s) / 2.0, scale: 1.0 });
+    d.relief = Some(crate::model::Relief { name: "Rosette".into(), nx: n, ny: n, res: s / n as f64, zmax, hm: crate::relief::b64_encode(&bytes), x: (d.stock.w - s) / 2.0, y: (d.stock.h - s) / 2.0, scale: 1.0, edge: false });
     let u = |mm: f64| if inches { format!("{} in", (mm / 25.4 * 1000.0).round() / 1000.0) } else { format!("{} mm", (mm * 100.0).round() / 100.0) };
     d.ops.clear(); d.loops.clear(); d.groups.clear();
     let mut p = shapes::default_op_params(&ball.id);

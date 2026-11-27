@@ -190,7 +190,7 @@ mod tests {
         let (nx, ny) = (40usize, 20usize);
         let mut b = Vec::new();
         for _ in 0..ny { for i in 0..nx { b.extend((if i < nx / 2 { 65535u16 } else { 0u16 }).to_le_bytes()); } }
-        Relief { name: "t".into(), nx, ny, res: 0.5, zmax: 3.0, hm: crate::relief::b64_encode(&b), x: 10.0, y: 5.0, scale: 1.0 }
+        Relief { name: "t".into(), nx, ny, res: 0.5, zmax: 3.0, hm: crate::relief::b64_encode(&b), x: 10.0, y: 5.0, scale: 1.0, edge: false }
     }
 
     #[test]
@@ -248,7 +248,7 @@ mod tests {
                 b.extend((if dark { dark_tone } else { 65535u16 }).to_le_bytes());
             }
         }
-        Relief { name: "t".into(), nx, ny, res: 0.2, zmax: 1.0, hm: crate::relief::b64_encode(&b), x: 0.0, y: 0.0, scale: 1.0 }
+        Relief { name: "t".into(), nx, ny, res: 0.2, zmax: 1.0, hm: crate::relief::b64_encode(&b), x: 0.0, y: 0.0, scale: 1.0, edge: false }
     }
 
     #[test]
