@@ -512,6 +512,30 @@ pub fn finish_lines(f: &Field, fp: &Footprint, margin: usize, step_cells: usize,
     }).collect()
 }
 
+/// A finishing line cut into the stretches that really cut. Where the tool tip stays within `eps` of the top (z = 0: the light parts of a
+/// picture, the margin around it) there is nothing to cut, and running along there only costs time. Each run keeps one point of the top
+/// on each side, to come down from and go up to, and says whether it starts at the line's first point and whether it ends at its last
+/// (so the machine can go on to the next line without lifting).
+pub fn cut_runs(line: &[[f64; 3]], eps: f64) -> Vec<(Vec<[f64; 3]>, bool, bool)> {
+    let n = line.len();
+    let low: Vec<bool> = line.iter().map(|p| p[2] < -eps).collect();
+    let mut runs = Vec::new();
+    let mut k = 0;
+    while k < n {
+        if !low[k] { k += 1; continue; }
+        let mut e = k;
+        loop {
+            while e + 1 < n && low[e + 1] { e += 1; }
+            // a single point at the top between two low stretches is not worth a lift
+            if e + 2 < n && low[e + 2] { e += 2; } else { break; }
+        }
+        let (a, b) = (k.saturating_sub(1), (e + 1).min(n - 1));
+        runs.push((line[a..=b].to_vec(), a == 0, b == n - 1));
+        k = e + 1;
+    }
+    runs
+}
+
 /// Where a finishing ball leaves material it could not reach (a groove narrower than the ball, the tip of a needle, an inside corner):
 /// for each cell of the model, whether more than `tol` mm of material stays above the surface. The ball runs with its tip at the lowest
 /// height `tip` allows everywhere, so what is left at a point is the lowest of the ball's surfaces over it.
@@ -913,6 +937,25 @@ mod tests {
         assert!((f.tip(0, 0, &fp, 0.0) + 10.0).abs() < 1e-3);
         let lines = finish_lines(&f, &fp, 2, 2, 0.01);
         assert!(!lines.is_empty() && lines.iter().all(|l| l.len() >= 2));
+    }
+
+    #[test]
+    fn a_finishing_line_is_cut_where_it_cuts_nothing() {
+        let l = |zs: &[f64]| -> Vec<[f64; 3]> { zs.iter().enumerate().map(|(i, &z)| [i as f64, 0.0, z]).collect() };
+        // light, a dip, light: one run with a point of the top on each side
+        let r = cut_runs(&l(&[0.0, 0.0, -1.0, -2.0, 0.0, 0.0]), 0.02);
+        assert_eq!(r.len(), 1);
+        assert_eq!((r[0].0.len(), r[0].0[0][0], r[0].0[r[0].0.len() - 1][0]), (4, 1.0, 4.0));
+        assert!(!r[0].1 && !r[0].2);
+        // nothing to cut at all, or only a hair
+        assert!(cut_runs(&l(&[0.0, 0.0, 0.0]), 0.02).is_empty());
+        assert!(cut_runs(&l(&[0.0, -0.01, 0.0]), 0.02).is_empty());
+        // all low: the whole line, from its first point to its last
+        let r = cut_runs(&l(&[-1.0, -2.0, -1.0]), 0.02);
+        assert_eq!((r.len(), r[0].0.len(), r[0].1, r[0].2), (1, 3, true, true));
+        // two dips with light between: two runs; a single light point between them is not worth a lift
+        assert_eq!(cut_runs(&l(&[-1.0, 0.0, 0.0, 0.0, -1.0]), 0.02).len(), 2);
+        assert_eq!(cut_runs(&l(&[-1.0, 0.0, -1.0]), 0.02).len(), 1);
     }
 
     #[test]

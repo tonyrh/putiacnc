@@ -1566,29 +1566,41 @@ fn relief_op(e: &mut Em, ts: &mut ToolSt, notes: &mut Vec<String>, data: &Projec
             for l in ls.iter_mut() { for p in l.iter_mut() { *p = [p[1], p[0], p[2]]; } }
             sets.push(ls);
         }
-        nlines = sets.iter().map(|s| s.len()).sum();
         select_tool(e, ts, mach, tool, sz, &fnum(tool.dia), un);
         e.g.push(format!("(Operation {}: relief, finishing, {} {} {}, lines {} {} apart)", k + 1, fgeo.shape.label(), fnum(tool.dia), un, fnum(step as f64 * g), un));
         let mut count = 0usize;
         for (si, lines) in sets.iter().enumerate() {
             if si == 1 { e.g.push(format!("(Operation {}: relief, finishing, second direction)", k + 1)); }
+            // only the stretches that cut: the light parts of a picture and the margin around it are left alone, with a lift between the pieces
+            let (mut first, mut at_end, mut prev_li) = (true, false, 0usize);
             for (li, line) in lines.iter().enumerate() {
                 let pts: Vec<[f64; 3]> = if li % 2 == 1 { line.iter().rev().copied().collect() } else { line.clone() };
-                count += 1;
-                e.pn = layers + count;
-                let a = pts[0];
-                if li == 0 {
-                    // the first line of a direction: up, across to its start, down (the end of the last line is far away)
-                    e.go("G0", None, None, Some(if si == 0 { sz } else { z0 + hop }), 0.0);
-                    e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
-                    e.go("G0", None, None, Some(z0 + hop), 0.0);
-                    e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
-                } else {
-                    e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + a[2]), tool.feed);
+                for (run, from_start, to_end) in crate::relief::cut_runs(&pts, 0.02) {
+                    count += 1;
+                    e.pn = layers + count;
+                    let a = run[0];
+                    if first {
+                        // the first run of a direction: up, across to its start, down (the end of the last line is far away)
+                        e.go("G0", None, None, Some(if si == 0 { sz } else { z0 + hop }), 0.0);
+                        e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+                        e.go("G0", None, None, Some(z0 + hop), 0.0);
+                        e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
+                    } else if at_end && from_start && prev_li + 1 == li {
+                        // from the end of one line to the start of the next, without lifting
+                        e.go("G1", Some(a[0]), Some(a[1]), Some(z0 + a[2]), tool.feed);
+                    } else {
+                        e.go("G0", None, None, Some(z0 + hop), 0.0);
+                        e.go("G0", Some(a[0]), Some(a[1]), None, 0.0);
+                        e.go("G1", None, None, Some(z0 + a[2]), tool.plunge);
+                    }
+                    first = false;
+                    at_end = to_end;
+                    prev_li = li;
+                    for p in &run[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), tool.feed); }
                 }
-                for p in &pts[1..] { e.go("G1", Some(p[0]), Some(p[1]), Some(z0 + p[2]), tool.feed); }
             }
         }
+        nlines = count;
         e.go("G0", None, None, Some(sz), 0.0);
         if dir == "xy" { notes.push(tr_f("{pre}finishing in both directions takes twice as long; the second pass evens out the ridges the first one leaves between its lines.", &[("pre", &pre)])); }
         if tool.shape == "flat" { notes.push(tr_f("{pre}a flat end mill as the finishing tool leaves a stepped surface; use a ball nose.", &[("pre", &pre)])); }

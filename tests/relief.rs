@@ -58,6 +58,49 @@ fn relief_is_carved_to_the_surface_without_gouging() {
     }
 }
 
+/// A light picture with one small dark spot, carved with a ball nose (no roughing tool).
+fn spot_project() -> putiacnc_core::ProjectData {
+    use image::ImageEncoder;
+    let mut px = Vec::new();
+    for y in 0..40u32 { for x in 0..40u32 { let v: u8 = if (12..28).contains(&x) && (12..28).contains(&y) { 0 } else { 255 }; px.extend([v, v, v]); } }
+    let mut bytes = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut bytes).write_image(&px, 40, 40, image::ExtendedColorType::Rgb8).unwrap();
+    let pp = putiacnc_core::relief::PicParams { width_mm: 20.0, zmax: 3.0, smooth_mm: 0.0, levels: false, ..Default::default() };
+    let mut f = shapes::blank_project();
+    let d = &mut f.data;
+    d.stock.w = 40.0; d.stock.h = 40.0; d.stock.t = 12.0;
+    let mut rel = Relief::from_picture(&bytes, "spot", &pp, 600).unwrap();
+    rel.x = 10.0; rel.y = 10.0;
+    d.relief = Some(rel);
+    let ball = d.tools.iter().find(|t| t.shape == "ball" && t.dia < 4.0).unwrap().id.clone();
+    let mut p = shapes::default_op_params(&ball);
+    p.kind = "relief".into();
+    p.depth = 3.0; p.d_man = true;
+    d.ops.push(Operation { id: 1, p });
+    d.oid = 1; d.act = 1;
+    f.data
+}
+
+#[test]
+fn finishing_leaves_the_light_parts_of_a_picture_alone() {
+    let d = spot_project();
+    let out = generate(&d, Units::Metric).unwrap();
+    let cuts: Vec<_> = out.moves.iter().filter(|m| m.cut).collect();
+    assert!(cuts.iter().any(|m| m.to[2] < -2.0), "the spot is carved");
+    // the spot is at 16 to 24 mm; nothing is cut anywhere else (a ball nose reaches a little past it), and no long run goes along the top
+    for m in &cuts {
+        for p in [m.from, m.to] { assert!((13.0..=27.0).contains(&p[0]) && (13.0..=27.0).contains(&p[1]), "cut at {p:?}"); }
+        let len = ((m.to[0] - m.from[0]).powi(2) + (m.to[1] - m.from[1]).powi(2)).sqrt();
+        assert!(!(m.from[2] > -0.03 && m.to[2] > -0.03 && len > 1.0), "a pass along the top: {:?} to {:?}", m.from, m.to);
+    }
+    // and it still replays to the same surface
+    let mut s = Sim::new(&d, 160_000);
+    s.advance(&out.moves, out.moves.len());
+    let (ix, iy) = ((20.0 / s.cell) as usize, (20.0 / s.cell) as usize);
+    assert!(s.at(ix, iy) < -2.5, "the spot is deep: {}", s.at(ix, iy));
+    assert!(s.at((12.0 / s.cell) as usize, (12.0 / s.cell) as usize) > -0.1, "the light part is untouched");
+}
+
 #[test]
 fn relief_needs_a_model() {
     let mut d = project(true);
